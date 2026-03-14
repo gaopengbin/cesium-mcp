@@ -90,7 +90,7 @@ npx cesium-mcp-runtime
 
 ## 演示
 
-![Demo](examples/video/demo.gif)
+<img src="examples/video/demo.gif" width="100%" alt="Demo">
 
 ## 示例
 

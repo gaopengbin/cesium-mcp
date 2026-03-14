@@ -90,7 +90,7 @@ Now ask your AI: *"Fly to the Eiffel Tower and add a red marker"*
 
 ## Demo
 
-![Demo](examples/video/demo.gif)
+<img src="examples/video/demo.gif" width="100%" alt="Demo">
 
 ## Examples
 
