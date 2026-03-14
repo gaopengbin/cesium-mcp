@@ -45,6 +45,10 @@ features:
 
 <div class="home-content">
 
+## Demo
+
+<video src="https://raw.githubusercontent.com/gaopengbin/cesium-mcp/main/examples/video/demo.mp4" controls width="100%" style="border-radius: 8px; margin: 1rem 0;"></video>
+
 ## Architecture
 
 ```

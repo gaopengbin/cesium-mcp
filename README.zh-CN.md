@@ -88,6 +88,10 @@ npx cesium-mcp-runtime
 | 查询 | `coord_pick`, `feature_query`, `spatial_query` |
 | 分析 | `viewshed_analysis` |
 
+## 演示
+
+<video src="examples/video/demo.mp4" controls width="100%"></video>
+
 ## 示例
 
 查看 [examples/minimal/](examples/minimal/) 获取包含全部 19 个命令的完整工作示例。

@@ -88,6 +88,10 @@ Now ask your AI: *"Fly to the Eiffel Tower and add a red marker"*
 | Query | `coord_pick`, `feature_query`, `spatial_query` |
 | Analysis | `viewshed_analysis` |
 
+## Demo
+
+<video src="examples/video/demo.mp4" controls width="100%"></video>
+
 ## Examples
 
 See [examples/minimal/](examples/minimal/) for a complete working demo with all 19 commands.

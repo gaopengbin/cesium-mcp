@@ -163,12 +163,26 @@
     }
     .toggle-btn:hover { color: var(--fg); border-color: var(--border-hover); background: var(--bg-popover); }
     .toggle-btn.active { color: var(--accent); border-color: var(--accent); }
+
+    /* Panel toggle */
+    .panel-toggle {
+      position: absolute; top: 50%; right: 0; z-index: 20;
+      transform: translateY(-50%);
+      width: 24px; height: 48px; cursor: pointer;
+      background: var(--bg-card); border: 1px solid var(--border); border-right: none;
+      border-radius: 6px 0 0 6px; display: flex; align-items: center; justify-content: center;
+      color: var(--fg-dim); font-size: 12px; transition: all 0.2s;
+    }
+    .panel-toggle:hover { color: var(--fg); background: var(--bg-popover); }
+    .panel.collapsed { width: 0; min-width: 0; overflow: hidden; border-left: none; }
+    body.panel-hidden .panel { width: 0; min-width: 0; overflow: hidden; border-left: none; }
   </style>
 </head>
 <body>
 
 <div style="position:relative; flex:1; min-width:0;">
   <div id="cesiumContainer"></div>
+  <button class="panel-toggle" id="panelToggle" onclick="togglePanel()" title="Toggle Panel">&#9664;</button>
   <div class="coord-bar" id="coordBar">--</div>
   <div id="screenshotPreview">
     <img id="ssImg">
@@ -438,6 +452,11 @@
     document.documentElement.setAttribute('data-theme', currentTheme)
     document.getElementById('themeBtn').innerHTML = currentTheme === 'dark' ? '&#9789;' : '&#9788;'
   }
+  function togglePanel() {
+    document.body.classList.toggle('panel-hidden')
+    document.getElementById('panelToggle').innerHTML = document.body.classList.contains('panel-hidden') ? '&#9654;' : '&#9664;'
+    setTimeout(function() { if (window.viewer) viewer.resize() }, 300)
+  }
   // ========== 配置 ==========
   const RUNTIME_WS_URL = 'ws://localhost:9100'
   const SESSION_ID = 'demo'
@@ -529,10 +548,11 @@
         }
 
         case 'addMarker': {
+          const markerId = params.id || `marker_${Date.now()}`
           const entity = viewer.entities.add({
-            id: params.id,
+            id: markerId,
             position: Cesium.Cartesian3.fromDegrees(params.longitude, params.latitude, params.height || 0),
-            point: { pixelSize: 12, color: Cesium.Color.fromCssColorString(params.color || '#ef4444'), outlineColor: Cesium.Color.WHITE, outlineWidth: 2, heightReference: Cesium.HeightReference.CLAMP_TO_GROUND },
+            point: { pixelSize: params.size || 12, color: Cesium.Color.fromCssColorString(params.color || '#ef4444'), outlineColor: Cesium.Color.WHITE, outlineWidth: 2, heightReference: Cesium.HeightReference.CLAMP_TO_GROUND },
             label: params.label ? {
               text: params.label,
               font: '13px sans-serif',
@@ -543,10 +563,10 @@
               heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
             } : undefined,
           })
-          this._layers[params.id] = { type: 'marker', entity }
-          log(`marker [${params.id}] ${params.label || ''} added`, 'ok')
+          this._layers[markerId] = { type: 'marker', entity }
+          log(`marker [${markerId}] ${params.label || ''} added`, 'ok')
           refreshLayers()
-          return { success: true }
+          return { success: true, layerId: markerId }
         }
 
         case 'addLabels': {
@@ -726,27 +746,63 @@
         }
 
         case 'updateLayerStyle': {
-          const layer = this._layers[params.id]
-          if (!layer?.dataSource) {
-            log(`layer [${params.id}] no dataSource, cannot update style`, 'err')
-            return { success: false }
+          const styleLayerId = params.layerId || params.id
+          const layer = this._layers[styleLayerId]
+          if (!layer) {
+            log(`layer [${styleLayerId}] not found`, 'err')
+            return { success: false, error: `layer ${styleLayerId} not found` }
           }
-          const entities = layer.dataSource.entities.values
-          for (const entity of entities) {
-            if (entity.point) {
-              if (params.markerColor) entity.point.color = Cesium.Color.fromCssColorString(params.markerColor)
-              if (params.markerSize) entity.point.pixelSize = params.markerSize
+          // Flatten labelStyle / layerStyle into top-level for unified handling
+          const ls = params.labelStyle || {}
+          const gs = params.layerStyle || {}
+          const fillColor = params.fillColor || ls.fillColor || gs.color
+          const strokeColor = params.strokeColor || gs.strokeColor
+          const strokeWidth = params.strokeWidth || gs.strokeWidth
+          const markerColor = params.markerColor || gs.color
+          const markerSize = params.markerSize || gs.pointSize
+          const font = ls.font
+          const outlineColor = ls.outlineColor
+          const outlineWidth = ls.outlineWidth
+
+          // Handle single entity (marker)
+          if (layer.entity) {
+            const e = layer.entity
+            if (e.point) {
+              if (markerColor) e.point.color = Cesium.Color.fromCssColorString(markerColor)
+              if (markerSize) e.point.pixelSize = markerSize
             }
-            if (entity.polygon) {
-              if (params.fillColor) entity.polygon.material = Cesium.Color.fromCssColorString(params.fillColor)
-              if (params.strokeColor) entity.polygon.outlineColor = Cesium.Color.fromCssColorString(params.strokeColor)
-            }
-            if (entity.polyline) {
-              if (params.strokeColor) entity.polyline.material = Cesium.Color.fromCssColorString(params.strokeColor)
-              if (params.strokeWidth) entity.polyline.width = params.strokeWidth
+            if (e.label) {
+              if (fillColor) e.label.fillColor = Cesium.Color.fromCssColorString(fillColor)
+              if (font) e.label.font = font
+              if (outlineColor) e.label.outlineColor = Cesium.Color.fromCssColorString(outlineColor)
+              if (outlineWidth) e.label.outlineWidth = outlineWidth
             }
           }
-          log(`layer [${params.id}] style updated`, 'ok')
+          // Handle dataSource entities (geojson, labels, etc.)
+          if (layer.dataSource) {
+            const entities = layer.dataSource.entities.values
+            for (const entity of entities) {
+              if (entity.point) {
+                if (markerColor) entity.point.color = Cesium.Color.fromCssColorString(markerColor)
+                if (markerSize) entity.point.pixelSize = markerSize
+              }
+              if (entity.label) {
+                if (fillColor) entity.label.fillColor = Cesium.Color.fromCssColorString(fillColor)
+                if (font) entity.label.font = font
+                if (outlineColor) entity.label.outlineColor = Cesium.Color.fromCssColorString(outlineColor)
+                if (outlineWidth) entity.label.outlineWidth = outlineWidth
+              }
+              if (entity.polygon) {
+                if (fillColor) entity.polygon.material = Cesium.Color.fromCssColorString(fillColor)
+                if (strokeColor) entity.polygon.outlineColor = Cesium.Color.fromCssColorString(strokeColor)
+              }
+              if (entity.polyline) {
+                if (strokeColor) entity.polyline.material = Cesium.Color.fromCssColorString(strokeColor)
+                if (strokeWidth) entity.polyline.width = strokeWidth
+              }
+            }
+          }
+          log(`layer [${styleLayerId}] style updated`, 'ok')
           return { success: true }
         }
 

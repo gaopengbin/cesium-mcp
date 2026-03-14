@@ -371,13 +371,14 @@ server.tool(
 // — addMarker
 server.tool(
   'addMarker',
-  '在指定经纬度添加标注点',
+  '在指定经纬度添加标注点，返回 layerId 供后续操作',
   {
     longitude: z.number().describe('经度（-180 ~ 180）'),
     latitude: z.number().describe('纬度（-90 ~ 90）'),
     label: z.string().optional().describe('标注文本'),
     color: z.string().optional().default('#3B82F6').describe('标注颜色（CSS 格式）'),
     size: z.number().optional().default(12).describe('点大小（像素）'),
+    id: z.string().optional().describe('自定义图层ID（不传则自动生成）'),
   },
   async (params) => {
     const result = await sendToBrowser('addMarker', params)
