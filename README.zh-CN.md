@@ -90,7 +90,7 @@ npx cesium-mcp-runtime
 
 ## 演示
 
-<img src="examples/video/demo.gif" width="100%" alt="Demo">
+https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 
 ## 示例
 
