@@ -356,11 +356,14 @@ server.tool(
   'zoomToExtent',
   '缩放到指定地理范围',
   {
-    bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]).describe('边界框 [west, south, east, north]（度）'),
+    west: z.number().describe('西边界经度（度）'),
+    south: z.number().describe('南边界纬度（度）'),
+    east: z.number().describe('东边界经度（度）'),
+    north: z.number().describe('北边界纬度（度）'),
     duration: z.number().optional().default(2).describe('动画时长（秒）'),
   },
   async (params) => {
-    const result = await sendToBrowser('zoomToExtent', params)
+    const result = await sendToBrowser('zoomToExtent', { bbox: [params.west, params.south, params.east, params.north], duration: params.duration })
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
   },
 )

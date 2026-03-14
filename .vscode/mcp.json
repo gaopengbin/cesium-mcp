@@ -1,0 +1,22 @@
+{
+  "servers": {
+    "cesium-mcp": {
+      "command": "node",
+      "args": [
+        "packages/cesium-mcp-runtime/dist/index.js"
+      ],
+      "type": "stdio"
+    },
+    "cesium-mcp-dev": {
+      "command": "node",
+      "args": [
+        "packages/cesium-mcp-dev/dist/index.js"
+      ],
+      "type": "stdio"
+    },
+    "copilot-enhance-3213": {
+      "type": "http",
+      "url": "http://127.0.0.1:3213/mcp"
+    }
+  }
+}
