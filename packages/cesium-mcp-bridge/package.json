@@ -34,10 +34,14 @@
   "keywords": [
     "cesium",
     "mcp",
+    "model-context-protocol",
     "gis",
     "ai-agent",
-    "3d-map",
-    "bridge"
+    "3d-visualization",
+    "bridge",
+    "websocket",
+    "cesiumjs",
+    "geospatial"
   ],
   "repository": {
     "type": "git",

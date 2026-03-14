@@ -37,6 +37,18 @@
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   },
+  "keywords": [
+    "cesium",
+    "mcp",
+    "model-context-protocol",
+    "gis",
+    "ai-agent",
+    "3d-visualization",
+    "geospatial",
+    "natural-language",
+    "spatial-analysis",
+    "cesiumjs"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/gaopengbin/cesium-mcp.git",
