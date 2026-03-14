@@ -1,5 +1,7 @@
 # cesium-mcp
 
+**English** | [中文](README.zh-CN.md)
+
 MCP ([Model Context Protocol](https://modelcontextprotocol.io/)) integration for [CesiumJS](https://cesium.com/) — let AI agents control a 3D globe through natural language.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)

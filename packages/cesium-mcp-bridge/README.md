@@ -1,5 +1,7 @@
 # cesium-mcp-bridge
 
+**English** | [中文](README.zh-CN.md)
+
 > Unified execution layer for AI Agents to control Cesium 3D maps in the browser.
 
 [![npm version](https://img.shields.io/npm/v/cesium-mcp-bridge.svg)](https://www.npmjs.com/package/cesium-mcp-bridge)

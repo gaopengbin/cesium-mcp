@@ -1,5 +1,7 @@
 # cesium-mcp-runtime
 
+**English** | [中文](README.zh-CN.md)
+
 > MCP Server that enables AI Agents to control a Cesium globe in real-time via the Model Context Protocol.
 
 [![npm version](https://img.shields.io/npm/v/cesium-mcp-runtime.svg)](https://www.npmjs.com/package/cesium-mcp-runtime)

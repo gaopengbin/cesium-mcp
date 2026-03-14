@@ -1,5 +1,7 @@
 # cesium-mcp-dev
 
+**English** | [中文](README.zh-CN.md)
+
 > MCP Server for IDE AI assistants -- Cesium API documentation, code generation, and Entity builder.
 
 [![npm version](https://img.shields.io/npm/v/cesium-mcp-dev.svg)](https://www.npmjs.com/package/cesium-mcp-dev)
