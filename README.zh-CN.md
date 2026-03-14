@@ -4,7 +4,7 @@
 
 MCP ([模型上下文协议](https://modelcontextprotocol.io/)) 与 [CesiumJS](https://cesium.com/) 的集成 — 让 AI 智能体通过自然语言操控三维地球。
 
-🌐 **网站**: [gaopengbin.github.io/cesium-mcp](https://gaopengbin.github.io/cesium-mcp/)
+**网站**: [gaopengbin.github.io/cesium-mcp](https://gaopengbin.github.io/cesium-mcp/)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml)

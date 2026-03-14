@@ -1,0 +1,161 @@
+/* ── Brand Colors ── */
+:root {
+  --vp-c-brand-1: #4FC3F7;
+  --vp-c-brand-2: #29B6F6;
+  --vp-c-brand-3: #0288D1;
+  --vp-c-brand-soft: rgba(79, 195, 247, 0.12);
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(135deg, #4FC3F7 10%, #0288D1 100%);
+  --vp-home-hero-image-background-image: linear-gradient(135deg, rgba(79, 195, 247, 0.2) 10%, rgba(2, 136, 209, 0.2) 100%);
+  --vp-home-hero-image-filter: blur(56px);
+}
+
+.dark {
+  --vp-c-brand-1: #4FC3F7;
+  --vp-c-brand-2: #29B6F6;
+  --vp-c-brand-3: #81D4FA;
+  --vp-c-brand-soft: rgba(79, 195, 247, 0.16);
+}
+
+/* ── Hero Section ── */
+.VPHero .name {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.VPHero .text {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.VPHero .tagline {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--vp-c-text-2);
+  max-width: 560px;
+}
+
+.VPHero .image-container {
+  transform: scale(1.1);
+  transition: transform 0.4s ease;
+}
+
+.VPHero .image-container:hover {
+  transform: scale(1.15);
+}
+
+/* ── Feature Cards ── */
+.VPFeatures .VPFeature {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  background: var(--vp-c-bg-soft);
+}
+
+.VPFeatures .VPFeature:hover {
+  border-color: var(--vp-c-brand-1);
+  box-shadow: 0 4px 24px rgba(79, 195, 247, 0.08);
+  transform: translateY(-2px);
+}
+
+.VPFeatures .VPFeature .icon {
+  background: transparent !important;
+}
+
+.VPFeatures .VPFeature .title {
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.VPFeatures .VPFeature .details {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--vp-c-text-2);
+}
+
+/* ── Home Content (below features) ── */
+.home-content {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+
+.home-content h2 {
+  font-weight: 700;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+  border-bottom: 1px solid var(--vp-c-divider);
+  padding-bottom: 12px;
+  margin-bottom: 24px;
+}
+
+.home-content .steps p {
+  padding-left: 24px;
+  margin-bottom: 12px;
+  position: relative;
+  color: var(--vp-c-text-2);
+  line-height: 1.7;
+}
+
+.home-content .steps p strong {
+  color: var(--vp-c-brand-1);
+  font-weight: 700;
+  position: absolute;
+  left: 0;
+}
+
+.home-content table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.home-content table th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--vp-c-text-3);
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--vp-c-divider);
+}
+
+.home-content table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--vp-c-divider);
+  font-size: 0.95rem;
+}
+
+.home-content table tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── Code Blocks ── */
+.home-content div[class*="language-"] {
+  border-radius: 8px;
+  border: 1px solid var(--vp-c-divider);
+}
+
+/* ── Nav ── */
+.VPNav .VPNavBarTitle .title {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ── Sidebar ── */
+.VPSidebar .group .title {
+  font-weight: 600;
+}
+
+/* ── Button styling ── */
+.VPButton.brand {
+  border-radius: 8px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.VPButton.alt {
+  border-radius: 8px;
+}
