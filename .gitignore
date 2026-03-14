@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.tgz
+.turbo/
+coverage/
+.env
+.DS_Store
+Thumbs.db

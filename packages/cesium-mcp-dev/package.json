@@ -1,0 +1,43 @@
+{
+  "name": "cesium-mcp-dev",
+  "version": "1.139.0",
+  "description": "Cesium MCP for Development — IDE AI 助手的 Cesium API 文档查询与代码生成",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "cesium-mcp-dev": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsup"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gaopengbin/cesium-mcp.git",
+    "directory": "packages/cesium-mcp-dev"
+  },
+  "homepage": "https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-dev",
+  "license": "MIT"
+}

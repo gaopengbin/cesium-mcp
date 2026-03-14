@@ -1,0 +1,47 @@
+{
+  "name": "cesium-mcp-runtime",
+  "version": "1.139.0",
+  "description": "Cesium MCP Runtime Server — AI Agent 通过 MCP 协议操控浏览器 Cesium",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "cesium-mcp-runtime": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "demo": "npx serve demo -l 3210 --no-clipboard",
+    "demo:server": "tsx src/demo-server.ts",
+    "build": "tsup"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "ws": "^8.16.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.5.10",
+    "tsup": "^8.5.1",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gaopengbin/cesium-mcp.git",
+    "directory": "packages/cesium-mcp-runtime"
+  },
+  "homepage": "https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-runtime",
+  "license": "MIT"
+}

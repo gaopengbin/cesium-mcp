@@ -1,0 +1,20 @@
+{
+  "name": "cesium-mcp",
+  "version": "1.139.0",
+  "private": true,
+  "description": "MCP (Model Context Protocol) integration for CesiumJS",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest",
+    "lint": "eslint packages/*/src/**/*.ts",
+    "clean": "rimraf packages/*/dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  },
+  "license": "MIT"
+}
