@@ -2,7 +2,7 @@
   "mcpServers": {
     "cesium-mcp": {
       "command": "node",
-      "args": ["packages/cesium-mcp-runtime/dist/index.js"]
+      "args": ["packages/cesium-mcp-runtime/dist/cli.js"]
     },
     "cesium-mcp-dev": {
       "command": "node",

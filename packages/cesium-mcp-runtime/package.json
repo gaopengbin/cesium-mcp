@@ -7,7 +7,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "cesium-mcp-runtime": "./dist/index.js"
+    "cesium-mcp-runtime": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -17,6 +17,7 @@
   },
   "files": [
     "dist",
+    "server.json",
     "README.md",
     "LICENSE"
   ],

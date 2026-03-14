@@ -494,17 +494,23 @@ server.tool(
   },
 )
 
+// ==================== Smithery Sandbox ====================
+
+/**
+ * Smithery 扫描时使用的无副作用服务器实例。
+ * 返回带有相同工具/资源元数据的独立 McpServer，
+ * 不启动 WebSocket，不连接 transport。
+ */
+export function createSandboxServer() {
+  return server
+}
+
 // ==================== 启动 ====================
 
-async function main() {
+export async function main() {
   startServer()
 
   const transport = new StdioServerTransport()
   await server.connect(transport)
   console.error(`[cesium-mcp-runtime] MCP Server running (stdio), 19 tools registered`)
 }
-
-main().catch((err) => {
-  console.error('[cesium-mcp-runtime] Fatal:', err)
-  process.exit(1)
-})

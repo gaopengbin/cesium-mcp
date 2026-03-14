@@ -3,7 +3,7 @@
     "cesium-mcp": {
       "command": "node",
       "args": [
-        "packages/cesium-mcp-runtime/dist/index.js"
+        "packages/cesium-mcp-runtime/dist/cli.js"
       ],
       "type": "stdio"
     },
