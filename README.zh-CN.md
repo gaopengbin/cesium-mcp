@@ -90,7 +90,7 @@ npx cesium-mcp-runtime
 
 ## 演示
 
-<video src="examples/video/demo.mp4" controls width="100%"></video>
+[观看演示视频](https://github.com/gaopengbin/cesium-mcp/blob/main/examples/video/demo.mp4)
 
 ## 示例
 
