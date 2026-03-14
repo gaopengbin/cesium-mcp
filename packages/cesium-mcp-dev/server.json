@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.gaopengbin/cesium-mcp-dev",
+  "description": "CesiumJS API docs, code generation and development tools for IDE AI assistants.",
+  "repository": {
+    "url": "https://github.com/gaopengbin/cesium-mcp",
+    "source": "github",
+    "subfolder": "packages/cesium-mcp-dev"
+  },
+  "version": "1.139.2",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "cesium-mcp-dev",
+      "version": "1.139.2",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
