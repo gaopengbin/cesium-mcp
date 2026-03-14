@@ -5,7 +5,7 @@ export default defineConfig({
   description: 'Let AI agents control a 3D globe through natural language',
   base: '/cesium-mcp/',
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/cesium-mcp/logo.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/cesium-mcp/favicon.svg' }],
   ],
   locales: {
     root: {
