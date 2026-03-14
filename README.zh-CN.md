@@ -1,16 +1,33 @@
-# cesium-mcp
+<div align="center">
+  <img src="docs/public/logo.svg" alt="Cesium MCP" width="120">
 
-[English](README.md) | **中文**
+  <h1>Cesium MCP</h1>
 
-MCP ([模型上下文协议](https://modelcontextprotocol.io/)) 与 [CesiumJS](https://cesium.com/) 的集成 — 让 AI 智能体通过自然语言操控三维地球。
+  <p><strong>通过模型上下文协议，用 AI 操控三维地球</strong></p>
 
-**网站**: [gaopengbin.github.io/cesium-mcp](https://gaopengbin.github.io/cesium-mcp/)
+  <p>将任何 MCP 兼容的 AI 智能体接入 <a href="https://cesium.com/">CesiumJS</a> — 相机、图层、实体、空间分析，全部通过自然语言完成。</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml)
-[![npm cesium-mcp-bridge](https://img.shields.io/npm/v/cesium-mcp-bridge?label=cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge)
-[![npm cesium-mcp-runtime](https://img.shields.io/npm/v/cesium-mcp-runtime?label=cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
-[![npm cesium-mcp-dev](https://img.shields.io/npm/v/cesium-mcp-dev?label=cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev)
+  <p>
+    <a href="https://gaopengbin.github.io/cesium-mcp/">官方网站</a> &middot;
+    <a href="README.md">English</a> &middot;
+    <a href="https://gaopengbin.github.io/cesium-mcp/zh-CN/guide/getting-started.html">快速入门</a> &middot;
+    <a href="https://gaopengbin.github.io/cesium-mcp/zh-CN/api/bridge.html">API 文档</a>
+  </p>
+
+  <p>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+    <a href="https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml"><img src="https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+    <a href="https://www.npmjs.com/package/cesium-mcp-bridge"><img src="https://img.shields.io/npm/v/cesium-mcp-bridge?label=bridge" alt="npm bridge"></a>
+    <a href="https://www.npmjs.com/package/cesium-mcp-runtime"><img src="https://img.shields.io/npm/v/cesium-mcp-runtime?label=runtime" alt="npm runtime"></a>
+    <a href="https://www.npmjs.com/package/cesium-mcp-dev"><img src="https://img.shields.io/npm/v/cesium-mcp-dev?label=dev" alt="npm dev"></a>
+  </p>
+</div>
+
+---
+
+## 演示
+
+https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 
 ## 包
 
@@ -88,10 +105,6 @@ npx cesium-mcp-runtime
 | 查询 | `coord_pick`, `feature_query`, `spatial_query` |
 | 分析 | `viewshed_analysis` |
 
-## 演示
-
-https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
-
 ## 示例
 
 查看 [examples/minimal/](examples/minimal/) 获取包含全部 19 个命令的完整工作示例。
@@ -111,4 +124,4 @@ npm run build
 
 ## 许可证
 
-MIT
+[MIT](LICENSE)

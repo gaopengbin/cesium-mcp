@@ -1,16 +1,33 @@
-# cesium-mcp
+<div align="center">
+  <img src="docs/public/logo.svg" alt="Cesium MCP" width="120">
 
-**English** | [中文](README.zh-CN.md)
+  <h1>Cesium MCP</h1>
 
-MCP ([Model Context Protocol](https://modelcontextprotocol.io/)) integration for [CesiumJS](https://cesium.com/) — let AI agents control a 3D globe through natural language.
+  <p><strong>AI-Powered 3D Globe Control via Model Context Protocol</strong></p>
 
-**Website**: [gaopengbin.github.io/cesium-mcp](https://gaopengbin.github.io/cesium-mcp/)
+  <p>Connect any MCP-compatible AI agent to <a href="https://cesium.com/">CesiumJS</a> — camera, layers, entities, spatial analysis, all through natural language.</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml)
-[![npm cesium-mcp-bridge](https://img.shields.io/npm/v/cesium-mcp-bridge?label=cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge)
-[![npm cesium-mcp-runtime](https://img.shields.io/npm/v/cesium-mcp-runtime?label=cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
-[![npm cesium-mcp-dev](https://img.shields.io/npm/v/cesium-mcp-dev?label=cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev)
+  <p>
+    <a href="https://gaopengbin.github.io/cesium-mcp/">Website</a> &middot;
+    <a href="README.zh-CN.md">中文</a> &middot;
+    <a href="https://gaopengbin.github.io/cesium-mcp/guide/getting-started.html">Getting Started</a> &middot;
+    <a href="https://gaopengbin.github.io/cesium-mcp/api/bridge.html">API Reference</a>
+  </p>
+
+  <p>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+    <a href="https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml"><img src="https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+    <a href="https://www.npmjs.com/package/cesium-mcp-bridge"><img src="https://img.shields.io/npm/v/cesium-mcp-bridge?label=bridge" alt="npm bridge"></a>
+    <a href="https://www.npmjs.com/package/cesium-mcp-runtime"><img src="https://img.shields.io/npm/v/cesium-mcp-runtime?label=runtime" alt="npm runtime"></a>
+    <a href="https://www.npmjs.com/package/cesium-mcp-dev"><img src="https://img.shields.io/npm/v/cesium-mcp-dev?label=dev" alt="npm dev"></a>
+  </p>
+</div>
+
+---
+
+## Demo
+
+https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 
 ## Packages
 
@@ -88,10 +105,6 @@ Now ask your AI: *"Fly to the Eiffel Tower and add a red marker"*
 | Query | `coord_pick`, `feature_query`, `spatial_query` |
 | Analysis | `viewshed_analysis` |
 
-## Demo
-
-https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
-
 ## Examples
 
 See [examples/minimal/](examples/minimal/) for a complete working demo with all 19 commands.
@@ -111,4 +124,4 @@ The major.minor version tracks CesiumJS (e.g. `1.139.x` targets Cesium `~1.139.0
 
 ## License
 
-MIT
+[MIT](LICENSE)
