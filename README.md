@@ -4,15 +4,21 @@
 
 MCP ([Model Context Protocol](https://modelcontextprotocol.io/)) integration for [CesiumJS](https://cesium.com/) — let AI agents control a 3D globe through natural language.
 
+🌐 **Website**: [gaopengbin.github.io/cesium-mcp](https://gaopengbin.github.io/cesium-mcp/)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml)
+[![npm cesium-mcp-bridge](https://img.shields.io/npm/v/cesium-mcp-bridge?label=cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge)
+[![npm cesium-mcp-runtime](https://img.shields.io/npm/v/cesium-mcp-runtime?label=cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
+[![npm cesium-mcp-dev](https://img.shields.io/npm/v/cesium-mcp-dev?label=cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev)
 
 ## Packages
 
 | Package | Description | npm |
 |---------|-------------|-----|
-| [cesium-mcp-bridge](packages/cesium-mcp-bridge/) | Browser SDK — embeds in your CesiumJS app, receives commands via WebSocket | `cesium-mcp-bridge` |
-| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP Server (stdio) — exposes 19 tools + 2 resources to any MCP client | `cesium-mcp-runtime` |
-| [cesium-mcp-dev](packages/cesium-mcp-dev/) | IDE MCP Server — CesiumJS API helper for coding assistants | `cesium-mcp-dev` |
+| [cesium-mcp-bridge](packages/cesium-mcp-bridge/) | Browser SDK — embeds in your CesiumJS app, receives commands via WebSocket | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) |
+| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP Server (stdio) — exposes 19 tools + 2 resources to any MCP client | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [cesium-mcp-dev](packages/cesium-mcp-dev/) | IDE MCP Server — CesiumJS API helper for coding assistants | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 ## Architecture
 

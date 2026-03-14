@@ -4,15 +4,21 @@
 
 MCP ([模型上下文协议](https://modelcontextprotocol.io/)) 与 [CesiumJS](https://cesium.com/) 的集成 — 让 AI 智能体通过自然语言操控三维地球。
 
+🌐 **网站**: [gaopengbin.github.io/cesium-mcp](https://gaopengbin.github.io/cesium-mcp/)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml)
+[![npm cesium-mcp-bridge](https://img.shields.io/npm/v/cesium-mcp-bridge?label=cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge)
+[![npm cesium-mcp-runtime](https://img.shields.io/npm/v/cesium-mcp-runtime?label=cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
+[![npm cesium-mcp-dev](https://img.shields.io/npm/v/cesium-mcp-dev?label=cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev)
 
 ## 包
 
 | 包名 | 描述 | npm |
 |------|------|-----|
-| [cesium-mcp-bridge](packages/cesium-mcp-bridge/) | 浏览器 SDK — 嵌入你的 CesiumJS 应用，通过 WebSocket 接收命令 | `cesium-mcp-bridge` |
-| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP 服务器 (stdio) — 为任何 MCP 客户端暴露 19 个工具 + 2 个资源 | `cesium-mcp-runtime` |
-| [cesium-mcp-dev](packages/cesium-mcp-dev/) | IDE MCP 服务器 — 为代码助手提供 CesiumJS API 辅助 | `cesium-mcp-dev` |
+| [cesium-mcp-bridge](packages/cesium-mcp-bridge/) | 浏览器 SDK — 嵌入你的 CesiumJS 应用，通过 WebSocket 接收命令 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) |
+| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP 服务器 (stdio) — 为任何 MCP 客户端暴露 19 个工具 + 2 个资源 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [cesium-mcp-dev](packages/cesium-mcp-dev/) | IDE MCP 服务器 — 为代码助手提供 CesiumJS API 辅助 | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 ## 架构
 

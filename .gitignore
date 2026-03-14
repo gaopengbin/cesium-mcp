@@ -6,3 +6,5 @@ coverage/
 .env
 .DS_Store
 Thumbs.db
+docs/.vitepress/dist/
+docs/.vitepress/cache/
