@@ -90,7 +90,9 @@ Now ask your AI: *"Fly to the Eiffel Tower and add a red marker"*
 
 ## Demo
 
-https://github.com/gaopengbin/cesium-mcp/raw/refs/heads/main/examples/video/demo.mp4
+[![Demo Video](examples/video/thumbnail.jpg)](https://github.com/gaopengbin/cesium-mcp/blob/main/examples/video/demo.mp4)
+
+*Click the image to watch the demo video*
 
 ## Examples
 
