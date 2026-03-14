@@ -1,6 +1,6 @@
 {
   "name": "cesium-mcp-dev",
-  "version": "1.139.0",
+  "version": "1.139.1",
   "description": "Cesium MCP for Development — IDE AI 助手的 Cesium API 文档查询与代码生成",
   "type": "module",
   "main": "./dist/index.js",
