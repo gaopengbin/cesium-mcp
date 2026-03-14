@@ -100,7 +100,7 @@ export function addMarker(viewer: Cesium.Viewer, params: AddMarkerParams): Cesiu
 // ==================== Helpers ====================
 
 /** 计算 GeoJSON Feature 的质心坐标 [lon, lat] */
-function computeFeatureCentroid(feature: any): [number, number] | null {
+export function computeFeatureCentroid(feature: any): [number, number] | null {
   const geom = feature?.geometry
   if (!geom) return null
   const type: string = geom.type ?? ''
@@ -129,7 +129,7 @@ function computeFeatureCentroid(feature: any): [number, number] | null {
   return null
 }
 
-function centroidOfCoords(coords: number[][]): [number, number] | null {
+export function centroidOfCoords(coords: number[][]): [number, number] | null {
   if (!coords?.length) return null
   let sumLon = 0
   let sumLat = 0

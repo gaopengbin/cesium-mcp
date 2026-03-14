@@ -626,7 +626,7 @@ function applyCategoryStyle(
   }
 }
 
-function detectGeometryType(geojson: Record<string, unknown>): string {
+export function detectGeometryType(geojson: Record<string, unknown>): string {
   const features = (geojson as any)?.features
   if (!features?.length) return '未知'
   const t: string = features[0]?.geometry?.type ?? ''
