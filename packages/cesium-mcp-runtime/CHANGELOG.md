@@ -1,5 +1,11 @@
 # cesium-mcp-runtime
 
+## 1.139.3
+
+### Patch Changes
+
+- feat: fuse CesiumGS official tools — 19 new commands (camera 4, entity-types 7, animation 8), 10 toolsets with dynamic discovery, CESIUM_TOOLSETS env var, comprehensive documentation update
+
 ## 1.139.1
 
 ### Patch Changes
