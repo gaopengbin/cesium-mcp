@@ -5,7 +5,10 @@
       "args": [
         "packages/cesium-mcp-runtime/dist/cli.js"
       ],
-      "type": "stdio"
+      "type": "stdio",
+      "env": {
+        "CESIUM_TOOLSETS": "all"
+      }
     },
     "cesium-mcp-dev": {
       "command": "node",

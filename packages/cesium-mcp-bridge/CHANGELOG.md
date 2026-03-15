@@ -1,5 +1,7 @@
 # cesium-mcp-bridge
 
+## 1.139.4
+
 ## 1.139.3
 
 ### Patch Changes

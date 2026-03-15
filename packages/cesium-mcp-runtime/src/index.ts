@@ -161,6 +161,14 @@ function startServer() {
     })
   })
 
+  httpServer.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[cesium-mcp-runtime] Port ${WS_PORT} already in use, WebSocket server disabled`)
+    } else {
+      console.error(`[cesium-mcp-runtime] HTTP server error:`, err.message)
+    }
+  })
+
   httpServer.listen(WS_PORT, () => {
     console.error(`[cesium-mcp-runtime] HTTP + WebSocket server on http://localhost:${WS_PORT}`)
     console.error(`[cesium-mcp-runtime] POST /api/command — 推送地图命令`)

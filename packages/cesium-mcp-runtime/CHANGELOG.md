@@ -1,5 +1,11 @@
 # cesium-mcp-runtime
 
+## 1.139.4
+
+### Patch Changes
+
+- fix: handle EADDRINUSE gracefully — prevent server crash when WebSocket port is already in use
+
 ## 1.139.3
 
 ### Patch Changes
