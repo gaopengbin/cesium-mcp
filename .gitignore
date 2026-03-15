@@ -8,6 +8,7 @@ coverage/
 Thumbs.db
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+docs/design/
 .mcpregistry_*
 mcp-publisher.exe
 
