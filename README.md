@@ -107,6 +107,8 @@ Tools are organized into **10 toolsets**. Default mode enables 4 core toolsets (
 | trajectory | `playTrajectory` |
 | heatmap | `addHeatmap` |
 
+> **Relationship with CesiumGS official MCP servers**: The `camera`, `entity-ext`, and `animation` toolsets natively fuse capabilities from [CesiumGS/cesium-mcp-server](https://github.com/CesiumGS/cesium-mcp-server) (Camera Server, Entity Server, Animation Server) into this project's unified bridge architecture. This means you get all official functionality plus additional tools — in a single MCP server, without running multiple processes.
+
 ## Examples
 
 See [examples/minimal/](examples/minimal/) for a complete working demo.

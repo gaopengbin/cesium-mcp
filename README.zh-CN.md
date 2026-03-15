@@ -107,6 +107,8 @@ npx cesium-mcp-runtime
 | trajectory | `playTrajectory` |
 | heatmap | `addHeatmap` |
 
+> **与 CesiumGS 官方 MCP 服务器的关系**：`camera`、`entity-ext` 和 `animation` 工具集原生融合了 [CesiumGS/cesium-mcp-server](https://github.com/CesiumGS/cesium-mcp-server)（Camera Server、Entity Server、Animation Server）的能力到本项目的统一 Bridge 架构中。一个 MCP 服务器即可获得全部官方功能加更多工具，无需运行多个进程。
+
 ## 示例
 
 查看 [examples/minimal/](examples/minimal/) 获取完整工作示例。
