@@ -12,8 +12,8 @@ const SERVERS = {
   runtime: {
     info: {
       name: 'cesium-mcp-runtime',
-      version: '1.139.2',
-      description: 'MCP server for CesiumJS 3D globe — 24 tools for map visualization, layer management, entity management, and camera control.',
+      version: '1.139.4',
+      description: 'MCP server for CesiumJS 3D globe — 43 tools for map visualization, layer management, entity types, camera control, animation, and interaction.',
     },
     card: SERVER_CARD,
     capabilities: {
@@ -25,7 +25,7 @@ const SERVERS = {
   dev: {
     info: {
       name: 'cesium-mcp-dev',
-      version: '1.139.2',
+      version: '1.139.4',
       description: 'Cesium MCP for Development — IDE AI assistant tools for Cesium API docs lookup, code generation, and Entity builder.',
     },
     card: DEV_SERVER_CARD,
