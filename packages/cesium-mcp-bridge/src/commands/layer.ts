@@ -4,6 +4,7 @@ import type {
   CategoryStyle, Load3dTilesParams, LoadTerrainParams, LoadImageryServiceParams,
   UpdateLayerStyleParams,
 } from '../types'
+import { parseColor } from '../utils'
 
 // ==================== 图层状态（由 Bridge 实例持有） ====================
 
@@ -51,7 +52,7 @@ export class LayerManager {
 
     this.removeLayer(layerId)
 
-    const cesiumColor = Cesium.Color.fromCssColorString(color).withAlpha(opacity)
+    const cesiumColor = parseColor(color).withAlpha(opacity)
 
     const ds = await Cesium.GeoJsonDataSource.load(data, {
       stroke: cesiumColor,
@@ -71,10 +72,10 @@ export class LayerManager {
     const ls = params.labelStyle
     const labelFont = ls?.font ?? '12px sans-serif'
     const labelFillColor = ls?.fillColor
-      ? Cesium.Color.fromCssColorString(ls.fillColor)
+      ? parseColor(ls.fillColor)
       : Cesium.Color.WHITE
     const labelOutlineColor = ls?.outlineColor
-      ? Cesium.Color.fromCssColorString(ls.outlineColor)
+      ? parseColor(ls.outlineColor)
       : Cesium.Color.BLACK
     const labelOutlineWidth = ls?.outlineWidth ?? 2
     const labelOffset = ls?.pixelOffset
@@ -259,6 +260,19 @@ export class LayerManager {
     this._layers.splice(idx, 1)
   }
 
+  /** 根据 Cesium Entity 引用反查并移除对应图层记录（不再删除 entity 本身） */
+  untrackByEntity(entity: Cesium.Entity): string | undefined {
+    for (const [layerId, refs] of this._cesiumRefs) {
+      if (refs.entity === entity) {
+        const idx = this._layers.findIndex(l => l.id === layerId)
+        if (idx !== -1) this._layers.splice(idx, 1)
+        this._cesiumRefs.delete(layerId)
+        return layerId
+      }
+    }
+    return undefined
+  }
+
   setLayerVisibility(id: string, visible: boolean): void {
     const layer = this._layers.find(l => l.id === id)
     if (!layer) return
@@ -311,12 +325,12 @@ export class LayerManager {
         }
         if (ls.fillColor) {
           entity.label.fillColor = new Cesium.ConstantProperty(
-            Cesium.Color.fromCssColorString(ls.fillColor)
+            parseColor(ls.fillColor)
           )
         }
         if (ls.outlineColor) {
           entity.label.outlineColor = new Cesium.ConstantProperty(
-            Cesium.Color.fromCssColorString(ls.outlineColor)
+            parseColor(ls.outlineColor)
           )
         }
         if (ls.outlineWidth !== undefined) {
@@ -330,7 +344,7 @@ export class LayerManager {
         }
         if (ls.backgroundColor) {
           entity.label.backgroundColor = new Cesium.ConstantProperty(
-            Cesium.Color.fromCssColorString(ls.backgroundColor)
+            parseColor(ls.backgroundColor)
           )
         }
         if (ls.pixelOffset) {
@@ -348,7 +362,7 @@ export class LayerManager {
     if (gs && refs?.dataSource) {
       const ds = refs.dataSource
       const entities = ds.entities.values
-      const color = gs.color ? Cesium.Color.fromCssColorString(gs.color) : null
+      const color = gs.color ? parseColor(gs.color) : null
       const opacity = gs.opacity ?? 0.6
       for (const entity of entities) {
         if (entity.polyline) {
@@ -535,8 +549,8 @@ export class LayerManager {
             maximumLevel: 18,
           }),
         )
-        this._viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#0B1120')
-        this._viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#0B1120')
+        this._viewer.scene.backgroundColor = parseColor('#0B1120')
+        this._viewer.scene.globe.baseColor = parseColor('#0B1120')
         break
     }
     return basemap
@@ -567,8 +581,8 @@ function applyChoroplethStyle(
         break
       }
     }
-    const fillColor = Cesium.Color.fromCssColorString(colors[classIdx] ?? '#3B82F6').withAlpha(opacity)
-    const strokeColor = Cesium.Color.fromCssColorString('#333333').withAlpha(0.6)
+    const fillColor = parseColor(colors[classIdx] ?? '#3B82F6').withAlpha(opacity)
+    const strokeColor = parseColor('#333333').withAlpha(0.6)
 
     if (entity.polygon) {
       entity.polygon.material = new Cesium.ColorMaterialProperty(fillColor)
@@ -606,8 +620,8 @@ function applyCategoryStyle(
     const val = raw !== undefined && raw !== null ? Number(raw) : -1
     // -1 (noise in DBSCAN) → 灰色
     const cssColor = val < 0 ? '#6B7280' : (palette[val % palette.length] ?? '#6B7280')
-    const fillColor = Cesium.Color.fromCssColorString(cssColor).withAlpha(opacity)
-    const strokeColor = Cesium.Color.fromCssColorString(cssColor).withAlpha(Math.min(opacity + 0.2, 1))
+    const fillColor = parseColor(cssColor).withAlpha(opacity)
+    const strokeColor = parseColor(cssColor).withAlpha(Math.min(opacity + 0.2, 1))
 
     if (entity.point) {
       entity.point.color = new Cesium.ConstantProperty(fillColor)
@@ -648,7 +662,7 @@ function createCircleImage(size: number, cssColor: string, alpha: number): HTMLC
   // 填充
   ctx.beginPath()
   ctx.arc(r, r, r - 2 * dpr, 0, Math.PI * 2)
-  const c = Cesium.Color.fromCssColorString(cssColor).withAlpha(alpha)
+  const c = parseColor(cssColor).withAlpha(alpha)
   ctx.fillStyle = `rgba(${Math.round(c.red * 255)},${Math.round(c.green * 255)},${Math.round(c.blue * 255)},${c.alpha})`
   ctx.fill()
   // 白色描边

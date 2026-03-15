@@ -1,6 +1,6 @@
 # cesium-mcp-runtime
 
-> MCP Server (stdio) — exposes 19 tools + 2 resources to any MCP client.
+> MCP Server (stdio) — exposes 24 tools + 2 resources to any MCP client.
 
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 
@@ -64,7 +64,7 @@ cesium-mcp-runtime
 }
 ```
 
-## MCP Tools (19)
+## MCP Tools (24)
 
 ### View
 
@@ -90,6 +90,16 @@ cesium-mcp-runtime
 | `updateLayerStyle` | Modify layer styling properties |
 | `setBasemap` | Switch the base imagery layer |
 | `highlight` | Highlight specific features |
+
+### Entities
+
+| Tool | Description |
+|------|-------------|
+| `addPolyline` | Add polyline (path/route) on the map |
+| `addPolygon` | Add polygon area with fill and outline |
+| `addModel` | Place a 3D model (glTF/GLB) at a position |
+| `updateEntity` | Update entity properties (position, color, label, scale, visibility) |
+| `removeEntity` | Remove a single entity by ID |
 
 ### 3D Data
 

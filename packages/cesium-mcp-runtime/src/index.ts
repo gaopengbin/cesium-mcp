@@ -386,6 +386,98 @@ server.tool(
   },
 )
 
+// — addPolyline
+server.tool(
+  'addPolyline',
+  '在地图上添加折线（路径、线段），返回 entityId',
+  {
+    coordinates: z.array(z.array(z.number())).describe('折线坐标数组 [[lon, lat, height?], ...]'),
+    color: z.string().optional().default('#3B82F6').describe('线条颜色（CSS 格式）'),
+    width: z.number().optional().default(3).describe('线条宽度（像素）'),
+    clampToGround: z.boolean().optional().default(true).describe('是否贴地'),
+    label: z.string().optional().describe('折线标注文本'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('addPolyline', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — addPolygon
+server.tool(
+  'addPolygon',
+  '在地图上添加多边形区域（面积、边界），返回 entityId',
+  {
+    coordinates: z.array(z.array(z.number())).describe('多边形外环坐标 [[lon, lat, height?], ...]'),
+    color: z.string().optional().default('#3B82F6').describe('填充颜色（CSS 格式）'),
+    outlineColor: z.string().optional().default('#FFFFFF').describe('描边颜色'),
+    opacity: z.number().optional().default(0.6).describe('填充透明度（0~1）'),
+    extrudedHeight: z.number().optional().describe('拉伸高度（米），可用于创建立体效果'),
+    clampToGround: z.boolean().optional().default(true).describe('是否贴地'),
+    label: z.string().optional().describe('多边形标注文本'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('addPolygon', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — addModel
+server.tool(
+  'addModel',
+  '在指定经纬度放置 3D 模型（glTF/GLB），返回 entityId',
+  {
+    longitude: z.number().describe('经度（-180 ~ 180）'),
+    latitude: z.number().describe('纬度（-90 ~ 90）'),
+    height: z.number().optional().default(0).describe('放置高度（米）'),
+    url: z.string().describe('glTF/GLB 模型文件 URL'),
+    scale: z.number().optional().default(1).describe('模型缩放比例'),
+    heading: z.number().optional().default(0).describe('航向角（度），0=正北'),
+    pitch: z.number().optional().default(0).describe('俯仰角（度）'),
+    roll: z.number().optional().default(0).describe('翻滚角（度）'),
+    label: z.string().optional().describe('模型标注文本'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('addModel', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — updateEntity
+server.tool(
+  'updateEntity',
+  '更新已有实体的属性（位置、颜色、标签、缩放、可见性）',
+  {
+    entityId: z.string().describe('实体ID（addMarker/addPolyline 等返回的 entityId）'),
+    position: z.object({
+      longitude: z.number(),
+      latitude: z.number(),
+      height: z.number().optional(),
+    }).optional().describe('新位置坐标'),
+    label: z.string().optional().describe('新标注文本'),
+    color: z.string().optional().describe('新颜色（CSS 格式）'),
+    scale: z.number().optional().describe('新缩放比例'),
+    show: z.boolean().optional().describe('是否显示'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('updateEntity', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — removeEntity
+server.tool(
+  'removeEntity',
+  '移除单个实体（通过 entityId）',
+  {
+    entityId: z.string().describe('要移除的实体ID'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('removeEntity', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
 // — setLayerVisibility
 server.tool(
   'setLayerVisibility',
@@ -512,5 +604,5 @@ export async function main() {
 
   const transport = new StdioServerTransport()
   await server.connect(transport)
-  console.error(`[cesium-mcp-runtime] MCP Server running (stdio), 19 tools registered`)
+  console.error(`[cesium-mcp-runtime] MCP Server running (stdio), 24 tools registered`)
 }

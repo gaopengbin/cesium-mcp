@@ -13,7 +13,7 @@ const SERVERS = {
     info: {
       name: 'cesium-mcp-runtime',
       version: '1.139.2',
-      description: 'MCP server for CesiumJS 3D globe — 19 tools for map visualization, layer management, spatial analysis, and camera control.',
+      description: 'MCP server for CesiumJS 3D globe — 24 tools for map visualization, layer management, entity management, and camera control.',
     },
     card: SERVER_CARD,
     capabilities: {

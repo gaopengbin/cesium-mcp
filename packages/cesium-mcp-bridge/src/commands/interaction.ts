@@ -1,5 +1,6 @@
 import * as Cesium from 'cesium'
 import type { ScreenshotResult, HighlightParams } from '../types'
+import { parseColor } from '../utils'
 import type { LayerManager } from './layer'
 
 /**
@@ -35,7 +36,7 @@ export function highlight(
   if (!refs?.dataSource) return
 
   const entities = refs.dataSource.entities.values
-  const highlightColor = Cesium.Color.fromCssColorString(color).withAlpha(0.8)
+  const highlightColor = parseColor(color).withAlpha(0.8)
 
   if (featureIndex != null && featureIndex < entities.length) {
     const entity = entities[featureIndex]!

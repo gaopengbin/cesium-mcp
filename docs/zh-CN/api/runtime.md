@@ -1,6 +1,6 @@
 # cesium-mcp-runtime
 
-> MCP 服务器（stdio） — 向任何 MCP 客户端暴露 19 个工具 + 2 个资源。
+> MCP 服务器（stdio） — 向任何 MCP 客户端暴露 24 个工具 + 2 个资源。
 
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 
@@ -64,7 +64,7 @@ cesium-mcp-runtime
 }
 ```
 
-## MCP 工具（19 个）
+## MCP 工具（24 个）
 
 ### 视图
 
@@ -90,6 +90,16 @@ cesium-mcp-runtime
 | `updateLayerStyle` | 修改图层样式属性 |
 | `setBasemap` | 切换底图影像 |
 | `highlight` | 高亮特定要素 |
+
+### 实体
+
+| 工具 | 描述 |
+|------|------|
+| `addPolyline` | 添加折线（路径/线段） |
+| `addPolygon` | 添加多边形区域（填充+描边） |
+| `addModel` | 在指定位置放置 3D 模型 (glTF/GLB) |
+| `updateEntity` | 更新实体属性（位置、颜色、标签、缩放、可见性） |
+| `removeEntity` | 按 ID 移除单个实体 |
 
 ### 3D 数据
 

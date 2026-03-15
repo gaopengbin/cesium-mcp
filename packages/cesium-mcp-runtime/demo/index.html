@@ -6,6 +6,7 @@
 <title>Cesium MCP Runtime — Demo Test Page</title>
 <link href="https://cesium.com/downloads/cesiumjs/releases/1.139/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
 <script src="https://cesium.com/downloads/cesiumjs/releases/1.139/Build/Cesium/Cesium.js"></script>
+<script src="../../cesium-mcp-bridge/dist/cesium-mcp-bridge.browser.global.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0e17; color: #e0e0e0; display: flex; height: 100vh; }
@@ -153,14 +154,40 @@
       <h3>手动命令</h3>
       <div class="cmd-row">
         <select id="cmdAction" onchange="onActionChange()">
-          <option value="flyTo">flyTo</option>
-          <option value="addGeoJsonLayer">addGeoJsonLayer</option>
-          <option value="addLabel">addLabel</option>
-          <option value="addHeatmap">addHeatmap</option>
-          <option value="removeLayer">removeLayer</option>
-          <option value="setBasemap">setBasemap</option>
-          <option value="screenshot">screenshot</option>
-          <option value="highlight">highlight</option>
+          <optgroup label="Camera">
+            <option value="flyTo">flyTo</option>
+            <option value="setView">setView</option>
+            <option value="getView">getView</option>
+            <option value="zoomToExtent">zoomToExtent</option>
+          </optgroup>
+          <optgroup label="Entity">
+            <option value="addMarker">addMarker</option>
+            <option value="addPolyline">addPolyline</option>
+            <option value="addPolygon">addPolygon</option>
+            <option value="addModel">addModel</option>
+            <option value="updateEntity">updateEntity</option>
+            <option value="removeEntity">removeEntity</option>
+          </optgroup>
+          <optgroup label="Layer">
+            <option value="addGeoJsonLayer">addGeoJsonLayer</option>
+            <option value="addLabel">addLabel</option>
+            <option value="addHeatmap">addHeatmap</option>
+            <option value="removeLayer">removeLayer</option>
+            <option value="setLayerVisibility">setLayerVisibility</option>
+            <option value="listLayers">listLayers</option>
+            <option value="updateLayerStyle">updateLayerStyle</option>
+          </optgroup>
+          <optgroup label="Scene">
+            <option value="setBasemap">setBasemap</option>
+            <option value="load3dTiles">load3dTiles</option>
+            <option value="loadTerrain">loadTerrain</option>
+            <option value="loadImageryService">loadImageryService</option>
+          </optgroup>
+          <optgroup label="Interaction">
+            <option value="screenshot">screenshot</option>
+            <option value="highlight">highlight</option>
+            <option value="playTrajectory">playTrajectory</option>
+          </optgroup>
         </select>
         <button class="btn btn-ghost" onclick="fillTemplate()">填充模板</button>
       </div>
@@ -184,6 +211,15 @@
 // ==================== 工具参数模板 ====================
 const TEMPLATES = {
   flyTo: { longitude: 116.397, latitude: 39.908, height: 15000, pitch: -30, duration: 2 },
+  setView: { longitude: 116.397, latitude: 39.908, height: 50000, pitch: -90 },
+  getView: {},
+  zoomToExtent: { west: 73, south: 3, east: 135, north: 53, duration: 2 },
+  addMarker: { longitude: 116.397, latitude: 39.908, label: '天安门', color: '#3B82F6', size: 14 },
+  addPolyline: { coordinates: [[116.39, 39.9], [121.47, 31.23]], color: '#FF4444', width: 4, label: '北京-上海' },
+  addPolygon: { coordinates: [[116.3, 39.85], [116.5, 39.85], [116.5, 39.95], [116.3, 39.95]], color: '#3B82F6', opacity: 0.5, label: '区域' },
+  addModel: { longitude: 116.397, latitude: 39.908, height: 0, url: 'https://example.com/model.glb', scale: 1 },
+  updateEntity: { entityId: '', label: '已更新', color: '#00FF00' },
+  removeEntity: { entityId: '' },
   addGeoJsonLayer: {
     id: 'layer_demo', name: '示例图层',
     data: { type: 'FeatureCollection', features: [
@@ -200,11 +236,18 @@ const TEMPLATES = {
       { type: 'Feature', geometry: { type: 'Point', coordinates: [116.407, 39.904] }, properties: { name: '王府井' } },
     ]},
   },
-  addHeatmap: { data: { type: 'FeatureCollection', features: [] }, radius: 25, blur: 15 },
+  addHeatmap: { data: { type: 'FeatureCollection', features: [] }, radius: 25 },
   removeLayer: { id: 'layer_demo' },
+  setLayerVisibility: { id: 'layer_demo', visible: false },
+  listLayers: {},
+  updateLayerStyle: { layerId: 'layer_demo', layerStyle: { color: '#FF0000', opacity: 0.5 } },
   setBasemap: { basemap: 'satellite' },
+  load3dTiles: { url: 'https://example.com/tileset.json' },
+  loadTerrain: { provider: 'arcgis' },
+  loadImageryService: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', serviceType: 'xyz' },
   screenshot: {},
   highlight: { layerId: 'layer_demo', featureId: 0, color: '#ff0000' },
+  playTrajectory: { coordinates: [[116.39, 39.9], [117.2, 39.1], [118.8, 32.1], [121.47, 31.23]], durationSeconds: 10, label: '轨迹' },
 }
 
 // ==================== Cesium 初始化 ====================
@@ -226,6 +269,9 @@ viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(104, 35, 600000
 
 const layerMap = new Map()
 let currentBasemap = 'dark'
+
+// ==================== CesiumBridge 实例 ====================
+const bridge = new CesiumMcpBridge.CesiumBridge(viewer)
 
 // ==================== 鼠标坐标显示 ====================
 const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas)
@@ -338,112 +384,9 @@ async function checkApiStatus() {
   }
 }
 
-// ==================== 命令执行 ====================
+// ==================== 命令执行（委托给 CesiumBridge） ====================
 async function executeCommand(action, params) {
-  switch (action) {
-    case 'flyTo': return cmdFlyTo(params)
-    case 'addGeoJsonLayer': return cmdAddGeoJson(params)
-    case 'addLabel': return cmdAddLabel(params)
-    case 'addHeatmap': return cmdAddHeatmap(params)
-    case 'removeLayer': return cmdRemoveLayer(params)
-    case 'setBasemap': return cmdSetBasemap(params)
-    case 'screenshot': return cmdScreenshot()
-    case 'highlight': return cmdHighlight(params)
-    default: return { success: false, error: `未知命令: ${action}` }
-  }
-}
-
-function cmdFlyTo(p) {
-  viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(p.longitude ?? 116.4, p.latitude ?? 39.9, p.height ?? 50000),
-    orientation: {
-      heading: Cesium.Math.toRadians(p.heading ?? 0),
-      pitch: Cesium.Math.toRadians(p.pitch ?? -45),
-      roll: 0,
-    },
-    duration: p.duration ?? 2,
-  })
-  return { success: true }
-}
-
-async function cmdAddGeoJson(p) {
-  const id = p.id ?? 'layer_' + Date.now()
-  const data = p.data
-  if (!data) return { success: false, error: '缺少 data 参数' }
-  const ds = await Cesium.GeoJsonDataSource.load(data, {
-    stroke: Cesium.Color.fromCssColorString(p.style?.strokeColor ?? '#3388ff'),
-    fill: Cesium.Color.fromCssColorString(p.style?.fillColor ?? '#3388ff').withAlpha(p.style?.fillOpacity ?? 0.3),
-    strokeWidth: p.style?.strokeWidth ?? 2,
-    clampToGround: true,
-  })
-  ds.name = p.name ?? id
-  viewer.dataSources.add(ds)
-  layerMap.set(id, ds)
-  viewer.flyTo(ds)
-  return { success: true, layerId: id, featureCount: ds.entities.values.length }
-}
-
-function cmdAddLabel(p) {
-  const data = p.data
-  if (!data?.features) return { success: false, error: '缺少 GeoJSON features' }
-  const field = p.field ?? 'name'
-  let count = 0
-  for (const f of data.features) {
-    const coords = f.geometry?.coordinates
-    if (!coords || !f.properties?.[field]) continue
-    let lon, lat
-    if (f.geometry.type === 'Point') { [lon, lat] = coords }
-    else if (f.geometry.type === 'Polygon') {
-      const ring = coords[0]; lon = ring.reduce((s, c) => s + c[0], 0) / ring.length; lat = ring.reduce((s, c) => s + c[1], 0) / ring.length
-    } else continue
-    viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(lon, lat),
-      label: {
-        text: String(f.properties[field]), font: '13px sans-serif',
-        fillColor: Cesium.Color.WHITE, style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        outlineWidth: 2, outlineColor: Cesium.Color.BLACK,
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-        pixelOffset: new Cesium.Cartesian2(0, -8),
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-      },
-    })
-    count++
-  }
-  return { success: true, labelCount: count }
-}
-
-function cmdAddHeatmap(p) {
-  return { success: true, message: 'Heatmap 暂未实现（需 canvas overlay）' }
-}
-
-function cmdRemoveLayer(p) {
-  const ds = layerMap.get(p.id)
-  if (ds) { viewer.dataSources.remove(ds); layerMap.delete(p.id); return { success: true } }
-  return { success: false, error: `图层 ${p.id} 不存在` }
-}
-
-function cmdSetBasemap(p) {
-  viewer.imageryLayers.removeAll()
-  const basemap = p.basemap ?? 'dark'
-  const urls = {
-    satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    standard: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    dark: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-  }
-  viewer.imageryLayers.add(new Cesium.ImageryLayer(
-    new Cesium.UrlTemplateImageryProvider({ url: urls[basemap] ?? urls.dark, maximumLevel: basemap === 'standard' ? 19 : 18 })
-  ))
-  currentBasemap = basemap
-  return { success: true, basemap }
-}
-
-function cmdScreenshot() {
-  viewer.render()
-  const dataUrl = viewer.canvas.toDataURL('image/png')
-  const preview = document.getElementById('ssPreview')
-  document.getElementById('ssImg').src = dataUrl
-  preview.style.display = 'block'
-  return { success: true, dataUrl }
+  return bridge.execute({ action, params })
 }
 
 function downloadScreenshot() {
@@ -451,10 +394,6 @@ function downloadScreenshot() {
   a.href = document.getElementById('ssImg').src
   a.download = `cesium_screenshot_${Date.now()}.png`
   a.click()
-}
-
-function cmdHighlight(p) {
-  return { success: true, message: 'Highlight 暂为 stub' }
 }
 
 // ==================== 快速测试 ====================

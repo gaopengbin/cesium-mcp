@@ -24,7 +24,7 @@ const bridge = new CesiumBridge(viewer, {
 })
 ```
 
-## Commands (19)
+## Commands (25)
 
 ### View Control
 
@@ -59,8 +59,13 @@ const bridge = new CesiumBridge(viewer, {
 
 | Command | Description | Key Parameters |
 |---------|-------------|----------------|
-| `addMarker` | Add point marker | `longitude`, `latitude`, `name`, `icon`, `color` |
-| `addLabel` | Add text label | `longitude`, `latitude`, `text`, `font`, `color` |
+| `addMarker` | Add point marker | `longitude`, `latitude`, `label`, `color`, `size` |
+| `addLabel` | Add text labels to GeoJSON features | `data`, `field`, `style` |
+| `addPolyline` | Add polyline (path/route) | `coordinates`, `color`, `width`, `clampToGround` |
+| `addPolygon` | Add polygon area | `coordinates`, `color`, `outlineColor`, `opacity`, `extrudedHeight` |
+| `addModel` | Place 3D model (glTF/GLB) | `longitude`, `latitude`, `url`, `scale`, `heading`, `pitch`, `roll` |
+| `updateEntity` | Update entity properties | `entityId`, `position`, `color`, `label`, `scale`, `show` |
+| `removeEntity` | Remove a single entity | `entityId` |
 
 ### Animation
 
@@ -120,9 +125,15 @@ import type {
   SetViewParams,
   AddGeoJsonLayerParams,
   AddHeatmapParams,
+  AddPolylineParams,
+  AddPolygonParams,
+  AddModelParams,
+  UpdateEntityParams,
+  RemoveEntityParams,
   Load3dTilesParams,
   PlayTrajectoryParams,
   LayerInfo,
   HighlightParams,
+  ColorInput,
 } from 'cesium-mcp-bridge'
 ```

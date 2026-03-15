@@ -1,4 +1,5 @@
 import type * as Cesium from 'cesium'
+import type { ColorInput } from './utils'
 
 // ==================== Command & Result ====================
 
@@ -11,6 +12,7 @@ export interface BridgeResult {
   success: boolean
   data?: unknown
   error?: string
+  message?: string
 }
 
 // ==================== View ====================
@@ -165,8 +167,51 @@ export interface AddMarkerParams {
   longitude: number
   latitude: number
   label?: string
-  color?: string
+  color?: ColorInput
   size?: number
+}
+
+export interface AddPolylineParams {
+  coordinates: number[][]  // [[lon, lat, height?], ...]
+  color?: ColorInput
+  width?: number
+  clampToGround?: boolean
+  label?: string
+}
+
+export interface AddPolygonParams {
+  coordinates: number[][]  // [[lon, lat, height?], ...] 外环
+  color?: ColorInput
+  outlineColor?: ColorInput
+  opacity?: number
+  extrudedHeight?: number
+  clampToGround?: boolean
+  label?: string
+}
+
+export interface AddModelParams {
+  longitude: number
+  latitude: number
+  height?: number
+  url: string
+  scale?: number
+  heading?: number
+  pitch?: number
+  roll?: number
+  label?: string
+}
+
+export interface UpdateEntityParams {
+  entityId: string
+  position?: { longitude: number; latitude: number; height?: number }
+  label?: string
+  color?: ColorInput
+  scale?: number
+  show?: boolean
+}
+
+export interface RemoveEntityParams {
+  entityId: string
 }
 
 // ==================== UpdateLayerStyle ====================
@@ -203,7 +248,7 @@ export interface ScreenshotResult {
 export interface HighlightParams {
   layerId: string
   featureIndex?: number
-  color?: string
+  color?: ColorInput
 }
 
 // ==================== Event ====================

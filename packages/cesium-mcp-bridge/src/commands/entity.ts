@@ -1,5 +1,6 @@
 import * as Cesium from 'cesium'
-import type { AddLabelParams, AddMarkerParams } from '../types'
+import type { AddLabelParams, AddMarkerParams, AddPolylineParams, AddPolygonParams, AddModelParams, UpdateEntityParams } from '../types'
+import { parseColor, validateCoordinate } from '../utils'
 
 /**
  * 为 GeoJSON 要素批量添加文本标注
@@ -16,15 +17,15 @@ export function addLabels(
 
   const font = style?.font ?? '14px sans-serif'
   const fillColor = style?.fillColor
-    ? Cesium.Color.fromCssColorString(style.fillColor)
+    ? parseColor(style.fillColor)
     : Cesium.Color.WHITE
   const outlineColor = style?.outlineColor
-    ? Cesium.Color.fromCssColorString(style.outlineColor)
+    ? parseColor(style.outlineColor)
     : Cesium.Color.BLACK
   const outlineWidth = style?.outlineWidth ?? 2
   const showBackground = style?.showBackground ?? false
   const backgroundColor = style?.backgroundColor
-    ? Cesium.Color.fromCssColorString(style.backgroundColor)
+    ? parseColor(style.backgroundColor)
     : new Cesium.Color(0.1, 0.1, 0.1, 0.7)
   const pixelOffset = style?.pixelOffset
     ? new Cesium.Cartesian2(style.pixelOffset[0], style.pixelOffset[1])
@@ -68,7 +69,8 @@ export function addLabels(
  */
 export function addMarker(viewer: Cesium.Viewer, params: AddMarkerParams): Cesium.Entity {
   const { longitude, latitude, label, color = '#3B82F6', size = 12 } = params
-  const cesiumColor = Cesium.Color.fromCssColorString(color)
+  validateCoordinate(longitude, latitude)
+  const cesiumColor = parseColor(color)
 
   return viewer.entities.add({
     position: Cesium.Cartesian3.fromDegrees(longitude, latitude),
@@ -95,6 +97,173 @@ export function addMarker(viewer: Cesium.Viewer, params: AddMarkerParams): Cesiu
         }
       : undefined,
   })
+}
+
+/**
+ * 添加折线实体
+ */
+export function addPolyline(viewer: Cesium.Viewer, params: AddPolylineParams): Cesium.Entity {
+  const { coordinates, color = '#3B82F6', width = 3, clampToGround = true, label } = params
+  const cesiumColor = parseColor(color)
+
+  const positions = coordinates.map(c => {
+    validateCoordinate(c[0]!, c[1]!, c[2])
+    return Cesium.Cartesian3.fromDegrees(c[0]!, c[1]!, c[2] ?? 0)
+  })
+
+  // 取中点作为标签位置
+  const midIdx = Math.floor(positions.length / 2)
+
+  return viewer.entities.add({
+    position: label ? positions[midIdx] : undefined,
+    polyline: {
+      positions,
+      width,
+      material: cesiumColor,
+      clampToGround,
+    },
+    label: label
+      ? {
+          text: label,
+          font: '13px sans-serif',
+          fillColor: Cesium.Color.WHITE,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 2,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          pixelOffset: new Cesium.Cartesian2(0, -12),
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        }
+      : undefined,
+  })
+}
+
+/**
+ * 添加多边形实体
+ */
+export function addPolygon(viewer: Cesium.Viewer, params: AddPolygonParams): Cesium.Entity {
+  const { coordinates, color = '#3B82F6', outlineColor = '#FFFFFF', opacity = 0.6, extrudedHeight, clampToGround = true, label } = params
+  const fillColor = parseColor(color).withAlpha(opacity)
+  const strokeColor = parseColor(outlineColor)
+
+  const positions = coordinates.map(c => {
+    validateCoordinate(c[0]!, c[1]!, c[2])
+    return Cesium.Cartesian3.fromDegrees(c[0]!, c[1]!, c[2] ?? 0)
+  })
+
+  // 计算质心作为标签位置
+  const centroid = centroidOfCoords(coordinates.map(c => [c[0]!, c[1]!]))
+
+  return viewer.entities.add({
+    position: (label && centroid) ? Cesium.Cartesian3.fromDegrees(centroid[0], centroid[1]) : undefined,
+    polygon: {
+      hierarchy: new Cesium.PolygonHierarchy(positions),
+      material: fillColor,
+      outline: true,
+      outlineColor: strokeColor,
+      outlineWidth: 1,
+      heightReference: clampToGround ? Cesium.HeightReference.CLAMP_TO_GROUND : Cesium.HeightReference.NONE,
+      extrudedHeight,
+    },
+    label: label
+      ? {
+          text: label,
+          font: '13px sans-serif',
+          fillColor: Cesium.Color.WHITE,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 2,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        }
+      : undefined,
+  })
+}
+
+/**
+ * 添加 3D 模型 (glTF/GLB)
+ */
+export function addModel(viewer: Cesium.Viewer, params: AddModelParams): Cesium.Entity {
+  const { longitude, latitude, height = 0, url, scale = 1, heading = 0, pitch = 0, roll = 0, label } = params
+  validateCoordinate(longitude, latitude, height)
+
+  const position = Cesium.Cartesian3.fromDegrees(longitude, latitude, height)
+  const hpr = new Cesium.HeadingPitchRoll(
+    Cesium.Math.toRadians(heading),
+    Cesium.Math.toRadians(pitch),
+    Cesium.Math.toRadians(roll),
+  )
+  const orientation = Cesium.Transforms.headingPitchRollQuaternion(position, hpr)
+
+  return viewer.entities.add({
+    position,
+    orientation: orientation as any,
+    model: {
+      uri: url,
+      scale,
+    },
+    label: label
+      ? {
+          text: label,
+          font: '13px sans-serif',
+          fillColor: Cesium.Color.WHITE,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 2,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          pixelOffset: new Cesium.Cartesian2(0, -24),
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        }
+      : undefined,
+  })
+}
+
+/**
+ * 更新已有实体属性
+ */
+export function updateEntity(viewer: Cesium.Viewer, params: UpdateEntityParams): boolean {
+  const entity = viewer.entities.getById(params.entityId)
+  if (!entity) return false
+
+  if (params.position) {
+    const { longitude, latitude, height } = params.position
+    validateCoordinate(longitude, latitude, height)
+    entity.position = new Cesium.ConstantPositionProperty(
+      Cesium.Cartesian3.fromDegrees(longitude, latitude, height ?? 0),
+    )
+  }
+
+  if (params.label !== undefined && entity.label) {
+    entity.label.text = new Cesium.ConstantProperty(params.label)
+  }
+
+  if (params.color !== undefined) {
+    const c = parseColor(params.color)
+    if (entity.point) entity.point.color = new Cesium.ConstantProperty(c)
+    if (entity.polyline) entity.polyline.material = new Cesium.ColorMaterialProperty(c)
+    if (entity.polygon) entity.polygon.material = new Cesium.ColorMaterialProperty(c)
+  }
+
+  if (params.scale !== undefined) {
+    if (entity.model) entity.model.scale = new Cesium.ConstantProperty(params.scale)
+    if (entity.label) entity.label.scale = new Cesium.ConstantProperty(params.scale)
+  }
+
+  if (params.show !== undefined) {
+    entity.show = params.show
+  }
+
+  return true
+}
+
+/**
+ * 移除单个实体
+ */
+export function removeEntity(viewer: Cesium.Viewer, entityId: string): boolean {
+  const entity = viewer.entities.getById(entityId)
+  if (!entity) return false
+  return viewer.entities.remove(entity)
 }
 
 // ==================== Helpers ====================

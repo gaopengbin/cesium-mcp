@@ -10,3 +10,11 @@ docs/.vitepress/dist/
 docs/.vitepress/cache/
 .mcpregistry_*
 mcp-publisher.exe
+
+# Build artifacts
+packages/cesium-mcp-bridge/dist-iife/
+
+# Temporary / generated
+.playwright-mcp/
+articles/
+integration-*.png

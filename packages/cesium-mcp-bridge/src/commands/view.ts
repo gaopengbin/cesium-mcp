@@ -1,5 +1,6 @@
 import * as Cesium from 'cesium'
 import type { FlyToParams, SetViewParams, ViewState, ZoomToExtentParams } from '../types'
+import { validateCoordinate } from '../utils'
 
 export function flyTo(viewer: Cesium.Viewer, params: FlyToParams): Promise<void> {
   const {
@@ -11,6 +12,8 @@ export function flyTo(viewer: Cesium.Viewer, params: FlyToParams): Promise<void>
     roll = 0,
     duration = 2,
   } = params
+
+  validateCoordinate(longitude, latitude, height)
 
   return new Promise((resolve) => {
     viewer.camera.flyTo({
@@ -28,6 +31,7 @@ export function flyTo(viewer: Cesium.Viewer, params: FlyToParams): Promise<void>
 
 export function setView(viewer: Cesium.Viewer, params: SetViewParams): void {
   const { longitude, latitude, height = 50000, heading = 0, pitch = -45, roll = 0 } = params
+  validateCoordinate(longitude, latitude, height)
   viewer.camera.setView({
     destination: Cesium.Cartesian3.fromDegrees(longitude, latitude, height),
     orientation: {

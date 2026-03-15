@@ -10,6 +10,11 @@ import type {
   AddHeatmapParams,
   AddLabelParams,
   AddMarkerParams,
+  AddPolylineParams,
+  AddPolygonParams,
+  AddModelParams,
+  UpdateEntityParams,
+  RemoveEntityParams,
   SetBasemapParams,
   Load3dTilesParams,
   LoadTerrainParams,
@@ -24,7 +29,7 @@ import type {
 } from './types'
 import { flyTo, setView, getView, zoomToExtent } from './commands/view'
 import { LayerManager } from './commands/layer'
-import { addLabels, addMarker } from './commands/entity'
+import { addLabels, addMarker, addPolyline, addPolygon, addModel, updateEntity, removeEntity } from './commands/entity'
 import { screenshot, highlight } from './commands/interaction'
 import { playTrajectory as playTrajectoryCmd } from './commands/trajectory'
 
@@ -61,66 +66,90 @@ export class CesiumBridge {
       switch (cmd.action) {
         case 'flyTo':
           await this.flyTo(p as FlyToParams)
-          return { success: true }
+          return { success: true, message: 'Camera flew to target position' }
         case 'setView':
           this.setView(p as SetViewParams)
-          return { success: true }
+          return { success: true, message: 'Camera view set' }
         case 'getView':
-          return { success: true, data: this.getView() }
+          return { success: true, data: this.getView(), message: 'Current view state retrieved' }
         case 'zoomToExtent':
           await this.zoomToExtent(p as ZoomToExtentParams)
-          return { success: true }
+          return { success: true, message: 'Zoomed to extent' }
         case 'addGeoJsonLayer': {
           const info = await this.addGeoJsonLayer(p as AddGeoJsonLayerParams)
-          return { success: true, data: info }
+          return { success: true, data: info, message: `GeoJSON layer '${info.name}' added` }
         }
         case 'addHeatmap': {
           const info = await this.addHeatmap(p as AddHeatmapParams)
-          return { success: true, data: info }
+          return { success: true, data: info, message: `Heatmap '${info.name}' added` }
         }
         case 'addLabel': {
           const count = this.addLabel(p as AddLabelParams & { data: Record<string, unknown> })
-          return { success: true, data: { labelCount: count } }
+          return { success: true, data: { labelCount: count }, message: `${count} labels added` }
         }
         case 'addMarker': {
           const entity = this.addMarker(p as AddMarkerParams)
-          return { success: true, data: { entityId: entity.id } }
+          return { success: true, data: { entityId: entity.id }, message: 'Marker added' }
+        }
+        case 'addPolyline': {
+          const entity = this.addPolyline(p as AddPolylineParams)
+          return { success: true, data: { entityId: entity.id }, message: 'Polyline added' }
+        }
+        case 'addPolygon': {
+          const entity = this.addPolygon(p as AddPolygonParams)
+          return { success: true, data: { entityId: entity.id }, message: 'Polygon added' }
+        }
+        case 'addModel': {
+          const entity = this.addModel(p as AddModelParams)
+          return { success: true, data: { entityId: entity.id }, message: 'Model added' }
+        }
+        case 'updateEntity': {
+          const ok = this.updateEntity(p as UpdateEntityParams)
+          return { success: ok, message: ok ? 'Entity updated' : undefined, error: ok ? undefined : `Entity not found: ${(p as any).entityId}` }
+        }
+        case 'removeEntity': {
+          const ok = this.removeEntity((p as RemoveEntityParams).entityId)
+          return { success: ok, message: ok ? 'Entity removed' : undefined, error: ok ? undefined : `Entity not found: ${(p as any).entityId}` }
         }
         case 'removeLayer':
           this.removeLayer(p.id as string)
-          return { success: true }
+          return { success: true, message: `Layer '${p.id}' removed` }
         case 'setBasemap': {
           const basemap = this.setBasemap(p as SetBasemapParams)
-          return { success: true, data: { basemap } }
+          return { success: true, data: { basemap }, message: `Basemap set to '${basemap}'` }
         }
         case 'setLayerVisibility':
           this.setLayerVisibility(p.id as string, p.visible as boolean)
-          return { success: true }
+          return { success: true, message: `Layer '${p.id}' visibility set to ${p.visible}` }
         case 'updateLayerStyle': {
           const ok = this.updateLayerStyle(p as UpdateLayerStyleParams)
-          return { success: ok, error: ok ? undefined : `图层未找到或不支持样式修改: ${(p as any).layerId}` }
+          return { success: ok, message: ok ? 'Layer style updated' : undefined, error: ok ? undefined : `图层未找到或不支持样式修改: ${(p as any).layerId}` }
         }
         case 'screenshot': {
           const result = await this.screenshot()
-          return { success: true, data: result }
+          return { success: true, data: result, message: 'Screenshot captured' }
         }
         case 'highlight':
           this.highlight(p as HighlightParams)
-          return { success: true }
+          return { success: true, message: 'Features highlighted' }
         case 'load3dTiles': {
           const info = await this.load3dTiles(p as Load3dTilesParams)
-          return { success: true, data: info }
+          return { success: true, data: info, message: `3D Tiles '${info.name}' loaded` }
         }
         case 'loadTerrain':
           this.loadTerrain(p as LoadTerrainParams)
-          return { success: true }
+          return { success: true, message: 'Terrain provider updated' }
         case 'loadImageryService': {
           const info = await this.loadImageryService(p as LoadImageryServiceParams)
-          return { success: true, data: info }
+          return { success: true, data: info, message: `Imagery service '${info.name}' loaded` }
         }
         case 'playTrajectory': {
           const result = this.playTrajectory(p as PlayTrajectoryParams)
-          return { success: true, data: { entityId: result.entityId } }
+          return { success: true, data: { entityId: result.entityId }, message: 'Trajectory playback started' }
+        }
+        case 'listLayers': {
+          const layers = this.listLayers()
+          return { success: true, data: { layers }, message: `${layers.length} layers found` }
         }
         default:
           return { success: false, error: `未知指令: ${cmd.action}` }
@@ -340,12 +369,75 @@ export class CesiumBridge {
       name: params.label ?? layerId,
       type: '标注点',
       visible: true,
-      color: params.color ?? '#3B82F6',
+      color: typeof params.color === 'string' ? params.color : '#3B82F6',
     }
     this._layerManager.setCesiumRefs(layerId, { entity })
     this._layerManager.layers.push(info)
     this._emit('layerAdded', info)
     return entity
+  }
+
+  addPolyline(params: AddPolylineParams): Cesium.Entity {
+    const entity = addPolyline(this._viewer, params)
+    const layerId = `polyline_${Date.now()}`
+    const info: LayerInfo = {
+      id: layerId,
+      name: params.label ?? layerId,
+      type: '折线',
+      visible: true,
+      color: typeof params.color === 'string' ? params.color : '#3B82F6',
+    }
+    this._layerManager.setCesiumRefs(layerId, { entity })
+    this._layerManager.layers.push(info)
+    this._emit('layerAdded', info)
+    return entity
+  }
+
+  addPolygon(params: AddPolygonParams): Cesium.Entity {
+    const entity = addPolygon(this._viewer, params)
+    const layerId = `polygon_${Date.now()}`
+    const info: LayerInfo = {
+      id: layerId,
+      name: params.label ?? layerId,
+      type: '多边形',
+      visible: true,
+      color: typeof params.color === 'string' ? params.color : '#3B82F6',
+    }
+    this._layerManager.setCesiumRefs(layerId, { entity })
+    this._layerManager.layers.push(info)
+    this._emit('layerAdded', info)
+    return entity
+  }
+
+  addModel(params: AddModelParams): Cesium.Entity {
+    const entity = addModel(this._viewer, params)
+    const layerId = `model_${Date.now()}`
+    const info: LayerInfo = {
+      id: layerId,
+      name: params.label ?? layerId,
+      type: '模型',
+      visible: true,
+      color: '#8B5CF6',
+    }
+    this._layerManager.setCesiumRefs(layerId, { entity })
+    this._layerManager.layers.push(info)
+    this._emit('layerAdded', info)
+    return entity
+  }
+
+  updateEntity(params: UpdateEntityParams): boolean {
+    return updateEntity(this._viewer, params)
+  }
+
+  removeEntity(entityId: string): boolean {
+    const entity = this._viewer.entities.getById(entityId)
+    if (!entity) return false
+    const ok = removeEntity(this._viewer, entityId)
+    if (ok) {
+      const layerId = this._layerManager.untrackByEntity(entity)
+      if (layerId) this._emit('layerRemoved', { id: layerId })
+    }
+    return ok
   }
 
   // ==================== Interaction ====================

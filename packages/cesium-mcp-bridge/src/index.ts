@@ -23,7 +23,13 @@ export type {
   PlayTrajectoryParams,
   AddLabelParams,
   AddMarkerParams,
+  AddPolylineParams,
+  AddPolygonParams,
+  AddModelParams,
+  UpdateEntityParams,
+  RemoveEntityParams,
   ScreenshotResult,
   HighlightParams,
   UpdateLayerStyleParams,
 } from './types'
+export type { ColorInput } from './utils'

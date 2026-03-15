@@ -24,7 +24,7 @@ const bridge = new CesiumBridge(viewer, {
 })
 ```
 
-## 命令（19 个）
+## 命令（25 个）
 
 ### 视图控制
 
@@ -59,8 +59,13 @@ const bridge = new CesiumBridge(viewer, {
 
 | 命令 | 描述 | 关键参数 |
 |------|------|----------|
-| `addMarker` | 添加点标记 | `longitude`, `latitude`, `name`, `icon`, `color` |
-| `addLabel` | 添加文字标注 | `longitude`, `latitude`, `text`, `font`, `color` |
+| `addMarker` | 添加点标记 | `longitude`, `latitude`, `label`, `color`, `size` |
+| `addLabel` | 为 GeoJSON 要素添加文字标注 | `data`, `field`, `style` |
+| `addPolyline` | 添加折线（路径/线段） | `coordinates`, `color`, `width`, `clampToGround` |
+| `addPolygon` | 添加多边形区域 | `coordinates`, `color`, `outlineColor`, `opacity`, `extrudedHeight` |
+| `addModel` | 放置 3D 模型 (glTF/GLB) | `longitude`, `latitude`, `url`, `scale`, `heading`, `pitch`, `roll` |
+| `updateEntity` | 更新实体属性 | `entityId`, `position`, `color`, `label`, `scale`, `show` |
+| `removeEntity` | 移除单个实体 | `entityId` |
 
 ### 动画
 

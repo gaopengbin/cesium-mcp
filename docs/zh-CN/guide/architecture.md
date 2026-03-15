@@ -36,7 +36,7 @@ Bridge 运行在**浏览器内部**，与 CesiumJS 应用共存。它：
 
 Runtime 是一个 **Node.js MCP 服务器**，充当 AI 智能体和浏览器之间的翻译器。它：
 
-- 通过 stdio 暴露 19 个 MCP 工具和 2 个资源
+- 通过 stdio 暴露 24 个 MCP 工具和 2 个资源
 - 运行 WebSocket 服务器（默认端口 9100）
 - 将 MCP 工具调用转译为 Bridge 命令
 - 支持多会话路由以管理多个浏览器标签页

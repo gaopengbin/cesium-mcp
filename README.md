@@ -34,7 +34,7 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 | Package | Description | npm |
 |---------|-------------|-----|
 | [cesium-mcp-bridge](packages/cesium-mcp-bridge/) | Browser SDK — embeds in your CesiumJS app, receives commands via WebSocket | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP Server (stdio) — exposes 19 tools + 2 resources to any MCP client | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP Server (stdio) — exposes 24 tools + 2 resources to any MCP client | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [cesium-mcp-dev](packages/cesium-mcp-dev/) | IDE MCP Server — CesiumJS API helper for coding assistants | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 ## Architecture
@@ -90,24 +90,20 @@ Add to your MCP client config (e.g. Claude Desktop):
 
 Now ask your AI: *"Fly to the Eiffel Tower and add a red marker"*
 
-## 19 Available Tools
+## 24 Available Tools
 
 | Category | Tools |
 |----------|-------|
-| Camera | `fly_to`, `get_camera` |
-| Layers | `add_geojson`, `add_tileset`, `add_terrain`, `add_imagery`, `remove_layer`, `get_layers` |
-| Markers | `add_marker` |
-| Drawing | `draw_shape` |
-| Measurement | `measure` |
-| Heatmap | `add_heatmap` |
-| Interaction | `highlight`, `screenshot` |
-| Scene | `set_scene_style`, `get_scene_info` |
-| Query | `coord_pick`, `feature_query`, `spatial_query` |
-| Analysis | `viewshed_analysis` |
+| View | `flyTo`, `setView`, `getView`, `zoomToExtent` |
+| Layers | `addGeoJsonLayer`, `addHeatmap`, `removeLayer`, `setLayerVisibility`, `listLayers`, `updateLayerStyle`, `setBasemap`, `highlight` |
+| Entities | `addMarker`, `addPolyline`, `addPolygon`, `addModel`, `addLabel`, `updateEntity`, `removeEntity` |
+| 3D Data | `load3dTiles`, `loadTerrain`, `loadImageryService` |
+| Animation | `playTrajectory` |
+| Interaction | `screenshot` |
 
 ## Examples
 
-See [examples/minimal/](examples/minimal/) for a complete working demo with all 19 commands.
+See [examples/minimal/](examples/minimal/) for a complete working demo with all 24 commands.
 
 ## Development
 
