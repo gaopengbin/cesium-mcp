@@ -29,6 +29,8 @@
 
 https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 
+[![cesium-mcp MCP server](https://glama.ai/mcp/servers/gaopengbin/cesium-mcp/badges/card.svg)](https://glama.ai/mcp/servers/gaopengbin/cesium-mcp)
+
 ## Packages
 
 | Package | Description | npm |
