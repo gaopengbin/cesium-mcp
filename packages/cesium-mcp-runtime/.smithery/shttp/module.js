@@ -21126,7 +21126,12 @@ function startServer() {
 }
 var server = new McpServer({
   name: "cesium-mcp-runtime",
-  version: "0.1.0"
+  version: "1.139.4",
+  title: "Cesium MCP Runtime",
+  description: "AI-powered 3D globe control via MCP \u2014 camera, layers, entities, animation, and interaction with CesiumJS.",
+  websiteUrl: "https://github.com/gaopengbin/cesium-mcp"
+}, {
+  instructions: "Cesium MCP Runtime provides tools for controlling a CesiumJS 3D globe via AI. A browser with cesium-mcp-bridge must be connected via WebSocket for command execution. Use view tools (flyTo, setView) to navigate, entity tools to add markers/polygons/models, layer tools to manage GeoJSON/3D Tiles, and animation tools for time-based animations."
 });
 server.resource(
   "camera",
@@ -21228,6 +21233,7 @@ _registerTool(
     pitch: external_exports.number().default(-45).describe("\u4FEF\u4EF0\u89D2\uFF08\u5EA6\uFF09\uFF0C-90 \u4E3A\u6B63\u4E0B\u65B9"),
     duration: external_exports.number().default(2).describe("\u98DE\u884C\u52A8\u753B\u65F6\u957F\uFF08\u79D2\uFF09")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Fly To Location" },
   async (params) => {
     const result = await sendToBrowser("flyTo", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21242,6 +21248,7 @@ _registerTool(
     data: external_exports.record(external_exports.unknown()).describe("GeoJSON FeatureCollection \u5BF9\u8C61"),
     style: external_exports.record(external_exports.unknown()).optional().describe("\u6837\u5F0F\u914D\u7F6E\uFF08color, opacity, pointSize, choropleth, category\uFF09")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Add GeoJSON Layer" },
   async (params) => {
     const result = await sendToBrowser("addGeoJsonLayer", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21255,6 +21262,7 @@ _registerTool(
     field: external_exports.string().describe('\u7528\u4F5C\u6807\u6CE8\u6587\u672C\u7684\u5C5E\u6027\u5B57\u6BB5\u540D\uFF08\u5982 "name"\u3001"population"\uFF09'),
     style: external_exports.record(external_exports.unknown()).optional().describe("\u6807\u6CE8\u6837\u5F0F\uFF08font, fillColor, outlineColor, scale \u7B49\uFF09")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Add Label" },
   async (params) => {
     const result = await sendToBrowser("addLabel", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21267,6 +21275,7 @@ _registerTool(
     data: external_exports.record(external_exports.unknown()).describe("GeoJSON Point FeatureCollection"),
     radius: external_exports.number().default(30).describe("\u70ED\u529B\u5F71\u54CD\u534A\u5F84\uFF08\u50CF\u7D20\uFF09")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Add Heatmap" },
   async (params) => {
     const result = await sendToBrowser("addHeatmap", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21276,6 +21285,7 @@ _registerTool(
   "removeLayer",
   "\u4ECE\u5730\u56FE\u4E0A\u79FB\u9664\u6307\u5B9A\u56FE\u5C42\uFF08\u6309\u56FE\u5C42ID\uFF09",
   { id: external_exports.string().describe("\u8981\u79FB\u9664\u7684\u56FE\u5C42ID\uFF08\u53EF\u901A\u8FC7 listLayers \u83B7\u53D6\uFF09") },
+  { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false, title: "Remove Layer" },
   async (params) => {
     const result = await sendToBrowser("removeLayer", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21285,6 +21295,7 @@ _registerTool(
   "setBasemap",
   "\u5207\u6362\u5E95\u56FE\u98CE\u683C\uFF08\u6697\u8272/\u536B\u661F\u5F71\u50CF/\u6807\u51C6\uFF09",
   { basemap: external_exports.enum(["dark", "satellite", "standard"]).describe("\u5E95\u56FE\u7C7B\u578B\uFF1Adark=\u6697\u8272, satellite=\u536B\u661F\u5F71\u50CF, standard=\u6807\u51C6") },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Set Basemap" },
   async (params) => {
     const result = await sendToBrowser("setBasemap", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21294,6 +21305,7 @@ _registerTool(
   "screenshot",
   "\u622A\u53D6\u5F53\u524D\u5730\u56FE\u89C6\u56FE\uFF08\u8FD4\u56DE base64 PNG\uFF09",
   {},
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Screenshot" },
   async () => {
     const result = await sendToBrowser("screenshot", {});
     const data = result;
@@ -21311,6 +21323,7 @@ _registerTool(
     featureIndex: external_exports.number().optional().describe("\u8981\u7D20\u7D22\u5F15\uFF08\u4E0D\u4F20\u5219\u9AD8\u4EAE\u5168\u90E8\uFF09"),
     color: external_exports.string().default("#FFFF00").describe("\u9AD8\u4EAE\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Highlight" },
   async (params) => {
     const result = await sendToBrowser("highlight", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21327,6 +21340,7 @@ _registerTool(
     pitch: external_exports.number().optional().default(-90).describe("\u4FEF\u4EF0\u89D2\uFF08\u5EA6\uFF09"),
     roll: external_exports.number().optional().default(0).describe("\u7FFB\u6EDA\u89D2\uFF08\u5EA6\uFF09")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Set View" },
   async (params) => {
     const result = await sendToBrowser("setView", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21336,6 +21350,7 @@ _registerTool(
   "getView",
   "\u83B7\u53D6\u5F53\u524D\u76F8\u673A\u89C6\u89D2\u4FE1\u606F\uFF08\u7ECF\u7EAC\u5EA6\u3001\u9AD8\u5EA6\u3001\u89D2\u5EA6\uFF09",
   {},
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Get View" },
   async () => {
     const result = await sendToBrowser("getView", {});
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
@@ -21351,6 +21366,7 @@ _registerTool(
     north: external_exports.number().describe("\u5317\u8FB9\u754C\u7EAC\u5EA6\uFF08\u5EA6\uFF09"),
     duration: external_exports.number().optional().default(2).describe("\u52A8\u753B\u65F6\u957F\uFF08\u79D2\uFF09")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Zoom to Extent" },
   async (params) => {
     const result = await sendToBrowser("zoomToExtent", { bbox: [params.west, params.south, params.east, params.north], duration: params.duration });
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21367,6 +21383,7 @@ _registerTool(
     size: external_exports.number().optional().default(12).describe("\u70B9\u5927\u5C0F\uFF08\u50CF\u7D20\uFF09"),
     id: external_exports.string().optional().describe("\u81EA\u5B9A\u4E49\u56FE\u5C42ID\uFF08\u4E0D\u4F20\u5219\u81EA\u52A8\u751F\u6210\uFF09")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Add Marker" },
   async (params) => {
     const result = await sendToBrowser("addMarker", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21382,6 +21399,7 @@ _registerTool(
     clampToGround: external_exports.boolean().optional().default(true).describe("\u662F\u5426\u8D34\u5730"),
     label: external_exports.string().optional().describe("\u6298\u7EBF\u6807\u6CE8\u6587\u672C")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Add Polyline" },
   async (params) => {
     const result = await sendToBrowser("addPolyline", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21399,6 +21417,7 @@ _registerTool(
     clampToGround: external_exports.boolean().optional().default(true).describe("\u662F\u5426\u8D34\u5730"),
     label: external_exports.string().optional().describe("\u591A\u8FB9\u5F62\u6807\u6CE8\u6587\u672C")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Add Polygon" },
   async (params) => {
     const result = await sendToBrowser("addPolygon", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21418,6 +21437,7 @@ _registerTool(
     roll: external_exports.number().optional().default(0).describe("\u7FFB\u6EDA\u89D2\uFF08\u5EA6\uFF09"),
     label: external_exports.string().optional().describe("\u6A21\u578B\u6807\u6CE8\u6587\u672C")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Add Model" },
   async (params) => {
     const result = await sendToBrowser("addModel", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21429,15 +21449,16 @@ _registerTool(
   {
     entityId: external_exports.string().describe("\u5B9E\u4F53ID\uFF08addMarker/addPolyline \u7B49\u8FD4\u56DE\u7684 entityId\uFF09"),
     position: external_exports.object({
-      longitude: external_exports.number(),
-      latitude: external_exports.number(),
-      height: external_exports.number().optional()
+      longitude: external_exports.number().describe("\u7ECF\u5EA6\uFF08-180 ~ 180\uFF09"),
+      latitude: external_exports.number().describe("\u7EAC\u5EA6\uFF08-90 ~ 90\uFF09"),
+      height: external_exports.number().optional().describe("\u9AD8\u5EA6\uFF08\u7C73\uFF09")
     }).optional().describe("\u65B0\u4F4D\u7F6E\u5750\u6807"),
     label: external_exports.string().optional().describe("\u65B0\u6807\u6CE8\u6587\u672C"),
     color: external_exports.string().optional().describe("\u65B0\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09"),
     scale: external_exports.number().optional().describe("\u65B0\u7F29\u653E\u6BD4\u4F8B"),
     show: external_exports.boolean().optional().describe("\u662F\u5426\u663E\u793A")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Update Entity" },
   async (params) => {
     const result = await sendToBrowser("updateEntity", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21449,6 +21470,7 @@ _registerTool(
   {
     entityId: external_exports.string().describe("\u8981\u79FB\u9664\u7684\u5B9E\u4F53ID")
   },
+  { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false, title: "Remove Entity" },
   async (params) => {
     const result = await sendToBrowser("removeEntity", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21461,6 +21483,7 @@ _registerTool(
     id: external_exports.string().describe("\u56FE\u5C42ID"),
     visible: external_exports.boolean().describe("\u662F\u5426\u53EF\u89C1")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Set Layer Visibility" },
   async (params) => {
     const result = await sendToBrowser("setLayerVisibility", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21470,6 +21493,7 @@ _registerTool(
   "listLayers",
   "\u83B7\u53D6\u5F53\u524D\u6240\u6709\u56FE\u5C42\u5217\u8868\uFF08\u542B ID\u3001\u540D\u79F0\u3001\u7C7B\u578B\u3001\u53EF\u89C1\u6027\uFF09",
   {},
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "List Layers" },
   async () => {
     const result = await sendToBrowser("listLayers", {});
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
@@ -21483,6 +21507,7 @@ _registerTool(
     labelStyle: external_exports.record(external_exports.unknown()).optional().describe("\u6807\u6CE8\u6837\u5F0F\uFF08font, fillColor, outlineColor, outlineWidth, scale \u7B49\uFF09"),
     layerStyle: external_exports.record(external_exports.unknown()).optional().describe("\u56FE\u5C42\u6837\u5F0F\uFF08color, opacity, strokeWidth, pointSize\uFF09")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Update Layer Style" },
   async (params) => {
     const result = await sendToBrowser("updateLayerStyle", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21499,6 +21524,7 @@ _registerTool(
     trailSeconds: external_exports.number().optional().default(2).describe("\u5C3E\u8FF9\u957F\u5EA6\uFF08\u79D2\uFF09"),
     label: external_exports.string().optional().describe("\u79FB\u52A8\u4F53\u6807\u7B7E")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Play Trajectory" },
   async (params) => {
     const result = await sendToBrowser("playTrajectory", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21514,6 +21540,7 @@ _registerTool(
     maximumScreenSpaceError: external_exports.number().optional().default(16).describe("\u6700\u5927\u5C4F\u5E55\u7A7A\u95F4\u8BEF\u5DEE\uFF08\u503C\u8D8A\u5C0F\u8D8A\u7CBE\u7EC6\uFF09"),
     heightOffset: external_exports.number().optional().describe("\u9AD8\u5EA6\u504F\u79FB\uFF08\u7C73\uFF09")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Load 3D Tiles" },
   async (params) => {
     const result = await sendToBrowser("load3dTiles", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21527,6 +21554,7 @@ _registerTool(
     url: external_exports.string().optional().describe("\u81EA\u5B9A\u4E49\u5730\u5F62\u670D\u52A1 URL"),
     cesiumIonAssetId: external_exports.number().optional().describe("Cesium Ion \u8D44\u4EA7ID\uFF08provider=cesiumion \u65F6\u9700\u8981\uFF09")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Load Terrain" },
   async (params) => {
     const result = await sendToBrowser("loadTerrain", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21543,6 +21571,7 @@ _registerTool(
     layerName: external_exports.string().optional().describe("WMS/WMTS \u56FE\u5C42\u540D"),
     opacity: external_exports.number().optional().default(1).describe("\u900F\u660E\u5EA6\uFF080~1\uFF09")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Load Imagery Service" },
   async (params) => {
     const result = await sendToBrowser("loadImageryService", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21559,6 +21588,7 @@ _registerTool(
     pitch: external_exports.number().optional().default(-45).describe("Camera pitch (degrees), -90=straight down"),
     range: external_exports.number().optional().default(1e3).describe("Distance from target (meters)")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Look At Transform" },
   async (params) => {
     const result = await sendToBrowser("lookAtTransform", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21571,6 +21601,7 @@ _registerTool(
     speed: external_exports.number().optional().default(5e-3).describe("Rotation speed (radians per tick)"),
     clockwise: external_exports.boolean().optional().default(true).describe("Orbit direction")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Start Orbit" },
   async (params) => {
     const result = await sendToBrowser("startOrbit", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21580,6 +21611,7 @@ _registerTool(
   "stopOrbit",
   "Stop the camera orbit animation",
   {},
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Stop Orbit" },
   async () => {
     const result = await sendToBrowser("stopOrbit", {});
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21598,27 +21630,28 @@ _registerTool(
     maximumZoomDistance: external_exports.number().optional().describe("Maximum zoom distance (meters)"),
     enableInputs: external_exports.boolean().optional().describe("Enable/disable all camera inputs")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Set Camera Options" },
   async (params) => {
     const result = await sendToBrowser("setCameraOptions", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
 var colorSchema = external_exports.union([
-  external_exports.string(),
-  external_exports.object({ red: external_exports.number(), green: external_exports.number(), blue: external_exports.number(), alpha: external_exports.number().optional() })
+  external_exports.string().describe('CSS color string (e.g. "#FF0000", "red")'),
+  external_exports.object({ red: external_exports.number().describe("Red channel (0-1)"), green: external_exports.number().describe("Green channel (0-1)"), blue: external_exports.number().describe("Blue channel (0-1)"), alpha: external_exports.number().optional().describe("Alpha channel (0-1)") }).describe("RGBA color object")
 ]).optional();
 var materialSchema = external_exports.union([
-  external_exports.string(),
-  external_exports.object({ red: external_exports.number(), green: external_exports.number(), blue: external_exports.number(), alpha: external_exports.number().optional() }),
+  external_exports.string().describe("CSS color string"),
+  external_exports.object({ red: external_exports.number().describe("Red (0-1)"), green: external_exports.number().describe("Green (0-1)"), blue: external_exports.number().describe("Blue (0-1)"), alpha: external_exports.number().optional().describe("Alpha (0-1)") }).describe("RGBA color"),
   external_exports.object({
-    type: external_exports.enum(["color", "image", "checkerboard", "stripe", "grid"]),
-    color: external_exports.union([external_exports.string(), external_exports.object({ red: external_exports.number(), green: external_exports.number(), blue: external_exports.number(), alpha: external_exports.number().optional() })]).optional(),
-    image: external_exports.string().optional(),
-    evenColor: external_exports.union([external_exports.string(), external_exports.object({ red: external_exports.number(), green: external_exports.number(), blue: external_exports.number(), alpha: external_exports.number().optional() })]).optional(),
-    oddColor: external_exports.union([external_exports.string(), external_exports.object({ red: external_exports.number(), green: external_exports.number(), blue: external_exports.number(), alpha: external_exports.number().optional() })]).optional(),
-    orientation: external_exports.enum(["horizontal", "vertical"]).optional(),
-    cellAlpha: external_exports.number().optional()
-  })
+    type: external_exports.enum(["color", "image", "checkerboard", "stripe", "grid"]).describe("Material type"),
+    color: external_exports.union([external_exports.string(), external_exports.object({ red: external_exports.number().describe("Red (0-1)"), green: external_exports.number().describe("Green (0-1)"), blue: external_exports.number().describe("Blue (0-1)"), alpha: external_exports.number().optional().describe("Alpha (0-1)") })]).optional().describe("Base color"),
+    image: external_exports.string().optional().describe("Image URL"),
+    evenColor: external_exports.union([external_exports.string(), external_exports.object({ red: external_exports.number().describe("Red (0-1)"), green: external_exports.number().describe("Green (0-1)"), blue: external_exports.number().describe("Blue (0-1)"), alpha: external_exports.number().optional().describe("Alpha (0-1)") })]).optional().describe("Even color for checkerboard/stripe"),
+    oddColor: external_exports.union([external_exports.string(), external_exports.object({ red: external_exports.number().describe("Red (0-1)"), green: external_exports.number().describe("Green (0-1)"), blue: external_exports.number().describe("Blue (0-1)"), alpha: external_exports.number().optional().describe("Alpha (0-1)") })]).optional().describe("Odd color for checkerboard/stripe"),
+    orientation: external_exports.enum(["horizontal", "vertical"]).optional().describe("Stripe orientation"),
+    cellAlpha: external_exports.number().optional().describe("Cell alpha for grid material")
+  }).describe("Complex material specification")
 ]).optional();
 var orientationSchema = external_exports.object({
   heading: external_exports.number().describe("Heading (degrees)"),
@@ -21626,9 +21659,9 @@ var orientationSchema = external_exports.object({
   roll: external_exports.number().describe("Roll (degrees)")
 }).optional();
 var positionDegreesSchema = external_exports.object({
-  longitude: external_exports.number(),
-  latitude: external_exports.number(),
-  height: external_exports.number().optional()
+  longitude: external_exports.number().describe("Longitude (degrees)"),
+  latitude: external_exports.number().describe("Latitude (degrees)"),
+  height: external_exports.number().optional().describe("Height above ground (meters)")
 });
 _registerTool(
   "addBillboard",
@@ -21646,6 +21679,7 @@ _registerTool(
     verticalOrigin: external_exports.enum(["CENTER", "TOP", "BOTTOM", "BASELINE"]).optional().describe("Vertical origin"),
     heightReference: external_exports.enum(["NONE", "CLAMP_TO_GROUND", "RELATIVE_TO_GROUND"]).optional().describe("Height reference")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Add Billboard" },
   async (params) => {
     const result = await sendToBrowser("addBillboard", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21671,6 +21705,7 @@ _registerTool(
     orientation: orientationSchema.describe("Orientation (heading/pitch/roll in degrees)"),
     heightReference: external_exports.enum(["NONE", "CLAMP_TO_GROUND", "RELATIVE_TO_GROUND"]).optional().describe("Height reference")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Add Box" },
   async (params) => {
     const result = await sendToBrowser("addBox", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21690,6 +21725,7 @@ _registerTool(
     outline: external_exports.boolean().optional().describe("Show outline"),
     outlineColor: colorSchema.describe("Outline color")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Add Corridor" },
   async (params) => {
     const result = await sendToBrowser("addCorridor", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21714,6 +21750,7 @@ _registerTool(
     numberOfVerticalLines: external_exports.number().optional().default(16).describe("Number of vertical lines"),
     slices: external_exports.number().optional().default(128).describe("Number of slices")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Add Cylinder" },
   async (params) => {
     const result = await sendToBrowser("addCylinder", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21738,6 +21775,7 @@ _registerTool(
     stRotation: external_exports.number().optional().describe("Texture rotation (radians)"),
     numberOfVerticalLines: external_exports.number().optional().describe("Number of vertical lines")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Add Ellipse" },
   async (params) => {
     const result = await sendToBrowser("addEllipse", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21761,6 +21799,7 @@ _registerTool(
     fill: external_exports.boolean().optional().default(true).describe("Show fill"),
     stRotation: external_exports.number().optional().describe("Texture rotation (radians)")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Add Rectangle" },
   async (params) => {
     const result = await sendToBrowser("addRectangle", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21779,6 +21818,7 @@ _registerTool(
     outlineColor: colorSchema.describe("Outline color"),
     fill: external_exports.boolean().optional().default(true).describe("Show fill")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Add Wall" },
   async (params) => {
     const result = await sendToBrowser("addWall", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21804,6 +21844,7 @@ _registerTool(
     multiplier: external_exports.number().optional().default(1).describe("Clock speed multiplier"),
     shouldAnimate: external_exports.boolean().optional().default(true).describe("Auto-start animation")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Create Animation" },
   async (params) => {
     const result = await sendToBrowser("createAnimation", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21815,6 +21856,7 @@ _registerTool(
   {
     action: external_exports.enum(["play", "pause"]).describe("Play or pause")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Control Animation" },
   async (params) => {
     const result = await sendToBrowser("controlAnimation", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21826,6 +21868,7 @@ _registerTool(
   {
     entityId: external_exports.string().describe("Entity ID of the animation to remove")
   },
+  { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false, title: "Remove Animation" },
   async (params) => {
     const result = await sendToBrowser("removeAnimation", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21835,6 +21878,7 @@ _registerTool(
   "listAnimations",
   "List all active animations",
   {},
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "List Animations" },
   async () => {
     const result = await sendToBrowser("listAnimations", {});
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
@@ -21851,6 +21895,7 @@ _registerTool(
     trailTime: external_exports.number().optional().describe("New trail time (seconds)"),
     show: external_exports.boolean().optional().describe("Show/hide path")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Update Animation Path" },
   async (params) => {
     const result = await sendToBrowser("updateAnimationPath", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21865,6 +21910,7 @@ _registerTool(
     pitch: external_exports.number().optional().default(-30).describe("Camera pitch (degrees)"),
     range: external_exports.number().optional().default(500).describe("Camera distance from entity (meters)")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Track Entity" },
   async (params) => {
     const result = await sendToBrowser("trackEntity", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21883,6 +21929,7 @@ _registerTool(
     shouldAnimate: external_exports.boolean().optional().describe("Whether clock should animate (for configure)"),
     clockRange: external_exports.enum(["UNBOUNDED", "CLAMPED", "LOOP_STOP"]).optional().describe("Clock range mode (for configure)")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: "Control Clock" },
   async (params) => {
     const result = await sendToBrowser("controlClock", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
@@ -21896,16 +21943,40 @@ _registerTool(
     dynamicAtmosphereLighting: external_exports.boolean().optional().describe("Enable dynamic atmosphere lighting"),
     dynamicAtmosphereLightingFromSun: external_exports.boolean().optional().describe("Use sun position for atmosphere lighting")
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Set Globe Lighting" },
   async (params) => {
     const result = await sendToBrowser("setGlobeLighting", params);
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
+);
+server.prompt(
+  "cesium-quickstart",
+  "Quick reference for using Cesium MCP tools",
+  async () => ({
+    messages: [{
+      role: "user",
+      content: {
+        type: "text",
+        text: `Cesium MCP Quick Start Guide:
+
+1. **Camera**: flyTo(lng, lat) to navigate, setView for instant move, getView to read current position
+2. **Entities**: addMarker for points, addPolygon/addPolyline for shapes, addModel for 3D models
+3. **Layers**: addGeoJsonLayer for vector data, load3dTiles for 3D city models, loadImageryService for WMS/WMTS
+4. **Animation**: createAnimation with waypoints for moving entities, controlAnimation to play/pause
+5. **Interaction**: screenshot to capture view, highlight to emphasize features
+6. **Discovery**: list_toolsets to see available tool groups, enable_toolset to activate more tools
+
+All entity/layer operations return an ID for subsequent updates or removal.`
+      }
+    }]
+  })
 );
 if (!_allMode) {
   server.tool(
     "list_toolsets",
     "List all available tool groups and their enabled status. Call this to discover additional capabilities before asking the user to configure anything.",
     {},
+    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "List Toolsets" },
     async () => {
       const groups = Object.entries(TOOLSETS).map(([name, tools]) => ({
         name,
@@ -21923,6 +21994,7 @@ if (!_allMode) {
     {
       toolset: external_exports.string().describe('Name of the toolset to enable (e.g. "camera", "animation", "entity-ext")')
     },
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Enable Toolset" },
     async ({ toolset }) => {
       if (!(toolset in TOOLSETS)) {
         return {

@@ -6,7 +6,10 @@
     "serverCard": {
       "serverInfo": {
         "name": "cesium-mcp-runtime",
-        "version": "0.1.0"
+        "title": "Cesium MCP Runtime",
+        "version": "1.139.4",
+        "websiteUrl": "https://github.com/gaopengbin/cesium-mcp",
+        "description": "AI-powered 3D globe control via MCP — camera, layers, entities, animation, and interaction with CesiumJS."
       },
       "tools": [
         {
@@ -51,6 +54,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Fly To Location",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -86,6 +96,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Add GeoJSON Layer",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -118,6 +135,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Add Label",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -145,6 +169,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Add Heatmap",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -165,6 +196,13 @@
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Remove Layer",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": true,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -192,6 +230,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Set Basemap",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -203,6 +248,13 @@
             "type": "object",
             "properties": {},
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Screenshot",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -233,6 +285,13 @@
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Highlight",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -280,6 +339,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Set View",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -291,6 +357,13 @@
             "type": "object",
             "properties": {},
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Get View",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -332,6 +405,13 @@
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Zoom to Extent",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -376,6 +456,13 @@
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Add Marker",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -422,6 +509,13 @@
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Add Polyline",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -477,6 +571,13 @@
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Add Polygon",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -538,6 +639,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Add Model",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -556,13 +664,16 @@
                 "type": "object",
                 "properties": {
                   "longitude": {
-                    "type": "number"
+                    "type": "number",
+                    "description": "经度（-180 ~ 180）"
                   },
                   "latitude": {
-                    "type": "number"
+                    "type": "number",
+                    "description": "纬度（-90 ~ 90）"
                   },
                   "height": {
-                    "type": "number"
+                    "type": "number",
+                    "description": "高度（米）"
                   }
                 },
                 "required": [
@@ -595,6 +706,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Update Entity",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -615,6 +733,13 @@
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Remove Entity",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": true,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -642,6 +767,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Set Layer Visibility",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -653,6 +785,13 @@
             "type": "object",
             "properties": {},
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "List Layers",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -684,6 +823,13 @@
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Update Layer Style",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -734,6 +880,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Play Trajectory",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -772,6 +925,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Load 3D Tiles",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -805,6 +965,13 @@
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Load Terrain",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -855,6 +1022,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Load Imagery Service",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -901,6 +1075,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Look At Transform",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -925,6 +1106,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Start Orbit",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -936,6 +1124,13 @@
             "type": "object",
             "properties": {},
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Stop Orbit",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -983,6 +1178,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Set Camera Options",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -1022,22 +1224,27 @@
               "color": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "type": "string",
+                    "description": "CSS color string (e.g. \"#FF0000\", \"red\")"
                   },
                   {
                     "type": "object",
                     "properties": {
                       "red": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Red channel (0-1)"
                       },
                       "green": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Green channel (0-1)"
                       },
                       "blue": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Blue channel (0-1)"
                       },
                       "alpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Alpha channel (0-1)"
                       }
                     },
                     "required": [
@@ -1045,7 +1252,8 @@
                       "green",
                       "blue"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "RGBA color object"
                   }
                 ],
                 "description": "Tint color"
@@ -1104,6 +1312,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Add Billboard",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -1158,22 +1373,27 @@
               "material": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "type": "string",
+                    "description": "CSS color string"
                   },
                   {
                     "type": "object",
                     "properties": {
                       "red": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Red (0-1)"
                       },
                       "green": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Green (0-1)"
                       },
                       "blue": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Blue (0-1)"
                       },
                       "alpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Alpha (0-1)"
                       }
                     },
                     "required": [
@@ -1181,7 +1401,8 @@
                       "green",
                       "blue"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "RGBA color"
                   },
                   {
                     "type": "object",
@@ -1194,7 +1415,8 @@
                           "checkerboard",
                           "stripe",
                           "grid"
-                        ]
+                        ],
+                        "description": "Material type"
                       },
                       "color": {
                         "anyOf": [
@@ -1205,16 +1427,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -1224,10 +1450,12 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Base color"
                       },
                       "image": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Image URL"
                       },
                       "evenColor": {
                         "anyOf": [
@@ -1238,16 +1466,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -1257,7 +1489,8 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Even color for checkerboard/stripe"
                       },
                       "oddColor": {
                         "anyOf": [
@@ -1268,16 +1501,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -1287,23 +1524,27 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Odd color for checkerboard/stripe"
                       },
                       "orientation": {
                         "type": "string",
                         "enum": [
                           "horizontal",
                           "vertical"
-                        ]
+                        ],
+                        "description": "Stripe orientation"
                       },
                       "cellAlpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Cell alpha for grid material"
                       }
                     },
                     "required": [
                       "type"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "Complex material specification"
                   }
                 ],
                 "description": "Material (color string, RGBA object, or material spec)"
@@ -1316,22 +1557,27 @@
               "outlineColor": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "type": "string",
+                    "description": "CSS color string (e.g. \"#FF0000\", \"red\")"
                   },
                   {
                     "type": "object",
                     "properties": {
                       "red": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Red channel (0-1)"
                       },
                       "green": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Green channel (0-1)"
                       },
                       "blue": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Blue channel (0-1)"
                       },
                       "alpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Alpha channel (0-1)"
                       }
                     },
                     "required": [
@@ -1339,7 +1585,8 @@
                       "green",
                       "blue"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "RGBA color object"
                   }
                 ],
                 "description": "Outline color"
@@ -1391,6 +1638,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Add Box",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -1411,13 +1665,16 @@
                   "type": "object",
                   "properties": {
                     "longitude": {
-                      "type": "number"
+                      "type": "number",
+                      "description": "Longitude (degrees)"
                     },
                     "latitude": {
-                      "type": "number"
+                      "type": "number",
+                      "description": "Latitude (degrees)"
                     },
                     "height": {
-                      "type": "number"
+                      "type": "number",
+                      "description": "Height above ground (meters)"
                     }
                   },
                   "required": [
@@ -1435,22 +1692,27 @@
               "material": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "type": "string",
+                    "description": "CSS color string"
                   },
                   {
                     "type": "object",
                     "properties": {
                       "red": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Red (0-1)"
                       },
                       "green": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Green (0-1)"
                       },
                       "blue": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Blue (0-1)"
                       },
                       "alpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Alpha (0-1)"
                       }
                     },
                     "required": [
@@ -1458,7 +1720,8 @@
                       "green",
                       "blue"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "RGBA color"
                   },
                   {
                     "type": "object",
@@ -1471,7 +1734,8 @@
                           "checkerboard",
                           "stripe",
                           "grid"
-                        ]
+                        ],
+                        "description": "Material type"
                       },
                       "color": {
                         "anyOf": [
@@ -1482,16 +1746,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -1501,10 +1769,12 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Base color"
                       },
                       "image": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Image URL"
                       },
                       "evenColor": {
                         "anyOf": [
@@ -1515,16 +1785,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -1534,7 +1808,8 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Even color for checkerboard/stripe"
                       },
                       "oddColor": {
                         "anyOf": [
@@ -1545,16 +1820,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -1564,23 +1843,27 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Odd color for checkerboard/stripe"
                       },
                       "orientation": {
                         "type": "string",
                         "enum": [
                           "horizontal",
                           "vertical"
-                        ]
+                        ],
+                        "description": "Stripe orientation"
                       },
                       "cellAlpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Cell alpha for grid material"
                       }
                     },
                     "required": [
                       "type"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "Complex material specification"
                   }
                 ],
                 "description": "Material"
@@ -1609,22 +1892,27 @@
               "outlineColor": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "type": "string",
+                    "description": "CSS color string (e.g. \"#FF0000\", \"red\")"
                   },
                   {
                     "type": "object",
                     "properties": {
                       "red": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Red channel (0-1)"
                       },
                       "green": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Green channel (0-1)"
                       },
                       "blue": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Blue channel (0-1)"
                       },
                       "alpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Alpha channel (0-1)"
                       }
                     },
                     "required": [
@@ -1632,7 +1920,8 @@
                       "green",
                       "blue"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "RGBA color object"
                   }
                 ],
                 "description": "Outline color"
@@ -1644,6 +1933,13 @@
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Add Corridor",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -1687,22 +1983,27 @@
               "material": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "type": "string",
+                    "description": "CSS color string"
                   },
                   {
                     "type": "object",
                     "properties": {
                       "red": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Red (0-1)"
                       },
                       "green": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Green (0-1)"
                       },
                       "blue": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Blue (0-1)"
                       },
                       "alpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Alpha (0-1)"
                       }
                     },
                     "required": [
@@ -1710,7 +2011,8 @@
                       "green",
                       "blue"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "RGBA color"
                   },
                   {
                     "type": "object",
@@ -1723,7 +2025,8 @@
                           "checkerboard",
                           "stripe",
                           "grid"
-                        ]
+                        ],
+                        "description": "Material type"
                       },
                       "color": {
                         "anyOf": [
@@ -1734,16 +2037,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -1753,10 +2060,12 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Base color"
                       },
                       "image": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Image URL"
                       },
                       "evenColor": {
                         "anyOf": [
@@ -1767,16 +2076,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -1786,7 +2099,8 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Even color for checkerboard/stripe"
                       },
                       "oddColor": {
                         "anyOf": [
@@ -1797,16 +2111,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -1816,23 +2134,27 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Odd color for checkerboard/stripe"
                       },
                       "orientation": {
                         "type": "string",
                         "enum": [
                           "horizontal",
                           "vertical"
-                        ]
+                        ],
+                        "description": "Stripe orientation"
                       },
                       "cellAlpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Cell alpha for grid material"
                       }
                     },
                     "required": [
                       "type"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "Complex material specification"
                   }
                 ],
                 "description": "Material"
@@ -1845,22 +2167,27 @@
               "outlineColor": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "type": "string",
+                    "description": "CSS color string (e.g. \"#FF0000\", \"red\")"
                   },
                   {
                     "type": "object",
                     "properties": {
                       "red": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Red channel (0-1)"
                       },
                       "green": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Green channel (0-1)"
                       },
                       "blue": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Blue channel (0-1)"
                       },
                       "alpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Alpha channel (0-1)"
                       }
                     },
                     "required": [
@@ -1868,7 +2195,8 @@
                       "green",
                       "blue"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "RGBA color object"
                   }
                 ],
                 "description": "Outline color"
@@ -1923,6 +2251,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Add Cylinder",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -1961,22 +2296,27 @@
               "material": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "type": "string",
+                    "description": "CSS color string"
                   },
                   {
                     "type": "object",
                     "properties": {
                       "red": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Red (0-1)"
                       },
                       "green": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Green (0-1)"
                       },
                       "blue": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Blue (0-1)"
                       },
                       "alpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Alpha (0-1)"
                       }
                     },
                     "required": [
@@ -1984,7 +2324,8 @@
                       "green",
                       "blue"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "RGBA color"
                   },
                   {
                     "type": "object",
@@ -1997,7 +2338,8 @@
                           "checkerboard",
                           "stripe",
                           "grid"
-                        ]
+                        ],
+                        "description": "Material type"
                       },
                       "color": {
                         "anyOf": [
@@ -2008,16 +2350,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -2027,10 +2373,12 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Base color"
                       },
                       "image": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Image URL"
                       },
                       "evenColor": {
                         "anyOf": [
@@ -2041,16 +2389,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -2060,7 +2412,8 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Even color for checkerboard/stripe"
                       },
                       "oddColor": {
                         "anyOf": [
@@ -2071,16 +2424,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -2090,23 +2447,27 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Odd color for checkerboard/stripe"
                       },
                       "orientation": {
                         "type": "string",
                         "enum": [
                           "horizontal",
                           "vertical"
-                        ]
+                        ],
+                        "description": "Stripe orientation"
                       },
                       "cellAlpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Cell alpha for grid material"
                       }
                     },
                     "required": [
                       "type"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "Complex material specification"
                   }
                 ],
                 "description": "Material"
@@ -2126,22 +2487,27 @@
               "outlineColor": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "type": "string",
+                    "description": "CSS color string (e.g. \"#FF0000\", \"red\")"
                   },
                   {
                     "type": "object",
                     "properties": {
                       "red": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Red channel (0-1)"
                       },
                       "green": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Green channel (0-1)"
                       },
                       "blue": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Blue channel (0-1)"
                       },
                       "alpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Alpha channel (0-1)"
                       }
                     },
                     "required": [
@@ -2149,7 +2515,8 @@
                       "green",
                       "blue"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "RGBA color object"
                   }
                 ],
                 "description": "Outline color"
@@ -2176,6 +2543,13 @@
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Add Ellipse",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -2210,22 +2584,27 @@
               "material": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "type": "string",
+                    "description": "CSS color string"
                   },
                   {
                     "type": "object",
                     "properties": {
                       "red": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Red (0-1)"
                       },
                       "green": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Green (0-1)"
                       },
                       "blue": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Blue (0-1)"
                       },
                       "alpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Alpha (0-1)"
                       }
                     },
                     "required": [
@@ -2233,7 +2612,8 @@
                       "green",
                       "blue"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "RGBA color"
                   },
                   {
                     "type": "object",
@@ -2246,7 +2626,8 @@
                           "checkerboard",
                           "stripe",
                           "grid"
-                        ]
+                        ],
+                        "description": "Material type"
                       },
                       "color": {
                         "anyOf": [
@@ -2257,16 +2638,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -2276,10 +2661,12 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Base color"
                       },
                       "image": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Image URL"
                       },
                       "evenColor": {
                         "anyOf": [
@@ -2290,16 +2677,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -2309,7 +2700,8 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Even color for checkerboard/stripe"
                       },
                       "oddColor": {
                         "anyOf": [
@@ -2320,16 +2712,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -2339,23 +2735,27 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Odd color for checkerboard/stripe"
                       },
                       "orientation": {
                         "type": "string",
                         "enum": [
                           "horizontal",
                           "vertical"
-                        ]
+                        ],
+                        "description": "Stripe orientation"
                       },
                       "cellAlpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Cell alpha for grid material"
                       }
                     },
                     "required": [
                       "type"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "Complex material specification"
                   }
                 ],
                 "description": "Material"
@@ -2379,22 +2779,27 @@
               "outlineColor": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "type": "string",
+                    "description": "CSS color string (e.g. \"#FF0000\", \"red\")"
                   },
                   {
                     "type": "object",
                     "properties": {
                       "red": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Red channel (0-1)"
                       },
                       "green": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Green channel (0-1)"
                       },
                       "blue": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Blue channel (0-1)"
                       },
                       "alpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Alpha channel (0-1)"
                       }
                     },
                     "required": [
@@ -2402,7 +2807,8 @@
                       "green",
                       "blue"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "RGBA color object"
                   }
                 ],
                 "description": "Outline color"
@@ -2426,6 +2832,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Add Rectangle",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -2446,13 +2859,16 @@
                   "type": "object",
                   "properties": {
                     "longitude": {
-                      "type": "number"
+                      "type": "number",
+                      "description": "Longitude (degrees)"
                     },
                     "latitude": {
-                      "type": "number"
+                      "type": "number",
+                      "description": "Latitude (degrees)"
                     },
                     "height": {
-                      "type": "number"
+                      "type": "number",
+                      "description": "Height above ground (meters)"
                     }
                   },
                   "required": [
@@ -2480,22 +2896,27 @@
               "material": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "type": "string",
+                    "description": "CSS color string"
                   },
                   {
                     "type": "object",
                     "properties": {
                       "red": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Red (0-1)"
                       },
                       "green": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Green (0-1)"
                       },
                       "blue": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Blue (0-1)"
                       },
                       "alpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Alpha (0-1)"
                       }
                     },
                     "required": [
@@ -2503,7 +2924,8 @@
                       "green",
                       "blue"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "RGBA color"
                   },
                   {
                     "type": "object",
@@ -2516,7 +2938,8 @@
                           "checkerboard",
                           "stripe",
                           "grid"
-                        ]
+                        ],
+                        "description": "Material type"
                       },
                       "color": {
                         "anyOf": [
@@ -2527,16 +2950,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -2546,10 +2973,12 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Base color"
                       },
                       "image": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Image URL"
                       },
                       "evenColor": {
                         "anyOf": [
@@ -2560,16 +2989,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -2579,7 +3012,8 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Even color for checkerboard/stripe"
                       },
                       "oddColor": {
                         "anyOf": [
@@ -2590,16 +3024,20 @@
                             "type": "object",
                             "properties": {
                               "red": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Red (0-1)"
                               },
                               "green": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Green (0-1)"
                               },
                               "blue": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Blue (0-1)"
                               },
                               "alpha": {
-                                "type": "number"
+                                "type": "number",
+                                "description": "Alpha (0-1)"
                               }
                             },
                             "required": [
@@ -2609,23 +3047,27 @@
                             ],
                             "additionalProperties": false
                           }
-                        ]
+                        ],
+                        "description": "Odd color for checkerboard/stripe"
                       },
                       "orientation": {
                         "type": "string",
                         "enum": [
                           "horizontal",
                           "vertical"
-                        ]
+                        ],
+                        "description": "Stripe orientation"
                       },
                       "cellAlpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Cell alpha for grid material"
                       }
                     },
                     "required": [
                       "type"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "Complex material specification"
                   }
                 ],
                 "description": "Material"
@@ -2637,22 +3079,27 @@
               "outlineColor": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "type": "string",
+                    "description": "CSS color string (e.g. \"#FF0000\", \"red\")"
                   },
                   {
                     "type": "object",
                     "properties": {
                       "red": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Red channel (0-1)"
                       },
                       "green": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Green channel (0-1)"
                       },
                       "blue": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Blue channel (0-1)"
                       },
                       "alpha": {
-                        "type": "number"
+                        "type": "number",
+                        "description": "Alpha channel (0-1)"
                       }
                     },
                     "required": [
@@ -2660,7 +3107,8 @@
                       "green",
                       "blue"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": false,
+                    "description": "RGBA color object"
                   }
                 ],
                 "description": "Outline color"
@@ -2676,6 +3124,13 @@
             ],
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Add Wall",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -2768,6 +3223,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Create Animation",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -2793,6 +3255,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Control Animation",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -2814,6 +3283,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Remove Animation",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -2825,6 +3301,13 @@
             "type": "object",
             "properties": {},
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "List Animations",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -2867,6 +3350,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Update Animation Path",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -2898,6 +3388,13 @@
             },
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "annotations": {
+            "title": "Track Entity",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
           },
           "execution": {
             "taskSupport": "forbidden"
@@ -2958,6 +3455,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Control Clock",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -2984,6 +3488,13 @@
             "additionalProperties": false,
             "$schema": "http://json-schema.org/draft-07/schema#"
           },
+          "annotations": {
+            "title": "Set Globe Lighting",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
           "execution": {
             "taskSupport": "forbidden"
           }
@@ -3003,10 +3514,15 @@
           "mimeType": "application/json"
         }
       ],
-      "prompts": []
+      "prompts": [
+        {
+          "name": "cesium-quickstart",
+          "description": "Quick reference for using Cesium MCP tools"
+        }
+      ]
     },
     "source": {
-      "commit": "bb9c06a1aa372f1a6ad6e23cd2e1eff3dcc1beb0",
+      "commit": "5b5d5b679c6cc5e003f8adc1d356ce1032a1200a",
       "branch": "main"
     }
   },
