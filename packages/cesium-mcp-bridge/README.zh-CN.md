@@ -42,7 +42,7 @@ await bridge.execute({
 })
 ```
 
-## 命令 (19)
+## 命令 (43)
 
 ### 视图控制
 
@@ -53,17 +53,62 @@ await bridge.execute({
 | `getView` | 获取当前相机状态（位置、朝向、俯仰、翻滚） |
 | `zoomToExtent` | 缩放到指定矩形范围 |
 
+### 实体
+
+| 命令 | 描述 |
+|------|------|
+| `addMarker` | 在指定位置添加标记 |
+| `addLabel` | 在多个位置添加文字标注 |
+| `addModel` | 添加 3D 模型（glTF/GLB 或 Ion 资产） |
+| `addPolygon` | 添加带样式的多边形 |
+| `addPolyline` | 添加带样式的折线 |
+| `updateEntity` | 更新实体属性 |
+| `removeEntity` | 按 ID 删除实体 |
+
 ### 图层管理
 
 | 命令 | 描述 |
 |------|------|
 | `addGeoJsonLayer` | 添加 GeoJSON 图层，支持样式选项（等值线、分类等） |
-| `addHeatmap` | 添加基于 Canvas 的热力图图层 |
+| `listLayers` | 列出所有已加载图层及元数据 |
 | `removeLayer` | 按 ID 删除图层 |
 | `setLayerVisibility` | 显示/隐藏图层 |
-| `listLayers` | 列出所有已加载图层及元数据 |
 | `updateLayerStyle` | 动态更新图层样式 |
 | `setBasemap` | 切换底图（暗色/卫星/标准/自定义） |
+
+### 高级相机
+
+| 命令 | 描述 |
+|------|------|
+| `lookAtTransform` | 环绕式相机注视某位置（朝向/俯仰/距离） |
+| `startOrbit` | 开始相机环绕旋转 |
+| `stopOrbit` | 停止环绕动画 |
+| `setCameraOptions` | 配置相机控制器（启用/禁用旋转、缩放、倾斜） |
+
+### 扩展实体类型
+
+| 命令 | 描述 |
+|------|------|
+| `addBillboard` | 在指定位置添加图片图标 |
+| `addBox` | 添加带尺寸和材质的 3D 盒体 |
+| `addCorridor` | 添加走廊（带宽度的路径） |
+| `addCylinder` | 添加圆柱体或圆锥体 |
+| `addEllipse` | 添加椭圆 |
+| `addRectangle` | 按地理范围添加矩形 |
+| `addWall` | 沿路径添加墙体 |
+
+### 动画
+
+| 命令 | 描述 |
+|------|------|
+| `createAnimation` | 创建基于时间的路径动画 |
+| `controlAnimation` | 播放或暂停动画 |
+| `removeAnimation` | 删除动画实体 |
+| `listAnimations` | 列出所有活跃的动画 |
+| `updateAnimationPath` | 更新动画路径的可视属性 |
+| `trackEntity` | 相机追踪实体 |
+| `controlClock` | 配置 Cesium 时钟（时间范围、速度） |
+| `setGlobeLighting` | 启用/禁用地球光照和大气效果 |
 
 ### 三维场景
 
@@ -73,25 +118,19 @@ await bridge.execute({
 | `loadTerrain` | 切换地形（平坦/arcgis/cesiumion/url） |
 | `loadImageryService` | 添加 WMS / WMTS / XYZ / ArcGIS 影像图层 |
 
-### 实体与标注
-
-| 命令 | 描述 |
-|------|------|
-| `addMarker` | 在指定位置添加标记（注册到图层系统） |
-| `addLabel` | 在多个位置添加文字标注 |
-
-### 轨迹
-
-| 命令 | 描述 |
-|------|------|
-| `playTrajectory` | 沿路径动画播放实体运动 |
-
 ### 交互
 
 | 命令 | 描述 |
 |------|------|
 | `screenshot` | 截取当前地图视图为 base64 PNG |
 | `highlight` | 高亮图层中的要素 |
+
+### 其他
+
+| 命令 | 描述 |
+|------|------|
+| `playTrajectory` | 沿路径动画播放实体运动 |
+| `addHeatmap` | 添加基于 Canvas 的热力图图层 |
 
 ## 两种调用方式
 
@@ -135,6 +174,16 @@ import type {
   BridgeCommand, BridgeResult, FlyToParams, SetViewParams,
   AddGeoJsonLayerParams, AddHeatmapParams, Load3dTilesParams,
   PlayTrajectoryParams, LayerInfo, HighlightParams,
+  // 相机
+  LookAtTransformParams, StartOrbitParams, SetCameraOptionsParams,
+  // 扩展实体类型
+  AddBillboardParams, AddBoxParams, AddCorridorParams,
+  AddCylinderParams, AddEllipseParams, AddRectangleParams, AddWallParams,
+  MaterialSpec, MaterialInput, OrientationInput, PositionDegrees,
+  // 动画
+  CreateAnimationParams, ControlAnimationParams, RemoveAnimationParams,
+  UpdateAnimationPathParams, TrackEntityParams, ControlClockParams,
+  SetGlobeLightingParams, AnimationWaypoint, AnimationInfo,
 } from 'cesium-mcp-bridge'
 ```
 

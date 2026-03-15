@@ -78,7 +78,55 @@ In `.cursor/mcp.json`:
 }
 ```
 
-## MCP Tools (19)
+## MCP Tools (43 + 2 meta)
+
+Tools are organized into **10 toolsets**. By default, 4 core toolsets are enabled (~19 tools). Additional toolsets can be activated via environment variable or dynamically by the AI agent at runtime.
+
+### Toolsets Overview
+
+| Toolset | Tools | Default | Description |
+|---------|-------|---------|-------------|
+| `view` | 4 | Yes | Camera view controls |
+| `entity` | 7 | Yes | Core entity operations |
+| `layer` | 6 | Yes | Layer management |
+| `interaction` | 2 | Yes | Screenshot & highlight |
+| `camera` | 4 | — | Advanced camera controls (orbit, lookAt) |
+| `entity-ext` | 7 | — | Extended entity types (box, cylinder, wall, etc.) |
+| `animation` | 8 | — | Animation system (waypoints, clock, tracking) |
+| `tiles` | 3 | — | 3D Tiles, terrain, imagery services |
+| `trajectory` | 1 | — | Trajectory playback |
+| `heatmap` | 1 | — | Heatmap visualization |
+
+### Toolset Configuration
+
+```json
+{
+  "mcpServers": {
+    "cesium": {
+      "command": "npx",
+      "args": ["cesium-mcp-runtime"],
+      "env": {
+        "CESIUM_TOOLSETS": "all"
+      }
+    }
+  }
+}
+```
+
+| `CESIUM_TOOLSETS` value | Result |
+|-------------------------|--------|
+| *(not set)* | Default 4 toolsets (19 tools + 2 meta-tools) |
+| `view,entity,camera,animation` | Only specified toolsets + 2 meta-tools |
+| `all` | All 43 tools, no meta-tools |
+
+### Dynamic Discovery (meta-tools)
+
+When not in `all` mode, two meta-tools are always available so the AI can discover and activate additional capabilities on demand:
+
+| Tool | Description |
+|------|-------------|
+| `list_toolsets` | List all toolset groups with enabled status and tool names |
+| `enable_toolset` | Dynamically enable a toolset — new tools become immediately available |
 
 ### View
 
@@ -88,24 +136,65 @@ In `.cursor/mcp.json`:
 | `setView` | Set camera position instantly |
 | `getView` | Get current camera state |
 | `zoomToExtent` | Zoom to bounding box (west, south, east, north) |
-| `screenshot` | Capture map as base64 PNG |
 
-### Layers
+### Entity
+
+| Tool | Description |
+|------|-------------|
+| `addMarker` | Add a marker at coordinates |
+| `addLabel` | Add text labels to the map |
+| `addModel` | Add 3D model (glTF/GLB or Ion asset) |
+| `addPolygon` | Add polygon with styling |
+| `addPolyline` | Add polyline with styling |
+| `updateEntity` | Update entity properties |
+| `removeEntity` | Remove entity by ID |
+
+### Layer
 
 | Tool | Description |
 |------|-------------|
 | `addGeoJsonLayer` | Add GeoJSON with styling (choropleth, category, etc.) |
-| `addHeatmap` | Generate heatmap from point data |
-| `addMarker` | Add a marker at coordinates |
-| `addLabel` | Add text labels to the map |
+| `listLayers` | List all layers |
 | `removeLayer` | Remove layer by ID |
 | `setLayerVisibility` | Toggle layer visibility |
-| `listLayers` | List all layers |
 | `updateLayerStyle` | Change layer color/opacity/width |
 | `setBasemap` | Switch basemap |
-| `highlight` | Highlight layer features |
 
-### 3D Data
+### Camera *(toolset: camera)*
+
+| Tool | Description |
+|------|-------------|
+| `lookAtTransform` | Orbit-style camera aim at a position (heading/pitch/range) |
+| `startOrbit` | Start orbiting the camera around current center |
+| `stopOrbit` | Stop orbit animation |
+| `setCameraOptions` | Configure camera controller (enable/disable rotation, zoom, tilt) |
+
+### Extended Entity Types *(toolset: entity-ext)*
+
+| Tool | Description |
+|------|-------------|
+| `addBillboard` | Add an image icon at a position |
+| `addBox` | Add a 3D box with dimensions and material |
+| `addCorridor` | Add a corridor (path with width) |
+| `addCylinder` | Add a cylinder or cone |
+| `addEllipse` | Add an ellipse (oval) |
+| `addRectangle` | Add a rectangle by geographic bounds |
+| `addWall` | Add a wall along positions |
+
+### Animation *(toolset: animation)*
+
+| Tool | Description |
+|------|-------------|
+| `createAnimation` | Create time-based animation with waypoints (moving entity along path) |
+| `controlAnimation` | Play or pause the current animation |
+| `removeAnimation` | Remove an animation entity |
+| `listAnimations` | List all active animations |
+| `updateAnimationPath` | Update animation path visual properties |
+| `trackEntity` | Follow an entity with the camera |
+| `controlClock` | Configure Cesium clock (time range, speed, animation state) |
+| `setGlobeLighting` | Enable/disable globe lighting and atmospheric effects |
+
+### Tiles & Data *(toolset: tiles)*
 
 | Tool | Description |
 |------|-------------|
@@ -113,11 +202,19 @@ In `.cursor/mcp.json`:
 | `loadTerrain` | Set terrain provider |
 | `loadImageryService` | Add imagery service (WMS/WMTS/XYZ) |
 
-### Animation
+### Interaction *(toolset: interaction)*
 
 | Tool | Description |
 |------|-------------|
-| `playTrajectory` | Animate entity along coordinate path |
+| `screenshot` | Capture map as base64 PNG |
+| `highlight` | Highlight layer features |
+
+### Other
+
+| Tool | Toolset | Description |
+|------|---------|-------------|
+| `playTrajectory` | trajectory | Animate entity along coordinate path |
+| `addHeatmap` | heatmap | Generate heatmap from point data |
 
 ## MCP Resources
 
@@ -132,6 +229,7 @@ In `.cursor/mcp.json`:
 |----------|---------|-------------|
 | `CESIUM_WS_PORT` | `9100` | WebSocket server port |
 | `DEFAULT_SESSION_ID` | `default` | Preferred browser session for MCP tool routing |
+| `CESIUM_TOOLSETS` | *(not set)* | Toolset activation: omit for defaults, `all` for everything, or comma-separated list |
 
 ## Browser-Side Setup
 

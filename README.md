@@ -34,7 +34,7 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 | Package | Description | npm |
 |---------|-------------|-----|
 | [cesium-mcp-bridge](packages/cesium-mcp-bridge/) | Browser SDK — embeds in your CesiumJS app, receives commands via WebSocket | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP Server (stdio) — exposes 24 tools + 2 resources to any MCP client | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP Server (stdio) — 43 tools (10 toolsets) + 2 resources, dynamic discovery | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [cesium-mcp-dev](packages/cesium-mcp-dev/) | IDE MCP Server — CesiumJS API helper for coding assistants | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 ## Architecture
@@ -90,20 +90,26 @@ Add to your MCP client config (e.g. Claude Desktop):
 
 Now ask your AI: *"Fly to the Eiffel Tower and add a red marker"*
 
-## 24 Available Tools
+## 43 Available Tools
 
-| Category | Tools |
-|----------|-------|
-| View | `flyTo`, `setView`, `getView`, `zoomToExtent` |
-| Layers | `addGeoJsonLayer`, `addHeatmap`, `removeLayer`, `setLayerVisibility`, `listLayers`, `updateLayerStyle`, `setBasemap`, `highlight` |
-| Entities | `addMarker`, `addPolyline`, `addPolygon`, `addModel`, `addLabel`, `updateEntity`, `removeEntity` |
-| 3D Data | `load3dTiles`, `loadTerrain`, `loadImageryService` |
-| Animation | `playTrajectory` |
-| Interaction | `screenshot` |
+Tools are organized into **10 toolsets**. Default mode enables 4 core toolsets (~19 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically at runtime.
+
+| Toolset | Tools |
+|---------|-------|
+| **view** (default) | `flyTo`, `setView`, `getView`, `zoomToExtent` |
+| **entity** (default) | `addMarker`, `addLabel`, `addModel`, `addPolygon`, `addPolyline`, `updateEntity`, `removeEntity` |
+| **layer** (default) | `addGeoJsonLayer`, `listLayers`, `removeLayer`, `setLayerVisibility`, `updateLayerStyle`, `setBasemap` |
+| **interaction** (default) | `screenshot`, `highlight` |
+| camera | `lookAtTransform`, `startOrbit`, `stopOrbit`, `setCameraOptions` |
+| entity-ext | `addBillboard`, `addBox`, `addCorridor`, `addCylinder`, `addEllipse`, `addRectangle`, `addWall` |
+| animation | `createAnimation`, `controlAnimation`, `removeAnimation`, `listAnimations`, `updateAnimationPath`, `trackEntity`, `controlClock`, `setGlobeLighting` |
+| tiles | `load3dTiles`, `loadTerrain`, `loadImageryService` |
+| trajectory | `playTrajectory` |
+| heatmap | `addHeatmap` |
 
 ## Examples
 
-See [examples/minimal/](examples/minimal/) for a complete working demo with all 24 commands.
+See [examples/minimal/](examples/minimal/) for a complete working demo.
 
 ## Development
 

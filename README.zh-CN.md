@@ -34,7 +34,7 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 | 包名 | 描述 | npm |
 |------|------|-----|
 | [cesium-mcp-bridge](packages/cesium-mcp-bridge/) | 浏览器 SDK — 嵌入你的 CesiumJS 应用，通过 WebSocket 接收命令 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP 服务器 (stdio) — 为任何 MCP 客户端暴露 24 个工具 + 2 个资源 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP 服务器 (stdio) — 43 个工具（10 个工具集）+ 2 个资源，支持动态发现 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [cesium-mcp-dev](packages/cesium-mcp-dev/) | IDE MCP 服务器 — 为代码助手提供 CesiumJS API 辅助 | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 ## 架构
@@ -90,20 +90,26 @@ npx cesium-mcp-runtime
 
 然后对 AI 说：*"飞到埃菲尔铁塔，添加一个红色标记"*
 
-## 24 个可用工具
+## 43 个可用工具
 
-| 类别 | 工具 |
-|------|------|
-| 视图 | `flyTo`, `setView`, `getView`, `zoomToExtent` |
-| 图层 | `addGeoJsonLayer`, `addHeatmap`, `removeLayer`, `setLayerVisibility`, `listLayers`, `updateLayerStyle`, `setBasemap`, `highlight` |
-| 实体 | `addMarker`, `addPolyline`, `addPolygon`, `addModel`, `addLabel`, `updateEntity`, `removeEntity` |
-| 3D 数据 | `load3dTiles`, `loadTerrain`, `loadImageryService` |
-| 动画 | `playTrajectory` |
-| 交互 | `screenshot` |
+工具按 **10 个工具集** 组织。默认启用 4 个核心工具集（约 19 个工具）。设置 `CESIUM_TOOLSETS=all` 启用全部，或由 AI 在运行时动态按需发现和激活。
+
+| 工具集 | 工具 |
+|--------|------|
+| **view** (默认) | `flyTo`, `setView`, `getView`, `zoomToExtent` |
+| **entity** (默认) | `addMarker`, `addLabel`, `addModel`, `addPolygon`, `addPolyline`, `updateEntity`, `removeEntity` |
+| **layer** (默认) | `addGeoJsonLayer`, `listLayers`, `removeLayer`, `setLayerVisibility`, `updateLayerStyle`, `setBasemap` |
+| **interaction** (默认) | `screenshot`, `highlight` |
+| camera | `lookAtTransform`, `startOrbit`, `stopOrbit`, `setCameraOptions` |
+| entity-ext | `addBillboard`, `addBox`, `addCorridor`, `addCylinder`, `addEllipse`, `addRectangle`, `addWall` |
+| animation | `createAnimation`, `controlAnimation`, `removeAnimation`, `listAnimations`, `updateAnimationPath`, `trackEntity`, `controlClock`, `setGlobeLighting` |
+| tiles | `load3dTiles`, `loadTerrain`, `loadImageryService` |
+| trajectory | `playTrajectory` |
+| heatmap | `addHeatmap` |
 
 ## 示例
 
-查看 [examples/minimal/](examples/minimal/) 获取包含全部 24 个命令的完整工作示例。
+查看 [examples/minimal/](examples/minimal/) 获取完整工作示例。
 
 ## 开发
 

@@ -78,7 +78,55 @@ cesium-mcp-runtime
 }
 ```
 
-## MCP 工具 (19)
+## MCP 工具 (43 + 2 元工具)
+
+工具按 **10 个工具集** 组织。默认启用 4 个核心工具集（约 19 个工具）。可通过环境变量或由 AI 智能体在运行时动态激活额外的工具集。
+
+### 工具集概览
+
+| 工具集 | 工具数 | 默认启用 | 描述 |
+|--------|--------|----------|------|
+| `view` | 4 | 是 | 相机视角控制 |
+| `entity` | 7 | 是 | 核心实体操作 |
+| `layer` | 6 | 是 | 图层管理 |
+| `interaction` | 2 | 是 | 截图与高亮 |
+| `camera` | 4 | — | 高级相机控制（环绕、注视） |
+| `entity-ext` | 7 | — | 扩展实体类型（盒体、柱体、墙等） |
+| `animation` | 8 | — | 动画系统（路径点、时钟、追踪） |
+| `tiles` | 3 | — | 3D Tiles、地形、影像服务 |
+| `trajectory` | 1 | — | 轨迹回放 |
+| `heatmap` | 1 | — | 热力图可视化 |
+
+### 工具集配置
+
+```json
+{
+  "mcpServers": {
+    "cesium": {
+      "command": "npx",
+      "args": ["cesium-mcp-runtime"],
+      "env": {
+        "CESIUM_TOOLSETS": "all"
+      }
+    }
+  }
+}
+```
+
+| `CESIUM_TOOLSETS` 值 | 效果 |
+|----------------------|------|
+| *（未设置）* | 默认 4 个工具集（19 工具 + 2 元工具） |
+| `view,entity,camera,animation` | 仅启用指定的工具集 + 2 元工具 |
+| `all` | 全部 43 个工具，无元工具 |
+
+### 动态发现（元工具）
+
+非 `all` 模式下，始终注册两个元工具，AI 可在运行时按需发现并激活额外能力：
+
+| 工具 | 描述 |
+|------|------|
+| `list_toolsets` | 列出所有工具集及其启用状态和包含的工具 |
+| `enable_toolset` | 动态启用一个工具集 -- 新工具立即可用 |
 
 ### 视图
 
@@ -88,24 +136,65 @@ cesium-mcp-runtime
 | `setView` | 瞬间设置相机位置 |
 | `getView` | 获取当前相机状态 |
 | `zoomToExtent` | 缩放到边界框（west, south, east, north） |
-| `screenshot` | 截取地图为 base64 PNG |
+
+### 实体
+
+| 工具 | 描述 |
+|------|------|
+| `addMarker` | 在坐标处添加标记 |
+| `addLabel` | 在地图上添加文字标注 |
+| `addModel` | 添加 3D 模型（glTF/GLB 或 Ion 资产） |
+| `addPolygon` | 添加带样式的多边形 |
+| `addPolyline` | 添加带样式的折线 |
+| `updateEntity` | 更新实体属性 |
+| `removeEntity` | 按 ID 删除实体 |
 
 ### 图层
 
 | 工具 | 描述 |
 |------|------|
 | `addGeoJsonLayer` | 添加带样式的 GeoJSON（等值线、分类等） |
-| `addHeatmap` | 从点数据生成热力图 |
-| `addMarker` | 在坐标处添加标记 |
-| `addLabel` | 在地图上添加文字标注 |
+| `listLayers` | 列出所有图层 |
 | `removeLayer` | 按 ID 删除图层 |
 | `setLayerVisibility` | 切换图层可见性 |
-| `listLayers` | 列出所有图层 |
 | `updateLayerStyle` | 修改图层颜色/透明度/宽度 |
 | `setBasemap` | 切换底图 |
-| `highlight` | 高亮图层要素 |
 
-### 三维数据
+### 相机 *（工具集: camera）*
+
+| 工具 | 描述 |
+|------|------|
+| `lookAtTransform` | 环绕式相机注视某位置（朝向/俯仰/距离） |
+| `startOrbit` | 开始相机环绕旋转 |
+| `stopOrbit` | 停止环绕动画 |
+| `setCameraOptions` | 配置相机控制器（启用/禁用旋转、缩放、倾斜） |
+
+### 扩展实体类型 *（工具集: entity-ext）*
+
+| 工具 | 描述 |
+|------|------|
+| `addBillboard` | 在指定位置添加图片图标 |
+| `addBox` | 添加带尺寸和材质的 3D 盒体 |
+| `addCorridor` | 添加走廊（带宽度的路径） |
+| `addCylinder` | 添加圆柱体或圆锥体 |
+| `addEllipse` | 添加椭圆 |
+| `addRectangle` | 按地理范围添加矩形 |
+| `addWall` | 沿路径添加墙体 |
+
+### 动画 *（工具集: animation）*
+
+| 工具 | 描述 |
+|------|------|
+| `createAnimation` | 创建基于时间的路径动画（实体沿路径运动） |
+| `controlAnimation` | 播放或暂停当前动画 |
+| `removeAnimation` | 删除动画实体 |
+| `listAnimations` | 列出所有活跃的动画 |
+| `updateAnimationPath` | 更新动画路径的可视属性 |
+| `trackEntity` | 相机追踪实体 |
+| `controlClock` | 配置 Cesium 时钟（时间范围、速度、动画状态） |
+| `setGlobeLighting` | 启用/禁用地球光照和大气效果 |
+
+### 三维数据 *（工具集: tiles）*
 
 | 工具 | 描述 |
 |------|------|
@@ -113,11 +202,19 @@ cesium-mcp-runtime
 | `loadTerrain` | 设置地形提供器 |
 | `loadImageryService` | 添加影像服务（WMS/WMTS/XYZ） |
 
-### 动画
+### 交互 *（工具集: interaction）*
 
 | 工具 | 描述 |
 |------|------|
-| `playTrajectory` | 沿坐标路径动画播放实体运动 |
+| `screenshot` | 截取地图为 base64 PNG |
+| `highlight` | 高亮图层要素 |
+
+### 其他
+
+| 工具 | 工具集 | 描述 |
+|------|--------|------|
+| `playTrajectory` | trajectory | 沿坐标路径动画播放实体运动 |
+| `addHeatmap` | heatmap | 从点数据生成热力图 |
 
 ## MCP 资源
 
@@ -132,6 +229,7 @@ cesium-mcp-runtime
 |------|--------|------|
 | `CESIUM_WS_PORT` | `9100` | WebSocket 服务器端口 |
 | `DEFAULT_SESSION_ID` | `default` | MCP 工具路由的首选浏览器会话 |
+| `CESIUM_TOOLSETS` | *（未设置）* | 工具集激活：省略使用默认集，`all` 启用全部，或逗号分隔列表 |
 
 ## 浏览器端设置
 

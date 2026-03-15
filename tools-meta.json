@@ -827,6 +827,310 @@
       "execution": {
         "taskSupport": "forbidden"
       }
+    },
+    {
+      "name": "lookAtTransform",
+      "description": "环绕式相机注视某位置（ENU变换 + 朝向/俯仰/距离）",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "longitude": { "type": "number", "description": "目标经度" },
+          "latitude": { "type": "number", "description": "目标纬度" },
+          "height": { "type": "number", "default": 0, "description": "目标高度（米）" },
+          "heading": { "type": "number", "default": 0, "description": "朝向角（度）" },
+          "pitch": { "type": "number", "default": -45, "description": "俯仰角（度）" },
+          "range": { "type": "number", "default": 5000, "description": "与目标的距离（米）" }
+        },
+        "required": ["longitude", "latitude"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "startOrbit",
+      "description": "开始相机环绕当前中心旋转",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "speed": { "type": "number", "default": 1, "description": "旋转速度（度/秒）" },
+          "direction": { "type": "string", "enum": ["clockwise", "counterclockwise"], "default": "clockwise" }
+        },
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "stopOrbit",
+      "description": "停止环绕动画",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "setCameraOptions",
+      "description": "配置相机控制器（启用/禁用旋转、缩放、倾斜等）",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "enableRotate": { "type": "boolean", "description": "启用旋转" },
+          "enableZoom": { "type": "boolean", "description": "启用缩放" },
+          "enableTilt": { "type": "boolean", "description": "启用倾斜" },
+          "enableLook": { "type": "boolean", "description": "启用环视" },
+          "enableTranslate": { "type": "boolean", "description": "启用平移" }
+        },
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "addBillboard",
+      "description": "在指定位置添加图片图标",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "实体ID" },
+          "name": { "type": "string", "description": "名称" },
+          "position": { "type": "object", "properties": { "longitude": { "type": "number" }, "latitude": { "type": "number" }, "height": { "type": "number" } }, "required": ["longitude", "latitude"] },
+          "image": { "type": "string", "description": "图片URL" },
+          "scale": { "type": "number", "default": 1, "description": "缩放" },
+          "color": { "type": "string", "description": "叠加颜色" }
+        },
+        "required": ["position", "image"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "addBox",
+      "description": "添加带尺寸和材质的3D盒体",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "position": { "type": "object", "properties": { "longitude": { "type": "number" }, "latitude": { "type": "number" }, "height": { "type": "number" } }, "required": ["longitude", "latitude"] },
+          "dimensions": { "type": "object", "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" } }, "required": ["x", "y", "z"] },
+          "material": { "description": "材质（颜色字符串或材质对象）" },
+          "outline": { "type": "boolean" },
+          "outlineColor": { "type": "string" },
+          "orientation": { "type": "object", "properties": { "heading": { "type": "number" }, "pitch": { "type": "number" }, "roll": { "type": "number" } } }
+        },
+        "required": ["position", "dimensions"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "addCorridor",
+      "description": "添加走廊（带宽度的路径）",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "positions": { "type": "array", "items": { "type": "object", "properties": { "longitude": { "type": "number" }, "latitude": { "type": "number" }, "height": { "type": "number" } } } },
+          "width": { "type": "number", "description": "走廊宽度（米）" },
+          "material": { "description": "材质" },
+          "extrudedHeight": { "type": "number" }
+        },
+        "required": ["positions", "width"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "addCylinder",
+      "description": "添加圆柱体或圆锥体",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "position": { "type": "object", "properties": { "longitude": { "type": "number" }, "latitude": { "type": "number" }, "height": { "type": "number" } }, "required": ["longitude", "latitude"] },
+          "length": { "type": "number", "description": "高度（米）" },
+          "topRadius": { "type": "number", "description": "顶部半径" },
+          "bottomRadius": { "type": "number", "description": "底部半径" },
+          "material": { "description": "材质" },
+          "outline": { "type": "boolean" },
+          "outlineColor": { "type": "string" }
+        },
+        "required": ["position", "length", "topRadius", "bottomRadius"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "addEllipse",
+      "description": "添加椭圆",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "position": { "type": "object", "properties": { "longitude": { "type": "number" }, "latitude": { "type": "number" }, "height": { "type": "number" } }, "required": ["longitude", "latitude"] },
+          "semiMajorAxis": { "type": "number", "description": "长半轴（米）" },
+          "semiMinorAxis": { "type": "number", "description": "短半轴（米）" },
+          "material": { "description": "材质" },
+          "outline": { "type": "boolean" },
+          "outlineColor": { "type": "string" },
+          "extrudedHeight": { "type": "number" }
+        },
+        "required": ["position", "semiMajorAxis", "semiMinorAxis"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "addRectangle",
+      "description": "按地理范围添加矩形",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "coordinates": { "type": "object", "properties": { "west": { "type": "number" }, "south": { "type": "number" }, "east": { "type": "number" }, "north": { "type": "number" } }, "required": ["west", "south", "east", "north"] },
+          "material": { "description": "材质" },
+          "outline": { "type": "boolean" },
+          "outlineColor": { "type": "string" },
+          "extrudedHeight": { "type": "number" },
+          "height": { "type": "number" }
+        },
+        "required": ["coordinates"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "addWall",
+      "description": "沿路径添加墙体",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "positions": { "type": "array", "items": { "type": "object", "properties": { "longitude": { "type": "number" }, "latitude": { "type": "number" } } } },
+          "maximumHeights": { "type": "array", "items": { "type": "number" } },
+          "minimumHeights": { "type": "array", "items": { "type": "number" } },
+          "material": { "description": "材质" },
+          "outline": { "type": "boolean" },
+          "outlineColor": { "type": "string" }
+        },
+        "required": ["positions"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "createAnimation",
+      "description": "创建基于时间的路径动画（实体沿路径运动）",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "entityId": { "type": "string", "description": "动画实体ID" },
+          "waypoints": { "type": "array", "items": { "type": "object", "properties": { "longitude": { "type": "number" }, "latitude": { "type": "number" }, "height": { "type": "number" }, "time": { "type": "number", "description": "到达时间（秒偏移）" } }, "required": ["longitude", "latitude", "time"] } },
+          "model": { "type": "string", "description": "3D模型URL或预设名称（cesium_man, cesium_air, ground_vehicle, cesium_drone）" },
+          "modelScale": { "type": "number", "default": 1 },
+          "loop": { "type": "boolean", "default": false },
+          "pathWidth": { "type": "number", "default": 2 },
+          "pathColor": { "type": "string", "default": "YELLOW" }
+        },
+        "required": ["entityId", "waypoints"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "controlAnimation",
+      "description": "播放或暂停动画",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "entityId": { "type": "string" },
+          "action": { "type": "string", "enum": ["play", "pause"] }
+        },
+        "required": ["entityId", "action"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "removeAnimation",
+      "description": "删除动画实体",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "entityId": { "type": "string" }
+        },
+        "required": ["entityId"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "listAnimations",
+      "description": "列出所有活跃的动画",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "updateAnimationPath",
+      "description": "更新动画路径的可视属性",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "entityId": { "type": "string" },
+          "show": { "type": "boolean" },
+          "width": { "type": "number" },
+          "color": { "type": "string" }
+        },
+        "required": ["entityId"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "trackEntity",
+      "description": "相机追踪实体",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "entityId": { "type": "string" }
+        },
+        "required": ["entityId"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "controlClock",
+      "description": "配置Cesium时钟（时间范围、速度、动画状态）",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "shouldAnimate": { "type": "boolean" },
+          "multiplier": { "type": "number", "description": "时钟速度倍率" },
+          "startTime": { "type": "string", "description": "ISO 8601 开始时间" },
+          "stopTime": { "type": "string", "description": "ISO 8601 结束时间" },
+          "currentTime": { "type": "string", "description": "ISO 8601 当前时间" },
+          "clockRange": { "type": "string", "enum": ["UNBOUNDED", "CLAMPED", "LOOP_STOP"] }
+        },
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "setGlobeLighting",
+      "description": "启用/禁用地球光照和大气效果",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "enableLighting": { "type": "boolean", "description": "启用光照" },
+          "enableFog": { "type": "boolean", "description": "启用雾效" },
+          "enableGroundAtmosphere": { "type": "boolean", "description": "启用地表大气" },
+          "enableSkyAtmosphere": { "type": "boolean", "description": "启用天空大气" }
+        },
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
     }
   ],
   "resources": [

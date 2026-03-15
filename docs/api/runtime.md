@@ -1,6 +1,6 @@
 # cesium-mcp-runtime
 
-> MCP Server (stdio) — exposes 24 tools + 2 resources to any MCP client.
+> MCP Server (stdio) — 43 tools (10 toolsets) + 2 resources, with dynamic discovery.
 
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 
@@ -64,7 +64,33 @@ cesium-mcp-runtime
 }
 ```
 
-## MCP Tools (24)
+## MCP Tools (43 + 2 meta)
+
+Tools are organized into **10 toolsets**. By default, 4 core toolsets are enabled (~19 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically.
+
+### Toolsets
+
+| Toolset | Tools | Default | Description |
+|---------|-------|---------|-------------|
+| `view` | 4 | Yes | Camera view controls |
+| `entity` | 7 | Yes | Core entity operations |
+| `layer` | 6 | Yes | Layer management |
+| `interaction` | 2 | Yes | Screenshot & highlight |
+| `camera` | 4 | — | Advanced camera controls (orbit, lookAt) |
+| `entity-ext` | 7 | — | Extended entity types (box, cylinder, wall, etc.) |
+| `animation` | 8 | — | Animation system (waypoints, clock, tracking) |
+| `tiles` | 3 | — | 3D Tiles, terrain, imagery services |
+| `trajectory` | 1 | — | Trajectory playback |
+| `heatmap` | 1 | — | Heatmap visualization |
+
+### Dynamic Discovery
+
+When not in `all` mode, two meta-tools are always available:
+
+| Tool | Description |
+|------|-------------|
+| `list_toolsets` | List all toolset groups with enabled status |
+| `enable_toolset` | Dynamically enable a toolset at runtime |
 
 ### View
 
@@ -74,32 +100,63 @@ cesium-mcp-runtime
 | `setView` | Instantly set camera position and orientation |
 | `getView` | Return current camera position, heading, pitch, roll |
 | `zoomToExtent` | Fit view to geographic bounding box |
-| `screenshot` | Capture the current globe view as an image |
 
-### Layers
+### Entity
+
+| Tool | Description |
+|------|-------------|
+| `addMarker` | Add a point marker with label |
+| `addLabel` | Add a text label at a position |
+| `addModel` | Place a 3D model (glTF/GLB) at a position |
+| `addPolygon` | Add polygon area with fill and outline |
+| `addPolyline` | Add polyline (path/route) on the map |
+| `updateEntity` | Update entity properties |
+| `removeEntity` | Remove a single entity by ID |
+
+### Layer
 
 | Tool | Description |
 |------|-------------|
 | `addGeoJsonLayer` | Load GeoJSON from URL or inline data |
-| `addHeatmap` | Create heatmap overlay from point data |
-| `addMarker` | Add a point marker with label |
-| `addLabel` | Add a text label at a position |
+| `listLayers` | List all currently loaded layers |
 | `removeLayer` | Remove a layer by ID |
 | `setLayerVisibility` | Toggle layer visibility |
-| `listLayers` | List all currently loaded layers |
 | `updateLayerStyle` | Modify layer styling properties |
 | `setBasemap` | Switch the base imagery layer |
-| `highlight` | Highlight specific features |
 
-### Entities
+### Camera
 
 | Tool | Description |
 |------|-------------|
-| `addPolyline` | Add polyline (path/route) on the map |
-| `addPolygon` | Add polygon area with fill and outline |
-| `addModel` | Place a 3D model (glTF/GLB) at a position |
-| `updateEntity` | Update entity properties (position, color, label, scale, visibility) |
-| `removeEntity` | Remove a single entity by ID |
+| `lookAtTransform` | Orbit-style camera aim at a position (heading/pitch/range) |
+| `startOrbit` | Start orbiting the camera around current center |
+| `stopOrbit` | Stop orbit animation |
+| `setCameraOptions` | Configure camera controller (enable/disable rotation, zoom, tilt) |
+
+### Extended Entity Types
+
+| Tool | Description |
+|------|-------------|
+| `addBillboard` | Add an image icon at a position |
+| `addBox` | Add a 3D box with dimensions and material |
+| `addCorridor` | Add a corridor (path with width) |
+| `addCylinder` | Add a cylinder or cone |
+| `addEllipse` | Add an ellipse (oval) |
+| `addRectangle` | Add a rectangle by geographic bounds |
+| `addWall` | Add a wall along positions |
+
+### Animation
+
+| Tool | Description |
+|------|-------------|
+| `createAnimation` | Create time-based animation with waypoints |
+| `controlAnimation` | Play or pause animation |
+| `removeAnimation` | Remove an animation entity |
+| `listAnimations` | List all active animations |
+| `updateAnimationPath` | Update animation path visual properties |
+| `trackEntity` | Follow an entity with the camera |
+| `controlClock` | Configure Cesium clock (time range, speed) |
+| `setGlobeLighting` | Enable/disable globe lighting and atmospheric effects |
 
 ### 3D Data
 
@@ -109,11 +166,19 @@ cesium-mcp-runtime
 | `loadTerrain` | Set the terrain provider |
 | `loadImageryService` | Add a WMS/WMTS/TMS imagery layer |
 
-### Animation
+### Interaction
 
 | Tool | Description |
 |------|-------------|
-| `playTrajectory` | Animate an entity along a path over time |
+| `screenshot` | Capture the current globe view as an image |
+| `highlight` | Highlight specific features |
+
+### Other
+
+| Tool | Toolset | Description |
+|------|---------|-------------|
+| `playTrajectory` | trajectory | Animate an entity along a path over time |
+| `addHeatmap` | heatmap | Create heatmap overlay from point data |
 
 ## MCP Resources (2)
 
@@ -130,6 +195,7 @@ Resources are read-only and can be polled by the AI agent for context-aware deci
 |----------|---------|-------------|
 | `CESIUM_WS_PORT` | `9100` | WebSocket server port for bridge connections |
 | `DEFAULT_SESSION_ID` | `default` | Which browser session to route MCP calls to |
+| `CESIUM_TOOLSETS` | *(not set)* | Toolset activation: omit for defaults, `all` for everything, or comma-separated list |
 
 ## Session Routing
 
