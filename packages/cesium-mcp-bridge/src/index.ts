@@ -31,5 +31,31 @@ export type {
   ScreenshotResult,
   HighlightParams,
   UpdateLayerStyleParams,
+  // Camera (融合官方)
+  LookAtTransformParams,
+  StartOrbitParams,
+  SetCameraOptionsParams,
+  // Entity Types (融合官方)
+  MaterialSpec,
+  MaterialInput,
+  OrientationInput,
+  PositionDegrees,
+  AddBillboardParams,
+  AddBoxParams,
+  AddCorridorParams,
+  AddCylinderParams,
+  AddEllipseParams,
+  AddRectangleParams,
+  AddWallParams,
+  // Animation (融合官方)
+  AnimationWaypoint,
+  CreateAnimationParams,
+  ControlAnimationParams,
+  RemoveAnimationParams,
+  UpdateAnimationPathParams,
+  TrackEntityParams,
+  ControlClockParams,
+  SetGlobeLightingParams,
+  AnimationInfo,
 } from './types'
 export type { ColorInput } from './utils'

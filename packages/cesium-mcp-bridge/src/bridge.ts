@@ -26,12 +26,32 @@ import type {
   LayerInfo,
   BridgeEventHandler,
   BridgeEventType,
+  LookAtTransformParams,
+  StartOrbitParams,
+  SetCameraOptionsParams,
+  AddBillboardParams,
+  AddBoxParams,
+  AddCorridorParams,
+  AddCylinderParams,
+  AddEllipseParams,
+  AddRectangleParams,
+  AddWallParams,
+  CreateAnimationParams,
+  ControlAnimationParams,
+  RemoveAnimationParams,
+  UpdateAnimationPathParams,
+  TrackEntityParams,
+  ControlClockParams,
+  SetGlobeLightingParams,
 } from './types'
 import { flyTo, setView, getView, zoomToExtent } from './commands/view'
 import { LayerManager } from './commands/layer'
 import { addLabels, addMarker, addPolyline, addPolygon, addModel, updateEntity, removeEntity } from './commands/entity'
 import { screenshot, highlight } from './commands/interaction'
 import { playTrajectory as playTrajectoryCmd } from './commands/trajectory'
+import { lookAtTransform as lookAtTransformCmd, startOrbit as startOrbitCmd, stopOrbit as stopOrbitCmd, setCameraOptions as setCameraOptionsCmd, type OrbitHandler } from './commands/camera'
+import { addBillboard as addBillboardCmd, addBox as addBoxCmd, addCorridor as addCorridorCmd, addCylinder as addCylinderCmd, addEllipse as addEllipseCmd, addRectangle as addRectangleCmd, addWall as addWallCmd } from './commands/entity-types'
+import { createAnimation as createAnimationCmd, controlAnimation as controlAnimationCmd, removeAnimation as removeAnimationCmd, listAnimations as listAnimationsCmd, updateAnimationPath as updateAnimationPathCmd, trackEntity as trackEntityCmd, controlClock as controlClockCmd, setGlobeLighting as setGlobeLightingCmd, type AnimationMap } from './commands/animation'
 
 /**
  * CesiumBridge — AI Agent 操控 Cesium 的统一执行层
@@ -44,6 +64,8 @@ export class CesiumBridge {
   private _viewer: Cesium.Viewer
   private _layerManager: LayerManager
   private _eventHandlers: Map<BridgeEventType, Set<BridgeEventHandler>> = new Map()
+  private _orbitHandler: OrbitHandler | null = null
+  private _animations: AnimationMap = new Map()
 
   constructor(viewer: Cesium.Viewer) {
     this._viewer = viewer
@@ -151,6 +173,77 @@ export class CesiumBridge {
           const layers = this.listLayers()
           return { success: true, data: { layers }, message: `${layers.length} layers found` }
         }
+        // ==================== Camera (融合官方) ====================
+        case 'lookAtTransform':
+          this.lookAtTransform(p as LookAtTransformParams)
+          return { success: true, message: 'Camera lookAtTransform applied' }
+        case 'startOrbit':
+          this.startOrbit(p as StartOrbitParams)
+          return { success: true, message: 'Orbit started' }
+        case 'stopOrbit':
+          this.stopOrbit()
+          return { success: true, message: 'Orbit stopped' }
+        case 'setCameraOptions':
+          this.setCameraOptions(p as SetCameraOptionsParams)
+          return { success: true, message: 'Camera options updated' }
+        // ==================== Entity Types (融合官方) ====================
+        case 'addBillboard': {
+          const entity = this.addBillboard(p as AddBillboardParams)
+          return { success: true, data: { entityId: entity.id }, message: 'Billboard added' }
+        }
+        case 'addBox': {
+          const entity = this.addBox(p as AddBoxParams)
+          return { success: true, data: { entityId: entity.id }, message: 'Box added' }
+        }
+        case 'addCorridor': {
+          const entity = this.addCorridor(p as AddCorridorParams)
+          return { success: true, data: { entityId: entity.id }, message: 'Corridor added' }
+        }
+        case 'addCylinder': {
+          const entity = this.addCylinder(p as AddCylinderParams)
+          return { success: true, data: { entityId: entity.id }, message: 'Cylinder added' }
+        }
+        case 'addEllipse': {
+          const entity = this.addEllipse(p as AddEllipseParams)
+          return { success: true, data: { entityId: entity.id }, message: 'Ellipse added' }
+        }
+        case 'addRectangle': {
+          const entity = this.addRectangle(p as AddRectangleParams)
+          return { success: true, data: { entityId: entity.id }, message: 'Rectangle added' }
+        }
+        case 'addWall': {
+          const entity = this.addWall(p as AddWallParams)
+          return { success: true, data: { entityId: entity.id }, message: 'Wall added' }
+        }
+        // ==================== Animation (融合官方) ====================
+        case 'createAnimation': {
+          const entity = this.createAnimation(p as CreateAnimationParams)
+          return { success: true, data: { entityId: entity.id }, message: 'Animation created' }
+        }
+        case 'controlAnimation':
+          this.controlAnimation((p as ControlAnimationParams).action)
+          return { success: true, message: `Animation ${(p as ControlAnimationParams).action}` }
+        case 'removeAnimation': {
+          const ok = this.removeAnimation((p as RemoveAnimationParams).entityId)
+          return { success: ok, message: ok ? 'Animation removed' : undefined, error: ok ? undefined : `Animation entity not found: ${(p as any).entityId}` }
+        }
+        case 'listAnimations': {
+          const animations = this.listAnimations()
+          return { success: true, data: { animations }, message: `${animations.length} animations found` }
+        }
+        case 'updateAnimationPath': {
+          const ok = this.updateAnimationPath(p as UpdateAnimationPathParams)
+          return { success: ok, message: ok ? 'Animation path updated' : undefined, error: ok ? undefined : 'Entity or path not found' }
+        }
+        case 'trackEntity':
+          this.trackEntity(p as TrackEntityParams)
+          return { success: true, message: (p as TrackEntityParams).entityId ? `Tracking entity ${(p as TrackEntityParams).entityId}` : 'Tracking stopped' }
+        case 'controlClock':
+          this.controlClock(p as ControlClockParams)
+          return { success: true, message: `Clock ${(p as ControlClockParams).action} applied` }
+        case 'setGlobeLighting':
+          this.setGlobeLighting(p as SetGlobeLightingParams)
+          return { success: true, message: 'Globe lighting updated' }
         default:
           return { success: false, error: `未知指令: ${cmd.action}` }
       }
@@ -448,6 +541,123 @@ export class CesiumBridge {
 
   highlight(params: HighlightParams): void {
     highlight(this._viewer, this._layerManager, params)
+  }
+
+  // ==================== Camera (融合官方 Camera Server) ====================
+
+  lookAtTransform(params: LookAtTransformParams): void {
+    lookAtTransformCmd(this._viewer, params)
+  }
+
+  startOrbit(params: StartOrbitParams): void {
+    this._orbitHandler = startOrbitCmd(this._viewer, params, this._orbitHandler ?? undefined)
+  }
+
+  stopOrbit(): void {
+    stopOrbitCmd(this._orbitHandler ?? undefined)
+    this._orbitHandler = null
+  }
+
+  setCameraOptions(params: SetCameraOptionsParams): void {
+    setCameraOptionsCmd(this._viewer, params)
+  }
+
+  // ==================== Entity Types (融合官方 Entity Server) ====================
+
+  private _registerEntityLayer(entity: Cesium.Entity, type: string, name?: string, color?: string): Cesium.Entity {
+    const layerId = `${type}_${Date.now()}`
+    const info: LayerInfo = {
+      id: layerId,
+      name: name ?? entity.name ?? layerId,
+      type,
+      visible: true,
+      color: color ?? '#3B82F6',
+    }
+    this._layerManager.setCesiumRefs(layerId, { entity })
+    this._layerManager.layers.push(info)
+    this._emit('layerAdded', info)
+    return entity
+  }
+
+  addBillboard(params: AddBillboardParams): Cesium.Entity {
+    return this._registerEntityLayer(addBillboardCmd(this._viewer, params), 'billboard', params.name)
+  }
+
+  addBox(params: AddBoxParams): Cesium.Entity {
+    return this._registerEntityLayer(addBoxCmd(this._viewer, params), 'box', params.name)
+  }
+
+  addCorridor(params: AddCorridorParams): Cesium.Entity {
+    return this._registerEntityLayer(addCorridorCmd(this._viewer, params), 'corridor', params.name)
+  }
+
+  addCylinder(params: AddCylinderParams): Cesium.Entity {
+    return this._registerEntityLayer(addCylinderCmd(this._viewer, params), 'cylinder', params.name)
+  }
+
+  addEllipse(params: AddEllipseParams): Cesium.Entity {
+    return this._registerEntityLayer(addEllipseCmd(this._viewer, params), 'ellipse', params.name)
+  }
+
+  addRectangle(params: AddRectangleParams): Cesium.Entity {
+    return this._registerEntityLayer(addRectangleCmd(this._viewer, params), 'rectangle', params.name)
+  }
+
+  addWall(params: AddWallParams): Cesium.Entity {
+    return this._registerEntityLayer(addWallCmd(this._viewer, params), 'wall', params.name)
+  }
+
+  // ==================== Animation (融合官方 Animation Server) ====================
+
+  createAnimation(params: CreateAnimationParams): Cesium.Entity {
+    const entity = createAnimationCmd(this._viewer, params, this._animations)
+    const layerId = `animation_${entity.id}`
+    const info: LayerInfo = {
+      id: layerId,
+      name: params.name ?? `Animation - ${entity.id}`,
+      type: 'animation',
+      visible: true,
+      color: params.pathColor ?? '#00FF00',
+    }
+    this._layerManager.setCesiumRefs(layerId, { entity })
+    this._layerManager.layers.push(info)
+    this._emit('layerAdded', info)
+    return entity
+  }
+
+  controlAnimation(action: 'play' | 'pause'): void {
+    controlAnimationCmd(this._viewer, action)
+  }
+
+  removeAnimation(entityId: string): boolean {
+    const ok = removeAnimationCmd(this._viewer, entityId, this._animations)
+    if (ok) {
+      const layerId = `animation_${entityId}`
+      const idx = this._layerManager.layers.findIndex(l => l.id === layerId)
+      if (idx >= 0) this._layerManager.layers.splice(idx, 1)
+      this._emit('layerRemoved', { id: layerId })
+    }
+    return ok
+  }
+
+  listAnimations() {
+    return listAnimationsCmd(this._viewer, this._animations)
+  }
+
+  updateAnimationPath(params: UpdateAnimationPathParams): boolean {
+    return updateAnimationPathCmd(this._viewer, params)
+  }
+
+  trackEntity(params: TrackEntityParams): void {
+    trackEntityCmd(this._viewer, params)
+  }
+
+  controlClock(params: ControlClockParams): void {
+    controlClockCmd(this._viewer, params)
+  }
+
+  setGlobeLighting(params: SetGlobeLightingParams): void {
+    setGlobeLightingCmd(this._viewer, params)
   }
 
   // ==================== Events ====================

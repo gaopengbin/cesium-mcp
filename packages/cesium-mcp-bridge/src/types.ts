@@ -261,3 +261,230 @@ export interface BridgeEvent {
 }
 
 export type BridgeEventHandler = (event: BridgeEvent) => void
+
+// ==================== Camera (融合官方 Camera Server) ====================
+
+export interface LookAtTransformParams {
+  longitude: number
+  latitude: number
+  height?: number
+  heading?: number
+  pitch?: number
+  range?: number
+}
+
+export interface StartOrbitParams {
+  speed?: number
+  clockwise?: boolean
+}
+
+export interface SetCameraOptionsParams {
+  enableRotate?: boolean
+  enableTranslate?: boolean
+  enableZoom?: boolean
+  enableTilt?: boolean
+  enableLook?: boolean
+  minimumZoomDistance?: number
+  maximumZoomDistance?: number
+  enableInputs?: boolean
+}
+
+// ==================== Entity Types (融合官方 Entity Server) ====================
+
+export interface MaterialSpec {
+  type: 'color' | 'image' | 'checkerboard' | 'stripe' | 'grid'
+  color?: ColorInput
+  image?: string
+  repeat?: { x: number; y: number }
+  evenColor?: ColorInput
+  oddColor?: ColorInput
+  orientation?: 'horizontal' | 'vertical'
+  cellAlpha?: number
+  lineCount?: { x: number; y: number }
+}
+
+export type MaterialInput = ColorInput | MaterialSpec
+
+export interface OrientationInput {
+  heading: number
+  pitch: number
+  roll: number
+}
+
+export interface AddBillboardParams {
+  longitude: number
+  latitude: number
+  height?: number
+  name?: string
+  image: string
+  scale?: number
+  color?: ColorInput
+  pixelOffset?: { x: number; y: number }
+  horizontalOrigin?: 'CENTER' | 'LEFT' | 'RIGHT'
+  verticalOrigin?: 'CENTER' | 'TOP' | 'BOTTOM' | 'BASELINE'
+  heightReference?: 'NONE' | 'CLAMP_TO_GROUND' | 'RELATIVE_TO_GROUND'
+}
+
+export interface AddBoxParams {
+  longitude: number
+  latitude: number
+  height?: number
+  name?: string
+  dimensions: { width: number; length: number; height: number }
+  material?: MaterialInput
+  outline?: boolean
+  outlineColor?: ColorInput
+  fill?: boolean
+  orientation?: OrientationInput
+  heightReference?: 'NONE' | 'CLAMP_TO_GROUND' | 'RELATIVE_TO_GROUND'
+}
+
+export interface PositionDegrees {
+  longitude: number
+  latitude: number
+  height?: number
+}
+
+export interface AddCorridorParams {
+  name?: string
+  positions: PositionDegrees[]
+  width: number
+  material?: MaterialInput
+  cornerType?: 'ROUNDED' | 'MITERED' | 'BEVELED'
+  height?: number
+  extrudedHeight?: number
+  outline?: boolean
+  outlineColor?: ColorInput
+}
+
+export interface AddCylinderParams {
+  longitude: number
+  latitude: number
+  height?: number
+  name?: string
+  length: number
+  topRadius: number
+  bottomRadius: number
+  material?: MaterialInput
+  outline?: boolean
+  outlineColor?: ColorInput
+  fill?: boolean
+  orientation?: OrientationInput
+  numberOfVerticalLines?: number
+  slices?: number
+}
+
+export interface AddEllipseParams {
+  longitude: number
+  latitude: number
+  height?: number
+  name?: string
+  semiMajorAxis: number
+  semiMinorAxis: number
+  material?: MaterialInput
+  extrudedHeight?: number
+  rotation?: number
+  outline?: boolean
+  outlineColor?: ColorInput
+  fill?: boolean
+  stRotation?: number
+  numberOfVerticalLines?: number
+}
+
+export interface AddRectangleParams {
+  name?: string
+  west: number
+  south: number
+  east: number
+  north: number
+  material?: MaterialInput
+  height?: number
+  extrudedHeight?: number
+  rotation?: number
+  outline?: boolean
+  outlineColor?: ColorInput
+  fill?: boolean
+  stRotation?: number
+}
+
+export interface AddWallParams {
+  name?: string
+  positions: PositionDegrees[]
+  minimumHeights?: number[]
+  maximumHeights?: number[]
+  material?: MaterialInput
+  outline?: boolean
+  outlineColor?: ColorInput
+  fill?: boolean
+}
+
+// ==================== Animation (融合官方 Animation Server) ====================
+
+export interface AnimationWaypoint {
+  longitude: number
+  latitude: number
+  height?: number
+  time: string  // ISO 8601
+}
+
+export interface CreateAnimationParams {
+  name?: string
+  waypoints: AnimationWaypoint[]
+  modelUri?: string
+  showPath?: boolean
+  pathWidth?: number
+  pathColor?: string
+  pathLeadTime?: number
+  pathTrailTime?: number
+  multiplier?: number
+  shouldAnimate?: boolean
+}
+
+export interface ControlAnimationParams {
+  action: 'play' | 'pause'
+}
+
+export interface RemoveAnimationParams {
+  entityId: string
+}
+
+export interface UpdateAnimationPathParams {
+  entityId: string
+  width?: number
+  color?: string
+  leadTime?: number
+  trailTime?: number
+  show?: boolean
+}
+
+export interface TrackEntityParams {
+  entityId?: string
+  heading?: number
+  pitch?: number
+  range?: number
+}
+
+export interface ControlClockParams {
+  action: 'configure' | 'setTime' | 'setMultiplier'
+  startTime?: string
+  stopTime?: string
+  currentTime?: string
+  time?: string
+  multiplier?: number
+  shouldAnimate?: boolean
+  clockRange?: 'UNBOUNDED' | 'CLAMPED' | 'LOOP_STOP'
+}
+
+export interface SetGlobeLightingParams {
+  enableLighting?: boolean
+  dynamicAtmosphereLighting?: boolean
+  dynamicAtmosphereLightingFromSun?: boolean
+}
+
+export interface AnimationInfo {
+  entityId: string
+  name?: string
+  startTime: string
+  stopTime: string
+  exists: boolean
+}

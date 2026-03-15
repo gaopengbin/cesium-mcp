@@ -205,10 +205,88 @@ server.resource(
   },
 )
 
+// ==================== Toolsets (工具分组管理) ====================
+
+const TOOLSETS: Record<string, string[]> = {
+  view: ['flyTo', 'setView', 'getView', 'zoomToExtent'],
+  entity: ['addMarker', 'addLabel', 'addModel', 'addPolygon', 'addPolyline', 'updateEntity', 'removeEntity'],
+  layer: ['addGeoJsonLayer', 'listLayers', 'removeLayer', 'setLayerVisibility', 'updateLayerStyle', 'setBasemap'],
+  camera: ['lookAtTransform', 'startOrbit', 'stopOrbit', 'setCameraOptions'],
+  'entity-ext': ['addBillboard', 'addBox', 'addCorridor', 'addCylinder', 'addEllipse', 'addRectangle', 'addWall'],
+  animation: ['createAnimation', 'controlAnimation', 'removeAnimation', 'listAnimations', 'updateAnimationPath', 'trackEntity', 'controlClock', 'setGlobeLighting'],
+  tiles: ['load3dTiles', 'loadTerrain', 'loadImageryService'],
+  interaction: ['screenshot', 'highlight'],
+  trajectory: ['playTrajectory'],
+  heatmap: ['addHeatmap'],
+}
+
+const TOOLSET_DESCRIPTIONS: Record<string, string> = {
+  view: 'Camera view controls (flyTo, setView, getView, zoomToExtent)',
+  entity: 'Core entity operations (marker, label, model, polygon, polyline, update, remove)',
+  layer: 'Layer management (GeoJSON, list, remove, visibility, style, basemap)',
+  camera: 'Advanced camera controls (lookAt, orbit, camera options)',
+  'entity-ext': 'Extended entity types (billboard, box, corridor, cylinder, ellipse, rectangle, wall)',
+  animation: 'Animation system (create/control animations, track entities, clock, lighting)',
+  tiles: '3D Tiles, terrain, and imagery services',
+  interaction: 'User interaction (screenshot, highlight)',
+  trajectory: 'Trajectory playback',
+  heatmap: 'Heatmap visualization',
+}
+
+const DEFAULT_TOOLSETS = ['view', 'entity', 'layer', 'interaction']
+
+const _tsEnv = process.env.CESIUM_TOOLSETS?.trim()
+const _allMode = _tsEnv === 'all'
+const _enabledSets = new Set<string>(
+  _allMode
+    ? Object.keys(TOOLSETS)
+    : _tsEnv
+      ? _tsEnv.split(',').map(s => s.trim()).filter(s => s in TOOLSETS)
+      : DEFAULT_TOOLSETS,
+)
+
+const _enabledTools = new Set<string>()
+for (const setName of _enabledSets) {
+  for (const tool of TOOLSETS[setName]!) {
+    _enabledTools.add(tool)
+  }
+}
+
+// Store all tool definitions for lazy registration (Dynamic Discovery)
+const _toolDefs = new Map<string, unknown[]>()
+
+/** Register tool only if it belongs to an enabled toolset */
+const _registerTool = ((...args: unknown[]) => {
+  const name = args[0] as string
+  _toolDefs.set(name, args)
+  if (_enabledTools.has(name)) {
+    ;(server.tool as Function).apply(server, args)
+  }
+}) as typeof server.tool
+
+/** Dynamically enable a toolset — registers its tools lazily */
+function _enableToolset(setName: string): string[] {
+  const tools = TOOLSETS[setName]
+  if (!tools) return []
+  const added: string[] = []
+  for (const toolName of tools) {
+    if (!_enabledTools.has(toolName)) {
+      _enabledTools.add(toolName)
+      const def = _toolDefs.get(toolName)
+      if (def) {
+        ;(server.tool as Function).apply(server, def)
+        added.push(toolName)
+      }
+    }
+  }
+  _enabledSets.add(setName)
+  return added
+}
+
 // ==================== Tools ====================
 
 // — flyTo
-server.tool(
+_registerTool(
   'flyTo',
   '飞行到指定经纬度位置（带动画过渡）',
   {
@@ -226,7 +304,7 @@ server.tool(
 )
 
 // — addGeoJsonLayer
-server.tool(
+_registerTool(
   'addGeoJsonLayer',
   '添加 GeoJSON 图层到地图（支持 Point/Line/Polygon，可配置颜色/分级/分类渲染）',
   {
@@ -242,7 +320,7 @@ server.tool(
 )
 
 // — addLabel
-server.tool(
+_registerTool(
   'addLabel',
   '为 GeoJSON 要素添加文本标注（显示属性值）',
   {
@@ -257,7 +335,7 @@ server.tool(
 )
 
 // — addHeatmap
-server.tool(
+_registerTool(
   'addHeatmap',
   '添加热力图图层（基于 GeoJSON 点数据生成热力可视化）',
   {
@@ -271,7 +349,7 @@ server.tool(
 )
 
 // — removeLayer
-server.tool(
+_registerTool(
   'removeLayer',
   '从地图上移除指定图层（按图层ID）',
   { id: z.string().describe('要移除的图层ID（可通过 listLayers 获取）') },
@@ -282,7 +360,7 @@ server.tool(
 )
 
 // — setBasemap
-server.tool(
+_registerTool(
   'setBasemap',
   '切换底图风格（暗色/卫星影像/标准）',
   { basemap: z.enum(['dark', 'satellite', 'standard']).describe('底图类型：dark=暗色, satellite=卫星影像, standard=标准') },
@@ -293,7 +371,7 @@ server.tool(
 )
 
 // — screenshot
-server.tool(
+_registerTool(
   'screenshot',
   '截取当前地图视图（返回 base64 PNG）',
   {},
@@ -308,7 +386,7 @@ server.tool(
 )
 
 // — highlight
-server.tool(
+_registerTool(
   'highlight',
   '高亮指定图层的要素',
   {
@@ -323,7 +401,7 @@ server.tool(
 )
 
 // — setView
-server.tool(
+_registerTool(
   'setView',
   '瞬间切换到指定经纬度视角（无动画）',
   {
@@ -341,7 +419,7 @@ server.tool(
 )
 
 // — getView
-server.tool(
+_registerTool(
   'getView',
   '获取当前相机视角信息（经纬度、高度、角度）',
   {},
@@ -352,7 +430,7 @@ server.tool(
 )
 
 // — zoomToExtent
-server.tool(
+_registerTool(
   'zoomToExtent',
   '缩放到指定地理范围',
   {
@@ -369,7 +447,7 @@ server.tool(
 )
 
 // — addMarker
-server.tool(
+_registerTool(
   'addMarker',
   '在指定经纬度添加标注点，返回 layerId 供后续操作',
   {
@@ -387,7 +465,7 @@ server.tool(
 )
 
 // — addPolyline
-server.tool(
+_registerTool(
   'addPolyline',
   '在地图上添加折线（路径、线段），返回 entityId',
   {
@@ -404,7 +482,7 @@ server.tool(
 )
 
 // — addPolygon
-server.tool(
+_registerTool(
   'addPolygon',
   '在地图上添加多边形区域（面积、边界），返回 entityId',
   {
@@ -423,7 +501,7 @@ server.tool(
 )
 
 // — addModel
-server.tool(
+_registerTool(
   'addModel',
   '在指定经纬度放置 3D 模型（glTF/GLB），返回 entityId',
   {
@@ -444,7 +522,7 @@ server.tool(
 )
 
 // — updateEntity
-server.tool(
+_registerTool(
   'updateEntity',
   '更新已有实体的属性（位置、颜色、标签、缩放、可见性）',
   {
@@ -466,7 +544,7 @@ server.tool(
 )
 
 // — removeEntity
-server.tool(
+_registerTool(
   'removeEntity',
   '移除单个实体（通过 entityId）',
   {
@@ -479,7 +557,7 @@ server.tool(
 )
 
 // — setLayerVisibility
-server.tool(
+_registerTool(
   'setLayerVisibility',
   '设置图层可见性',
   {
@@ -493,7 +571,7 @@ server.tool(
 )
 
 // — listLayers
-server.tool(
+_registerTool(
   'listLayers',
   '获取当前所有图层列表（含 ID、名称、类型、可见性）',
   {},
@@ -504,7 +582,7 @@ server.tool(
 )
 
 // — updateLayerStyle
-server.tool(
+_registerTool(
   'updateLayerStyle',
   '修改已有图层的样式（颜色、透明度、标注样式等）',
   {
@@ -519,7 +597,7 @@ server.tool(
 )
 
 // — playTrajectory
-server.tool(
+_registerTool(
   'playTrajectory',
   '播放移动轨迹动画',
   {
@@ -537,7 +615,7 @@ server.tool(
 )
 
 // — load3dTiles
-server.tool(
+_registerTool(
   'load3dTiles',
   '加载 3D Tiles 数据集（如建筑白膜、城市模型）',
   {
@@ -554,7 +632,7 @@ server.tool(
 )
 
 // — loadTerrain
-server.tool(
+_registerTool(
   'loadTerrain',
   '加载或切换地形（平坦/ArcGIS/CesiumIon/自定义 URL）',
   {
@@ -569,7 +647,7 @@ server.tool(
 )
 
 // — loadImageryService
-server.tool(
+_registerTool(
   'loadImageryService',
   '加载影像服务图层（WMS/WMTS/XYZ/ArcGIS MapServer）',
   {
@@ -586,6 +664,454 @@ server.tool(
   },
 )
 
+// ==================== Camera Tools (融合官方 Camera Server) ====================
+
+// — lookAtTransform
+_registerTool(
+  'lookAtTransform',
+  'Look at a specific position from a given heading/pitch/range (orbit-style camera)',
+  {
+    longitude: z.number().describe('Target longitude (degrees)'),
+    latitude: z.number().describe('Target latitude (degrees)'),
+    height: z.number().optional().default(0).describe('Target height (meters)'),
+    heading: z.number().optional().default(0).describe('Camera heading (degrees), 0=North'),
+    pitch: z.number().optional().default(-45).describe('Camera pitch (degrees), -90=straight down'),
+    range: z.number().optional().default(1000).describe('Distance from target (meters)'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('lookAtTransform', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — startOrbit
+_registerTool(
+  'startOrbit',
+  'Start orbiting the camera around the current view center',
+  {
+    speed: z.number().optional().default(0.005).describe('Rotation speed (radians per tick)'),
+    clockwise: z.boolean().optional().default(true).describe('Orbit direction'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('startOrbit', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — stopOrbit
+_registerTool(
+  'stopOrbit',
+  'Stop the camera orbit animation',
+  {},
+  async () => {
+    const result = await sendToBrowser('stopOrbit', {})
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — setCameraOptions
+_registerTool(
+  'setCameraOptions',
+  'Configure camera controller options (enable/disable rotation, zoom, tilt, etc.)',
+  {
+    enableRotate: z.boolean().optional().describe('Enable camera rotation'),
+    enableTranslate: z.boolean().optional().describe('Enable camera translation'),
+    enableZoom: z.boolean().optional().describe('Enable camera zoom'),
+    enableTilt: z.boolean().optional().describe('Enable camera tilt'),
+    enableLook: z.boolean().optional().describe('Enable camera look'),
+    minimumZoomDistance: z.number().optional().describe('Minimum zoom distance (meters)'),
+    maximumZoomDistance: z.number().optional().describe('Maximum zoom distance (meters)'),
+    enableInputs: z.boolean().optional().describe('Enable/disable all camera inputs'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('setCameraOptions', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// ==================== Entity Type Tools (融合官方 Entity Server) ====================
+
+const colorSchema = z.union([
+  z.string(),
+  z.object({ red: z.number(), green: z.number(), blue: z.number(), alpha: z.number().optional() }),
+]).optional()
+
+const materialSchema = z.union([
+  z.string(),
+  z.object({ red: z.number(), green: z.number(), blue: z.number(), alpha: z.number().optional() }),
+  z.object({
+    type: z.enum(['color', 'image', 'checkerboard', 'stripe', 'grid']),
+    color: z.union([z.string(), z.object({ red: z.number(), green: z.number(), blue: z.number(), alpha: z.number().optional() })]).optional(),
+    image: z.string().optional(),
+    evenColor: z.union([z.string(), z.object({ red: z.number(), green: z.number(), blue: z.number(), alpha: z.number().optional() })]).optional(),
+    oddColor: z.union([z.string(), z.object({ red: z.number(), green: z.number(), blue: z.number(), alpha: z.number().optional() })]).optional(),
+    orientation: z.enum(['horizontal', 'vertical']).optional(),
+    cellAlpha: z.number().optional(),
+  }),
+]).optional()
+
+const orientationSchema = z.object({
+  heading: z.number().describe('Heading (degrees)'),
+  pitch: z.number().describe('Pitch (degrees)'),
+  roll: z.number().describe('Roll (degrees)'),
+}).optional()
+
+const positionDegreesSchema = z.object({
+  longitude: z.number(),
+  latitude: z.number(),
+  height: z.number().optional(),
+})
+
+// — addBillboard
+_registerTool(
+  'addBillboard',
+  'Add a billboard (image icon) at a position on the globe',
+  {
+    longitude: z.number().describe('Longitude (degrees)'),
+    latitude: z.number().describe('Latitude (degrees)'),
+    height: z.number().optional().default(0).describe('Height (meters)'),
+    name: z.string().optional().describe('Billboard name'),
+    image: z.string().describe('Image URL for the billboard'),
+    scale: z.number().optional().default(1.0).describe('Scale factor'),
+    color: colorSchema.describe('Tint color'),
+    pixelOffset: z.object({ x: z.number(), y: z.number() }).optional().describe('Pixel offset from position'),
+    horizontalOrigin: z.enum(['CENTER', 'LEFT', 'RIGHT']).optional().describe('Horizontal origin'),
+    verticalOrigin: z.enum(['CENTER', 'TOP', 'BOTTOM', 'BASELINE']).optional().describe('Vertical origin'),
+    heightReference: z.enum(['NONE', 'CLAMP_TO_GROUND', 'RELATIVE_TO_GROUND']).optional().describe('Height reference'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('addBillboard', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — addBox
+_registerTool(
+  'addBox',
+  'Add a 3D box entity at a position',
+  {
+    longitude: z.number().describe('Longitude (degrees)'),
+    latitude: z.number().describe('Latitude (degrees)'),
+    height: z.number().optional().default(0).describe('Height (meters)'),
+    name: z.string().optional().describe('Box name'),
+    dimensions: z.object({
+      width: z.number().describe('Width in meters (X)'),
+      length: z.number().describe('Length in meters (Y)'),
+      height: z.number().describe('Height in meters (Z)'),
+    }).describe('Box dimensions'),
+    material: materialSchema.describe('Material (color string, RGBA object, or material spec)'),
+    outline: z.boolean().optional().default(true).describe('Show outline'),
+    outlineColor: colorSchema.describe('Outline color'),
+    fill: z.boolean().optional().default(true).describe('Show fill'),
+    orientation: orientationSchema.describe('Orientation (heading/pitch/roll in degrees)'),
+    heightReference: z.enum(['NONE', 'CLAMP_TO_GROUND', 'RELATIVE_TO_GROUND']).optional().describe('Height reference'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('addBox', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — addCorridor
+_registerTool(
+  'addCorridor',
+  'Add a corridor (path with width) entity',
+  {
+    name: z.string().optional().describe('Corridor name'),
+    positions: z.array(positionDegreesSchema).describe('Array of positions along the corridor'),
+    width: z.number().describe('Corridor width in meters'),
+    material: materialSchema.describe('Material'),
+    cornerType: z.enum(['ROUNDED', 'MITERED', 'BEVELED']).optional().describe('Corner type'),
+    height: z.number().optional().describe('Height above ground (meters)'),
+    extrudedHeight: z.number().optional().describe('Extruded height (meters)'),
+    outline: z.boolean().optional().describe('Show outline'),
+    outlineColor: colorSchema.describe('Outline color'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('addCorridor', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — addCylinder
+_registerTool(
+  'addCylinder',
+  'Add a cylinder or cone entity at a position',
+  {
+    longitude: z.number().describe('Longitude (degrees)'),
+    latitude: z.number().describe('Latitude (degrees)'),
+    height: z.number().optional().default(0).describe('Height (meters)'),
+    name: z.string().optional().describe('Cylinder name'),
+    length: z.number().describe('Cylinder length/height in meters'),
+    topRadius: z.number().describe('Top radius in meters'),
+    bottomRadius: z.number().describe('Bottom radius in meters'),
+    material: materialSchema.describe('Material'),
+    outline: z.boolean().optional().default(true).describe('Show outline'),
+    outlineColor: colorSchema.describe('Outline color'),
+    fill: z.boolean().optional().default(true).describe('Show fill'),
+    orientation: orientationSchema.describe('Orientation (heading/pitch/roll in degrees)'),
+    numberOfVerticalLines: z.number().optional().default(16).describe('Number of vertical lines'),
+    slices: z.number().optional().default(128).describe('Number of slices'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('addCylinder', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — addEllipse
+_registerTool(
+  'addEllipse',
+  'Add an ellipse (oval) entity at a position',
+  {
+    longitude: z.number().describe('Center longitude (degrees)'),
+    latitude: z.number().describe('Center latitude (degrees)'),
+    height: z.number().optional().default(0).describe('Height (meters)'),
+    name: z.string().optional().describe('Ellipse name'),
+    semiMajorAxis: z.number().describe('Semi-major axis in meters'),
+    semiMinorAxis: z.number().describe('Semi-minor axis in meters'),
+    material: materialSchema.describe('Material'),
+    extrudedHeight: z.number().optional().describe('Extruded height (meters)'),
+    rotation: z.number().optional().describe('Rotation (radians)'),
+    outline: z.boolean().optional().describe('Show outline'),
+    outlineColor: colorSchema.describe('Outline color'),
+    fill: z.boolean().optional().default(true).describe('Show fill'),
+    stRotation: z.number().optional().describe('Texture rotation (radians)'),
+    numberOfVerticalLines: z.number().optional().describe('Number of vertical lines'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('addEllipse', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — addRectangle
+_registerTool(
+  'addRectangle',
+  'Add a rectangle entity defined by geographic bounds',
+  {
+    name: z.string().optional().describe('Rectangle name'),
+    west: z.number().describe('West longitude (degrees)'),
+    south: z.number().describe('South latitude (degrees)'),
+    east: z.number().describe('East longitude (degrees)'),
+    north: z.number().describe('North latitude (degrees)'),
+    material: materialSchema.describe('Material'),
+    height: z.number().optional().describe('Height (meters)'),
+    extrudedHeight: z.number().optional().describe('Extruded height (meters)'),
+    rotation: z.number().optional().describe('Rotation (radians)'),
+    outline: z.boolean().optional().describe('Show outline'),
+    outlineColor: colorSchema.describe('Outline color'),
+    fill: z.boolean().optional().default(true).describe('Show fill'),
+    stRotation: z.number().optional().describe('Texture rotation (radians)'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('addRectangle', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — addWall
+_registerTool(
+  'addWall',
+  'Add a wall entity along a series of positions',
+  {
+    name: z.string().optional().describe('Wall name'),
+    positions: z.array(positionDegreesSchema).describe('Array of positions along the wall'),
+    minimumHeights: z.array(z.number()).optional().describe('Minimum heights at each position'),
+    maximumHeights: z.array(z.number()).optional().describe('Maximum heights at each position'),
+    material: materialSchema.describe('Material'),
+    outline: z.boolean().optional().describe('Show outline'),
+    outlineColor: colorSchema.describe('Outline color'),
+    fill: z.boolean().optional().default(true).describe('Show fill'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('addWall', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// ==================== Animation Tools (融合官方 Animation Server) ====================
+
+// — createAnimation
+_registerTool(
+  'createAnimation',
+  'Create a time-based animation with waypoints (moving entity along a path)',
+  {
+    name: z.string().optional().describe('Animation name'),
+    waypoints: z.array(z.object({
+      longitude: z.number().describe('Longitude (degrees)'),
+      latitude: z.number().describe('Latitude (degrees)'),
+      height: z.number().optional().describe('Height (meters)'),
+      time: z.string().describe('ISO 8601 timestamp'),
+    })).describe('Array of waypoints with positions and timestamps'),
+    modelUri: z.string().optional().describe('glTF/GLB model URL, or preset: cesium_man, cesium_air, ground_vehicle, cesium_drone'),
+    showPath: z.boolean().optional().default(true).describe('Show trail path'),
+    pathWidth: z.number().optional().default(2).describe('Path width (pixels)'),
+    pathColor: z.string().optional().default('#00FF00').describe('Path color (CSS)'),
+    pathLeadTime: z.number().optional().default(0).describe('Path lead time (seconds)'),
+    pathTrailTime: z.number().optional().default(1e10).describe('Path trail time (seconds)'),
+    multiplier: z.number().optional().default(1).describe('Clock speed multiplier'),
+    shouldAnimate: z.boolean().optional().default(true).describe('Auto-start animation'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('createAnimation', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — controlAnimation
+_registerTool(
+  'controlAnimation',
+  'Play or pause the current animation',
+  {
+    action: z.enum(['play', 'pause']).describe('Play or pause'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('controlAnimation', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — removeAnimation
+_registerTool(
+  'removeAnimation',
+  'Remove an animation entity',
+  {
+    entityId: z.string().describe('Entity ID of the animation to remove'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('removeAnimation', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — listAnimations
+_registerTool(
+  'listAnimations',
+  'List all active animations',
+  {},
+  async () => {
+    const result = await sendToBrowser('listAnimations', {})
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
+  },
+)
+
+// — updateAnimationPath
+_registerTool(
+  'updateAnimationPath',
+  'Update the visual properties of an animation path',
+  {
+    entityId: z.string().describe('Entity ID of the animation'),
+    width: z.number().optional().describe('New path width (pixels)'),
+    color: z.string().optional().describe('New path color (CSS)'),
+    leadTime: z.number().optional().describe('New lead time (seconds)'),
+    trailTime: z.number().optional().describe('New trail time (seconds)'),
+    show: z.boolean().optional().describe('Show/hide path'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('updateAnimationPath', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — trackEntity
+_registerTool(
+  'trackEntity',
+  'Track (follow) an entity with the camera, or stop tracking',
+  {
+    entityId: z.string().optional().describe('Entity ID to track (omit to stop tracking)'),
+    heading: z.number().optional().describe('Camera heading (degrees)'),
+    pitch: z.number().optional().default(-30).describe('Camera pitch (degrees)'),
+    range: z.number().optional().default(500).describe('Camera distance from entity (meters)'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('trackEntity', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — controlClock
+_registerTool(
+  'controlClock',
+  'Configure the Cesium clock (time range, speed, animation state)',
+  {
+    action: z.enum(['configure', 'setTime', 'setMultiplier']).describe('Clock action'),
+    startTime: z.string().optional().describe('ISO 8601 start time (for configure)'),
+    stopTime: z.string().optional().describe('ISO 8601 stop time (for configure)'),
+    currentTime: z.string().optional().describe('ISO 8601 current time (for configure)'),
+    time: z.string().optional().describe('ISO 8601 time to jump to (for setTime)'),
+    multiplier: z.number().optional().describe('Clock speed multiplier (for configure/setMultiplier)'),
+    shouldAnimate: z.boolean().optional().describe('Whether clock should animate (for configure)'),
+    clockRange: z.enum(['UNBOUNDED', 'CLAMPED', 'LOOP_STOP']).optional().describe('Clock range mode (for configure)'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('controlClock', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — setGlobeLighting
+_registerTool(
+  'setGlobeLighting',
+  'Enable/disable globe lighting and atmospheric effects',
+  {
+    enableLighting: z.boolean().optional().describe('Enable globe lighting'),
+    dynamicAtmosphereLighting: z.boolean().optional().describe('Enable dynamic atmosphere lighting'),
+    dynamicAtmosphereLightingFromSun: z.boolean().optional().describe('Use sun position for atmosphere lighting'),
+  },
+  async (params) => {
+    const result = await sendToBrowser('setGlobeLighting', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// ==================== Meta-tools (Dynamic Discovery) ====================
+
+if (!_allMode) {
+  server.tool(
+    'list_toolsets',
+    'List all available tool groups and their enabled status. Call this to discover additional capabilities before asking the user to configure anything.',
+    {},
+    async () => {
+      const groups = Object.entries(TOOLSETS).map(([name, tools]) => ({
+        name,
+        description: TOOLSET_DESCRIPTIONS[name] ?? '',
+        tools: tools.length,
+        enabled: _enabledSets.has(name),
+        toolNames: tools,
+      }))
+      return { content: [{ type: 'text' as const, text: JSON.stringify(groups, null, 2) }] }
+    },
+  )
+
+  server.tool(
+    'enable_toolset',
+    'Enable a tool group to make its tools available. Call list_toolsets first to see available groups.',
+    {
+      toolset: z.string().describe('Name of the toolset to enable (e.g. "camera", "animation", "entity-ext")'),
+    },
+    async ({ toolset }) => {
+      if (!(toolset in TOOLSETS)) {
+        return {
+          content: [{ type: 'text' as const, text: `Unknown toolset "${toolset}". Available: ${Object.keys(TOOLSETS).join(', ')}` }],
+          isError: true,
+        }
+      }
+      if (_enabledSets.has(toolset)) {
+        return { content: [{ type: 'text' as const, text: `Toolset "${toolset}" is already enabled.` }] }
+      }
+      const added = _enableToolset(toolset)
+      server.sendToolListChanged?.()
+      return {
+        content: [{
+          type: 'text' as const,
+          text: `Enabled toolset "${toolset}" — ${added.length} new tools available: ${added.join(', ')}`,
+        }],
+      }
+    },
+  )
+}
+
 // ==================== Smithery Sandbox ====================
 
 /**
@@ -594,6 +1120,10 @@ server.tool(
  * 不启动 WebSocket，不连接 transport。
  */
 export function createSandboxServer() {
+  // Register all tools for sandbox scanning
+  for (const setName of Object.keys(TOOLSETS)) {
+    if (!_enabledSets.has(setName)) _enableToolset(setName)
+  }
   return server
 }
 
@@ -604,5 +1134,6 @@ export async function main() {
 
   const transport = new StdioServerTransport()
   await server.connect(transport)
-  console.error(`[cesium-mcp-runtime] MCP Server running (stdio), 24 tools registered`)
+  const metaCount = _allMode ? 0 : 2
+  console.error(`[cesium-mcp-runtime] MCP Server running (stdio), ${_enabledTools.size + metaCount} tools registered (toolsets: ${[..._enabledSets].join(', ')})`)
 }

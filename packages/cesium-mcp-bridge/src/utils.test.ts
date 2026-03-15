@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseColor, validateCoordinate } from './utils.js'
+import { parseColor, validateCoordinate, resolveMaterial } from './utils.js'
 
 describe('parseColor', () => {
   it('should parse CSS hex string', () => {
@@ -67,5 +67,52 @@ describe('validateCoordinate', () => {
   it('should accept height above threshold', () => {
     expect(() => validateCoordinate(0, 0, -12000)).not.toThrow()
     expect(() => validateCoordinate(0, 0, 0)).not.toThrow()
+  })
+})
+
+describe('resolveMaterial', () => {
+  it('should return WHITE for undefined input', () => {
+    const m = resolveMaterial(undefined)
+    expect(m).toBeTruthy()
+  })
+
+  it('should resolve CSS string to Color', () => {
+    const m = resolveMaterial('#FF0000')
+    expect((m as any).red).toBeCloseTo(1)
+  })
+
+  it('should resolve RGBA object to Color', () => {
+    const m = resolveMaterial({ red: 0, green: 1, blue: 0 })
+    expect((m as any).green).toBeCloseTo(1)
+  })
+
+  it('should resolve color MaterialSpec', () => {
+    const m = resolveMaterial({ type: 'color', color: '#00FF00' })
+    expect((m as any).green).toBeCloseTo(1)
+  })
+
+  it('should resolve image MaterialSpec', () => {
+    const m = resolveMaterial({ type: 'image', image: 'test.png' })
+    expect(m).toBeTruthy()
+  })
+
+  it('should resolve checkerboard MaterialSpec', () => {
+    const m = resolveMaterial({ type: 'checkerboard', evenColor: '#FF0000', oddColor: '#0000FF' })
+    expect(m).toBeTruthy()
+  })
+
+  it('should resolve stripe MaterialSpec', () => {
+    const m = resolveMaterial({ type: 'stripe', orientation: 'vertical' })
+    expect(m).toBeTruthy()
+  })
+
+  it('should resolve grid MaterialSpec', () => {
+    const m = resolveMaterial({ type: 'grid', color: '#FFFFFF', cellAlpha: 0.5 })
+    expect(m).toBeTruthy()
+  })
+
+  it('should return WHITE for unknown MaterialSpec type', () => {
+    const m = resolveMaterial({ type: 'unknown' as any })
+    expect(m).toBeTruthy()
   })
 })
