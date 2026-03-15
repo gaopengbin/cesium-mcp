@@ -180,7 +180,12 @@ function startServer() {
 
 const server = new McpServer({
   name: 'cesium-mcp-runtime',
-  version: '0.1.0',
+  version: '1.139.4',
+  title: 'Cesium MCP Runtime',
+  description: 'AI-powered 3D globe control via MCP — camera, layers, entities, animation, and interaction with CesiumJS.',
+  websiteUrl: 'https://github.com/gaopengbin/cesium-mcp',
+}, {
+  instructions: 'Cesium MCP Runtime provides tools for controlling a CesiumJS 3D globe via AI. A browser with cesium-mcp-bridge must be connected via WebSocket for command execution. Use view tools (flyTo, setView) to navigate, entity tools to add markers/polygons/models, layer tools to manage GeoJSON/3D Tiles, and animation tools for time-based animations.',
 })
 
 // ==================== Resources ====================
@@ -305,6 +310,7 @@ _registerTool(
     pitch: z.number().default(-45).describe('俯仰角（度），-90 为正下方'),
     duration: z.number().default(2).describe('飞行动画时长（秒）'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Fly To Location' },
   async (params) => {
     const result = await sendToBrowser('flyTo', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -321,6 +327,7 @@ _registerTool(
     data: z.record(z.unknown()).describe('GeoJSON FeatureCollection 对象'),
     style: z.record(z.unknown()).optional().describe('样式配置（color, opacity, pointSize, choropleth, category）'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add GeoJSON Layer' },
   async (params) => {
     const result = await sendToBrowser('addGeoJsonLayer', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -336,6 +343,7 @@ _registerTool(
     field: z.string().describe('用作标注文本的属性字段名（如 "name"、"population"）'),
     style: z.record(z.unknown()).optional().describe('标注样式（font, fillColor, outlineColor, scale 等）'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Label' },
   async (params) => {
     const result = await sendToBrowser('addLabel', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -350,6 +358,7 @@ _registerTool(
     data: z.record(z.unknown()).describe('GeoJSON Point FeatureCollection'),
     radius: z.number().default(30).describe('热力影响半径（像素）'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Heatmap' },
   async (params) => {
     const result = await sendToBrowser('addHeatmap', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -361,6 +370,7 @@ _registerTool(
   'removeLayer',
   '从地图上移除指定图层（按图层ID）',
   { id: z.string().describe('要移除的图层ID（可通过 listLayers 获取）') },
+  { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false, title: 'Remove Layer' },
   async (params) => {
     const result = await sendToBrowser('removeLayer', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -372,6 +382,7 @@ _registerTool(
   'setBasemap',
   '切换底图风格（暗色/卫星影像/标准）',
   { basemap: z.enum(['dark', 'satellite', 'standard']).describe('底图类型：dark=暗色, satellite=卫星影像, standard=标准') },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Set Basemap' },
   async (params) => {
     const result = await sendToBrowser('setBasemap', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -383,6 +394,7 @@ _registerTool(
   'screenshot',
   '截取当前地图视图（返回 base64 PNG）',
   {},
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Screenshot' },
   async () => {
     const result = await sendToBrowser('screenshot', {})
     const data = result as { dataUrl?: string } | null
@@ -402,6 +414,7 @@ _registerTool(
     featureIndex: z.number().optional().describe('要素索引（不传则高亮全部）'),
     color: z.string().default('#FFFF00').describe('高亮颜色（CSS 格式）'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Highlight' },
   async (params) => {
     const result = await sendToBrowser('highlight', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -420,6 +433,7 @@ _registerTool(
     pitch: z.number().optional().default(-90).describe('俯仰角（度）'),
     roll: z.number().optional().default(0).describe('翻滚角（度）'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Set View' },
   async (params) => {
     const result = await sendToBrowser('setView', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -431,6 +445,7 @@ _registerTool(
   'getView',
   '获取当前相机视角信息（经纬度、高度、角度）',
   {},
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Get View' },
   async () => {
     const result = await sendToBrowser('getView', {})
     return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
@@ -448,6 +463,7 @@ _registerTool(
     north: z.number().describe('北边界纬度（度）'),
     duration: z.number().optional().default(2).describe('动画时长（秒）'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Zoom to Extent' },
   async (params) => {
     const result = await sendToBrowser('zoomToExtent', { bbox: [params.west, params.south, params.east, params.north], duration: params.duration })
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -466,6 +482,7 @@ _registerTool(
     size: z.number().optional().default(12).describe('点大小（像素）'),
     id: z.string().optional().describe('自定义图层ID（不传则自动生成）'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Marker' },
   async (params) => {
     const result = await sendToBrowser('addMarker', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -483,6 +500,7 @@ _registerTool(
     clampToGround: z.boolean().optional().default(true).describe('是否贴地'),
     label: z.string().optional().describe('折线标注文本'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Polyline' },
   async (params) => {
     const result = await sendToBrowser('addPolyline', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -502,6 +520,7 @@ _registerTool(
     clampToGround: z.boolean().optional().default(true).describe('是否贴地'),
     label: z.string().optional().describe('多边形标注文本'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Polygon' },
   async (params) => {
     const result = await sendToBrowser('addPolygon', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -523,6 +542,7 @@ _registerTool(
     roll: z.number().optional().default(0).describe('翻滚角（度）'),
     label: z.string().optional().describe('模型标注文本'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Model' },
   async (params) => {
     const result = await sendToBrowser('addModel', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -536,15 +556,16 @@ _registerTool(
   {
     entityId: z.string().describe('实体ID（addMarker/addPolyline 等返回的 entityId）'),
     position: z.object({
-      longitude: z.number(),
-      latitude: z.number(),
-      height: z.number().optional(),
+      longitude: z.number().describe('经度（-180 ~ 180）'),
+      latitude: z.number().describe('纬度（-90 ~ 90）'),
+      height: z.number().optional().describe('高度（米）'),
     }).optional().describe('新位置坐标'),
     label: z.string().optional().describe('新标注文本'),
     color: z.string().optional().describe('新颜色（CSS 格式）'),
     scale: z.number().optional().describe('新缩放比例'),
     show: z.boolean().optional().describe('是否显示'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Update Entity' },
   async (params) => {
     const result = await sendToBrowser('updateEntity', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -558,6 +579,7 @@ _registerTool(
   {
     entityId: z.string().describe('要移除的实体ID'),
   },
+  { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false, title: 'Remove Entity' },
   async (params) => {
     const result = await sendToBrowser('removeEntity', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -572,6 +594,7 @@ _registerTool(
     id: z.string().describe('图层ID'),
     visible: z.boolean().describe('是否可见'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Set Layer Visibility' },
   async (params) => {
     const result = await sendToBrowser('setLayerVisibility', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -583,6 +606,7 @@ _registerTool(
   'listLayers',
   '获取当前所有图层列表（含 ID、名称、类型、可见性）',
   {},
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'List Layers' },
   async () => {
     const result = await sendToBrowser('listLayers', {})
     return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
@@ -598,6 +622,7 @@ _registerTool(
     labelStyle: z.record(z.unknown()).optional().describe('标注样式（font, fillColor, outlineColor, outlineWidth, scale 等）'),
     layerStyle: z.record(z.unknown()).optional().describe('图层样式（color, opacity, strokeWidth, pointSize）'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Update Layer Style' },
   async (params) => {
     const result = await sendToBrowser('updateLayerStyle', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -616,6 +641,7 @@ _registerTool(
     trailSeconds: z.number().optional().default(2).describe('尾迹长度（秒）'),
     label: z.string().optional().describe('移动体标签'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Play Trajectory' },
   async (params) => {
     const result = await sendToBrowser('playTrajectory', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -633,6 +659,7 @@ _registerTool(
     maximumScreenSpaceError: z.number().optional().default(16).describe('最大屏幕空间误差（值越小越精细）'),
     heightOffset: z.number().optional().describe('高度偏移（米）'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Load 3D Tiles' },
   async (params) => {
     const result = await sendToBrowser('load3dTiles', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -648,6 +675,7 @@ _registerTool(
     url: z.string().optional().describe('自定义地形服务 URL'),
     cesiumIonAssetId: z.number().optional().describe('Cesium Ion 资产ID（provider=cesiumion 时需要）'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Load Terrain' },
   async (params) => {
     const result = await sendToBrowser('loadTerrain', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -666,6 +694,7 @@ _registerTool(
     layerName: z.string().optional().describe('WMS/WMTS 图层名'),
     opacity: z.number().optional().default(1.0).describe('透明度（0~1）'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Load Imagery Service' },
   async (params) => {
     const result = await sendToBrowser('loadImageryService', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -686,6 +715,7 @@ _registerTool(
     pitch: z.number().optional().default(-45).describe('Camera pitch (degrees), -90=straight down'),
     range: z.number().optional().default(1000).describe('Distance from target (meters)'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Look At Transform' },
   async (params) => {
     const result = await sendToBrowser('lookAtTransform', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -700,6 +730,7 @@ _registerTool(
     speed: z.number().optional().default(0.005).describe('Rotation speed (radians per tick)'),
     clockwise: z.boolean().optional().default(true).describe('Orbit direction'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Start Orbit' },
   async (params) => {
     const result = await sendToBrowser('startOrbit', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -711,6 +742,7 @@ _registerTool(
   'stopOrbit',
   'Stop the camera orbit animation',
   {},
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Stop Orbit' },
   async () => {
     const result = await sendToBrowser('stopOrbit', {})
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -731,6 +763,7 @@ _registerTool(
     maximumZoomDistance: z.number().optional().describe('Maximum zoom distance (meters)'),
     enableInputs: z.boolean().optional().describe('Enable/disable all camera inputs'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Set Camera Options' },
   async (params) => {
     const result = await sendToBrowser('setCameraOptions', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -740,22 +773,22 @@ _registerTool(
 // ==================== Entity Type Tools (融合官方 Entity Server) ====================
 
 const colorSchema = z.union([
-  z.string(),
-  z.object({ red: z.number(), green: z.number(), blue: z.number(), alpha: z.number().optional() }),
+  z.string().describe('CSS color string (e.g. "#FF0000", "red")'),
+  z.object({ red: z.number().describe('Red channel (0-1)'), green: z.number().describe('Green channel (0-1)'), blue: z.number().describe('Blue channel (0-1)'), alpha: z.number().optional().describe('Alpha channel (0-1)') }).describe('RGBA color object'),
 ]).optional()
 
 const materialSchema = z.union([
-  z.string(),
-  z.object({ red: z.number(), green: z.number(), blue: z.number(), alpha: z.number().optional() }),
+  z.string().describe('CSS color string'),
+  z.object({ red: z.number().describe('Red (0-1)'), green: z.number().describe('Green (0-1)'), blue: z.number().describe('Blue (0-1)'), alpha: z.number().optional().describe('Alpha (0-1)') }).describe('RGBA color'),
   z.object({
-    type: z.enum(['color', 'image', 'checkerboard', 'stripe', 'grid']),
-    color: z.union([z.string(), z.object({ red: z.number(), green: z.number(), blue: z.number(), alpha: z.number().optional() })]).optional(),
-    image: z.string().optional(),
-    evenColor: z.union([z.string(), z.object({ red: z.number(), green: z.number(), blue: z.number(), alpha: z.number().optional() })]).optional(),
-    oddColor: z.union([z.string(), z.object({ red: z.number(), green: z.number(), blue: z.number(), alpha: z.number().optional() })]).optional(),
-    orientation: z.enum(['horizontal', 'vertical']).optional(),
-    cellAlpha: z.number().optional(),
-  }),
+    type: z.enum(['color', 'image', 'checkerboard', 'stripe', 'grid']).describe('Material type'),
+    color: z.union([z.string(), z.object({ red: z.number().describe('Red (0-1)'), green: z.number().describe('Green (0-1)'), blue: z.number().describe('Blue (0-1)'), alpha: z.number().optional().describe('Alpha (0-1)') })]).optional().describe('Base color'),
+    image: z.string().optional().describe('Image URL'),
+    evenColor: z.union([z.string(), z.object({ red: z.number().describe('Red (0-1)'), green: z.number().describe('Green (0-1)'), blue: z.number().describe('Blue (0-1)'), alpha: z.number().optional().describe('Alpha (0-1)') })]).optional().describe('Even color for checkerboard/stripe'),
+    oddColor: z.union([z.string(), z.object({ red: z.number().describe('Red (0-1)'), green: z.number().describe('Green (0-1)'), blue: z.number().describe('Blue (0-1)'), alpha: z.number().optional().describe('Alpha (0-1)') })]).optional().describe('Odd color for checkerboard/stripe'),
+    orientation: z.enum(['horizontal', 'vertical']).optional().describe('Stripe orientation'),
+    cellAlpha: z.number().optional().describe('Cell alpha for grid material'),
+  }).describe('Complex material specification'),
 ]).optional()
 
 const orientationSchema = z.object({
@@ -765,9 +798,9 @@ const orientationSchema = z.object({
 }).optional()
 
 const positionDegreesSchema = z.object({
-  longitude: z.number(),
-  latitude: z.number(),
-  height: z.number().optional(),
+  longitude: z.number().describe('Longitude (degrees)'),
+  latitude: z.number().describe('Latitude (degrees)'),
+  height: z.number().optional().describe('Height above ground (meters)'),
 })
 
 // — addBillboard
@@ -787,6 +820,7 @@ _registerTool(
     verticalOrigin: z.enum(['CENTER', 'TOP', 'BOTTOM', 'BASELINE']).optional().describe('Vertical origin'),
     heightReference: z.enum(['NONE', 'CLAMP_TO_GROUND', 'RELATIVE_TO_GROUND']).optional().describe('Height reference'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Billboard' },
   async (params) => {
     const result = await sendToBrowser('addBillboard', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -814,6 +848,7 @@ _registerTool(
     orientation: orientationSchema.describe('Orientation (heading/pitch/roll in degrees)'),
     heightReference: z.enum(['NONE', 'CLAMP_TO_GROUND', 'RELATIVE_TO_GROUND']).optional().describe('Height reference'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Box' },
   async (params) => {
     const result = await sendToBrowser('addBox', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -835,6 +870,7 @@ _registerTool(
     outline: z.boolean().optional().describe('Show outline'),
     outlineColor: colorSchema.describe('Outline color'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Corridor' },
   async (params) => {
     const result = await sendToBrowser('addCorridor', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -861,6 +897,7 @@ _registerTool(
     numberOfVerticalLines: z.number().optional().default(16).describe('Number of vertical lines'),
     slices: z.number().optional().default(128).describe('Number of slices'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Cylinder' },
   async (params) => {
     const result = await sendToBrowser('addCylinder', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -887,6 +924,7 @@ _registerTool(
     stRotation: z.number().optional().describe('Texture rotation (radians)'),
     numberOfVerticalLines: z.number().optional().describe('Number of vertical lines'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Ellipse' },
   async (params) => {
     const result = await sendToBrowser('addEllipse', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -912,6 +950,7 @@ _registerTool(
     fill: z.boolean().optional().default(true).describe('Show fill'),
     stRotation: z.number().optional().describe('Texture rotation (radians)'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Rectangle' },
   async (params) => {
     const result = await sendToBrowser('addRectangle', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -932,6 +971,7 @@ _registerTool(
     outlineColor: colorSchema.describe('Outline color'),
     fill: z.boolean().optional().default(true).describe('Show fill'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Wall' },
   async (params) => {
     const result = await sendToBrowser('addWall', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -961,6 +1001,7 @@ _registerTool(
     multiplier: z.number().optional().default(1).describe('Clock speed multiplier'),
     shouldAnimate: z.boolean().optional().default(true).describe('Auto-start animation'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Create Animation' },
   async (params) => {
     const result = await sendToBrowser('createAnimation', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -974,6 +1015,7 @@ _registerTool(
   {
     action: z.enum(['play', 'pause']).describe('Play or pause'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Control Animation' },
   async (params) => {
     const result = await sendToBrowser('controlAnimation', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -987,6 +1029,7 @@ _registerTool(
   {
     entityId: z.string().describe('Entity ID of the animation to remove'),
   },
+  { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false, title: 'Remove Animation' },
   async (params) => {
     const result = await sendToBrowser('removeAnimation', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -998,6 +1041,7 @@ _registerTool(
   'listAnimations',
   'List all active animations',
   {},
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'List Animations' },
   async () => {
     const result = await sendToBrowser('listAnimations', {})
     return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
@@ -1016,6 +1060,7 @@ _registerTool(
     trailTime: z.number().optional().describe('New trail time (seconds)'),
     show: z.boolean().optional().describe('Show/hide path'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Update Animation Path' },
   async (params) => {
     const result = await sendToBrowser('updateAnimationPath', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -1032,6 +1077,7 @@ _registerTool(
     pitch: z.number().optional().default(-30).describe('Camera pitch (degrees)'),
     range: z.number().optional().default(500).describe('Camera distance from entity (meters)'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Track Entity' },
   async (params) => {
     const result = await sendToBrowser('trackEntity', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -1052,6 +1098,7 @@ _registerTool(
     shouldAnimate: z.boolean().optional().describe('Whether clock should animate (for configure)'),
     clockRange: z.enum(['UNBOUNDED', 'CLAMPED', 'LOOP_STOP']).optional().describe('Clock range mode (for configure)'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Control Clock' },
   async (params) => {
     const result = await sendToBrowser('controlClock', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
@@ -1067,10 +1114,36 @@ _registerTool(
     dynamicAtmosphereLighting: z.boolean().optional().describe('Enable dynamic atmosphere lighting'),
     dynamicAtmosphereLightingFromSun: z.boolean().optional().describe('Use sun position for atmosphere lighting'),
   },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Set Globe Lighting' },
   async (params) => {
     const result = await sendToBrowser('setGlobeLighting', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
   },
+)
+
+// ==================== Prompts ====================
+
+server.prompt(
+  'cesium-quickstart',
+  'Quick reference for using Cesium MCP tools',
+  async () => ({
+    messages: [{
+      role: 'user' as const,
+      content: {
+        type: 'text' as const,
+        text: `Cesium MCP Quick Start Guide:
+
+1. **Camera**: flyTo(lng, lat) to navigate, setView for instant move, getView to read current position
+2. **Entities**: addMarker for points, addPolygon/addPolyline for shapes, addModel for 3D models
+3. **Layers**: addGeoJsonLayer for vector data, load3dTiles for 3D city models, loadImageryService for WMS/WMTS
+4. **Animation**: createAnimation with waypoints for moving entities, controlAnimation to play/pause
+5. **Interaction**: screenshot to capture view, highlight to emphasize features
+6. **Discovery**: list_toolsets to see available tool groups, enable_toolset to activate more tools
+
+All entity/layer operations return an ID for subsequent updates or removal.`,
+      },
+    }],
+  }),
 )
 
 // ==================== Meta-tools (Dynamic Discovery) ====================
@@ -1080,6 +1153,7 @@ if (!_allMode) {
     'list_toolsets',
     'List all available tool groups and their enabled status. Call this to discover additional capabilities before asking the user to configure anything.',
     {},
+    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'List Toolsets' },
     async () => {
       const groups = Object.entries(TOOLSETS).map(([name, tools]) => ({
         name,
@@ -1098,6 +1172,7 @@ if (!_allMode) {
     {
       toolset: z.string().describe('Name of the toolset to enable (e.g. "camera", "animation", "entity-ext")'),
     },
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Enable Toolset' },
     async ({ toolset }) => {
       if (!(toolset in TOOLSETS)) {
         return {

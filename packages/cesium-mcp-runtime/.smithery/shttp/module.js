@@ -21111,6 +21111,13 @@ function startServer() {
       browserClients.delete(sessionId);
     });
   });
+  httpServer.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(`[cesium-mcp-runtime] Port ${WS_PORT} already in use, WebSocket server disabled`);
+    } else {
+      console.error(`[cesium-mcp-runtime] HTTP server error:`, err.message);
+    }
+  });
   httpServer.listen(WS_PORT, () => {
     console.error(`[cesium-mcp-runtime] HTTP + WebSocket server on http://localhost:${WS_PORT}`);
     console.error(`[cesium-mcp-runtime] POST /api/command \u2014 \u63A8\u9001\u5730\u56FE\u547D\u4EE4`);
@@ -21147,7 +21154,70 @@ server.resource(
     }
   }
 );
-server.tool(
+var TOOLSETS = {
+  view: ["flyTo", "setView", "getView", "zoomToExtent"],
+  entity: ["addMarker", "addLabel", "addModel", "addPolygon", "addPolyline", "updateEntity", "removeEntity"],
+  layer: ["addGeoJsonLayer", "listLayers", "removeLayer", "setLayerVisibility", "updateLayerStyle", "setBasemap"],
+  camera: ["lookAtTransform", "startOrbit", "stopOrbit", "setCameraOptions"],
+  "entity-ext": ["addBillboard", "addBox", "addCorridor", "addCylinder", "addEllipse", "addRectangle", "addWall"],
+  animation: ["createAnimation", "controlAnimation", "removeAnimation", "listAnimations", "updateAnimationPath", "trackEntity", "controlClock", "setGlobeLighting"],
+  tiles: ["load3dTiles", "loadTerrain", "loadImageryService"],
+  interaction: ["screenshot", "highlight"],
+  trajectory: ["playTrajectory"],
+  heatmap: ["addHeatmap"]
+};
+var TOOLSET_DESCRIPTIONS = {
+  view: "Camera view controls (flyTo, setView, getView, zoomToExtent)",
+  entity: "Core entity operations (marker, label, model, polygon, polyline, update, remove)",
+  layer: "Layer management (GeoJSON, list, remove, visibility, style, basemap)",
+  camera: "Advanced camera controls (lookAt, orbit, camera options)",
+  "entity-ext": "Extended entity types (billboard, box, corridor, cylinder, ellipse, rectangle, wall)",
+  animation: "Animation system (create/control animations, track entities, clock, lighting)",
+  tiles: "3D Tiles, terrain, and imagery services",
+  interaction: "User interaction (screenshot, highlight)",
+  trajectory: "Trajectory playback",
+  heatmap: "Heatmap visualization"
+};
+var DEFAULT_TOOLSETS = ["view", "entity", "layer", "interaction"];
+var _tsEnv = process.env.CESIUM_TOOLSETS?.trim();
+var _allMode = _tsEnv === "all";
+var _enabledSets = new Set(
+  _allMode ? Object.keys(TOOLSETS) : _tsEnv ? _tsEnv.split(",").map((s) => s.trim()).filter((s) => s in TOOLSETS) : DEFAULT_TOOLSETS
+);
+var _enabledTools = /* @__PURE__ */ new Set();
+for (const setName of _enabledSets) {
+  for (const tool of TOOLSETS[setName]) {
+    _enabledTools.add(tool);
+  }
+}
+var _toolDefs = /* @__PURE__ */ new Map();
+var _registerTool = ((...args) => {
+  const name = args[0];
+  _toolDefs.set(name, args);
+  if (_enabledTools.has(name)) {
+    ;
+    server.tool.apply(server, args);
+  }
+});
+function _enableToolset(setName) {
+  const tools = TOOLSETS[setName];
+  if (!tools) return [];
+  const added = [];
+  for (const toolName of tools) {
+    if (!_enabledTools.has(toolName)) {
+      _enabledTools.add(toolName);
+      const def = _toolDefs.get(toolName);
+      if (def) {
+        ;
+        server.tool.apply(server, def);
+        added.push(toolName);
+      }
+    }
+  }
+  _enabledSets.add(setName);
+  return added;
+}
+_registerTool(
   "flyTo",
   "\u98DE\u884C\u5230\u6307\u5B9A\u7ECF\u7EAC\u5EA6\u4F4D\u7F6E\uFF08\u5E26\u52A8\u753B\u8FC7\u6E21\uFF09",
   {
@@ -21163,7 +21233,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "addGeoJsonLayer",
   "\u6DFB\u52A0 GeoJSON \u56FE\u5C42\u5230\u5730\u56FE\uFF08\u652F\u6301 Point/Line/Polygon\uFF0C\u53EF\u914D\u7F6E\u989C\u8272/\u5206\u7EA7/\u5206\u7C7B\u6E32\u67D3\uFF09",
   {
@@ -21177,7 +21247,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "addLabel",
   "\u4E3A GeoJSON \u8981\u7D20\u6DFB\u52A0\u6587\u672C\u6807\u6CE8\uFF08\u663E\u793A\u5C5E\u6027\u503C\uFF09",
   {
@@ -21190,7 +21260,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "addHeatmap",
   "\u6DFB\u52A0\u70ED\u529B\u56FE\u56FE\u5C42\uFF08\u57FA\u4E8E GeoJSON \u70B9\u6570\u636E\u751F\u6210\u70ED\u529B\u53EF\u89C6\u5316\uFF09",
   {
@@ -21202,7 +21272,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "removeLayer",
   "\u4ECE\u5730\u56FE\u4E0A\u79FB\u9664\u6307\u5B9A\u56FE\u5C42\uFF08\u6309\u56FE\u5C42ID\uFF09",
   { id: external_exports.string().describe("\u8981\u79FB\u9664\u7684\u56FE\u5C42ID\uFF08\u53EF\u901A\u8FC7 listLayers \u83B7\u53D6\uFF09") },
@@ -21211,7 +21281,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "setBasemap",
   "\u5207\u6362\u5E95\u56FE\u98CE\u683C\uFF08\u6697\u8272/\u536B\u661F\u5F71\u50CF/\u6807\u51C6\uFF09",
   { basemap: external_exports.enum(["dark", "satellite", "standard"]).describe("\u5E95\u56FE\u7C7B\u578B\uFF1Adark=\u6697\u8272, satellite=\u536B\u661F\u5F71\u50CF, standard=\u6807\u51C6") },
@@ -21220,7 +21290,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "screenshot",
   "\u622A\u53D6\u5F53\u524D\u5730\u56FE\u89C6\u56FE\uFF08\u8FD4\u56DE base64 PNG\uFF09",
   {},
@@ -21233,7 +21303,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "highlight",
   "\u9AD8\u4EAE\u6307\u5B9A\u56FE\u5C42\u7684\u8981\u7D20",
   {
@@ -21246,7 +21316,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "setView",
   "\u77AC\u95F4\u5207\u6362\u5230\u6307\u5B9A\u7ECF\u7EAC\u5EA6\u89C6\u89D2\uFF08\u65E0\u52A8\u753B\uFF09",
   {
@@ -21262,7 +21332,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "getView",
   "\u83B7\u53D6\u5F53\u524D\u76F8\u673A\u89C6\u89D2\u4FE1\u606F\uFF08\u7ECF\u7EAC\u5EA6\u3001\u9AD8\u5EA6\u3001\u89D2\u5EA6\uFF09",
   {},
@@ -21271,7 +21341,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   }
 );
-server.tool(
+_registerTool(
   "zoomToExtent",
   "\u7F29\u653E\u5230\u6307\u5B9A\u5730\u7406\u8303\u56F4",
   {
@@ -21286,7 +21356,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "addMarker",
   "\u5728\u6307\u5B9A\u7ECF\u7EAC\u5EA6\u6DFB\u52A0\u6807\u6CE8\u70B9\uFF0C\u8FD4\u56DE layerId \u4F9B\u540E\u7EED\u64CD\u4F5C",
   {
@@ -21302,7 +21372,89 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
+  "addPolyline",
+  "\u5728\u5730\u56FE\u4E0A\u6DFB\u52A0\u6298\u7EBF\uFF08\u8DEF\u5F84\u3001\u7EBF\u6BB5\uFF09\uFF0C\u8FD4\u56DE entityId",
+  {
+    coordinates: external_exports.array(external_exports.array(external_exports.number())).describe("\u6298\u7EBF\u5750\u6807\u6570\u7EC4 [[lon, lat, height?], ...]"),
+    color: external_exports.string().optional().default("#3B82F6").describe("\u7EBF\u6761\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09"),
+    width: external_exports.number().optional().default(3).describe("\u7EBF\u6761\u5BBD\u5EA6\uFF08\u50CF\u7D20\uFF09"),
+    clampToGround: external_exports.boolean().optional().default(true).describe("\u662F\u5426\u8D34\u5730"),
+    label: external_exports.string().optional().describe("\u6298\u7EBF\u6807\u6CE8\u6587\u672C")
+  },
+  async (params) => {
+    const result = await sendToBrowser("addPolyline", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "addPolygon",
+  "\u5728\u5730\u56FE\u4E0A\u6DFB\u52A0\u591A\u8FB9\u5F62\u533A\u57DF\uFF08\u9762\u79EF\u3001\u8FB9\u754C\uFF09\uFF0C\u8FD4\u56DE entityId",
+  {
+    coordinates: external_exports.array(external_exports.array(external_exports.number())).describe("\u591A\u8FB9\u5F62\u5916\u73AF\u5750\u6807 [[lon, lat, height?], ...]"),
+    color: external_exports.string().optional().default("#3B82F6").describe("\u586B\u5145\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09"),
+    outlineColor: external_exports.string().optional().default("#FFFFFF").describe("\u63CF\u8FB9\u989C\u8272"),
+    opacity: external_exports.number().optional().default(0.6).describe("\u586B\u5145\u900F\u660E\u5EA6\uFF080~1\uFF09"),
+    extrudedHeight: external_exports.number().optional().describe("\u62C9\u4F38\u9AD8\u5EA6\uFF08\u7C73\uFF09\uFF0C\u53EF\u7528\u4E8E\u521B\u5EFA\u7ACB\u4F53\u6548\u679C"),
+    clampToGround: external_exports.boolean().optional().default(true).describe("\u662F\u5426\u8D34\u5730"),
+    label: external_exports.string().optional().describe("\u591A\u8FB9\u5F62\u6807\u6CE8\u6587\u672C")
+  },
+  async (params) => {
+    const result = await sendToBrowser("addPolygon", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "addModel",
+  "\u5728\u6307\u5B9A\u7ECF\u7EAC\u5EA6\u653E\u7F6E 3D \u6A21\u578B\uFF08glTF/GLB\uFF09\uFF0C\u8FD4\u56DE entityId",
+  {
+    longitude: external_exports.number().describe("\u7ECF\u5EA6\uFF08-180 ~ 180\uFF09"),
+    latitude: external_exports.number().describe("\u7EAC\u5EA6\uFF08-90 ~ 90\uFF09"),
+    height: external_exports.number().optional().default(0).describe("\u653E\u7F6E\u9AD8\u5EA6\uFF08\u7C73\uFF09"),
+    url: external_exports.string().describe("glTF/GLB \u6A21\u578B\u6587\u4EF6 URL"),
+    scale: external_exports.number().optional().default(1).describe("\u6A21\u578B\u7F29\u653E\u6BD4\u4F8B"),
+    heading: external_exports.number().optional().default(0).describe("\u822A\u5411\u89D2\uFF08\u5EA6\uFF09\uFF0C0=\u6B63\u5317"),
+    pitch: external_exports.number().optional().default(0).describe("\u4FEF\u4EF0\u89D2\uFF08\u5EA6\uFF09"),
+    roll: external_exports.number().optional().default(0).describe("\u7FFB\u6EDA\u89D2\uFF08\u5EA6\uFF09"),
+    label: external_exports.string().optional().describe("\u6A21\u578B\u6807\u6CE8\u6587\u672C")
+  },
+  async (params) => {
+    const result = await sendToBrowser("addModel", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "updateEntity",
+  "\u66F4\u65B0\u5DF2\u6709\u5B9E\u4F53\u7684\u5C5E\u6027\uFF08\u4F4D\u7F6E\u3001\u989C\u8272\u3001\u6807\u7B7E\u3001\u7F29\u653E\u3001\u53EF\u89C1\u6027\uFF09",
+  {
+    entityId: external_exports.string().describe("\u5B9E\u4F53ID\uFF08addMarker/addPolyline \u7B49\u8FD4\u56DE\u7684 entityId\uFF09"),
+    position: external_exports.object({
+      longitude: external_exports.number(),
+      latitude: external_exports.number(),
+      height: external_exports.number().optional()
+    }).optional().describe("\u65B0\u4F4D\u7F6E\u5750\u6807"),
+    label: external_exports.string().optional().describe("\u65B0\u6807\u6CE8\u6587\u672C"),
+    color: external_exports.string().optional().describe("\u65B0\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09"),
+    scale: external_exports.number().optional().describe("\u65B0\u7F29\u653E\u6BD4\u4F8B"),
+    show: external_exports.boolean().optional().describe("\u662F\u5426\u663E\u793A")
+  },
+  async (params) => {
+    const result = await sendToBrowser("updateEntity", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "removeEntity",
+  "\u79FB\u9664\u5355\u4E2A\u5B9E\u4F53\uFF08\u901A\u8FC7 entityId\uFF09",
+  {
+    entityId: external_exports.string().describe("\u8981\u79FB\u9664\u7684\u5B9E\u4F53ID")
+  },
+  async (params) => {
+    const result = await sendToBrowser("removeEntity", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
   "setLayerVisibility",
   "\u8BBE\u7F6E\u56FE\u5C42\u53EF\u89C1\u6027",
   {
@@ -21314,7 +21466,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "listLayers",
   "\u83B7\u53D6\u5F53\u524D\u6240\u6709\u56FE\u5C42\u5217\u8868\uFF08\u542B ID\u3001\u540D\u79F0\u3001\u7C7B\u578B\u3001\u53EF\u89C1\u6027\uFF09",
   {},
@@ -21323,7 +21475,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   }
 );
-server.tool(
+_registerTool(
   "updateLayerStyle",
   "\u4FEE\u6539\u5DF2\u6709\u56FE\u5C42\u7684\u6837\u5F0F\uFF08\u989C\u8272\u3001\u900F\u660E\u5EA6\u3001\u6807\u6CE8\u6837\u5F0F\u7B49\uFF09",
   {
@@ -21336,7 +21488,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "playTrajectory",
   "\u64AD\u653E\u79FB\u52A8\u8F68\u8FF9\u52A8\u753B",
   {
@@ -21352,7 +21504,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "load3dTiles",
   "\u52A0\u8F7D 3D Tiles \u6570\u636E\u96C6\uFF08\u5982\u5EFA\u7B51\u767D\u819C\u3001\u57CE\u5E02\u6A21\u578B\uFF09",
   {
@@ -21367,7 +21519,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "loadTerrain",
   "\u52A0\u8F7D\u6216\u5207\u6362\u5730\u5F62\uFF08\u5E73\u5766/ArcGIS/CesiumIon/\u81EA\u5B9A\u4E49 URL\uFF09",
   {
@@ -21380,7 +21532,7 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
-server.tool(
+_registerTool(
   "loadImageryService",
   "\u52A0\u8F7D\u5F71\u50CF\u670D\u52A1\u56FE\u5C42\uFF08WMS/WMTS/XYZ/ArcGIS MapServer\uFF09",
   {
@@ -21396,14 +21548,414 @@ server.tool(
     return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
   }
 );
+_registerTool(
+  "lookAtTransform",
+  "Look at a specific position from a given heading/pitch/range (orbit-style camera)",
+  {
+    longitude: external_exports.number().describe("Target longitude (degrees)"),
+    latitude: external_exports.number().describe("Target latitude (degrees)"),
+    height: external_exports.number().optional().default(0).describe("Target height (meters)"),
+    heading: external_exports.number().optional().default(0).describe("Camera heading (degrees), 0=North"),
+    pitch: external_exports.number().optional().default(-45).describe("Camera pitch (degrees), -90=straight down"),
+    range: external_exports.number().optional().default(1e3).describe("Distance from target (meters)")
+  },
+  async (params) => {
+    const result = await sendToBrowser("lookAtTransform", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "startOrbit",
+  "Start orbiting the camera around the current view center",
+  {
+    speed: external_exports.number().optional().default(5e-3).describe("Rotation speed (radians per tick)"),
+    clockwise: external_exports.boolean().optional().default(true).describe("Orbit direction")
+  },
+  async (params) => {
+    const result = await sendToBrowser("startOrbit", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "stopOrbit",
+  "Stop the camera orbit animation",
+  {},
+  async () => {
+    const result = await sendToBrowser("stopOrbit", {});
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "setCameraOptions",
+  "Configure camera controller options (enable/disable rotation, zoom, tilt, etc.)",
+  {
+    enableRotate: external_exports.boolean().optional().describe("Enable camera rotation"),
+    enableTranslate: external_exports.boolean().optional().describe("Enable camera translation"),
+    enableZoom: external_exports.boolean().optional().describe("Enable camera zoom"),
+    enableTilt: external_exports.boolean().optional().describe("Enable camera tilt"),
+    enableLook: external_exports.boolean().optional().describe("Enable camera look"),
+    minimumZoomDistance: external_exports.number().optional().describe("Minimum zoom distance (meters)"),
+    maximumZoomDistance: external_exports.number().optional().describe("Maximum zoom distance (meters)"),
+    enableInputs: external_exports.boolean().optional().describe("Enable/disable all camera inputs")
+  },
+  async (params) => {
+    const result = await sendToBrowser("setCameraOptions", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+var colorSchema = external_exports.union([
+  external_exports.string(),
+  external_exports.object({ red: external_exports.number(), green: external_exports.number(), blue: external_exports.number(), alpha: external_exports.number().optional() })
+]).optional();
+var materialSchema = external_exports.union([
+  external_exports.string(),
+  external_exports.object({ red: external_exports.number(), green: external_exports.number(), blue: external_exports.number(), alpha: external_exports.number().optional() }),
+  external_exports.object({
+    type: external_exports.enum(["color", "image", "checkerboard", "stripe", "grid"]),
+    color: external_exports.union([external_exports.string(), external_exports.object({ red: external_exports.number(), green: external_exports.number(), blue: external_exports.number(), alpha: external_exports.number().optional() })]).optional(),
+    image: external_exports.string().optional(),
+    evenColor: external_exports.union([external_exports.string(), external_exports.object({ red: external_exports.number(), green: external_exports.number(), blue: external_exports.number(), alpha: external_exports.number().optional() })]).optional(),
+    oddColor: external_exports.union([external_exports.string(), external_exports.object({ red: external_exports.number(), green: external_exports.number(), blue: external_exports.number(), alpha: external_exports.number().optional() })]).optional(),
+    orientation: external_exports.enum(["horizontal", "vertical"]).optional(),
+    cellAlpha: external_exports.number().optional()
+  })
+]).optional();
+var orientationSchema = external_exports.object({
+  heading: external_exports.number().describe("Heading (degrees)"),
+  pitch: external_exports.number().describe("Pitch (degrees)"),
+  roll: external_exports.number().describe("Roll (degrees)")
+}).optional();
+var positionDegreesSchema = external_exports.object({
+  longitude: external_exports.number(),
+  latitude: external_exports.number(),
+  height: external_exports.number().optional()
+});
+_registerTool(
+  "addBillboard",
+  "Add a billboard (image icon) at a position on the globe",
+  {
+    longitude: external_exports.number().describe("Longitude (degrees)"),
+    latitude: external_exports.number().describe("Latitude (degrees)"),
+    height: external_exports.number().optional().default(0).describe("Height (meters)"),
+    name: external_exports.string().optional().describe("Billboard name"),
+    image: external_exports.string().describe("Image URL for the billboard"),
+    scale: external_exports.number().optional().default(1).describe("Scale factor"),
+    color: colorSchema.describe("Tint color"),
+    pixelOffset: external_exports.object({ x: external_exports.number(), y: external_exports.number() }).optional().describe("Pixel offset from position"),
+    horizontalOrigin: external_exports.enum(["CENTER", "LEFT", "RIGHT"]).optional().describe("Horizontal origin"),
+    verticalOrigin: external_exports.enum(["CENTER", "TOP", "BOTTOM", "BASELINE"]).optional().describe("Vertical origin"),
+    heightReference: external_exports.enum(["NONE", "CLAMP_TO_GROUND", "RELATIVE_TO_GROUND"]).optional().describe("Height reference")
+  },
+  async (params) => {
+    const result = await sendToBrowser("addBillboard", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "addBox",
+  "Add a 3D box entity at a position",
+  {
+    longitude: external_exports.number().describe("Longitude (degrees)"),
+    latitude: external_exports.number().describe("Latitude (degrees)"),
+    height: external_exports.number().optional().default(0).describe("Height (meters)"),
+    name: external_exports.string().optional().describe("Box name"),
+    dimensions: external_exports.object({
+      width: external_exports.number().describe("Width in meters (X)"),
+      length: external_exports.number().describe("Length in meters (Y)"),
+      height: external_exports.number().describe("Height in meters (Z)")
+    }).describe("Box dimensions"),
+    material: materialSchema.describe("Material (color string, RGBA object, or material spec)"),
+    outline: external_exports.boolean().optional().default(true).describe("Show outline"),
+    outlineColor: colorSchema.describe("Outline color"),
+    fill: external_exports.boolean().optional().default(true).describe("Show fill"),
+    orientation: orientationSchema.describe("Orientation (heading/pitch/roll in degrees)"),
+    heightReference: external_exports.enum(["NONE", "CLAMP_TO_GROUND", "RELATIVE_TO_GROUND"]).optional().describe("Height reference")
+  },
+  async (params) => {
+    const result = await sendToBrowser("addBox", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "addCorridor",
+  "Add a corridor (path with width) entity",
+  {
+    name: external_exports.string().optional().describe("Corridor name"),
+    positions: external_exports.array(positionDegreesSchema).describe("Array of positions along the corridor"),
+    width: external_exports.number().describe("Corridor width in meters"),
+    material: materialSchema.describe("Material"),
+    cornerType: external_exports.enum(["ROUNDED", "MITERED", "BEVELED"]).optional().describe("Corner type"),
+    height: external_exports.number().optional().describe("Height above ground (meters)"),
+    extrudedHeight: external_exports.number().optional().describe("Extruded height (meters)"),
+    outline: external_exports.boolean().optional().describe("Show outline"),
+    outlineColor: colorSchema.describe("Outline color")
+  },
+  async (params) => {
+    const result = await sendToBrowser("addCorridor", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "addCylinder",
+  "Add a cylinder or cone entity at a position",
+  {
+    longitude: external_exports.number().describe("Longitude (degrees)"),
+    latitude: external_exports.number().describe("Latitude (degrees)"),
+    height: external_exports.number().optional().default(0).describe("Height (meters)"),
+    name: external_exports.string().optional().describe("Cylinder name"),
+    length: external_exports.number().describe("Cylinder length/height in meters"),
+    topRadius: external_exports.number().describe("Top radius in meters"),
+    bottomRadius: external_exports.number().describe("Bottom radius in meters"),
+    material: materialSchema.describe("Material"),
+    outline: external_exports.boolean().optional().default(true).describe("Show outline"),
+    outlineColor: colorSchema.describe("Outline color"),
+    fill: external_exports.boolean().optional().default(true).describe("Show fill"),
+    orientation: orientationSchema.describe("Orientation (heading/pitch/roll in degrees)"),
+    numberOfVerticalLines: external_exports.number().optional().default(16).describe("Number of vertical lines"),
+    slices: external_exports.number().optional().default(128).describe("Number of slices")
+  },
+  async (params) => {
+    const result = await sendToBrowser("addCylinder", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "addEllipse",
+  "Add an ellipse (oval) entity at a position",
+  {
+    longitude: external_exports.number().describe("Center longitude (degrees)"),
+    latitude: external_exports.number().describe("Center latitude (degrees)"),
+    height: external_exports.number().optional().default(0).describe("Height (meters)"),
+    name: external_exports.string().optional().describe("Ellipse name"),
+    semiMajorAxis: external_exports.number().describe("Semi-major axis in meters"),
+    semiMinorAxis: external_exports.number().describe("Semi-minor axis in meters"),
+    material: materialSchema.describe("Material"),
+    extrudedHeight: external_exports.number().optional().describe("Extruded height (meters)"),
+    rotation: external_exports.number().optional().describe("Rotation (radians)"),
+    outline: external_exports.boolean().optional().describe("Show outline"),
+    outlineColor: colorSchema.describe("Outline color"),
+    fill: external_exports.boolean().optional().default(true).describe("Show fill"),
+    stRotation: external_exports.number().optional().describe("Texture rotation (radians)"),
+    numberOfVerticalLines: external_exports.number().optional().describe("Number of vertical lines")
+  },
+  async (params) => {
+    const result = await sendToBrowser("addEllipse", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "addRectangle",
+  "Add a rectangle entity defined by geographic bounds",
+  {
+    name: external_exports.string().optional().describe("Rectangle name"),
+    west: external_exports.number().describe("West longitude (degrees)"),
+    south: external_exports.number().describe("South latitude (degrees)"),
+    east: external_exports.number().describe("East longitude (degrees)"),
+    north: external_exports.number().describe("North latitude (degrees)"),
+    material: materialSchema.describe("Material"),
+    height: external_exports.number().optional().describe("Height (meters)"),
+    extrudedHeight: external_exports.number().optional().describe("Extruded height (meters)"),
+    rotation: external_exports.number().optional().describe("Rotation (radians)"),
+    outline: external_exports.boolean().optional().describe("Show outline"),
+    outlineColor: colorSchema.describe("Outline color"),
+    fill: external_exports.boolean().optional().default(true).describe("Show fill"),
+    stRotation: external_exports.number().optional().describe("Texture rotation (radians)")
+  },
+  async (params) => {
+    const result = await sendToBrowser("addRectangle", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "addWall",
+  "Add a wall entity along a series of positions",
+  {
+    name: external_exports.string().optional().describe("Wall name"),
+    positions: external_exports.array(positionDegreesSchema).describe("Array of positions along the wall"),
+    minimumHeights: external_exports.array(external_exports.number()).optional().describe("Minimum heights at each position"),
+    maximumHeights: external_exports.array(external_exports.number()).optional().describe("Maximum heights at each position"),
+    material: materialSchema.describe("Material"),
+    outline: external_exports.boolean().optional().describe("Show outline"),
+    outlineColor: colorSchema.describe("Outline color"),
+    fill: external_exports.boolean().optional().default(true).describe("Show fill")
+  },
+  async (params) => {
+    const result = await sendToBrowser("addWall", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "createAnimation",
+  "Create a time-based animation with waypoints (moving entity along a path)",
+  {
+    name: external_exports.string().optional().describe("Animation name"),
+    waypoints: external_exports.array(external_exports.object({
+      longitude: external_exports.number().describe("Longitude (degrees)"),
+      latitude: external_exports.number().describe("Latitude (degrees)"),
+      height: external_exports.number().optional().describe("Height (meters)"),
+      time: external_exports.string().describe("ISO 8601 timestamp")
+    })).describe("Array of waypoints with positions and timestamps"),
+    modelUri: external_exports.string().optional().describe("glTF/GLB model URL, or preset: cesium_man, cesium_air, ground_vehicle, cesium_drone"),
+    showPath: external_exports.boolean().optional().default(true).describe("Show trail path"),
+    pathWidth: external_exports.number().optional().default(2).describe("Path width (pixels)"),
+    pathColor: external_exports.string().optional().default("#00FF00").describe("Path color (CSS)"),
+    pathLeadTime: external_exports.number().optional().default(0).describe("Path lead time (seconds)"),
+    pathTrailTime: external_exports.number().optional().default(1e10).describe("Path trail time (seconds)"),
+    multiplier: external_exports.number().optional().default(1).describe("Clock speed multiplier"),
+    shouldAnimate: external_exports.boolean().optional().default(true).describe("Auto-start animation")
+  },
+  async (params) => {
+    const result = await sendToBrowser("createAnimation", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "controlAnimation",
+  "Play or pause the current animation",
+  {
+    action: external_exports.enum(["play", "pause"]).describe("Play or pause")
+  },
+  async (params) => {
+    const result = await sendToBrowser("controlAnimation", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "removeAnimation",
+  "Remove an animation entity",
+  {
+    entityId: external_exports.string().describe("Entity ID of the animation to remove")
+  },
+  async (params) => {
+    const result = await sendToBrowser("removeAnimation", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "listAnimations",
+  "List all active animations",
+  {},
+  async () => {
+    const result = await sendToBrowser("listAnimations", {});
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  }
+);
+_registerTool(
+  "updateAnimationPath",
+  "Update the visual properties of an animation path",
+  {
+    entityId: external_exports.string().describe("Entity ID of the animation"),
+    width: external_exports.number().optional().describe("New path width (pixels)"),
+    color: external_exports.string().optional().describe("New path color (CSS)"),
+    leadTime: external_exports.number().optional().describe("New lead time (seconds)"),
+    trailTime: external_exports.number().optional().describe("New trail time (seconds)"),
+    show: external_exports.boolean().optional().describe("Show/hide path")
+  },
+  async (params) => {
+    const result = await sendToBrowser("updateAnimationPath", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "trackEntity",
+  "Track (follow) an entity with the camera, or stop tracking",
+  {
+    entityId: external_exports.string().optional().describe("Entity ID to track (omit to stop tracking)"),
+    heading: external_exports.number().optional().describe("Camera heading (degrees)"),
+    pitch: external_exports.number().optional().default(-30).describe("Camera pitch (degrees)"),
+    range: external_exports.number().optional().default(500).describe("Camera distance from entity (meters)")
+  },
+  async (params) => {
+    const result = await sendToBrowser("trackEntity", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "controlClock",
+  "Configure the Cesium clock (time range, speed, animation state)",
+  {
+    action: external_exports.enum(["configure", "setTime", "setMultiplier"]).describe("Clock action"),
+    startTime: external_exports.string().optional().describe("ISO 8601 start time (for configure)"),
+    stopTime: external_exports.string().optional().describe("ISO 8601 stop time (for configure)"),
+    currentTime: external_exports.string().optional().describe("ISO 8601 current time (for configure)"),
+    time: external_exports.string().optional().describe("ISO 8601 time to jump to (for setTime)"),
+    multiplier: external_exports.number().optional().describe("Clock speed multiplier (for configure/setMultiplier)"),
+    shouldAnimate: external_exports.boolean().optional().describe("Whether clock should animate (for configure)"),
+    clockRange: external_exports.enum(["UNBOUNDED", "CLAMPED", "LOOP_STOP"]).optional().describe("Clock range mode (for configure)")
+  },
+  async (params) => {
+    const result = await sendToBrowser("controlClock", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+_registerTool(
+  "setGlobeLighting",
+  "Enable/disable globe lighting and atmospheric effects",
+  {
+    enableLighting: external_exports.boolean().optional().describe("Enable globe lighting"),
+    dynamicAtmosphereLighting: external_exports.boolean().optional().describe("Enable dynamic atmosphere lighting"),
+    dynamicAtmosphereLightingFromSun: external_exports.boolean().optional().describe("Use sun position for atmosphere lighting")
+  },
+  async (params) => {
+    const result = await sendToBrowser("setGlobeLighting", params);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { success: true }) }] };
+  }
+);
+if (!_allMode) {
+  server.tool(
+    "list_toolsets",
+    "List all available tool groups and their enabled status. Call this to discover additional capabilities before asking the user to configure anything.",
+    {},
+    async () => {
+      const groups = Object.entries(TOOLSETS).map(([name, tools]) => ({
+        name,
+        description: TOOLSET_DESCRIPTIONS[name] ?? "",
+        tools: tools.length,
+        enabled: _enabledSets.has(name),
+        toolNames: tools
+      }));
+      return { content: [{ type: "text", text: JSON.stringify(groups, null, 2) }] };
+    }
+  );
+  server.tool(
+    "enable_toolset",
+    "Enable a tool group to make its tools available. Call list_toolsets first to see available groups.",
+    {
+      toolset: external_exports.string().describe('Name of the toolset to enable (e.g. "camera", "animation", "entity-ext")')
+    },
+    async ({ toolset }) => {
+      if (!(toolset in TOOLSETS)) {
+        return {
+          content: [{ type: "text", text: `Unknown toolset "${toolset}". Available: ${Object.keys(TOOLSETS).join(", ")}` }],
+          isError: true
+        };
+      }
+      if (_enabledSets.has(toolset)) {
+        return { content: [{ type: "text", text: `Toolset "${toolset}" is already enabled.` }] };
+      }
+      const added = _enableToolset(toolset);
+      server.sendToolListChanged?.();
+      return {
+        content: [{
+          type: "text",
+          text: `Enabled toolset "${toolset}" \u2014 ${added.length} new tools available: ${added.join(", ")}`
+        }]
+      };
+    }
+  );
+}
 function createSandboxServer() {
+  for (const setName of Object.keys(TOOLSETS)) {
+    if (!_enabledSets.has(setName)) _enableToolset(setName);
+  }
   return server;
 }
 async function main() {
   startServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[cesium-mcp-runtime] MCP Server running (stdio), 19 tools registered`);
+  const metaCount = _allMode ? 0 : 2;
+  console.error(`[cesium-mcp-runtime] MCP Server running (stdio), ${_enabledTools.size + metaCount} tools registered (toolsets: ${[..._enabledSets].join(", ")})`);
 }
 export {
   createSandboxServer,

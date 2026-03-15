@@ -382,6 +382,245 @@
           }
         },
         {
+          "name": "addPolyline",
+          "description": "在地图上添加折线（路径、线段），返回 entityId",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "coordinates": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                "description": "折线坐标数组 [[lon, lat, height?], ...]"
+              },
+              "color": {
+                "type": "string",
+                "default": "#3B82F6",
+                "description": "线条颜色（CSS 格式）"
+              },
+              "width": {
+                "type": "number",
+                "default": 3,
+                "description": "线条宽度（像素）"
+              },
+              "clampToGround": {
+                "type": "boolean",
+                "default": true,
+                "description": "是否贴地"
+              },
+              "label": {
+                "type": "string",
+                "description": "折线标注文本"
+              }
+            },
+            "required": [
+              "coordinates"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "addPolygon",
+          "description": "在地图上添加多边形区域（面积、边界），返回 entityId",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "coordinates": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                "description": "多边形外环坐标 [[lon, lat, height?], ...]"
+              },
+              "color": {
+                "type": "string",
+                "default": "#3B82F6",
+                "description": "填充颜色（CSS 格式）"
+              },
+              "outlineColor": {
+                "type": "string",
+                "default": "#FFFFFF",
+                "description": "描边颜色"
+              },
+              "opacity": {
+                "type": "number",
+                "default": 0.6,
+                "description": "填充透明度（0~1）"
+              },
+              "extrudedHeight": {
+                "type": "number",
+                "description": "拉伸高度（米），可用于创建立体效果"
+              },
+              "clampToGround": {
+                "type": "boolean",
+                "default": true,
+                "description": "是否贴地"
+              },
+              "label": {
+                "type": "string",
+                "description": "多边形标注文本"
+              }
+            },
+            "required": [
+              "coordinates"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "addModel",
+          "description": "在指定经纬度放置 3D 模型（glTF/GLB），返回 entityId",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "longitude": {
+                "type": "number",
+                "description": "经度（-180 ~ 180）"
+              },
+              "latitude": {
+                "type": "number",
+                "description": "纬度（-90 ~ 90）"
+              },
+              "height": {
+                "type": "number",
+                "default": 0,
+                "description": "放置高度（米）"
+              },
+              "url": {
+                "type": "string",
+                "description": "glTF/GLB 模型文件 URL"
+              },
+              "scale": {
+                "type": "number",
+                "default": 1,
+                "description": "模型缩放比例"
+              },
+              "heading": {
+                "type": "number",
+                "default": 0,
+                "description": "航向角（度），0=正北"
+              },
+              "pitch": {
+                "type": "number",
+                "default": 0,
+                "description": "俯仰角（度）"
+              },
+              "roll": {
+                "type": "number",
+                "default": 0,
+                "description": "翻滚角（度）"
+              },
+              "label": {
+                "type": "string",
+                "description": "模型标注文本"
+              }
+            },
+            "required": [
+              "longitude",
+              "latitude",
+              "url"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "updateEntity",
+          "description": "更新已有实体的属性（位置、颜色、标签、缩放、可见性）",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "entityId": {
+                "type": "string",
+                "description": "实体ID（addMarker/addPolyline 等返回的 entityId）"
+              },
+              "position": {
+                "type": "object",
+                "properties": {
+                  "longitude": {
+                    "type": "number"
+                  },
+                  "latitude": {
+                    "type": "number"
+                  },
+                  "height": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "longitude",
+                  "latitude"
+                ],
+                "additionalProperties": false,
+                "description": "新位置坐标"
+              },
+              "label": {
+                "type": "string",
+                "description": "新标注文本"
+              },
+              "color": {
+                "type": "string",
+                "description": "新颜色（CSS 格式）"
+              },
+              "scale": {
+                "type": "number",
+                "description": "新缩放比例"
+              },
+              "show": {
+                "type": "boolean",
+                "description": "是否显示"
+              }
+            },
+            "required": [
+              "entityId"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "removeEntity",
+          "description": "移除单个实体（通过 entityId）",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "entityId": {
+                "type": "string",
+                "description": "要移除的实体ID"
+              }
+            },
+            "required": [
+              "entityId"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
           "name": "setLayerVisibility",
           "description": "设置图层可见性",
           "inputSchema": {
@@ -619,6 +858,2135 @@
           "execution": {
             "taskSupport": "forbidden"
           }
+        },
+        {
+          "name": "lookAtTransform",
+          "description": "Look at a specific position from a given heading/pitch/range (orbit-style camera)",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "longitude": {
+                "type": "number",
+                "description": "Target longitude (degrees)"
+              },
+              "latitude": {
+                "type": "number",
+                "description": "Target latitude (degrees)"
+              },
+              "height": {
+                "type": "number",
+                "default": 0,
+                "description": "Target height (meters)"
+              },
+              "heading": {
+                "type": "number",
+                "default": 0,
+                "description": "Camera heading (degrees), 0=North"
+              },
+              "pitch": {
+                "type": "number",
+                "default": -45,
+                "description": "Camera pitch (degrees), -90=straight down"
+              },
+              "range": {
+                "type": "number",
+                "default": 1000,
+                "description": "Distance from target (meters)"
+              }
+            },
+            "required": [
+              "longitude",
+              "latitude"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "startOrbit",
+          "description": "Start orbiting the camera around the current view center",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "speed": {
+                "type": "number",
+                "default": 0.005,
+                "description": "Rotation speed (radians per tick)"
+              },
+              "clockwise": {
+                "type": "boolean",
+                "default": true,
+                "description": "Orbit direction"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "stopOrbit",
+          "description": "Stop the camera orbit animation",
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "setCameraOptions",
+          "description": "Configure camera controller options (enable/disable rotation, zoom, tilt, etc.)",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "enableRotate": {
+                "type": "boolean",
+                "description": "Enable camera rotation"
+              },
+              "enableTranslate": {
+                "type": "boolean",
+                "description": "Enable camera translation"
+              },
+              "enableZoom": {
+                "type": "boolean",
+                "description": "Enable camera zoom"
+              },
+              "enableTilt": {
+                "type": "boolean",
+                "description": "Enable camera tilt"
+              },
+              "enableLook": {
+                "type": "boolean",
+                "description": "Enable camera look"
+              },
+              "minimumZoomDistance": {
+                "type": "number",
+                "description": "Minimum zoom distance (meters)"
+              },
+              "maximumZoomDistance": {
+                "type": "number",
+                "description": "Maximum zoom distance (meters)"
+              },
+              "enableInputs": {
+                "type": "boolean",
+                "description": "Enable/disable all camera inputs"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "addBillboard",
+          "description": "Add a billboard (image icon) at a position on the globe",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "longitude": {
+                "type": "number",
+                "description": "Longitude (degrees)"
+              },
+              "latitude": {
+                "type": "number",
+                "description": "Latitude (degrees)"
+              },
+              "height": {
+                "type": "number",
+                "default": 0,
+                "description": "Height (meters)"
+              },
+              "name": {
+                "type": "string",
+                "description": "Billboard name"
+              },
+              "image": {
+                "type": "string",
+                "description": "Image URL for the billboard"
+              },
+              "scale": {
+                "type": "number",
+                "default": 1,
+                "description": "Scale factor"
+              },
+              "color": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number"
+                      },
+                      "green": {
+                        "type": "number"
+                      },
+                      "blue": {
+                        "type": "number"
+                      },
+                      "alpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "red",
+                      "green",
+                      "blue"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "description": "Tint color"
+              },
+              "pixelOffset": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false,
+                "description": "Pixel offset from position"
+              },
+              "horizontalOrigin": {
+                "type": "string",
+                "enum": [
+                  "CENTER",
+                  "LEFT",
+                  "RIGHT"
+                ],
+                "description": "Horizontal origin"
+              },
+              "verticalOrigin": {
+                "type": "string",
+                "enum": [
+                  "CENTER",
+                  "TOP",
+                  "BOTTOM",
+                  "BASELINE"
+                ],
+                "description": "Vertical origin"
+              },
+              "heightReference": {
+                "type": "string",
+                "enum": [
+                  "NONE",
+                  "CLAMP_TO_GROUND",
+                  "RELATIVE_TO_GROUND"
+                ],
+                "description": "Height reference"
+              }
+            },
+            "required": [
+              "longitude",
+              "latitude",
+              "image"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "addBox",
+          "description": "Add a 3D box entity at a position",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "longitude": {
+                "type": "number",
+                "description": "Longitude (degrees)"
+              },
+              "latitude": {
+                "type": "number",
+                "description": "Latitude (degrees)"
+              },
+              "height": {
+                "type": "number",
+                "default": 0,
+                "description": "Height (meters)"
+              },
+              "name": {
+                "type": "string",
+                "description": "Box name"
+              },
+              "dimensions": {
+                "type": "object",
+                "properties": {
+                  "width": {
+                    "type": "number",
+                    "description": "Width in meters (X)"
+                  },
+                  "length": {
+                    "type": "number",
+                    "description": "Length in meters (Y)"
+                  },
+                  "height": {
+                    "type": "number",
+                    "description": "Height in meters (Z)"
+                  }
+                },
+                "required": [
+                  "width",
+                  "length",
+                  "height"
+                ],
+                "additionalProperties": false,
+                "description": "Box dimensions"
+              },
+              "material": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number"
+                      },
+                      "green": {
+                        "type": "number"
+                      },
+                      "blue": {
+                        "type": "number"
+                      },
+                      "alpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "red",
+                      "green",
+                      "blue"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "color",
+                          "image",
+                          "checkerboard",
+                          "stripe",
+                          "grid"
+                        ]
+                      },
+                      "color": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "image": {
+                        "type": "string"
+                      },
+                      "evenColor": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "oddColor": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "orientation": {
+                        "type": "string",
+                        "enum": [
+                          "horizontal",
+                          "vertical"
+                        ]
+                      },
+                      "cellAlpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "description": "Material (color string, RGBA object, or material spec)"
+              },
+              "outline": {
+                "type": "boolean",
+                "default": true,
+                "description": "Show outline"
+              },
+              "outlineColor": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number"
+                      },
+                      "green": {
+                        "type": "number"
+                      },
+                      "blue": {
+                        "type": "number"
+                      },
+                      "alpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "red",
+                      "green",
+                      "blue"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "description": "Outline color"
+              },
+              "fill": {
+                "type": "boolean",
+                "default": true,
+                "description": "Show fill"
+              },
+              "orientation": {
+                "type": "object",
+                "properties": {
+                  "heading": {
+                    "type": "number",
+                    "description": "Heading (degrees)"
+                  },
+                  "pitch": {
+                    "type": "number",
+                    "description": "Pitch (degrees)"
+                  },
+                  "roll": {
+                    "type": "number",
+                    "description": "Roll (degrees)"
+                  }
+                },
+                "required": [
+                  "heading",
+                  "pitch",
+                  "roll"
+                ],
+                "additionalProperties": false,
+                "description": "Orientation (heading/pitch/roll in degrees)"
+              },
+              "heightReference": {
+                "type": "string",
+                "enum": [
+                  "NONE",
+                  "CLAMP_TO_GROUND",
+                  "RELATIVE_TO_GROUND"
+                ],
+                "description": "Height reference"
+              }
+            },
+            "required": [
+              "longitude",
+              "latitude",
+              "dimensions"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "addCorridor",
+          "description": "Add a corridor (path with width) entity",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Corridor name"
+              },
+              "positions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "longitude": {
+                      "type": "number"
+                    },
+                    "latitude": {
+                      "type": "number"
+                    },
+                    "height": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "longitude",
+                    "latitude"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "Array of positions along the corridor"
+              },
+              "width": {
+                "type": "number",
+                "description": "Corridor width in meters"
+              },
+              "material": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number"
+                      },
+                      "green": {
+                        "type": "number"
+                      },
+                      "blue": {
+                        "type": "number"
+                      },
+                      "alpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "red",
+                      "green",
+                      "blue"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "color",
+                          "image",
+                          "checkerboard",
+                          "stripe",
+                          "grid"
+                        ]
+                      },
+                      "color": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "image": {
+                        "type": "string"
+                      },
+                      "evenColor": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "oddColor": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "orientation": {
+                        "type": "string",
+                        "enum": [
+                          "horizontal",
+                          "vertical"
+                        ]
+                      },
+                      "cellAlpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "description": "Material"
+              },
+              "cornerType": {
+                "type": "string",
+                "enum": [
+                  "ROUNDED",
+                  "MITERED",
+                  "BEVELED"
+                ],
+                "description": "Corner type"
+              },
+              "height": {
+                "type": "number",
+                "description": "Height above ground (meters)"
+              },
+              "extrudedHeight": {
+                "type": "number",
+                "description": "Extruded height (meters)"
+              },
+              "outline": {
+                "type": "boolean",
+                "description": "Show outline"
+              },
+              "outlineColor": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number"
+                      },
+                      "green": {
+                        "type": "number"
+                      },
+                      "blue": {
+                        "type": "number"
+                      },
+                      "alpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "red",
+                      "green",
+                      "blue"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "description": "Outline color"
+              }
+            },
+            "required": [
+              "positions",
+              "width"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "addCylinder",
+          "description": "Add a cylinder or cone entity at a position",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "longitude": {
+                "type": "number",
+                "description": "Longitude (degrees)"
+              },
+              "latitude": {
+                "type": "number",
+                "description": "Latitude (degrees)"
+              },
+              "height": {
+                "type": "number",
+                "default": 0,
+                "description": "Height (meters)"
+              },
+              "name": {
+                "type": "string",
+                "description": "Cylinder name"
+              },
+              "length": {
+                "type": "number",
+                "description": "Cylinder length/height in meters"
+              },
+              "topRadius": {
+                "type": "number",
+                "description": "Top radius in meters"
+              },
+              "bottomRadius": {
+                "type": "number",
+                "description": "Bottom radius in meters"
+              },
+              "material": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number"
+                      },
+                      "green": {
+                        "type": "number"
+                      },
+                      "blue": {
+                        "type": "number"
+                      },
+                      "alpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "red",
+                      "green",
+                      "blue"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "color",
+                          "image",
+                          "checkerboard",
+                          "stripe",
+                          "grid"
+                        ]
+                      },
+                      "color": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "image": {
+                        "type": "string"
+                      },
+                      "evenColor": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "oddColor": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "orientation": {
+                        "type": "string",
+                        "enum": [
+                          "horizontal",
+                          "vertical"
+                        ]
+                      },
+                      "cellAlpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "description": "Material"
+              },
+              "outline": {
+                "type": "boolean",
+                "default": true,
+                "description": "Show outline"
+              },
+              "outlineColor": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number"
+                      },
+                      "green": {
+                        "type": "number"
+                      },
+                      "blue": {
+                        "type": "number"
+                      },
+                      "alpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "red",
+                      "green",
+                      "blue"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "description": "Outline color"
+              },
+              "fill": {
+                "type": "boolean",
+                "default": true,
+                "description": "Show fill"
+              },
+              "orientation": {
+                "type": "object",
+                "properties": {
+                  "heading": {
+                    "type": "number",
+                    "description": "Heading (degrees)"
+                  },
+                  "pitch": {
+                    "type": "number",
+                    "description": "Pitch (degrees)"
+                  },
+                  "roll": {
+                    "type": "number",
+                    "description": "Roll (degrees)"
+                  }
+                },
+                "required": [
+                  "heading",
+                  "pitch",
+                  "roll"
+                ],
+                "additionalProperties": false,
+                "description": "Orientation (heading/pitch/roll in degrees)"
+              },
+              "numberOfVerticalLines": {
+                "type": "number",
+                "default": 16,
+                "description": "Number of vertical lines"
+              },
+              "slices": {
+                "type": "number",
+                "default": 128,
+                "description": "Number of slices"
+              }
+            },
+            "required": [
+              "longitude",
+              "latitude",
+              "length",
+              "topRadius",
+              "bottomRadius"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "addEllipse",
+          "description": "Add an ellipse (oval) entity at a position",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "longitude": {
+                "type": "number",
+                "description": "Center longitude (degrees)"
+              },
+              "latitude": {
+                "type": "number",
+                "description": "Center latitude (degrees)"
+              },
+              "height": {
+                "type": "number",
+                "default": 0,
+                "description": "Height (meters)"
+              },
+              "name": {
+                "type": "string",
+                "description": "Ellipse name"
+              },
+              "semiMajorAxis": {
+                "type": "number",
+                "description": "Semi-major axis in meters"
+              },
+              "semiMinorAxis": {
+                "type": "number",
+                "description": "Semi-minor axis in meters"
+              },
+              "material": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number"
+                      },
+                      "green": {
+                        "type": "number"
+                      },
+                      "blue": {
+                        "type": "number"
+                      },
+                      "alpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "red",
+                      "green",
+                      "blue"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "color",
+                          "image",
+                          "checkerboard",
+                          "stripe",
+                          "grid"
+                        ]
+                      },
+                      "color": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "image": {
+                        "type": "string"
+                      },
+                      "evenColor": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "oddColor": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "orientation": {
+                        "type": "string",
+                        "enum": [
+                          "horizontal",
+                          "vertical"
+                        ]
+                      },
+                      "cellAlpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "description": "Material"
+              },
+              "extrudedHeight": {
+                "type": "number",
+                "description": "Extruded height (meters)"
+              },
+              "rotation": {
+                "type": "number",
+                "description": "Rotation (radians)"
+              },
+              "outline": {
+                "type": "boolean",
+                "description": "Show outline"
+              },
+              "outlineColor": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number"
+                      },
+                      "green": {
+                        "type": "number"
+                      },
+                      "blue": {
+                        "type": "number"
+                      },
+                      "alpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "red",
+                      "green",
+                      "blue"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "description": "Outline color"
+              },
+              "fill": {
+                "type": "boolean",
+                "default": true,
+                "description": "Show fill"
+              },
+              "stRotation": {
+                "type": "number",
+                "description": "Texture rotation (radians)"
+              },
+              "numberOfVerticalLines": {
+                "type": "number",
+                "description": "Number of vertical lines"
+              }
+            },
+            "required": [
+              "longitude",
+              "latitude",
+              "semiMajorAxis",
+              "semiMinorAxis"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "addRectangle",
+          "description": "Add a rectangle entity defined by geographic bounds",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Rectangle name"
+              },
+              "west": {
+                "type": "number",
+                "description": "West longitude (degrees)"
+              },
+              "south": {
+                "type": "number",
+                "description": "South latitude (degrees)"
+              },
+              "east": {
+                "type": "number",
+                "description": "East longitude (degrees)"
+              },
+              "north": {
+                "type": "number",
+                "description": "North latitude (degrees)"
+              },
+              "material": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number"
+                      },
+                      "green": {
+                        "type": "number"
+                      },
+                      "blue": {
+                        "type": "number"
+                      },
+                      "alpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "red",
+                      "green",
+                      "blue"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "color",
+                          "image",
+                          "checkerboard",
+                          "stripe",
+                          "grid"
+                        ]
+                      },
+                      "color": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "image": {
+                        "type": "string"
+                      },
+                      "evenColor": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "oddColor": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "orientation": {
+                        "type": "string",
+                        "enum": [
+                          "horizontal",
+                          "vertical"
+                        ]
+                      },
+                      "cellAlpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "description": "Material"
+              },
+              "height": {
+                "type": "number",
+                "description": "Height (meters)"
+              },
+              "extrudedHeight": {
+                "type": "number",
+                "description": "Extruded height (meters)"
+              },
+              "rotation": {
+                "type": "number",
+                "description": "Rotation (radians)"
+              },
+              "outline": {
+                "type": "boolean",
+                "description": "Show outline"
+              },
+              "outlineColor": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number"
+                      },
+                      "green": {
+                        "type": "number"
+                      },
+                      "blue": {
+                        "type": "number"
+                      },
+                      "alpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "red",
+                      "green",
+                      "blue"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "description": "Outline color"
+              },
+              "fill": {
+                "type": "boolean",
+                "default": true,
+                "description": "Show fill"
+              },
+              "stRotation": {
+                "type": "number",
+                "description": "Texture rotation (radians)"
+              }
+            },
+            "required": [
+              "west",
+              "south",
+              "east",
+              "north"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "addWall",
+          "description": "Add a wall entity along a series of positions",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Wall name"
+              },
+              "positions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "longitude": {
+                      "type": "number"
+                    },
+                    "latitude": {
+                      "type": "number"
+                    },
+                    "height": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "longitude",
+                    "latitude"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "Array of positions along the wall"
+              },
+              "minimumHeights": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "description": "Minimum heights at each position"
+              },
+              "maximumHeights": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "description": "Maximum heights at each position"
+              },
+              "material": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number"
+                      },
+                      "green": {
+                        "type": "number"
+                      },
+                      "blue": {
+                        "type": "number"
+                      },
+                      "alpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "red",
+                      "green",
+                      "blue"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "color",
+                          "image",
+                          "checkerboard",
+                          "stripe",
+                          "grid"
+                        ]
+                      },
+                      "color": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "image": {
+                        "type": "string"
+                      },
+                      "evenColor": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "oddColor": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "red": {
+                                "type": "number"
+                              },
+                              "green": {
+                                "type": "number"
+                              },
+                              "blue": {
+                                "type": "number"
+                              },
+                              "alpha": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "red",
+                              "green",
+                              "blue"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "orientation": {
+                        "type": "string",
+                        "enum": [
+                          "horizontal",
+                          "vertical"
+                        ]
+                      },
+                      "cellAlpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "description": "Material"
+              },
+              "outline": {
+                "type": "boolean",
+                "description": "Show outline"
+              },
+              "outlineColor": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number"
+                      },
+                      "green": {
+                        "type": "number"
+                      },
+                      "blue": {
+                        "type": "number"
+                      },
+                      "alpha": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "red",
+                      "green",
+                      "blue"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "description": "Outline color"
+              },
+              "fill": {
+                "type": "boolean",
+                "default": true,
+                "description": "Show fill"
+              }
+            },
+            "required": [
+              "positions"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "createAnimation",
+          "description": "Create a time-based animation with waypoints (moving entity along a path)",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Animation name"
+              },
+              "waypoints": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "longitude": {
+                      "type": "number",
+                      "description": "Longitude (degrees)"
+                    },
+                    "latitude": {
+                      "type": "number",
+                      "description": "Latitude (degrees)"
+                    },
+                    "height": {
+                      "type": "number",
+                      "description": "Height (meters)"
+                    },
+                    "time": {
+                      "type": "string",
+                      "description": "ISO 8601 timestamp"
+                    }
+                  },
+                  "required": [
+                    "longitude",
+                    "latitude",
+                    "time"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "Array of waypoints with positions and timestamps"
+              },
+              "modelUri": {
+                "type": "string",
+                "description": "glTF/GLB model URL, or preset: cesium_man, cesium_air, ground_vehicle, cesium_drone"
+              },
+              "showPath": {
+                "type": "boolean",
+                "default": true,
+                "description": "Show trail path"
+              },
+              "pathWidth": {
+                "type": "number",
+                "default": 2,
+                "description": "Path width (pixels)"
+              },
+              "pathColor": {
+                "type": "string",
+                "default": "#00FF00",
+                "description": "Path color (CSS)"
+              },
+              "pathLeadTime": {
+                "type": "number",
+                "default": 0,
+                "description": "Path lead time (seconds)"
+              },
+              "pathTrailTime": {
+                "type": "number",
+                "default": 10000000000,
+                "description": "Path trail time (seconds)"
+              },
+              "multiplier": {
+                "type": "number",
+                "default": 1,
+                "description": "Clock speed multiplier"
+              },
+              "shouldAnimate": {
+                "type": "boolean",
+                "default": true,
+                "description": "Auto-start animation"
+              }
+            },
+            "required": [
+              "waypoints"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "controlAnimation",
+          "description": "Play or pause the current animation",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "play",
+                  "pause"
+                ],
+                "description": "Play or pause"
+              }
+            },
+            "required": [
+              "action"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "removeAnimation",
+          "description": "Remove an animation entity",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "entityId": {
+                "type": "string",
+                "description": "Entity ID of the animation to remove"
+              }
+            },
+            "required": [
+              "entityId"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "listAnimations",
+          "description": "List all active animations",
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "updateAnimationPath",
+          "description": "Update the visual properties of an animation path",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "entityId": {
+                "type": "string",
+                "description": "Entity ID of the animation"
+              },
+              "width": {
+                "type": "number",
+                "description": "New path width (pixels)"
+              },
+              "color": {
+                "type": "string",
+                "description": "New path color (CSS)"
+              },
+              "leadTime": {
+                "type": "number",
+                "description": "New lead time (seconds)"
+              },
+              "trailTime": {
+                "type": "number",
+                "description": "New trail time (seconds)"
+              },
+              "show": {
+                "type": "boolean",
+                "description": "Show/hide path"
+              }
+            },
+            "required": [
+              "entityId"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "trackEntity",
+          "description": "Track (follow) an entity with the camera, or stop tracking",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "entityId": {
+                "type": "string",
+                "description": "Entity ID to track (omit to stop tracking)"
+              },
+              "heading": {
+                "type": "number",
+                "description": "Camera heading (degrees)"
+              },
+              "pitch": {
+                "type": "number",
+                "default": -30,
+                "description": "Camera pitch (degrees)"
+              },
+              "range": {
+                "type": "number",
+                "default": 500,
+                "description": "Camera distance from entity (meters)"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "controlClock",
+          "description": "Configure the Cesium clock (time range, speed, animation state)",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "configure",
+                  "setTime",
+                  "setMultiplier"
+                ],
+                "description": "Clock action"
+              },
+              "startTime": {
+                "type": "string",
+                "description": "ISO 8601 start time (for configure)"
+              },
+              "stopTime": {
+                "type": "string",
+                "description": "ISO 8601 stop time (for configure)"
+              },
+              "currentTime": {
+                "type": "string",
+                "description": "ISO 8601 current time (for configure)"
+              },
+              "time": {
+                "type": "string",
+                "description": "ISO 8601 time to jump to (for setTime)"
+              },
+              "multiplier": {
+                "type": "number",
+                "description": "Clock speed multiplier (for configure/setMultiplier)"
+              },
+              "shouldAnimate": {
+                "type": "boolean",
+                "description": "Whether clock should animate (for configure)"
+              },
+              "clockRange": {
+                "type": "string",
+                "enum": [
+                  "UNBOUNDED",
+                  "CLAMPED",
+                  "LOOP_STOP"
+                ],
+                "description": "Clock range mode (for configure)"
+              }
+            },
+            "required": [
+              "action"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
+        },
+        {
+          "name": "setGlobeLighting",
+          "description": "Enable/disable globe lighting and atmospheric effects",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "enableLighting": {
+                "type": "boolean",
+                "description": "Enable globe lighting"
+              },
+              "dynamicAtmosphereLighting": {
+                "type": "boolean",
+                "description": "Enable dynamic atmosphere lighting"
+              },
+              "dynamicAtmosphereLightingFromSun": {
+                "type": "boolean",
+                "description": "Use sun position for atmosphere lighting"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          }
         }
       ],
       "resources": [
@@ -638,7 +3006,7 @@
       "prompts": []
     },
     "source": {
-      "commit": "6804023ade2c186f6aa2c35e2c888a2d05e03200",
+      "commit": "bb9c06a1aa372f1a6ad6e23cd2e1eff3dcc1beb0",
       "branch": "main"
     }
   },
