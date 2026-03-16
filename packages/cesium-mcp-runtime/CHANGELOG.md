@@ -1,5 +1,11 @@
 # cesium-mcp-runtime
 
+## 1.139.5
+
+### Patch Changes
+
+- feat: add geocode tool with Nominatim/OSM integration — convert address/landmark to coordinates, HTTP proxy support (HTTPS_PROXY/HTTP_PROXY/ALL_PROXY), 11 toolsets / 44 tools
+
 ## 1.139.4
 
 ### Patch Changes
