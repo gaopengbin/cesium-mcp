@@ -126,6 +126,6 @@ cd cesium-mcp/examples/minimal
 ## 下一步
 
 - [架构概览](/zh-CN/guide/architecture) — 了解三包架构设计
-- [Bridge API](/zh-CN/api/bridge) — 全部 19 个命令
+- [Bridge API](/zh-CN/api/bridge) — 全部 43 个命令
 - [Runtime API](/zh-CN/api/runtime) — MCP 工具和资源
 - [Dev API](/zh-CN/api/dev) — IDE 编码辅助工具

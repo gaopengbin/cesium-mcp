@@ -68,6 +68,59 @@ The agent calls `flyTo` with `{ longitude: -74.006, latitude: 40.7128, height: 1
 }
 ```
 
+### Entity Creation
+
+> "Add a red marker at the Eiffel Tower"
+
+```json
+{
+  "tool": "addMarker",
+  "params": {
+    "longitude": 2.2945,
+    "latitude": 48.8584,
+    "name": "Eiffel Tower",
+    "color": "#FF0000"
+  }
+}
+```
+
+> "Draw a line from London to Paris"
+
+```json
+{
+  "tool": "addPolyline",
+  "params": {
+    "positions": [
+      { "longitude": -0.1276, "latitude": 51.5074 },
+      { "longitude": 2.3522, "latitude": 48.8566 }
+    ],
+    "name": "London-Paris",
+    "color": "#00BFFF",
+    "width": 3
+  }
+}
+```
+
+### Trajectory Animation
+
+> "Create a flight trajectory from New York to London"
+
+```json
+{
+  "tool": "playTrajectory",
+  "params": {
+    "positions": [
+      { "longitude": -74.006, "latitude": 40.7128, "height": 10000 },
+      { "longitude": -40.0, "latitude": 50.0, "height": 10000 },
+      { "longitude": -0.1276, "latitude": 51.5074, "height": 10000 }
+    ],
+    "duration": 10,
+    "modelUrl": "https://assets.cesium.com/831744/CesiumAir.glb",
+    "name": "NY-London Flight"
+  }
+}
+```
+
 ### Analysis
 
 > "Take a screenshot of the current view"
@@ -80,10 +133,10 @@ The agent reads the `cesium://scene/layers` resource.
 
 ## Integration with GeoAgent
 
-Cesium MCP was originally developed as part of [GeoAgent](https://github.com/gaopengbin/GIS-AI), a full-stack GIS AI platform. It can be used as the 3D visualization backend:
+If you're building a full-stack GIS AI application, you can embed `cesium-mcp-runtime` into your agent workflow. The Runtime's HTTP Push API allows backend systems to send commands directly to the browser:
 
+```bash
+curl -X POST http://localhost:9100/api/command \
+  -H "Content-Type: application/json" \
+  -d '{"action": "flyTo", "params": {"longitude": -74.006, "latitude": 40.7128}}'
 ```
-GeoAgent (FastAPI) ──HTTP POST──► cesium-mcp-runtime ──WebSocket──► Browser
-```
-
-Use the HTTP Push API at `POST http://localhost:9100/push` to send commands from any backend system.

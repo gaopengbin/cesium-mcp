@@ -41,16 +41,18 @@
 |------|------|------|
 | 掘金 | ✅ 已发布 | 文章见 articles/juejin-promotion.md |
 | 知乎 | ✅ 已发布 | 含 Mermaid 截图 |
+| 微信公众号 | ✅ 已发布 | 43工具版，文章见 articles/wechat-promotion.md |
 | mcp.so | ✅ 已提交 | runtime + dev 均已收录 |
 | Twitter/X | ✅ 已发推 | @pengbingao，带 demo GIF |
 | Reddit r/MCP | ❌ 被过滤 | 新账号(0天)，需等 2-3 天 |
 | Reddit r/ClaudeAI | ❌ 被过滤 | 同上 |
 | Hacker News | ❌ 被限制 | Show HN 暂时限制新用户 |
 | CesiumJS Discord | ❌ 不存在 | CesiumJS 无公开 Discord |
-| Cesium Community Forum | ⏳ 待发 | community.cesium.com (Discourse) |
-| mcpservers.org | ⏳ 待提交 | |
-| PulseMCP | ⏳ 待提交 | |
-| CSDN | ⏳ 待发 | 支持 Markdown+Mermaid |
+| Cesium Community Forum | ✅ 已发帖 | community.cesium.com，社区友好风格 |
+| mcpservers.org | ✅ 已提交 | 免费提交，等待审核 |
+| PulseMCP | ✅ 已收录 | cesium-mcp-dev 已自动同步，runtime 待后续批次 |
+| CSDN | ✅ 已发布 | 支持 Markdown+Mermaid |
+| CesiumGS 官方 README | ✅ PR 已提交 | [PR #21](https://github.com/CesiumGS/cesium-ai-integrations/pull/21) Community MCP Servers |
 
 ### Smithery 质量评分优化
 
