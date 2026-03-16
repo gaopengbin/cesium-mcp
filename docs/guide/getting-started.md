@@ -112,6 +112,28 @@ Configure it the same way as the runtime, replacing `cesium-mcp-runtime` with `c
 |----------|---------|-------------|
 | `CESIUM_WS_PORT` | `9100` | WebSocket server port |
 | `DEFAULT_SESSION_ID` | `default` | Session ID for multi-tab routing |
+| `HTTPS_PROXY` | — | HTTP proxy URL for geocode requests (e.g. `http://127.0.0.1:10808`) |
+| `OSM_USER_AGENT` | `cesium-mcp-runtime/1.0` | User-Agent for Nominatim geocode API |
+
+### Proxy Configuration
+
+The `geocode` tool calls the Nominatim API over HTTPS. If you need a proxy (e.g. in China), set `HTTPS_PROXY` in your MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "cesium": {
+      "command": "npx",
+      "args": ["-y", "cesium-mcp-runtime"],
+      "env": {
+        "HTTPS_PROXY": "http://127.0.0.1:10808"
+      }
+    }
+  }
+}
+```
+
+Supported variables: `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`. The runtime uses Node.js built-in `undici.ProxyAgent` — no extra dependencies needed.
 
 ## Minimal Example
 

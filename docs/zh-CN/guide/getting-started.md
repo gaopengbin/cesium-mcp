@@ -112,6 +112,28 @@ npx cesium-mcp-dev
 |------|--------|------|
 | `CESIUM_WS_PORT` | `9100` | WebSocket 服务器端口 |
 | `DEFAULT_SESSION_ID` | `default` | 多标签页路由的会话 ID |
+| `HTTPS_PROXY` | — | geocode 请求的 HTTP 代理地址（如 `http://127.0.0.1:10808`） |
+| `OSM_USER_AGENT` | `cesium-mcp-runtime/1.0` | Nominatim geocode API 的 User-Agent |
+
+### 代理配置
+
+`geocode` 工具通过 HTTPS 调用 Nominatim API。如果需要代理（例如在国内网络），在 MCP 客户端配置中设置 `HTTPS_PROXY`：
+
+```json
+{
+  "mcpServers": {
+    "cesium": {
+      "command": "npx",
+      "args": ["-y", "cesium-mcp-runtime"],
+      "env": {
+        "HTTPS_PROXY": "http://127.0.0.1:10808"
+      }
+    }
+  }
+}
+```
+
+支持的变量：`HTTPS_PROXY`、`HTTP_PROXY`、`ALL_PROXY`。Runtime 使用 Node.js 内置的 `undici.ProxyAgent`，无需额外依赖。
 
 ## 最小示例
 
