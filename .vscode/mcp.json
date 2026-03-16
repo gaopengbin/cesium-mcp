@@ -1,10 +1,9 @@
 {
   "servers": {
     "cesium-mcp": {
-      "command": "npx",
+      "command": "node",
       "args": [
-        "-y",
-        "cesium-mcp-runtime@1.139.4"
+        "packages/cesium-mcp-runtime/dist/cli.js"
       ],
       "type": "stdio",
       "env": {

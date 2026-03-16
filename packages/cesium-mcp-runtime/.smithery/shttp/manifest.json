@@ -7,7 +7,7 @@
       "serverInfo": {
         "name": "cesium-mcp-runtime",
         "title": "Cesium MCP Runtime",
-        "version": "1.139.4",
+        "version": "1.139.6",
         "websiteUrl": "https://github.com/gaopengbin/cesium-mcp",
         "description": "AI-powered 3D globe control via MCP — camera, layers, entities, animation, and interaction with CesiumJS."
       },

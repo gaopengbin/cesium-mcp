@@ -1,5 +1,11 @@
 # cesium-mcp-runtime
 
+## 1.139.6
+
+### Patch Changes
+
+- feat: P0 feature pack — 5 new tools (batchAddEntities, queryEntities, saveViewpoint, loadViewpoint, listViewpoints), enhanced addGeoJsonLayer with URL loading, 11 toolsets / 49 tools
+
 ## 1.139.5
 
 ### Patch Changes

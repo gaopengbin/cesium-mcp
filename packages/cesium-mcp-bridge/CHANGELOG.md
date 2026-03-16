@@ -1,5 +1,11 @@
 # cesium-mcp-bridge
 
+## 1.139.6
+
+### Patch Changes
+
+- feat: P0 feature pack — batchAddEntities (bulk entity creation), queryEntities (filter by name/type/bbox), viewpoint bookmarks (save/load/list), GeoJSON URL loading support
+
 ## 1.139.5
 
 ## 1.139.4

@@ -180,7 +180,7 @@ function startServer() {
 
 const server = new McpServer({
   name: 'cesium-mcp-runtime',
-  version: '1.139.4',
+  version: '1.139.6',
   title: 'Cesium MCP Runtime',
   description: 'AI-powered 3D globe control via MCP — camera, layers, entities, animation, and interaction with CesiumJS.',
   websiteUrl: 'https://github.com/gaopengbin/cesium-mcp',
