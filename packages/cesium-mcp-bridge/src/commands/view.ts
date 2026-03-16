@@ -1,5 +1,5 @@
 import * as Cesium from 'cesium'
-import type { FlyToParams, SetViewParams, ViewState, ZoomToExtentParams } from '../types'
+import type { FlyToParams, SetViewParams, ViewState, ZoomToExtentParams, SaveViewpointParams, LoadViewpointParams } from '../types'
 import { validateCoordinate } from '../utils'
 
 export function flyTo(viewer: Cesium.Viewer, params: FlyToParams): Promise<void> {
@@ -65,4 +65,30 @@ export function zoomToExtent(viewer: Cesium.Viewer, params: ZoomToExtentParams):
       complete: resolve,
     })
   })
+}
+
+// ==================== Viewpoint Bookmarks ====================
+
+const _viewpoints = new Map<string, ViewState>()
+
+export function saveViewpoint(viewer: Cesium.Viewer, params: SaveViewpointParams): ViewState {
+  const state = getView(viewer)
+  _viewpoints.set(params.name, state)
+  return state
+}
+
+export function loadViewpoint(viewer: Cesium.Viewer, params: LoadViewpointParams): ViewState | null {
+  const state = _viewpoints.get(params.name)
+  if (!state) return null
+  const duration = params.duration ?? 2
+  if (duration > 0) {
+    flyTo(viewer, { ...state, duration })
+  } else {
+    setView(viewer, state)
+  }
+  return state
+}
+
+export function listViewpoints(): { name: string; state: ViewState }[] {
+  return Array.from(_viewpoints.entries()).map(([name, state]) => ({ name, state }))
 }

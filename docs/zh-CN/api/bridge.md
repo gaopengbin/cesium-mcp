@@ -24,7 +24,7 @@ const bridge = new CesiumBridge(viewer, {
 })
 ```
 
-## 命令（44 个）
+## 命令（49 个）
 
 ### 视图控制
 
@@ -34,6 +34,9 @@ const bridge = new CesiumBridge(viewer, {
 | `setView` | 立即设置相机位置 | `longitude`, `latitude`, `height`, `heading`, `pitch`, `roll` |
 | `getView` | 获取当前相机状态 | — |
 | `zoomToExtent` | 缩放到地理范围 | `west`, `south`, `east`, `north` |
+| `saveViewpoint` | 保存当前视角为命名书签 | `name` |
+| `loadViewpoint` | 恢复已保存的视点书签 | `name`, `duration` |
+| `listViewpoints` | 列出所有视点书签 | — |
 
 ### 实体
 
@@ -46,6 +49,8 @@ const bridge = new CesiumBridge(viewer, {
 | `addModel` | 放置 3D 模型 (glTF/GLB) | `longitude`, `latitude`, `url`, `scale`, `heading`, `pitch`, `roll` |
 | `updateEntity` | 更新实体属性 | `entityId`, `position`, `color`, `label`, `scale`, `show` |
 | `removeEntity` | 移除单个实体 | `entityId` |
+| `batchAddEntities` | 批量添加多个实体 | `entities`（类型化定义数组） |
+| `queryEntities` | 搜索/筛选场景中的实体 | `name`, `type`, `bbox` |
 
 ### 图层管理
 

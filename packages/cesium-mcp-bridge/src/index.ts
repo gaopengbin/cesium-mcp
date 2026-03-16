@@ -57,5 +57,13 @@ export type {
   ControlClockParams,
   SetGlobeLightingParams,
   AnimationInfo,
+  // Batch & Query
+  BatchEntityDef,
+  BatchAddEntitiesParams,
+  QueryEntitiesParams,
+  QueryEntityResult,
+  // Viewpoint Bookmarks
+  SaveViewpointParams,
+  LoadViewpointParams,
 } from './types'
 export type { ColorInput } from './utils'

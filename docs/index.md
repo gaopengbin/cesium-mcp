@@ -19,7 +19,7 @@ hero:
 features:
   - icon:
       src: /icons/tools.svg
-    title: 44 MCP Tools
+    title: 49 MCP Tools
     details: Camera control, GeoJSON layers, 3D Tiles, terrain, imagery, entity management, trajectory animation, heatmaps, geocoding, and more — organized into 11 toolsets with dynamic discovery.
   - icon:
       src: /icons/clients.svg
@@ -155,7 +155,7 @@ features:
 | Package | Description | Version |
 |---------|-------------|---------|
 | [`cesium-mcp-bridge`](https://www.npmjs.com/package/cesium-mcp-bridge) | Browser SDK — embed in your CesiumJS application | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | MCP Server — 44 tools (11 toolsets) and 2 resources for AI agents | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | MCP Server — 49 tools (11 toolsets) and 2 resources for AI agents | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [`cesium-mcp-dev`](https://www.npmjs.com/package/cesium-mcp-dev) | IDE MCP Server — Cesium API docs and code generation | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 </div>

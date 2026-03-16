@@ -83,7 +83,8 @@ export interface LayerStyle {
 export interface AddGeoJsonLayerParams {
   id?: string
   name?: string
-  data: Record<string, unknown>
+  data?: Record<string, unknown>
+  url?: string
   style?: LayerStyle
   dataRefId?: string
   labelField?: string
@@ -487,4 +488,39 @@ export interface AnimationInfo {
   startTime: string
   stopTime: string
   exists: boolean
+}
+
+// ==================== Batch & Query ====================
+
+export interface BatchEntityDef {
+  type: 'marker' | 'polyline' | 'polygon' | 'model' | 'billboard' | 'box' | 'cylinder' | 'ellipse' | 'rectangle' | 'wall' | 'corridor'
+  [key: string]: unknown
+}
+
+export interface BatchAddEntitiesParams {
+  entities: BatchEntityDef[]
+}
+
+export interface QueryEntitiesParams {
+  name?: string
+  type?: string
+  bbox?: [number, number, number, number] // [west, south, east, north]
+}
+
+export interface QueryEntityResult {
+  entityId: string
+  name?: string
+  type: string
+  position?: { longitude: number; latitude: number; height: number }
+}
+
+// ==================== Viewpoint Bookmarks ====================
+
+export interface SaveViewpointParams {
+  name: string
+}
+
+export interface LoadViewpointParams {
+  name: string
+  duration?: number
 }

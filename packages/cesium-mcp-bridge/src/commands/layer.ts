@@ -43,7 +43,10 @@ export class LayerManager {
   // ==================== addGeoJsonLayer ====================
 
   async addGeoJsonLayer(params: AddGeoJsonLayerParams): Promise<LayerInfo> {
-    const { id, name, data, style, dataRefId } = params
+    const { id, name, data, url, style, dataRefId } = params
+
+    if (!data && !url) throw new Error('Either "data" or "url" must be provided')
+
     const layerId = id ?? `layer_${Date.now()}`
     const layerName = name ?? layerId
     const color = style?.color ?? '#3B82F6'
@@ -54,7 +57,7 @@ export class LayerManager {
 
     const cesiumColor = parseColor(color).withAlpha(opacity)
 
-    const ds = await Cesium.GeoJsonDataSource.load(data, {
+    const ds = await Cesium.GeoJsonDataSource.load(url ?? data, {
       stroke: cesiumColor,
       fill: cesiumColor.withAlpha(opacity * 0.4),
       strokeWidth: 3,
@@ -156,7 +159,7 @@ export class LayerManager {
 
     this._viewer.dataSources.add(ds)
 
-    const geomType = detectGeometryType(data)
+    const geomType = data ? detectGeometryType(data) : detectGeometryTypeFromDataSource(ds)
     const info: LayerInfo = {
       id: layerId,
       name: layerName,
@@ -648,6 +651,16 @@ export function detectGeometryType(geojson: Record<string, unknown>): string {
   if (t.includes('Line')) return '线'
   if (t.includes('Polygon')) return '面'
   return t || '未知'
+}
+
+function detectGeometryTypeFromDataSource(ds: Cesium.GeoJsonDataSource): string {
+  const entities = ds.entities.values
+  if (!entities.length) return '未知'
+  const e = entities[0]!
+  if (e.point || e.billboard) return '点'
+  if (e.polyline) return '线'
+  if (e.polygon) return '面'
+  return '未知'
 }
 
 /** 生成圆点 canvas 图片（用于替换默认 pin 图标） */

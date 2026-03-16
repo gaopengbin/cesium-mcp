@@ -1,6 +1,6 @@
 # cesium-mcp-runtime
 
-> MCP Server (stdio) — 44 tools (11 toolsets) + 2 resources, with dynamic discovery.
+> MCP Server (stdio) — 49 tools (11 toolsets) + 2 resources, with dynamic discovery.
 
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 
@@ -66,14 +66,14 @@ cesium-mcp-runtime
 
 ## MCP Tools (43 + 2 meta)
 
-Tools are organized into **11 toolsets**. By default, 4 core toolsets are enabled (~19 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically.
+Tools are organized into **11 toolsets**. By default, 4 core toolsets are enabled (~24 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically.
 
 ### Toolsets
 
 | Toolset | Tools | Default | Description |
 |---------|-------|---------|-------------|
-| `view` | 4 | Yes | Camera view controls |
-| `entity` | 7 | Yes | Core entity operations |
+| `view` | 7 | Yes | Camera view controls + viewpoint bookmarks |
+| `entity` | 9 | Yes | Core entity operations + batch & query |
 | `layer` | 6 | Yes | Layer management |
 | `interaction` | 2 | Yes | Screenshot & highlight |
 | `camera` | 4 | — | Advanced camera controls (orbit, lookAt) |
@@ -138,6 +138,33 @@ Fit view to a geographic bounding box.
 | `east` | `number` | ✅ | — | East boundary longitude |
 | `north` | `number` | ✅ | — | North boundary latitude |
 | `duration` | `number` | — | `2` | Animation duration in seconds |
+
+#### `saveViewpoint`
+
+Save the current camera state as a named viewpoint bookmark.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `name` | `string` | ✅ | — | Viewpoint bookmark name |
+
+**Returns:** The saved `ViewState` object.
+
+#### `loadViewpoint`
+
+Restore a previously saved viewpoint bookmark.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `name` | `string` | ✅ | — | Viewpoint bookmark name |
+| `duration` | `number` | — | `0` | Flight duration in seconds (0 = instant) |
+
+**Returns:** The restored `ViewState`, or error if not found.
+
+#### `listViewpoints`
+
+List all saved viewpoint bookmarks. No parameters.
+
+**Returns:** `[{ name, state: ViewState }]`
 
 ### Entity
 
@@ -227,18 +254,45 @@ Remove a single entity by ID.
 |-----------|------|----------|---------|-------------|
 | `entityId` | `string` | ✅ | — | Entity ID to remove |
 
+#### `batchAddEntities`
+
+Add multiple entities of different types in a single call.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `entities` | `object[]` | ✅ | — | Array of entity definitions |
+
+Each entity object must include a `type` field (`"marker"`, `"polyline"`, `"polygon"`, `"model"`, `"label"`, `"billboard"`, `"box"`, `"cylinder"`, `"ellipse"`, `"rectangle"`, `"wall"`, `"corridor"`) plus the corresponding parameters for that entity type.
+
+**Returns:** `{ entityIds: string[], errors: string[] }`
+
+#### `queryEntities`
+
+Search and filter entities in the scene.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `name` | `string` | — | — | Filter by name (fuzzy match, case-insensitive) |
+| `type` | `string` | — | — | Filter by type (`"point"`, `"billboard"`, `"label"`, `"model"`, `"polyline"`, `"polygon"`) |
+| `bbox` | `number[]` | — | — | Bounding box filter `[west, south, east, north]` |
+
+**Returns:** `[{ entityId, name?, type, position? }]`
+
 ### Layer
 
 #### `addGeoJsonLayer`
 
-Load GeoJSON data as a layer with optional styling.
+Load GeoJSON data as a layer with optional styling. Supports both inline data and URL loading.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `data` | `object` | ✅ | — | GeoJSON FeatureCollection |
+| `data` | `object` | — | — | GeoJSON FeatureCollection (inline data) |
+| `url` | `string` | — | — | URL to fetch GeoJSON from (browser-side fetch) |
 | `id` | `string` | — | auto | Layer ID |
 | `name` | `string` | — | — | Display name |
 | `style` | `object` | — | — | Style config (color, opacity, pointSize, choropleth, category) |
+
+> Either `data` or `url` must be provided.
 
 #### `listLayers`
 

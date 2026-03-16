@@ -1,5 +1,5 @@
 import * as Cesium from 'cesium'
-import type { AddLabelParams, AddMarkerParams, AddPolylineParams, AddPolygonParams, AddModelParams, UpdateEntityParams } from '../types'
+import type { AddLabelParams, AddMarkerParams, AddPolylineParams, AddPolygonParams, AddModelParams, UpdateEntityParams, BatchEntityDef, QueryEntitiesParams, QueryEntityResult } from '../types'
 import { parseColor, validateCoordinate } from '../utils'
 
 /**
@@ -264,6 +264,124 @@ export function removeEntity(viewer: Cesium.Viewer, entityId: string): boolean {
   const entity = viewer.entities.getById(entityId)
   if (!entity) return false
   return viewer.entities.remove(entity)
+}
+
+// ==================== Batch & Query ====================
+
+/**
+ * 批量添加实体 — 一次 WebSocket 调用创建多个实体
+ */
+export function batchAddEntities(
+  viewer: Cesium.Viewer,
+  entities: BatchEntityDef[],
+  helpers: {
+    addMarker: (p: any) => Cesium.Entity
+    addPolyline: (p: any) => Cesium.Entity
+    addPolygon: (p: any) => Cesium.Entity
+    addModel: (p: any) => Cesium.Entity
+    addBillboard: (p: any) => Cesium.Entity
+    addBox: (p: any) => Cesium.Entity
+    addCylinder: (p: any) => Cesium.Entity
+    addEllipse: (p: any) => Cesium.Entity
+    addRectangle: (p: any) => Cesium.Entity
+    addWall: (p: any) => Cesium.Entity
+    addCorridor: (p: any) => Cesium.Entity
+  },
+): { entityIds: string[]; errors: string[] } {
+  const entityIds: string[] = []
+  const errors: string[] = []
+
+  for (let i = 0; i < entities.length; i++) {
+    const def = entities[i]!
+    const { type, ...params } = def
+    try {
+      const fn = helpers[type === 'marker' ? 'addMarker'
+        : type === 'polyline' ? 'addPolyline'
+        : type === 'polygon' ? 'addPolygon'
+        : type === 'model' ? 'addModel'
+        : type === 'billboard' ? 'addBillboard'
+        : type === 'box' ? 'addBox'
+        : type === 'cylinder' ? 'addCylinder'
+        : type === 'ellipse' ? 'addEllipse'
+        : type === 'rectangle' ? 'addRectangle'
+        : type === 'wall' ? 'addWall'
+        : type === 'corridor' ? 'addCorridor'
+        : null as never]
+      if (!fn) {
+        errors.push(`[${i}] Unknown type: ${type}`)
+        continue
+      }
+      const entity = fn(params)
+      entityIds.push(entity.id)
+    } catch (err) {
+      errors.push(`[${i}] ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  return { entityIds, errors }
+}
+
+/**
+ * 查询已有实体 — 按名称/类型/空间范围过滤
+ */
+export function queryEntities(viewer: Cesium.Viewer, params: QueryEntitiesParams): QueryEntityResult[] {
+  const results: QueryEntityResult[] = []
+  const entities = viewer.entities.values
+
+  for (const entity of entities) {
+    // 确定实体类型
+    let type = 'unknown'
+    if (entity.point) type = 'marker'
+    else if (entity.billboard) type = 'billboard'
+    else if (entity.polyline) type = 'polyline'
+    else if (entity.polygon) type = 'polygon'
+    else if (entity.model) type = 'model'
+    else if (entity.box) type = 'box'
+    else if (entity.cylinder) type = 'cylinder'
+    else if (entity.ellipse) type = 'ellipse'
+    else if (entity.rectangle) type = 'rectangle'
+    else if (entity.wall) type = 'wall'
+    else if (entity.corridor) type = 'corridor'
+    else if (entity.label && !entity.point) type = 'label'
+
+    // 按类型过滤
+    if (params.type && type !== params.type) continue
+
+    // 按名称模糊匹配
+    const name = entity.name ?? entity.label?.text?.getValue(Cesium.JulianDate.now()) ?? undefined
+    if (params.name && name && !String(name).toLowerCase().includes(params.name.toLowerCase())) continue
+    if (params.name && !name) continue
+
+    // 获取位置
+    let position: QueryEntityResult['position']
+    if (entity.position) {
+      const pos = entity.position.getValue(Cesium.JulianDate.now())
+      if (pos) {
+        const carto = Cesium.Cartographic.fromCartesian(pos)
+        position = {
+          longitude: Cesium.Math.toDegrees(carto.longitude),
+          latitude: Cesium.Math.toDegrees(carto.latitude),
+          height: carto.height,
+        }
+      }
+    }
+
+    // 按空间范围过滤
+    if (params.bbox && position) {
+      const [west, south, east, north] = params.bbox
+      if (position.longitude < west || position.longitude > east ||
+          position.latitude < south || position.latitude > north) continue
+    } else if (params.bbox && !position) {
+      continue
+    }
+
+    results.push({
+      entityId: entity.id,
+      name: name ? String(name) : undefined,
+      type,
+      position,
+    })
+  }
+  return results
 }
 
 // ==================== Helpers ====================

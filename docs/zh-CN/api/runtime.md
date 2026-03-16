@@ -1,6 +1,6 @@
 # cesium-mcp-runtime
 
-> MCP 服务器（stdio）— 44 个工具（11 个工具集）+ 2 个资源，支持动态发现。
+> MCP 服务器（stdio）— 49 个工具（11 个工具集）+ 2 个资源，支持动态发现。
 
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 
@@ -66,14 +66,14 @@ cesium-mcp-runtime
 
 ## MCP 工具（43 + 2 元工具）
 
-工具按 **11 个工具集** 组织。默认启用 4 个核心工具集（约 19 个工具）。设置 `CESIUM_TOOLSETS=all` 启用全部，或由 AI 在运行时动态发现和激活。
+工具按 **11 个工具集** 组织。默认启用 4 个核心工具集（约 24 个工具）。设置 `CESIUM_TOOLSETS=all` 启用全部，或由 AI 在运行时动态发现和激活。
 
 ### 工具集
 
 | 工具集 | 工具数 | 默认启用 | 描述 |
 |--------|--------|----------|------|
-| `view` | 4 | 是 | 相机视角控制 |
-| `entity` | 7 | 是 | 核心实体操作 |
+| `view` | 7 | 是 | 相机视角控制 + 视点书签 |
+| `entity` | 9 | 是 | 核心实体操作 + 批量与查询 |
 | `layer` | 6 | 是 | 图层管理 |
 | `interaction` | 2 | 是 | 截图与高亮 |
 | `camera` | 4 | — | 高级相机控制（环绕、注视） |
@@ -138,6 +138,33 @@ cesium-mcp-runtime
 | `east` | `number` | ✅ | — | 东边界经度 |
 | `north` | `number` | ✅ | — | 北边界纬度 |
 | `duration` | `number` | — | `2` | 动画时长（秒） |
+
+#### `saveViewpoint`
+
+将当前相机状态保存为命名视点书签。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `name` | `string` | ✅ | — | 视点书签名称 |
+
+**返回值：** 保存的 `ViewState` 对象。
+
+#### `loadViewpoint`
+
+恢复先前保存的视点书签。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `name` | `string` | ✅ | — | 视点书签名称 |
+| `duration` | `number` | — | `0` | 飞行时长（秒，0 = 立即跳转） |
+
+**返回值：** 恢复的 `ViewState`，未找到则报错。
+
+#### `listViewpoints`
+
+列出所有已保存的视点书签。无参数。
+
+**返回值：** `[{ name, state: ViewState }]`
 
 ### 实体
 
@@ -227,17 +254,45 @@ cesium-mcp-runtime
 |------|------|------|--------|------|
 | `entityId` | `string` | ✅ | — | 要移除的实体 ID |
 
+#### `batchAddEntities`
+
+在一次调用中添加多个不同类型的实体。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `entities` | `object[]` | ✅ | — | 实体定义数组 |
+
+每个实体对象必须包含 `type` 字段（`"marker"`, `"polyline"`, `"polygon"`, `"model"`, `"label"`, `"billboard"`, `"box"`, `"cylinder"`, `"ellipse"`, `"rectangle"`, `"wall"`, `"corridor"`）以及该实体类型对应的参数。
+
+**返回值：** `{ entityIds: string[], errors: string[] }`
+
+#### `queryEntities`
+
+搜索和筛选场景中的实体。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `name` | `string` | — | — | 按名称筛选（模糊匹配，不区分大小写） |
+| `type` | `string` | — | — | 按类型筛选（`"point"`, `"billboard"`, `"label"`, `"model"`, `"polyline"`, `"polygon"`） |
+| `bbox` | `number[]` | — | — | 包围盒筛选 `[west, south, east, north]` |
+
+**返回值：** `[{ entityId, name?, type, position? }]`
+
 ### 图层
 
 #### `addGeoJsonLayer`
 
-加载 GeoJSON 数据作为图层。
+加载 GeoJSON 数据作为图层。支持内联数据和 URL 加载两种方式。
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| `data` | `object` | ✅ | — | GeoJSON FeatureCollection |
+| `data` | `object` | — | — | GeoJSON FeatureCollection（内联数据） |
+| `url` | `string` | — | — | GeoJSON 文件 URL（浏览器端加载） |
 | `id` | `string` | — | 自动 | 图层 ID |
 | `name` | `string` | — | — | 显示名称 |
+| `style` | `object` | — | — | 样式配置（color, opacity, pointSize, choropleth, category） |
+
+> `data` 和 `url` 至少提供其一。
 | `style` | `object` | — | — | 样式配置（color, opacity, pointSize, choropleth, category） |
 
 #### `listLayers`

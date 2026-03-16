@@ -1154,6 +1154,106 @@
         "additionalProperties": false
       },
       "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "batchAddEntities",
+      "description": "批量添加多个实体（一次调用创建多个 marker/polyline/polygon/model 等），返回所有 entityId",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "entities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["marker", "polyline", "polygon", "model", "billboard", "box", "cylinder", "ellipse", "rectangle", "wall", "corridor"],
+                  "description": "实体类型"
+                }
+              },
+              "required": ["type"]
+            },
+            "description": "实体定义数组，每个元素包含 type 字段和该类型所需的参数"
+          }
+        },
+        "required": ["entities"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "queryEntities",
+      "description": "查询已有实体 — 按名称、类型、空间范围过滤，返回 entityId/name/type/position 列表",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "名称模糊匹配（不区分大小写）"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["marker", "polyline", "polygon", "model", "billboard", "box", "cylinder", "ellipse", "rectangle", "wall", "corridor", "label", "unknown"],
+            "description": "按实体类型过滤"
+          },
+          "bbox": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 4,
+            "maxItems": 4,
+            "description": "空间范围过滤 [west, south, east, north]（度）"
+          }
+        },
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "saveViewpoint",
+      "description": "保存当前视角为书签（名称 → 视角状态），可通过 loadViewpoint 恢复",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "书签名称（唯一标识，重复则覆盖）"
+          }
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "loadViewpoint",
+      "description": "恢复已保存的视角书签（带飞行动画），返回保存的视角状态",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "书签名称"
+          },
+          "duration": {
+            "type": "number",
+            "description": "飞行动画时长（秒），0 表示瞬移，默认 2"
+          }
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "listViewpoints",
+      "description": "列出所有已保存的视角书签",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
     }
   ],
   "resources": [

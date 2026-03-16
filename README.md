@@ -35,7 +35,7 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 | Package | Description | npm |
 |---------|-------------|-----|
 | [cesium-mcp-bridge](packages/cesium-mcp-bridge/) | Browser SDK — embeds in your CesiumJS app, receives commands via WebSocket | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP Server (stdio) — 44 tools (11 toolsets) + 2 resources, dynamic discovery | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP Server (stdio) — 49 tools (11 toolsets) + 2 resources, dynamic discovery | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [cesium-mcp-dev](packages/cesium-mcp-dev/) | IDE MCP Server — CesiumJS API helper for coding assistants | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 ## Architecture
@@ -91,14 +91,14 @@ Add to your MCP client config (e.g. Claude Desktop):
 
 Now ask your AI: *"Fly to the Eiffel Tower and add a red marker"*
 
-## 44 Available Tools
+## 49 Available Tools
 
-Tools are organized into **11 toolsets**. Default mode enables 4 core toolsets (~19 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically at runtime.
+Tools are organized into **11 toolsets**. Default mode enables 4 core toolsets (~24 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically at runtime.
 
 | Toolset | Tools |
 |---------|-------|
-| **view** (default) | `flyTo`, `setView`, `getView`, `zoomToExtent` |
-| **entity** (default) | `addMarker`, `addLabel`, `addModel`, `addPolygon`, `addPolyline`, `updateEntity`, `removeEntity` |
+| **view** (default) | `flyTo`, `setView`, `getView`, `zoomToExtent`, `saveViewpoint`, `loadViewpoint`, `listViewpoints` |
+| **entity** (default) | `addMarker`, `addLabel`, `addModel`, `addPolygon`, `addPolyline`, `updateEntity`, `removeEntity`, `batchAddEntities`, `queryEntities` |
 | **layer** (default) | `addGeoJsonLayer`, `listLayers`, `removeLayer`, `setLayerVisibility`, `updateLayerStyle`, `setBasemap` |
 | **interaction** (default) | `screenshot`, `highlight` |
 | camera | `lookAtTransform`, `startOrbit`, `stopOrbit`, `setCameraOptions` |

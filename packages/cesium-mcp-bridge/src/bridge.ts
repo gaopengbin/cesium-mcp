@@ -43,10 +43,14 @@ import type {
   TrackEntityParams,
   ControlClockParams,
   SetGlobeLightingParams,
+  BatchAddEntitiesParams,
+  QueryEntitiesParams,
+  SaveViewpointParams,
+  LoadViewpointParams,
 } from './types'
-import { flyTo, setView, getView, zoomToExtent } from './commands/view'
+import { flyTo, setView, getView, zoomToExtent, saveViewpoint, loadViewpoint, listViewpoints } from './commands/view'
 import { LayerManager } from './commands/layer'
-import { addLabels, addMarker, addPolyline, addPolygon, addModel, updateEntity, removeEntity } from './commands/entity'
+import { addLabels, addMarker, addPolyline, addPolygon, addModel, updateEntity, removeEntity, batchAddEntities, queryEntities } from './commands/entity'
 import { screenshot, highlight } from './commands/interaction'
 import { playTrajectory as playTrajectoryCmd } from './commands/trajectory'
 import { lookAtTransform as lookAtTransformCmd, startOrbit as startOrbitCmd, stopOrbit as stopOrbitCmd, setCameraOptions as setCameraOptionsCmd, type OrbitHandler } from './commands/camera'
@@ -244,6 +248,29 @@ export class CesiumBridge {
         case 'setGlobeLighting':
           this.setGlobeLighting(p as SetGlobeLightingParams)
           return { success: true, message: 'Globe lighting updated' }
+        // ==================== Batch & Query ====================
+        case 'batchAddEntities': {
+          const result = this.batchAddEntities(p as BatchAddEntitiesParams)
+          return { success: true, data: result, message: `${result.entityIds.length} entities added` }
+        }
+        case 'queryEntities': {
+          const entities = this.queryEntities(p as QueryEntitiesParams)
+          return { success: true, data: { entities }, message: `${entities.length} entities found` }
+        }
+        // ==================== Viewpoint Bookmarks ====================
+        case 'saveViewpoint': {
+          const state = this.saveViewpoint(p as SaveViewpointParams)
+          return { success: true, data: state, message: `Viewpoint '${(p as SaveViewpointParams).name}' saved` }
+        }
+        case 'loadViewpoint': {
+          const state = this.loadViewpoint(p as LoadViewpointParams)
+          if (!state) return { success: false, error: `Viewpoint '${(p as LoadViewpointParams).name}' not found` }
+          return { success: true, data: state, message: `Viewpoint '${(p as LoadViewpointParams).name}' loaded` }
+        }
+        case 'listViewpoints': {
+          const viewpoints = this.listViewpoints()
+          return { success: true, data: { viewpoints }, message: `${viewpoints.length} viewpoints saved` }
+        }
         default:
           return { success: false, error: `未知指令: ${cmd.action}` }
       }
@@ -658,6 +685,42 @@ export class CesiumBridge {
 
   setGlobeLighting(params: SetGlobeLightingParams): void {
     setGlobeLightingCmd(this._viewer, params)
+  }
+
+  // ==================== Batch & Query ====================
+
+  batchAddEntities(params: BatchAddEntitiesParams) {
+    return batchAddEntities(this._viewer, params.entities, {
+      addMarker: (p) => this.addMarker(p),
+      addPolyline: (p) => this.addPolyline(p),
+      addPolygon: (p) => this.addPolygon(p),
+      addModel: (p) => this.addModel(p),
+      addBillboard: (p) => this.addBillboard(p),
+      addBox: (p) => this.addBox(p),
+      addCylinder: (p) => this.addCylinder(p),
+      addEllipse: (p) => this.addEllipse(p),
+      addRectangle: (p) => this.addRectangle(p),
+      addWall: (p) => this.addWall(p),
+      addCorridor: (p) => this.addCorridor(p),
+    })
+  }
+
+  queryEntities(params: QueryEntitiesParams) {
+    return queryEntities(this._viewer, params)
+  }
+
+  // ==================== Viewpoint Bookmarks ====================
+
+  saveViewpoint(params: SaveViewpointParams) {
+    return saveViewpoint(this._viewer, params)
+  }
+
+  loadViewpoint(params: LoadViewpointParams) {
+    return loadViewpoint(this._viewer, params)
+  }
+
+  listViewpoints() {
+    return listViewpoints()
   }
 
   // ==================== Events ====================

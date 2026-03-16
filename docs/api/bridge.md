@@ -24,7 +24,7 @@ const bridge = new CesiumBridge(viewer, {
 })
 ```
 
-## Commands (44)
+## Commands (49)
 
 ### View Control
 
@@ -34,6 +34,9 @@ const bridge = new CesiumBridge(viewer, {
 | `setView` | Instantly set camera position | `longitude`, `latitude`, `height`, `heading`, `pitch`, `roll` |
 | `getView` | Get current camera state | — |
 | `zoomToExtent` | Zoom to geographic bounds | `west`, `south`, `east`, `north` |
+| `saveViewpoint` | Save current view as named bookmark | `name` |
+| `loadViewpoint` | Restore a saved viewpoint bookmark | `name`, `duration` |
+| `listViewpoints` | List all saved viewpoint bookmarks | — |
 
 ### Entity
 
@@ -46,6 +49,8 @@ const bridge = new CesiumBridge(viewer, {
 | `addModel` | Place 3D model (glTF/GLB) | `longitude`, `latitude`, `url`, `scale`, `heading`, `pitch`, `roll` |
 | `updateEntity` | Update entity properties | `entityId`, `position`, `color`, `label`, `scale`, `show` |
 | `removeEntity` | Remove a single entity | `entityId` |
+| `batchAddEntities` | Add multiple entities at once | `entities` (array of typed defs) |
+| `queryEntities` | Search/filter entities in scene | `name`, `type`, `bbox` |
 
 ### Layer Management
 

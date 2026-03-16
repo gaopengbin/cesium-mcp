@@ -80,14 +80,14 @@ In `.cursor/mcp.json`:
 
 ## MCP Tools (43 + 2 meta)
 
-Tools are organized into **11 toolsets**. By default, 4 core toolsets are enabled (~19 tools). Additional toolsets can be activated via environment variable or dynamically by the AI agent at runtime.
+Tools are organized into **11 toolsets**. By default, 4 core toolsets are enabled (~24 tools). Additional toolsets can be activated via environment variable or dynamically by the AI agent at runtime.
 
 ### Toolsets Overview
 
 | Toolset | Tools | Default | Description |
 |---------|-------|---------|-------------|
-| `view` | 4 | Yes | Camera view controls |
-| `entity` | 7 | Yes | Core entity operations |
+| `view` | 7 | Yes | Camera view controls + viewpoint bookmarks |
+| `entity` | 9 | Yes | Core entity operations + batch & query |
 | `layer` | 6 | Yes | Layer management |
 | `interaction` | 2 | Yes | Screenshot & highlight |
 | `camera` | 4 | — | Advanced camera controls (orbit, lookAt) |
@@ -118,7 +118,7 @@ Tools are organized into **11 toolsets**. By default, 4 core toolsets are enable
 |-------------------------|--------|
 | *(not set)* | Default 4 toolsets (19 tools + 2 meta-tools) |
 | `view,entity,camera,animation` | Only specified toolsets + 2 meta-tools |
-| `all` | All 44 tools, no meta-tools |
+| `all` | All 49 tools, no meta-tools |
 
 ### Dynamic Discovery (meta-tools)
 

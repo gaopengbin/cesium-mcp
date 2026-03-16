@@ -221,8 +221,8 @@ server.resource(
 // ==================== Toolsets (工具分组管理) ====================
 
 const TOOLSETS: Record<string, string[]> = {
-  view: ['flyTo', 'setView', 'getView', 'zoomToExtent'],
-  entity: ['addMarker', 'addLabel', 'addModel', 'addPolygon', 'addPolyline', 'updateEntity', 'removeEntity'],
+  view: ['flyTo', 'setView', 'getView', 'zoomToExtent', 'saveViewpoint', 'loadViewpoint', 'listViewpoints'],
+  entity: ['addMarker', 'addLabel', 'addModel', 'addPolygon', 'addPolyline', 'updateEntity', 'removeEntity', 'batchAddEntities', 'queryEntities'],
   layer: ['addGeoJsonLayer', 'listLayers', 'removeLayer', 'setLayerVisibility', 'updateLayerStyle', 'setBasemap'],
   camera: ['lookAtTransform', 'startOrbit', 'stopOrbit', 'setCameraOptions'],
   'entity-ext': ['addBillboard', 'addBox', 'addCorridor', 'addCylinder', 'addEllipse', 'addRectangle', 'addWall'],
@@ -235,8 +235,8 @@ const TOOLSETS: Record<string, string[]> = {
 }
 
 const TOOLSET_DESCRIPTIONS: Record<string, string> = {
-  view: 'Camera view controls (flyTo, setView, getView, zoomToExtent)',
-  entity: 'Core entity operations (marker, label, model, polygon, polyline, update, remove)',
+  view: 'Camera view controls (flyTo, setView, getView, zoomToExtent) and viewpoint bookmarks (save, load, list)',
+  entity: 'Core entity operations (marker, label, model, polygon, polyline, update, remove) plus batch add and query',
   layer: 'Layer management (GeoJSON, list, remove, visibility, style, basemap)',
   camera: 'Advanced camera controls (lookAt, orbit, camera options)',
   'entity-ext': 'Extended entity types (billboard, box, corridor, cylinder, ellipse, rectangle, wall)',
@@ -322,11 +322,12 @@ _registerTool(
 // — addGeoJsonLayer
 _registerTool(
   'addGeoJsonLayer',
-  '添加 GeoJSON 图层到地图（支持 Point/Line/Polygon，可配置颜色/分级/分类渲染）',
+  '添加 GeoJSON 图层到地图（支持 Point/Line/Polygon，可配置颜色/分级/分类渲染）。data 和 url 二选一',
   {
     id: z.string().optional().describe('图层ID（不传则自动生成）'),
     name: z.string().optional().describe('图层显示名称'),
-    data: z.record(z.unknown()).describe('GeoJSON FeatureCollection 对象'),
+    data: z.record(z.unknown()).optional().describe('GeoJSON FeatureCollection 对象（与 url 二选一）'),
+    url: z.string().optional().describe('GeoJSON 文件 URL（与 data 二选一，浏览器端 fetch 加载）'),
     style: z.record(z.unknown()).optional().describe('样式配置（color, opacity, pointSize, choropleth, category）'),
   },
   { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add GeoJSON Layer' },
@@ -584,6 +585,79 @@ _registerTool(
   { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false, title: 'Remove Entity' },
   async (params) => {
     const result = await sendToBrowser('removeEntity', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — batchAddEntities
+_registerTool(
+  'batchAddEntities',
+  '批量添加多个实体（一次调用创建多个 marker/polyline/polygon/model 等），返回所有 entityId',
+  {
+    entities: z.array(z.object({
+      type: z.enum(['marker', 'polyline', 'polygon', 'model', 'billboard', 'box', 'cylinder', 'ellipse', 'rectangle', 'wall', 'corridor']).describe('实体类型'),
+    }).passthrough()).describe('实体定义数组，每个元素包含 type 字段和该类型所需的参数'),
+  },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Batch Add Entities' },
+  async (params) => {
+    const result = await sendToBrowser('batchAddEntities', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — queryEntities
+_registerTool(
+  'queryEntities',
+  '查询已有实体 — 按名称、类型、空间范围过滤，返回 entityId/name/type/position 列表',
+  {
+    name: z.string().optional().describe('名称模糊匹配（不区分大小写）'),
+    type: z.enum(['marker', 'polyline', 'polygon', 'model', 'billboard', 'box', 'cylinder', 'ellipse', 'rectangle', 'wall', 'corridor', 'label', 'unknown']).optional().describe('按实体类型过滤'),
+    bbox: z.array(z.number()).length(4).optional().describe('空间范围过滤 [west, south, east, north]（度）'),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Query Entities' },
+  async (params) => {
+    const result = await sendToBrowser('queryEntities', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — saveViewpoint
+_registerTool(
+  'saveViewpoint',
+  '保存当前视角为书签（名称 → 视角状态），可通过 loadViewpoint 恢复',
+  {
+    name: z.string().describe('书签名称（唯一标识，重复则覆盖）'),
+  },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Save Viewpoint' },
+  async (params) => {
+    const result = await sendToBrowser('saveViewpoint', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — loadViewpoint
+_registerTool(
+  'loadViewpoint',
+  '恢复已保存的视角书签（带飞行动画），返回保存的视角状态',
+  {
+    name: z.string().describe('书签名称'),
+    duration: z.number().optional().default(2).describe('飞行动画时长（秒），0 表示瞬移'),
+  },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Load Viewpoint' },
+  async (params) => {
+    const result = await sendToBrowser('loadViewpoint', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — listViewpoints
+_registerTool(
+  'listViewpoints',
+  '列出所有已保存的视角书签',
+  {},
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'List Viewpoints' },
+  async () => {
+    const result = await sendToBrowser('listViewpoints', {})
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
   },
 )
