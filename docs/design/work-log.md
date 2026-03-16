@@ -351,13 +351,14 @@ Smithery Quality Score 从 32 降到 29，需要改进。
 
 ### CesiumGS 官方 README PR
 
-**PR #21 (Open, 等待审核)**:
+**PR #21 (Open, CLA 已确认, 等待审批合并)**:
 - 仓库: CesiumGS/cesium-ai-integrations
 - 内容: 将 "Community MCP Servers: TBA" 替换为 cesium-mcp 链接
 - 分支: `add-community-mcp-server`
 - commit: `17f68c36`
 - 链接: https://github.com/CesiumGS/cesium-ai-integrations/pull/21
-- 使用 `env.GLAMA_EMAIL` 环境变量, fallback `gaopengbin@gmail.com`
+- CI: 3/3 checks passed ✅, no conflicts
+- jjspace (CesiumGS) 确认 CLA 已归档, 等待 @MKartaviciute 审批
 - 部署版本: `1d548909-c332-4be0-aa1d-ccf6b0225f0a`
 - 验证: `https://mcp.gpb.cc/.well-known/glama.json` 返回正确 schema
 
