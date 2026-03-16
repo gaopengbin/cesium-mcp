@@ -398,27 +398,6 @@ Smithery Quality Score 从 32 降到 29，需要改进。
 
 ---
 
-## 当前状态
-
-| 指标 | 值 |
-|------|-----|
-| Bridge execute() 命令 | 44 |
-| Runtime MCP tools | 44 + 2 meta |
-| Toolset 分组 | 11 |
-| IIFE 包体积 | 77.54 KB |
-| 单元测试 | 71/71 通过 |
-| TypeScript 错误 | 0 |
-| 文档文件已更新 | 21 |
-| Git 最新提交 | `c9fc6f4` on main |
-| npm 版本 | v1.139.4 |
-| GitHub Release | v1.139.4 |
-| Worker 版本 | 1d548909 (mcp.gpb.cc) |
-| Smithery Score | 54/100 |
-| Glama Score | 7/10 |
-| Glama Connector | cc.gpb.mcp/cesium-mcp ✅ |
-| awesome-mcp-servers | PR #3227 ✅ / PR #3292 ⏳ |
-| CesiumGS 官方 README | PR #21 ⏳ |
-
 ---
 
 ## 2025-07 文档第三轮改进 (commit a6c78eb)
@@ -533,3 +512,53 @@ Smithery Quality Score 从 32 降到 29，需要改进。
 - `ebffb01` — feat: add batch entities, entity query, viewpoint bookmarks, GeoJSON URL loading (49 tools)
 - `4457c04` — test: add functional tests for batchAddEntities, queryEntities, viewpoint bookmarks (91 tests)
 - 已推送至 origin/main
+
+---
+
+## 2026-03 v1.139.6 发布
+
+### 功能验证 (E2E)
+- 启动 minimal 测试页面 + 本地 MCP 服务器
+- 通过 HTTP API (`POST /api/command`) 绕过 Copilot 工具缓存限制，直接向浏览器推送命令
+- `batchAddEntities`: 5 个北京地标批量创建 ✅
+- `saveViewpoint`/`loadViewpoint`: 保存"北京鸟瞰"→ 飞到上海 → 加载书签恢复视角 ✅
+- `queryEntities`/`listViewpoints`: 命令推送成功 ✅
+- `addMarker` + `flyTo`: 原有功能正常 ✅
+
+### 版本号更新 (20 个文件)
+- 3 个 `package.json` (bridge/dev/runtime): 1.139.5 → 1.139.6
+- 根 `package.json`: 1.139.0 → 1.139.6 (补齐)
+- 2 个 `server.json` (runtime: 1.139.4→1.139.6, dev: 1.139.2→1.139.6)
+- `Dockerfile`: cesium-mcp-runtime@1.139.6
+- `runtime/src/index.ts` McpServer version: 1.139.6
+- `worker/src/index.js`: runtime + dev 版本→1.139.6
+- `docs/.vitepress/config.mts`: v1.139.6
+- `tools-meta.json`: 0.1.0→1.139.6
+- `worker/server-card.json` + `worker/dev-server-card.json`
+- Smithery manifest + module.js
+
+### CHANGELOG 更新
+- runtime: feat: P0 feature pack — 5 new tools, enhanced addGeoJsonLayer, 49 tools
+- bridge: feat: P0 feature pack — batchAddEntities, queryEntities, viewpoint bookmarks, GeoJSON URL
+- dev: chore: version bump
+
+### 发布
+- npm: 3 包发布 (cesium-mcp-bridge/dev/runtime@1.139.6)
+- GitHub Release: [v1.139.6](https://github.com/gaopengbin/cesium-mcp/releases/tag/v1.139.6)
+- Git: `15a6d2a` — release: v1.139.6
+
+---
+
+## 当前状态
+
+| 指标 | 值 |
+|------|-----|
+| Bridge execute() 命令 | 49 |
+| Runtime MCP tools | 49 + 2 meta |
+| Toolset 分组 | 11 |
+| IIFE 包体积 | 83.71 KB |
+| 单元测试 | 91/91 通过 |
+| TypeScript 错误 | 0 |
+| Git 最新提交 | `15a6d2a` on main |
+| npm 版本 | v1.139.6 |
+| GitHub Release | v1.139.6 |
