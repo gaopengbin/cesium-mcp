@@ -454,3 +454,82 @@ Smithery Quality Score 从 32 降到 29，需要改进。
 ### Git
 - commit: `a6c78eb` — docs: refine API reference with detailed params, update architecture diagrams
 - 已推送: `ade93b0..a6c78eb main -> main`
+
+---
+
+## 2026-03 v1.139.5 发布
+
+### Geocode 工具增强
+- 新增 `geocode` 地理编码工具 (Nominatim/OSM, 无需 API Key)
+- 支持 `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` 代理配置
+- 新增 `geolocation` 工具集 (1 tool)
+
+### GitHub Release v1.139.5
+- 发布: https://github.com/gaopengbin/cesium-mcp/releases/tag/v1.139.5
+- npm 三包同步发布
+
+---
+
+## 2026-03 P0 功能四件套 (44 → 49 tools)
+
+### 需求来源
+产品分析 Top 10 功能建议中 P0 级别四个方向:
+1. **批量实体操作** — 减少多次调用开销
+2. **实体查询** — 支持场景中已有实体的搜索/筛选
+3. **视点书签** — 保存/恢复/列出相机位置
+4. **GeoJSON URL 加载** — 从 URL 加载 GeoJSON (浏览器端 fetch)
+
+### 新增工具 (5 个)
+
+| 工具 | 工具集 | 说明 |
+|------|--------|------|
+| `batchAddEntities` | entity | 批量添加多种类型实体，返回 `{entityIds, errors}` |
+| `queryEntities` | entity | 按名称(模糊)/类型/bbox 搜索场景实体 |
+| `saveViewpoint` | view | 保存当前相机状态为命名书签 |
+| `loadViewpoint` | view | 恢复已保存的视点书签 (支持 duration) |
+| `listViewpoints` | view | 列出所有视点书签 |
+
+### 增强工具 (1 个)
+- `addGeoJsonLayer`: `data` 参数改为可选，新增 `url` 参数 (浏览器端 fetch)
+
+### 工具集变化
+| 工具集 | 变化 | 新数量 |
+|--------|------|--------|
+| view | +3 (viewpoint 书签三件套) | 4 → 7 |
+| entity | +2 (batch + query) | 7 → 9 |
+| 默认工具总数 | +5 | ~19 → ~24 |
+| **总工具数** | **+5** | **44 → 49** |
+
+### 修改文件 (28 个)
+
+**Bridge 包** (6 文件):
+- `types.ts` — 6 新接口 + AddGeoJsonLayerParams.data 可选 + url 字段
+- `commands/entity.ts` — `batchAddEntities()` + `queryEntities()`
+- `commands/view.ts` — `saveViewpoint()` + `loadViewpoint()` + `listViewpoints()` + `_viewpoints` Map
+- `commands/layer.ts` — URL 加载支持 + `detectGeometryTypeFromDataSource()`
+- `bridge.ts` — 5 新 switch case + 5 新方法 + 导入
+- `index.ts` — 7 新类型导出
+
+**Runtime 包** (1 文件):
+- `index.ts` — TOOLSETS 扩展, TOOLSET_DESCRIPTIONS 更新, addGeoJsonLayer schema 更新, 5 新 `_registerTool()` 调用
+
+**文档** (20+ 文件):
+- 全量计数更新 (44→49, view 4→7, entity 7→9, ~19→~24)
+- runtime API: 5 新工具详细参数表 + addGeoJsonLayer url 参数
+- bridge API: 5 新命令条目
+- README 工具集表格更新
+- tools-meta.json: 5 新工具 JSON Schema
+
+**测试** (2 文件):
+- `entity.test.ts` — +13 测试 (batchAddEntities 6 + queryEntities 7), `vi.mock('cesium')` 完整 mock
+- `view.test.ts` — +7 测试 (viewpoint bookmarks 完整覆盖)
+
+### 验证
+- TypeScript: bridge + runtime 零错误
+- 测试: 91/91 通过 (71 → 91)
+- 构建: bridge ESM 77KB / CJS 81KB / IIFE 84KB, runtime 59KB
+
+### Git
+- `ebffb01` — feat: add batch entities, entity query, viewpoint bookmarks, GeoJSON URL loading (49 tools)
+- `4457c04` — test: add functional tests for batchAddEntities, queryEntities, viewpoint bookmarks (91 tests)
+- 已推送至 origin/main
