@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.gaopengbin/cesium-mcp-runtime",
-  "description": "AI-powered 3D globe control via MCP — camera, layers, entities, animation, and interaction with CesiumJS. 43 tools for map visualization, layer management, entity types, camera control, animation, and interaction.",
+  "description": "AI-powered 3D globe control via MCP — camera, layers, entities, animation, and interaction with CesiumJS. 44 tools for map visualization, layer management, entity types, camera control, animation, geocoding, and interaction.",
   "repository": {
     "url": "https://github.com/gaopengbin/cesium-mcp",
     "source": "github",

@@ -35,7 +35,7 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 | 包名 | 描述 | npm |
 |------|------|-----|
 | [cesium-mcp-bridge](packages/cesium-mcp-bridge/) | 浏览器 SDK — 嵌入你的 CesiumJS 应用，通过 WebSocket 接收命令 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP 服务器 (stdio) — 43 个工具（10 个工具集）+ 2 个资源，支持动态发现 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP 服务器 (stdio) — 44 个工具（11 个工具集）+ 2 个资源，支持动态发现 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [cesium-mcp-dev](packages/cesium-mcp-dev/) | IDE MCP 服务器 — 为代码助手提供 CesiumJS API 辅助 | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 ## 架构
@@ -91,9 +91,9 @@ npx cesium-mcp-runtime
 
 然后对 AI 说：*"飞到埃菲尔铁塔，添加一个红色标记"*
 
-## 43 个可用工具
+## 44 个可用工具
 
-工具按 **10 个工具集** 组织。默认启用 4 个核心工具集（约 19 个工具）。设置 `CESIUM_TOOLSETS=all` 启用全部，或由 AI 在运行时动态按需发现和激活。
+工具按 **11 个工具集** 组织。默认启用 4 个核心工具集（约 19 个工具）。设置 `CESIUM_TOOLSETS=all` 启用全部，或由 AI 在运行时动态按需发现和激活。
 
 | 工具集 | 工具 |
 |--------|------|
@@ -107,6 +107,7 @@ npx cesium-mcp-runtime
 | tiles | `load3dTiles`, `loadTerrain`, `loadImageryService` |
 | trajectory | `playTrajectory` |
 | heatmap | `addHeatmap` |
+| geolocation | `geocode` |
 
 > **与 CesiumGS 官方 MCP 服务器的关系**：`camera`、`entity-ext` 和 `animation` 工具集原生融合了 [CesiumGS/cesium-mcp-server](https://github.com/CesiumGS/cesium-mcp-server)（Camera Server、Entity Server、Animation Server）的能力到本项目的统一 Bridge 架构中。一个 MCP 服务器即可获得全部官方功能加更多工具，无需运行多个进程。
 

@@ -231,6 +231,7 @@ const TOOLSETS: Record<string, string[]> = {
   interaction: ['screenshot', 'highlight'],
   trajectory: ['playTrajectory'],
   heatmap: ['addHeatmap'],
+  geolocation: ['geocode'],
 }
 
 const TOOLSET_DESCRIPTIONS: Record<string, string> = {
@@ -244,6 +245,7 @@ const TOOLSET_DESCRIPTIONS: Record<string, string> = {
   interaction: 'User interaction (screenshot, highlight)',
   trajectory: 'Trajectory playback',
   heatmap: 'Heatmap visualization',
+  geolocation: 'Geocoding — convert address/place name to coordinates (Nominatim/OSM)',
 }
 
 const DEFAULT_TOOLSETS = ['view', 'entity', 'layer', 'interaction']
@@ -1118,6 +1120,78 @@ _registerTool(
   async (params) => {
     const result = await sendToBrowser('setGlobeLighting', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — geocode (直接 HTTP 请求 Nominatim，不经过 Bridge)
+let _lastGeocodeTime = 0
+let _proxyDispatcher: object | undefined
+
+// 初始化代理（读取 HTTPS_PROXY / HTTP_PROXY / ALL_PROXY 环境变量）
+const _proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.ALL_PROXY
+if (_proxyUrl) {
+  import('undici').then(({ ProxyAgent }) => {
+    _proxyDispatcher = new ProxyAgent(_proxyUrl)
+  }).catch(() => { /* undici not available, skip proxy */ })
+}
+
+_registerTool(
+  'geocode',
+  '将地址、地标或地名转换为地理坐标（经纬度）。使用 OpenStreetMap Nominatim 免费服务，无需 API Key。',
+  {
+    address: z.string().min(1).describe('地址、地标或地名，例如 "故宫"、"Eiffel Tower"、"东京塔"'),
+    countryCode: z.string().length(2).optional().describe('两位 ISO 国家代码限制搜索范围（如 "CN"、"US"、"JP"）'),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true, title: 'Geocode Address' },
+  async ({ address, countryCode }) => {
+    // Rate limiting: Nominatim 要求至少 1 秒间隔
+    const now = Date.now()
+    const wait = 1100 - (now - _lastGeocodeTime)
+    if (wait > 0) await new Promise(r => setTimeout(r, wait))
+    _lastGeocodeTime = Date.now()
+
+    const params = new URLSearchParams({
+      q: address,
+      format: 'json',
+      addressdetails: '1',
+      limit: '1',
+    })
+    if (countryCode) params.set('countrycodes', countryCode)
+
+    const ua = process.env.OSM_USER_AGENT || 'cesium-mcp-runtime/1.0'
+    const fetchOptions: RequestInit & { dispatcher?: object } = {
+      headers: { 'User-Agent': ua },
+    }
+    if (_proxyDispatcher) fetchOptions.dispatcher = _proxyDispatcher
+
+    const resp = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, fetchOptions)
+    if (!resp.ok) {
+      return { content: [{ type: 'text' as const, text: JSON.stringify({ success: false, message: `Nominatim API error: ${resp.status}` }) }], isError: true }
+    }
+    const data = await resp.json() as Array<{
+      lat: string; lon: string; display_name: string;
+      boundingbox?: [string, string, string, string];
+      address?: Record<string, string>;
+    }>
+
+    if (!data.length) {
+      return { content: [{ type: 'text' as const, text: JSON.stringify({ success: false, message: `No results found for: ${address}` }) }] }
+    }
+
+    const item = data[0]!
+    const result = {
+      success: true,
+      longitude: parseFloat(item.lon),
+      latitude: parseFloat(item.lat),
+      displayName: item.display_name,
+      boundingBox: item.boundingbox ? {
+        south: parseFloat(item.boundingbox[0]),
+        north: parseFloat(item.boundingbox[1]),
+        west: parseFloat(item.boundingbox[2]),
+        east: parseFloat(item.boundingbox[3]),
+      } : undefined,
+    }
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
   },
 )
 

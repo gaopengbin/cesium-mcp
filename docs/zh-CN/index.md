@@ -19,8 +19,8 @@ hero:
 features:
   - icon:
       src: /icons/tools.svg
-    title: 43 个 MCP 工具
-    details: 相机控制、GeoJSON 图层、3D Tiles、地形、影像、实体管理、轨迹动画、热力图等 — 10 个工具集，支持动态发现。
+    title: 44 个 MCP 工具
+    details: 相机控制、GeoJSON 图层、3D Tiles、地形、影像、实体管理、轨迹动画、热力图、地理编码等 — 11 个工具集，支持动态发现。
   - icon:
       src: /icons/clients.svg
     title: 全面兼容 MCP 协议
@@ -155,7 +155,7 @@ features:
 | 包名 | 描述 | 版本 |
 |------|------|------|
 | [`cesium-mcp-bridge`](https://www.npmjs.com/package/cesium-mcp-bridge) | 浏览器 SDK — 嵌入你的 CesiumJS 应用 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | MCP 服务器 — 43 个工具（10 个工具集）和 2 个资源 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | MCP 服务器 — 44 个工具（11 个工具集）和 2 个资源 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [`cesium-mcp-dev`](https://www.npmjs.com/package/cesium-mcp-dev) | IDE MCP 服务器 — Cesium API 文档与代码生成 | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 </div>

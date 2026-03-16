@@ -1,6 +1,6 @@
 # cesium-mcp-runtime
 
-> MCP Server (stdio) — 43 tools (10 toolsets) + 2 resources, with dynamic discovery.
+> MCP Server (stdio) — 44 tools (11 toolsets) + 2 resources, with dynamic discovery.
 
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 
@@ -66,7 +66,7 @@ cesium-mcp-runtime
 
 ## MCP Tools (43 + 2 meta)
 
-Tools are organized into **10 toolsets**. By default, 4 core toolsets are enabled (~19 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically.
+Tools are organized into **11 toolsets**. By default, 4 core toolsets are enabled (~19 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically.
 
 ### Toolsets
 
@@ -82,6 +82,7 @@ Tools are organized into **10 toolsets**. By default, 4 core toolsets are enable
 | `tiles` | 3 | — | 3D Tiles, terrain, imagery services |
 | `trajectory` | 1 | — | Trajectory playback |
 | `heatmap` | 1 | — | Heatmap visualization |
+| `geolocation` | 1 | — | Geocoding — convert address/place name to coordinates (Nominatim/OSM) |
 
 ### Dynamic Discovery
 
@@ -605,6 +606,17 @@ Create a heatmap overlay from point data.
 | `data` | `object` | ✅ | — | GeoJSON Point FeatureCollection |
 | `radius` | `number` | — | `30` | Heat influence radius in pixels |
 
+#### `geocode` <Badge type="info" text="geolocation" />
+
+Convert an address, landmark, or place name to geographic coordinates (longitude/latitude). Uses OpenStreetMap Nominatim — no API key required. Supports `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` environment variables for proxy.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `address` | `string` | ✅ | — | Address, landmark, or place name, e.g. "Eiffel Tower", "故宫" |
+| `countryCode` | `string` | — | — | 2-letter ISO country code to limit search scope (e.g. `CN`, `US`, `JP`) |
+
+**Returns:** `{ success, longitude, latitude, displayName, boundingBox }`
+
 ## MCP Resources (2)
 
 | URI | Description |
@@ -621,6 +633,7 @@ Resources are read-only and can be polled by the AI agent for context-aware deci
 | `CESIUM_WS_PORT` | `9100` | WebSocket server port for bridge connections |
 | `DEFAULT_SESSION_ID` | `default` | Which browser session to route MCP calls to |
 | `CESIUM_TOOLSETS` | *(not set)* | Toolset activation: omit for defaults, `all` for everything, or comma-separated list |
+| `OSM_USER_AGENT` | `cesium-mcp-runtime/1.0` | User-Agent header for Nominatim geocode requests |
 
 ## Session Routing
 

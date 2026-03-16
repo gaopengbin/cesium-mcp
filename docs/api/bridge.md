@@ -24,7 +24,7 @@ const bridge = new CesiumBridge(viewer, {
 })
 ```
 
-## Commands (43)
+## Commands (44)
 
 ### View Control
 

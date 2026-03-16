@@ -39,7 +39,7 @@ Runtime 找不到已连接的浏览器会话。
 
 ### 只有部分工具可用
 
-默认只启用核心工具集。要启用全部 43 个工具：
+默认只启用核心工具集。要启用全部 44 个工具：
 
 ```bash
 CESIUM_TOOLSETS=all npx cesium-mcp-runtime

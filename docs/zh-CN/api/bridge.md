@@ -24,7 +24,7 @@ const bridge = new CesiumBridge(viewer, {
 })
 ```
 
-## 命令（43 个）
+## 命令（44 个）
 
 ### 视图控制
 

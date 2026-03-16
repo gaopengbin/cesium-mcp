@@ -1,6 +1,6 @@
 # cesium-mcp-runtime
 
-> MCP 服务器（stdio）— 43 个工具（10 个工具集）+ 2 个资源，支持动态发现。
+> MCP 服务器（stdio）— 44 个工具（11 个工具集）+ 2 个资源，支持动态发现。
 
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 
@@ -66,7 +66,7 @@ cesium-mcp-runtime
 
 ## MCP 工具（43 + 2 元工具）
 
-工具按 **10 个工具集** 组织。默认启用 4 个核心工具集（约 19 个工具）。设置 `CESIUM_TOOLSETS=all` 启用全部，或由 AI 在运行时动态发现和激活。
+工具按 **11 个工具集** 组织。默认启用 4 个核心工具集（约 19 个工具）。设置 `CESIUM_TOOLSETS=all` 启用全部，或由 AI 在运行时动态发现和激活。
 
 ### 工具集
 
@@ -82,6 +82,7 @@ cesium-mcp-runtime
 | `tiles` | 3 | — | 3D Tiles、地形、影像服务 |
 | `trajectory` | 1 | — | 轨迹回放 |
 | `heatmap` | 1 | — | 热力图可视化 |
+| `geolocation` | 1 | — | 地理编码 — 将地址/地名转换为坐标（Nominatim/OSM） |
 
 ### 动态发现
 
@@ -604,6 +605,17 @@ cesium-mcp-runtime
 | `data` | `object` | ✅ | — | GeoJSON Point FeatureCollection |
 | `radius` | `number` | — | `30` | 影响半径（像素） |
 
+#### `geocode` <Badge type="info" text="geolocation" />
+
+将地址、地标或地名转换为地理坐标（经纬度）。使用 OpenStreetMap Nominatim 免费服务，无需 API Key。支持 `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` 环境变量配置代理。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `address` | `string` | ✅ | — | 地址、地标或地名，如 "故宫"、"Eiffel Tower"、"东京塔" |
+| `countryCode` | `string` | — | — | 两位 ISO 国家代码限制搜索范围（如 `CN`、`US`、`JP`） |
+
+**返回：** `{ success, longitude, latitude, displayName, boundingBox }`
+
 ## MCP 资源（2 个）
 
 | URI | 描述 |
@@ -620,6 +632,7 @@ cesium-mcp-runtime
 | `CESIUM_WS_PORT` | `9100` | Bridge 连接的 WebSocket 服务器端口 |
 | `DEFAULT_SESSION_ID` | `default` | MCP 调用路由到哪个浏览器会话 |
 | `CESIUM_TOOLSETS` | *（未设置）* | 工具集激活：省略使用默认集，`all` 启用全部，或逗号分隔列表 |
+| `OSM_USER_AGENT` | `cesium-mcp-runtime/1.0` | Nominatim geocode 请求的 User-Agent 头 |
 
 ## 会话路由
 

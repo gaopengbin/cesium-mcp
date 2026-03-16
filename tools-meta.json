@@ -1131,6 +1131,29 @@
         "additionalProperties": false
       },
       "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "geocode",
+      "description": "将地址、地标或地名转换为地理坐标（经纬度）。使用 OpenStreetMap Nominatim 免费服务，无需 API Key。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "minLength": 1,
+            "description": "地址、地标或地名，例如 \"故宫\"、\"Eiffel Tower\"、\"东京塔\""
+          },
+          "countryCode": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "description": "两位 ISO 国家代码限制搜索范围（如 \"CN\"、\"US\"、\"JP\"）"
+          }
+        },
+        "required": ["address"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
     }
   ],
   "resources": [
