@@ -1,5 +1,250 @@
-import { describe, it, expect } from 'vitest'
-import { computeFeatureCentroid, centroidOfCoords } from './entity.js'
+import { describe, it, expect, vi } from 'vitest'
+
+vi.mock('cesium', () => ({
+  Math: {
+    toDegrees: (r: number) => r * (180 / Math.PI),
+    toRadians: (d: number) => d * (Math.PI / 180),
+  },
+  JulianDate: { now: () => ({}) },
+  Cartographic: {
+    fromCartesian: (c: any) => ({
+      longitude: c._lon * (Math.PI / 180),
+      latitude: c._lat * (Math.PI / 180),
+      height: c._h ?? 0,
+    }),
+  },
+  Cartesian3: {
+    fromDegrees: (lon: number, lat: number, h?: number) => ({ _lon: lon, _lat: lat, _h: h ?? 0 }),
+  },
+  Color: { fromCssColorString: () => ({}) },
+  HorizontalOrigin: { CENTER: 0 },
+  VerticalOrigin: { BOTTOM: 1 },
+  HeightReference: { CLAMP_TO_GROUND: 1, NONE: 0 },
+  LabelStyle: { FILL_AND_OUTLINE: 2 },
+  NearFarScalar: class { constructor(..._: any[]) {} },
+  DistanceDisplayCondition: class { constructor(..._: any[]) {} },
+  ClampToGroundPolyline: class {},
+  PolylineDashMaterialProperty: class { constructor() {} },
+  ColorMaterialProperty: class { constructor() {} },
+  default: {},
+}))
+
+import { computeFeatureCentroid, centroidOfCoords, batchAddEntities, queryEntities } from './entity.js'
+
+// ==================== batchAddEntities ====================
+
+describe('batchAddEntities', () => {
+  function makeViewer() {
+    return {} as any // viewer is not used directly by batchAddEntities
+  }
+
+  function makeHelpers() {
+    let counter = 0
+    const calls: { fn: string; params: any }[] = []
+    const make = (name: string) => (params: any) => {
+      calls.push({ fn: name, params })
+      return { id: `entity-${counter++}` }
+    }
+    return {
+      helpers: {
+        addMarker: make('addMarker'),
+        addPolyline: make('addPolyline'),
+        addPolygon: make('addPolygon'),
+        addModel: make('addModel'),
+        addBillboard: make('addBillboard'),
+        addBox: make('addBox'),
+        addCylinder: make('addCylinder'),
+        addEllipse: make('addEllipse'),
+        addRectangle: make('addRectangle'),
+        addWall: make('addWall'),
+        addCorridor: make('addCorridor'),
+      } as any,
+      calls,
+    }
+  }
+
+  it('should dispatch each entity to the correct helper', () => {
+    const { helpers, calls } = makeHelpers()
+    const result = batchAddEntities(makeViewer(), [
+      { type: 'marker', longitude: 116.4, latitude: 39.9 },
+      { type: 'polyline', coordinates: [[0, 0], [1, 1]] },
+      { type: 'polygon', coordinates: [[0, 0], [1, 0], [1, 1]] },
+    ] as any, helpers)
+
+    expect(result.entityIds).toHaveLength(3)
+    expect(result.errors).toHaveLength(0)
+    expect(calls[0].fn).toBe('addMarker')
+    expect(calls[1].fn).toBe('addPolyline')
+    expect(calls[2].fn).toBe('addPolygon')
+  })
+
+  it('should collect errors without stopping', () => {
+    const { helpers } = makeHelpers()
+    helpers.addMarker = () => { throw new Error('fail marker') }
+    const result = batchAddEntities(makeViewer(), [
+      { type: 'marker', longitude: 0, latitude: 0 },
+      { type: 'polyline', coordinates: [] },
+    ] as any, helpers)
+
+    expect(result.entityIds).toHaveLength(1)
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toContain('fail marker')
+  })
+
+  it('should report error for unknown entity type', () => {
+    const { helpers } = makeHelpers()
+    const result = batchAddEntities(makeViewer(), [
+      { type: 'unknown_type' as any },
+    ], helpers)
+
+    expect(result.entityIds).toHaveLength(0)
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toContain('Unknown type')
+  })
+
+  it('should handle empty entities array', () => {
+    const { helpers } = makeHelpers()
+    const result = batchAddEntities(makeViewer(), [], helpers)
+    expect(result.entityIds).toHaveLength(0)
+    expect(result.errors).toHaveLength(0)
+  })
+
+  it('should dispatch all supported entity types', () => {
+    const { helpers, calls } = makeHelpers()
+    const types = ['marker', 'polyline', 'polygon', 'model', 'billboard', 'box', 'cylinder', 'ellipse', 'rectangle', 'wall', 'corridor']
+    const entities = types.map(type => ({ type })) as any
+    const result = batchAddEntities(makeViewer(), entities, helpers)
+
+    expect(result.entityIds).toHaveLength(types.length)
+    expect(result.errors).toHaveLength(0)
+    const dispatchedFns = calls.map(c => c.fn)
+    expect(dispatchedFns).toEqual([
+      'addMarker', 'addPolyline', 'addPolygon', 'addModel', 'addBillboard',
+      'addBox', 'addCylinder', 'addEllipse', 'addRectangle', 'addWall', 'addCorridor',
+    ])
+  })
+
+  it('should strip type from params passed to helper', () => {
+    const { helpers, calls } = makeHelpers()
+    batchAddEntities(makeViewer(), [
+      { type: 'marker', longitude: 100, latitude: 30, label: 'test' },
+    ] as any, helpers)
+
+    expect(calls[0].params).toEqual({ longitude: 100, latitude: 30, label: 'test' })
+    expect(calls[0].params).not.toHaveProperty('type')
+  })
+})
+
+// ==================== queryEntities ====================
+
+describe('queryEntities', () => {
+  function makeEntity(overrides: {
+    id: string
+    name?: string
+    type: string
+    lon?: number
+    lat?: number
+    height?: number
+  }) {
+    const entity: any = {
+      id: overrides.id,
+      name: overrides.name,
+    }
+    // Set the type flag
+    const typeMap: Record<string, string> = {
+      marker: 'point', billboard: 'billboard', polyline: 'polyline',
+      polygon: 'polygon', model: 'model', box: 'box', cylinder: 'cylinder',
+      ellipse: 'ellipse', rectangle: 'rectangle', wall: 'wall', corridor: 'corridor', label: 'label',
+    }
+    const cesiumProp = typeMap[overrides.type]
+    if (cesiumProp) entity[cesiumProp] = {}
+
+    // Position
+    if (overrides.lon != null) {
+      entity.position = {
+        getValue: () => ({
+          _lon: overrides.lon,
+          _lat: overrides.lat,
+          _h: overrides.height ?? 0,
+        }),
+      }
+    }
+    return entity
+  }
+
+  function makeViewer(entities: any[]) {
+    return { entities: { values: entities } } as any
+  }
+
+  it('should filter by entity type', () => {
+    const viewer = makeViewer([
+      makeEntity({ id: '1', type: 'marker' }),
+      makeEntity({ id: '2', type: 'polyline' }),
+      makeEntity({ id: '3', type: 'marker' }),
+    ])
+    const results = queryEntities(viewer, { type: 'marker' })
+    expect(results).toHaveLength(2)
+    expect(results.every(r => r.type === 'marker')).toBe(true)
+  })
+
+  it('should filter by name (fuzzy, case-insensitive)', () => {
+    const viewer = makeViewer([
+      makeEntity({ id: '1', type: 'marker', name: 'Beijing Station' }),
+      makeEntity({ id: '2', type: 'marker', name: 'Shanghai Tower' }),
+      makeEntity({ id: '3', type: 'polyline', name: 'beijing road' }),
+    ])
+    const results = queryEntities(viewer, { name: 'beijing' })
+    expect(results).toHaveLength(2)
+    expect(results.map(r => r.entityId).sort()).toEqual(['1', '3'])
+  })
+
+  it('should return all entities when no filters given', () => {
+    const viewer = makeViewer([
+      makeEntity({ id: '1', type: 'marker' }),
+      makeEntity({ id: '2', type: 'polygon' }),
+    ])
+    const results = queryEntities(viewer, {})
+    expect(results).toHaveLength(2)
+  })
+
+  it('should filter by bounding box', () => {
+    const viewer = makeViewer([
+      makeEntity({ id: 'inside', type: 'marker', lon: 116.4, lat: 39.9 }),
+      makeEntity({ id: 'outside', type: 'marker', lon: 121.0, lat: 31.0 }),
+    ])
+    // bbox: [west, south, east, north] around Beijing
+    const results = queryEntities(viewer, { bbox: [115, 39, 117, 41] })
+    expect(results).toHaveLength(1)
+    expect(results[0].entityId).toBe('inside')
+  })
+
+  it('should exclude entities without position when bbox filter is set', () => {
+    const viewer = makeViewer([
+      makeEntity({ id: 'nopos', type: 'marker' }), // no position
+      makeEntity({ id: 'haspos', type: 'marker', lon: 116.4, lat: 39.9 }),
+    ])
+    const results = queryEntities(viewer, { bbox: [115, 39, 117, 41] })
+    expect(results).toHaveLength(1)
+    expect(results[0].entityId).toBe('haspos')
+  })
+
+  it('should return empty array for empty scene', () => {
+    const results = queryEntities(makeViewer([]), {})
+    expect(results).toHaveLength(0)
+  })
+
+  it('should include position in results when available', () => {
+    const viewer = makeViewer([
+      makeEntity({ id: '1', type: 'marker', lon: 116.4, lat: 39.9, height: 100 }),
+    ])
+    const results = queryEntities(viewer, {})
+    expect(results[0].position).toBeDefined()
+    expect(results[0].position!.longitude).toBeCloseTo(116.4, 1)
+    expect(results[0].position!.latitude).toBeCloseTo(39.9, 1)
+  })
+})
+
+// ==================== Pure helpers ====================
 
 describe('centroidOfCoords', () => {
   it('should compute centroid of a coordinate array', () => {
