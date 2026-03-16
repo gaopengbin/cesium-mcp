@@ -117,7 +117,7 @@ CesiumGS 官方发布了 [cesium-ai-integrations](https://github.com/CesiumGS/ce
 
 ### 详细设计
 
-见 [unified-bridge-design.md](unified-bridge-design.md)（997行完整技术方案）
+见 `unified-bridge-design.md`（997行完整技术方案）
 
 ---
 

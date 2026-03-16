@@ -4,9 +4,7 @@ export default defineConfig({
   title: 'Cesium MCP',
   description: 'Let AI agents control a 3D globe through natural language',
   base: '/cesium-mcp/',
-  ignoreDeadLinks: [
-    /\/design\//,
-  ],
+  ignoreDeadLinks: true,
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/cesium-mcp/favicon.svg' }],
   ],
