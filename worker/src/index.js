@@ -191,6 +191,14 @@ export default {
       )
     }
 
+    // Glama connector ownership verification
+    if (path === '/.well-known/glama.json') {
+      return Response.json({
+        '$schema': 'https://glama.ai/mcp/schemas/connector.json',
+        maintainers: [{ email: env.GLAMA_EMAIL || 'gaopengbin@gmail.com' }],
+      }, { headers: corsHeaders })
+    }
+
     // Static server card
     if (path === '/.well-known/mcp/server-card.json') {
       return Response.json(srv.card, { headers: corsHeaders })
