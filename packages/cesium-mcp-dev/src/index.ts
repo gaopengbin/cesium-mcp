@@ -17,9 +17,11 @@ import { CESIUM_API_DOCS } from './resources/api-docs.js'
 import { ENTITY_TEMPLATES } from './resources/entity-templates.js'
 import { CODE_SNIPPETS } from './resources/code-snippets.js'
 
+declare const __VERSION__: string
+
 const server = new McpServer({
   name: 'cesium-mcp-dev',
-  version: '0.1.0',
+  version: __VERSION__,
 })
 
 // ==================== Tool 1: cesium_api_lookup ====================

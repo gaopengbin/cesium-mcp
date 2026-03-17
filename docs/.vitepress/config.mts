@@ -1,4 +1,8 @@
 import { defineConfig } from 'vitepress'
+import { createRequire } from 'node:module'
+
+const require = createRequire(import.meta.url)
+const { version } = require('../../package.json')
 
 export default defineConfig({
   title: 'Cesium MCP',
@@ -104,7 +108,7 @@ export default defineConfig({
       { text: 'API Reference', link: '/api/bridge' },
       { text: 'Examples', link: '/examples/' },
       {
-        text: 'v1.139.7',
+        text: `v${version}`,
         items: [
           { text: 'Changelog', link: 'https://github.com/gaopengbin/cesium-mcp/releases' },
           { text: 'npm', link: 'https://www.npmjs.com/package/cesium-mcp-runtime' },

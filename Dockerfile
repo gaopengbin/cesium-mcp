@@ -1,5 +1,6 @@
 FROM node:22-alpine
 
-RUN npm install -g cesium-mcp-runtime@1.139.7
+ARG VERSION=latest
+RUN npm install -g cesium-mcp-runtime@${VERSION}
 
 ENTRYPOINT ["cesium-mcp-runtime"]
