@@ -1,5 +1,11 @@
 # cesium-mcp-runtime
 
+## 1.139.7
+
+### Patch Changes
+
+- feat: i18n tool descriptions — CESIUM_LOCALE env var (en/zh-CN), all 49 tool descriptions and parameter hints available in both English and Chinese
+
 ## 1.139.6
 
 ### Patch Changes

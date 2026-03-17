@@ -12,7 +12,7 @@ const SERVERS = {
   runtime: {
     info: {
       name: 'cesium-mcp-runtime',
-      version: '1.139.6',
+      version: '1.139.7',
       title: 'Cesium MCP Runtime',
       description: 'AI-powered 3D globe control via MCP — camera, layers, entities, animation, and interaction with CesiumJS.',
       websiteUrl: 'https://github.com/gaopengbin/cesium-mcp',
@@ -35,7 +35,7 @@ const SERVERS = {
   dev: {
     info: {
       name: 'cesium-mcp-dev',
-      version: '1.139.6',
+      version: '1.139.7',
       description: 'Cesium MCP for Development — IDE AI assistant tools for Cesium API docs lookup, code generation, and Entity builder.',
     },
     card: DEV_SERVER_CARD,

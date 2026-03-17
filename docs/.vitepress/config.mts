@@ -104,7 +104,7 @@ export default defineConfig({
       { text: 'API Reference', link: '/api/bridge' },
       { text: 'Examples', link: '/examples/' },
       {
-        text: 'v1.139.6',
+        text: 'v1.139.7',
         items: [
           { text: 'Changelog', link: 'https://github.com/gaopengbin/cesium-mcp/releases' },
           { text: 'npm', link: 'https://www.npmjs.com/package/cesium-mcp-runtime' },

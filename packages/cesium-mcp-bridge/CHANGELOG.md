@@ -1,5 +1,11 @@
 # cesium-mcp-bridge
 
+## 1.139.7
+
+### Patch Changes
+
+- chore: version bump to align with cesium-mcp-runtime v1.139.7
+
 ## 1.139.6
 
 ### Patch Changes
