@@ -231,6 +231,7 @@ When not in `all` mode, two meta-tools are always available so the AI can discov
 | `CESIUM_WS_PORT` | `9100` | WebSocket server port |
 | `DEFAULT_SESSION_ID` | `default` | Preferred browser session for MCP tool routing |
 | `CESIUM_TOOLSETS` | *(not set)* | Toolset activation: omit for defaults, `all` for everything, or comma-separated list |
+| `CESIUM_LOCALE` | `en` | Tool description language: `en` (English, default) or `zh-CN` (Chinese) |
 
 ## Browser-Side Setup
 

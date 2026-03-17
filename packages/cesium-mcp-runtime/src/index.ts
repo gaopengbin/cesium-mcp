@@ -14,6 +14,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { WebSocketServer, WebSocket, type RawData } from 'ws'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { toolDescriptions as _enToolDesc, paramDescriptions as _enParamDesc } from './locales/en.js'
+import { toolDescriptions as _zhToolDesc, paramDescriptions as _zhParamDesc } from './locales/zh-CN.js'
 
 // ==================== WebSocket Bridge ====================
 
@@ -270,9 +272,23 @@ for (const setName of _enabledSets) {
 // Store all tool definitions for lazy registration (Dynamic Discovery)
 const _toolDefs = new Map<string, unknown[]>()
 
+// i18n: select locale based on CESIUM_LOCALE env var (default: en)
+const _localeKey = process.env.CESIUM_LOCALE?.trim().toLowerCase()
+const _toolDesc = _localeKey === 'zh-cn' ? _zhToolDesc : _enToolDesc
+const _paramDesc = _localeKey === 'zh-cn' ? _zhParamDesc : _enParamDesc
+
 /** Register tool only if it belongs to an enabled toolset */
 const _registerTool = ((...args: unknown[]) => {
   const name = args[0] as string
+  // Apply locale overrides for tool description + param descriptions
+  if (_toolDesc[name]) args[1] = _toolDesc[name]
+  const paramOverrides = _paramDesc[name]
+  if (paramOverrides && typeof args[2] === 'object' && args[2] !== null) {
+    const schema = args[2] as Record<string, z.ZodTypeAny>
+    for (const [key, desc] of Object.entries(paramOverrides)) {
+      if (schema[key]) schema[key] = schema[key].describe(desc)
+    }
+  }
   _toolDefs.set(name, args)
   if (_enabledTools.has(name)) {
     ;(server.tool as Function).apply(server, args)

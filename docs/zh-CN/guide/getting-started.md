@@ -114,6 +114,7 @@ npx cesium-mcp-dev
 | `DEFAULT_SESSION_ID` | `default` | 多标签页路由的会话 ID |
 | `HTTPS_PROXY` | — | geocode 请求的 HTTP 代理地址（如 `http://127.0.0.1:10808`） |
 | `OSM_USER_AGENT` | `cesium-mcp-runtime/1.0` | Nominatim geocode API 的 User-Agent |
+| `CESIUM_LOCALE` | `en` | 工具描述语言：`en`（英文，默认）或 `zh-CN`（中文） |
 
 ### 代理配置
 

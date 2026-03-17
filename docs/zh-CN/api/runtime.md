@@ -688,6 +688,7 @@ cesium-mcp-runtime
 | `DEFAULT_SESSION_ID` | `default` | MCP 调用路由到哪个浏览器会话 |
 | `CESIUM_TOOLSETS` | *（未设置）* | 工具集激活：省略使用默认集，`all` 启用全部，或逗号分隔列表 |
 | `OSM_USER_AGENT` | `cesium-mcp-runtime/1.0` | Nominatim geocode 请求的 User-Agent 头 |
+| `CESIUM_LOCALE` | `en` | 工具描述语言：`en`（英文，默认）或 `zh-CN`（中文） |
 
 ## 会话路由
 

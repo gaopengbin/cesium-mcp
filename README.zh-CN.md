@@ -95,6 +95,8 @@ npx cesium-mcp-runtime
 
 工具按 **11 个工具集** 组织。默认启用 4 个核心工具集（约 24 个工具）。设置 `CESIUM_TOOLSETS=all` 启用全部，或由 AI 在运行时动态按需发现和激活。
 
+> **国际化**: 工具描述默认英文，设置 `CESIUM_LOCALE=zh-CN` 切换中文。
+
 | 工具集 | 工具 |
 |--------|------|
 | **view** (默认) | `flyTo`, `setView`, `getView`, `zoomToExtent`, `saveViewpoint`, `loadViewpoint`, `listViewpoints` |

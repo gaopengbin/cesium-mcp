@@ -688,6 +688,7 @@ Resources are read-only and can be polled by the AI agent for context-aware deci
 | `DEFAULT_SESSION_ID` | `default` | Which browser session to route MCP calls to |
 | `CESIUM_TOOLSETS` | *(not set)* | Toolset activation: omit for defaults, `all` for everything, or comma-separated list |
 | `OSM_USER_AGENT` | `cesium-mcp-runtime/1.0` | User-Agent header for Nominatim geocode requests |
+| `CESIUM_LOCALE` | `en` | Tool description language: `en` (English, default) or `zh-CN` (Chinese) |
 
 ## Session Routing
 

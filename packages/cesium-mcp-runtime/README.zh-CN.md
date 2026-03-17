@@ -231,6 +231,7 @@ cesium-mcp-runtime
 | `CESIUM_WS_PORT` | `9100` | WebSocket 服务器端口 |
 | `DEFAULT_SESSION_ID` | `default` | MCP 工具路由的首选浏览器会话 |
 | `CESIUM_TOOLSETS` | *（未设置）* | 工具集激活：省略使用默认集，`all` 启用全部，或逗号分隔列表 |
+| `CESIUM_LOCALE` | `en` | 工具描述语言：`en`（英文，默认）或 `zh-CN`（中文） |
 
 ## 浏览器端设置
 

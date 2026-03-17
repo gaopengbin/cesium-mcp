@@ -114,6 +114,7 @@ Configure it the same way as the runtime, replacing `cesium-mcp-runtime` with `c
 | `DEFAULT_SESSION_ID` | `default` | Session ID for multi-tab routing |
 | `HTTPS_PROXY` | — | HTTP proxy URL for geocode requests (e.g. `http://127.0.0.1:10808`) |
 | `OSM_USER_AGENT` | `cesium-mcp-runtime/1.0` | User-Agent for Nominatim geocode API |
+| `CESIUM_LOCALE` | `en` | Tool description language: `en` (English, default) or `zh-CN` (Chinese) |
 
 ### Proxy Configuration
 

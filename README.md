@@ -95,6 +95,8 @@ Now ask your AI: *"Fly to the Eiffel Tower and add a red marker"*
 
 Tools are organized into **11 toolsets**. Default mode enables 4 core toolsets (~24 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically at runtime.
 
+> **i18n**: Tool descriptions default to English. Set `CESIUM_LOCALE=zh-CN` for Chinese.
+
 | Toolset | Tools |
 |---------|-------|
 | **view** (default) | `flyTo`, `setView`, `getView`, `zoomToExtent`, `saveViewpoint`, `loadViewpoint`, `listViewpoints` |

@@ -4,8 +4,12 @@
     "toolsets": {
       "type": "string",
       "description": "Comma-separated toolset names to enable on startup (e.g. 'camera,bindbindEntity,bindLayer'). If not set, all toolsets are enabled by default.",
-      "examples": ["camera,bindEntity,bindLayer", "camera,bindEntity,bindLayer,bindAnimation"]
-    }
+      "examples": ["camera,bindEntity,bindLayer", "camera,bindEntity,bindLayer,bindAnimation"]    },
+    "locale": {
+      "type": "string",
+      "description": "Tool description language. 'en' for English (default), 'zh-CN' for Chinese.",
+      "enum": ["en", "zh-CN"],
+      "default": "en"    }
   },
   "additionalProperties": false
 }
