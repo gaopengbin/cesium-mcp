@@ -57,6 +57,49 @@ We use [Changesets](https://github.com/changesets/changesets) for version manage
 - No trailing semicolons (follow existing style)
 - Use `tsup` for building
 
+## Releasing
+
+Version numbers are managed centrally. Source code files read version dynamically; JSON/config files are synced by script.
+
+**Steps:**
+
+```bash
+# 1. Bump version in root package.json
+npm version patch   # or minor / major
+
+# 2. Sync version to all satellite files (server.json, server-card.json, etc.)
+node scripts/sync-version.mjs
+
+# 3. Build all packages (version injected at compile time via tsup define)
+npm run build
+
+# 4. Run tests
+npx vitest run
+
+# 5. Publish to npm
+cd packages/cesium-mcp-bridge && npm publish && cd ../..
+cd packages/cesium-mcp-dev && npm publish && cd ../..
+cd packages/cesium-mcp-runtime && npm publish && cd ../..
+
+# 6. Commit, tag, and push
+git add -A
+git commit -m "chore: release vX.Y.Z"
+git push origin main
+
+# 7. Create GitHub Release
+gh release create vX.Y.Z --title "vX.Y.Z" --generate-notes
+```
+
+**How version auto-sync works:**
+
+| File | Mechanism |
+|------|-----------|
+| `packages/*/src/index.ts` | `tsup define __VERSION__` — compiled from `package.json` |
+| `worker/src/index.js` | Reads from imported `server-card.json` |
+| `docs/.vitepress/config.mts` | `createRequire` reads root `package.json` |
+| `Dockerfile` | `ARG VERSION=latest` — pass `--build-arg VERSION=X.Y.Z` |
+| JSON config files | `node scripts/sync-version.mjs` |
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under the MIT License.

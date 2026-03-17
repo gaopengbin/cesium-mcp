@@ -551,6 +551,36 @@ Smithery Quality Score 从 32 降到 29，需要改进。
 
 ---
 
+## v1.139.7 — i18n 工具描述 + 版本自动化
+
+### i18n 工具描述
+- 新增 `CESIUM_LOCALE` 环境变量（`en` / `zh-CN`，默认 `en`）
+- 创建 `src/locales/en.ts` 和 `src/locales/zh-CN.ts`，49 个工具描述和参数提示双语可切换
+- `_registerTool` wrapper 根据 locale 覆盖 tool description 和 schema `.describe()`
+- 更新 8 个文档文件 + `config-schema.json`
+- Git: `a666f9f` — feat: i18n tool descriptions
+
+### 版本自动化改造
+消除源码中硬编码版本号，以后发版只需改根 `package.json` + 跑脚本：
+
+| 文件 | 机制 |
+|------|------|
+| `packages/*/src/index.ts` | tsup `define __VERSION__` — 编译时从 `package.json` 注入 |
+| `worker/src/index.js` | 从导入的 `server-card.json` 读取版本 |
+| `docs/.vitepress/config.mts` | `createRequire` 读取根 `package.json` |
+| `Dockerfile` | `ARG VERSION=latest` |
+| JSON 配置文件 | `node scripts/sync-version.mjs` 统一替换 |
+
+- 修复 dev `McpServer` 版本硬编码 `0.1.0` → 动态读取
+- Git: `15023a6` — refactor: auto-sync version
+
+### 发布
+- npm: 3 包发布 (cesium-mcp-bridge/dev/runtime@1.139.7)
+- GitHub Release: [v1.139.7](https://github.com/gaopengbin/cesium-mcp/releases/tag/v1.139.7)
+- Git: `802f0af` — release: v1.139.7
+
+---
+
 ## 当前状态
 
 | 指标 | 值 |
@@ -561,6 +591,6 @@ Smithery Quality Score 从 32 降到 29，需要改进。
 | IIFE 包体积 | 83.71 KB |
 | 单元测试 | 91/91 通过 |
 | TypeScript 错误 | 0 |
-| Git 最新提交 | `15a6d2a` on main |
-| npm 版本 | v1.139.6 |
-| GitHub Release | v1.139.6 |
+| Git 最新提交 | `15023a6` on main |
+| npm 版本 | v1.139.7 |
+| GitHub Release | v1.139.7 |
