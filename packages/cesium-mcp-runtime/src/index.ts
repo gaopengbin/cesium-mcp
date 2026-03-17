@@ -20,6 +20,7 @@ import { toolDescriptions as _zhToolDesc, paramDescriptions as _zhParamDesc } fr
 // ==================== WebSocket Bridge ====================
 
 const WS_PORT = parseInt(process.env.CESIUM_WS_PORT ?? '9100')
+const MAX_PORT_RETRIES = 10
 
 /** 按 sessionId 管理已连接的浏览器 */
 const browserClients = new Map<string, WebSocket>()
@@ -32,6 +33,7 @@ const pendingRequests = new Map<string, {
 }>()
 
 let requestIdCounter = 0
+let _relayPort = 0 // >0 means relay mode: forward commands to an existing instance
 
 const DEFAULT_SESSION_ID = process.env.DEFAULT_SESSION_ID ?? 'default'
 
@@ -45,6 +47,7 @@ function getDefaultBrowser(): WebSocket | null {
 }
 
 function sendToBrowser(action: string, params: Record<string, unknown>, timeoutMs = 30000): Promise<unknown> {
+  if (_relayPort > 0) return _sendViaRelay(action, params, timeoutMs)
   return new Promise((resolve, reject) => {
     const ws = getDefaultBrowser()
     if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -71,6 +74,10 @@ function sendToBrowser(action: string, params: Record<string, unknown>, timeoutM
 
 /** 将命令推送到指定 session 的浏览器（fire-and-forget，不等待响应） */
 function pushToBrowser(sessionId: string, command: { action: string; params: Record<string, unknown> }): boolean {
+  if (_relayPort > 0) {
+    _pushViaRelay(sessionId, command)
+    return true
+  }
   const ws = browserClients.get(sessionId) ?? getDefaultBrowser()
   if (!ws || ws.readyState !== WebSocket.OPEN) return false
   ws.send(JSON.stringify({
@@ -80,6 +87,39 @@ function pushToBrowser(sessionId: string, command: { action: string; params: Rec
     params: command.params,
   }))
   return true
+}
+
+/** Relay mode: forward sendToBrowser via HTTP POST to existing instance */
+async function _sendViaRelay(action: string, params: Record<string, unknown>, timeoutMs: number): Promise<unknown> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const resp = await fetch(`http://127.0.0.1:${_relayPort}/api/relay`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, params }),
+      signal: controller.signal,
+    })
+    const data = await resp.json() as { ok: boolean; result?: unknown; error?: string }
+    if (!data.ok) throw new Error(data.error ?? 'Relay failed')
+    return data.result
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error(`浏览器响应超时（${timeoutMs}ms, via relay）`)
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** Relay mode: forward pushToBrowser via HTTP POST to existing instance */
+function _pushViaRelay(sessionId: string, command: { action: string; params: Record<string, unknown> }) {
+  fetch(`http://127.0.0.1:${_relayPort}/api/command`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId, command }),
+  }).catch(() => { /* fire-and-forget */ })
 }
 
 /** HTTP 请求处理：POST /api/command */
@@ -120,11 +160,29 @@ function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
     return
   }
 
+  // POST /api/relay — request-response command relay (used by secondary instances)
+  if (req.method === 'POST' && req.url?.startsWith('/api/relay')) {
+    let body = ''
+    req.on('data', (chunk: Buffer) => { body += chunk.toString() })
+    req.on('end', async () => {
+      try {
+        const { action, params } = JSON.parse(body) as { action: string; params: Record<string, unknown> }
+        const result = await sendToBrowser(action, params)
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ ok: true, result }))
+      } catch (err) {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ ok: false, error: err instanceof Error ? err.message : String(err) }))
+      }
+    })
+    return
+  }
+
   // GET /api/status — 连接状态
   if (req.method === 'GET' && req.url?.startsWith('/api/status')) {
     const sessions = Array.from(browserClients.keys())
     res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify({ ok: true, sessions, connections: sessions.length }))
+    res.end(JSON.stringify({ ok: true, server: 'cesium-mcp-runtime', sessions, connections: sessions.length }))
     return
   }
 
@@ -132,10 +190,77 @@ function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
   res.end('Not Found')
 }
 
-function startServer() {
+/** Probe a port to check if a cesium-mcp-runtime instance is already running */
+async function _probeExistingInstance(port: number): Promise<boolean> {
+  try {
+    const resp = await fetch(`http://127.0.0.1:${port}/api/status`, { signal: AbortSignal.timeout(1500) })
+    const data = await resp.json() as { server?: string }
+    return data.server === 'cesium-mcp-runtime'
+  } catch {
+    return false
+  }
+}
+
+/** Try to bind HTTP server to a specific port. Returns true on success. */
+function _tryListen(httpServer: ReturnType<typeof createServer>, port: number): Promise<boolean> {
+  return new Promise(resolve => {
+    const onError = (err: NodeJS.ErrnoException) => {
+      httpServer.removeListener('listening', onListening)
+      if (err.code === 'EADDRINUSE') resolve(false)
+      else { console.error(`[cesium-mcp-runtime] HTTP server error:`, err.message); resolve(false) }
+    }
+    const onListening = () => {
+      httpServer.removeListener('error', onError)
+      resolve(true)
+    }
+    httpServer.once('error', onError)
+    httpServer.once('listening', onListening)
+    httpServer.listen(port)
+  })
+}
+
+async function startServer() {
+  // Phase 1: check if target port is available
   const httpServer = createServer(handleHttpRequest)
   const wss = new WebSocketServer({ server: httpServer })
 
+  _setupWss(wss)
+
+  if (await _tryListen(httpServer, WS_PORT)) {
+    console.error(`[cesium-mcp-runtime] HTTP + WebSocket server on http://localhost:${WS_PORT}`)
+    console.error(`[cesium-mcp-runtime] POST /api/command — 推送地图命令`)
+    console.error(`[cesium-mcp-runtime] POST /api/relay   — 命令中继（request-response）`)
+    console.error(`[cesium-mcp-runtime] GET  /api/status  — 连接状态`)
+    return
+  }
+
+  // Phase 2: port in use — check if it's another cesium-mcp-runtime
+  httpServer.close()
+  if (await _probeExistingInstance(WS_PORT)) {
+    _relayPort = WS_PORT
+    console.error(`[cesium-mcp-runtime] Port ${WS_PORT} occupied by existing cesium-mcp-runtime — relay mode enabled`)
+    console.error(`[cesium-mcp-runtime] Commands will be forwarded to http://127.0.0.1:${WS_PORT}`)
+    return
+  }
+
+  // Phase 3: port occupied by other service — try incremental ports
+  for (let offset = 1; offset <= MAX_PORT_RETRIES; offset++) {
+    const tryPort = WS_PORT + offset
+    const altServer = createServer(handleHttpRequest)
+    const altWss = new WebSocketServer({ server: altServer })
+    _setupWss(altWss)
+    if (await _tryListen(altServer, tryPort)) {
+      console.error(`[cesium-mcp-runtime] Port ${WS_PORT} occupied by another service, using port ${tryPort}`)
+      console.error(`[cesium-mcp-runtime] HTTP + WebSocket server on http://localhost:${tryPort}`)
+      return
+    }
+    altServer.close()
+  }
+
+  console.error(`[cesium-mcp-runtime] Could not find available port (tried ${WS_PORT}-${WS_PORT + MAX_PORT_RETRIES}), WebSocket server disabled`)
+}
+
+function _setupWss(wss: WebSocketServer) {
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     const sessionId = new URL(req.url ?? '/', `http://localhost`).searchParams.get('session') ?? 'default'
     console.error(`[ws] 浏览器连接: session=${sessionId}`)
@@ -161,20 +286,6 @@ function startServer() {
       console.error(`[ws] 浏览器断开: session=${sessionId}`)
       browserClients.delete(sessionId)
     })
-  })
-
-  httpServer.on('error', (err: NodeJS.ErrnoException) => {
-    if (err.code === 'EADDRINUSE') {
-      console.error(`[cesium-mcp-runtime] Port ${WS_PORT} already in use, WebSocket server disabled`)
-    } else {
-      console.error(`[cesium-mcp-runtime] HTTP server error:`, err.message)
-    }
-  })
-
-  httpServer.listen(WS_PORT, () => {
-    console.error(`[cesium-mcp-runtime] HTTP + WebSocket server on http://localhost:${WS_PORT}`)
-    console.error(`[cesium-mcp-runtime] POST /api/command — 推送地图命令`)
-    console.error(`[cesium-mcp-runtime] GET  /api/status  — 连接状态`)
   })
 }
 
@@ -1379,10 +1490,13 @@ export function createSandboxServer() {
 // ==================== 启动 ====================
 
 export async function main() {
-  startServer()
+  await startServer()
 
   const transport = new StdioServerTransport()
   await server.connect(transport)
   const metaCount = _allMode ? 0 : 2
   console.error(`[cesium-mcp-runtime] MCP Server running (stdio), ${_enabledTools.size + metaCount} tools registered (toolsets: ${[..._enabledSets].join(', ')})`)
+  if (_relayPort > 0) {
+    console.error(`[cesium-mcp-runtime] Relay mode active → commands forwarded to port ${_relayPort}`)
+  }
 }
