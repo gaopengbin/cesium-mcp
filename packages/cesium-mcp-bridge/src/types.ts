@@ -135,6 +135,16 @@ export interface LoadImageryServiceParams {
   opacity?: number
 }
 
+export interface LoadCzmlParams {
+  id?: string
+  name?: string
+  data?: unknown[]
+  url?: string
+  sourceUri?: string
+  clampToGround?: boolean
+  flyTo?: boolean
+}
+
 // ==================== Trajectory ====================
 
 export interface PlayTrajectoryParams {

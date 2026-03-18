@@ -19,6 +19,7 @@ import type {
   Load3dTilesParams,
   LoadTerrainParams,
   LoadImageryServiceParams,
+  LoadCzmlParams,
   PlayTrajectoryParams,
   ScreenshotResult,
   HighlightParams,
@@ -171,6 +172,10 @@ export class CesiumBridge {
         case 'loadImageryService': {
           const info = await this.loadImageryService(p as LoadImageryServiceParams)
           return { success: true, data: info, message: `Imagery service '${info.name}' loaded` }
+        }
+        case 'loadCzml': {
+          const info = await this.loadCzml(p as LoadCzmlParams)
+          return { success: true, data: info, message: `CZML data source '${info.name}' loaded` }
         }
         case 'playTrajectory': {
           const result = this.playTrajectory(p as PlayTrajectoryParams)
@@ -359,6 +364,10 @@ export class CesiumBridge {
 
   loadImageryService(params: LoadImageryServiceParams): LayerInfo {
     return this._layerManager.loadImageryService(params)
+  }
+
+  loadCzml(params: LoadCzmlParams): Promise<LayerInfo> {
+    return this._layerManager.loadCzml(params)
   }
 
   // ==================== Trajectory ====================

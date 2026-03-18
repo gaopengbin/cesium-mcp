@@ -65,6 +65,7 @@ export const toolDescriptions: Record<string, string> = {
   load3dTiles: 'Load 3D Tiles dataset (e.g. building white models, city models)',
   loadTerrain: 'Load or switch terrain (flat/ArcGIS/CesiumIon/custom URL)',
   loadImageryService: 'Load imagery service layer (WMS/WMTS/XYZ/ArcGIS MapServer)',
+  loadCzml: 'Load CZML time-dynamic data source (CesiumJS native format, supports time-varying position/style/animation). data and url are mutually exclusive',
 
   // — interaction
   screenshot: 'Capture current map view (returns base64 PNG)',
@@ -413,6 +414,15 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     serviceType: 'Service type',
     layerName: 'WMS/WMTS layer name',
     opacity: 'Opacity (0-1)',
+  },
+  loadCzml: {
+    id: 'Layer ID (auto-generated if omitted)',
+    name: 'Data source display name',
+    data: 'CZML packet array (mutually exclusive with url)',
+    url: 'CZML file URL (mutually exclusive with data, browser-side fetch)',
+    sourceUri: 'Base URI for resolving relative references in CZML',
+    clampToGround: 'Clamp entities to ground surface',
+    flyTo: 'Fly to data extent after loading (default true)',
   },
   playTrajectory: {
     id: 'Trajectory layer ID',

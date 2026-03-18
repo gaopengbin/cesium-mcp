@@ -65,6 +65,7 @@ export const toolDescriptions: Record<string, string> = {
   load3dTiles: '加载 3D Tiles 数据集（如建筑白膜、城市模型）',
   loadTerrain: '加载或切换地形（平坦/ArcGIS/CesiumIon/自定义 URL）',
   loadImageryService: '加载影像服务图层（WMS/WMTS/XYZ/ArcGIS MapServer）',
+  loadCzml: '加载 CZML 时序数据源（CesiumJS 原生格式，支持时变位置/样式/动画）。data 和 url 二选一',
 
   // — interaction
   screenshot: '截取当前地图视图（返回 base64 PNG）',
@@ -413,6 +414,15 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     serviceType: '服务类型',
     layerName: 'WMS/WMTS 图层名',
     opacity: '透明度（0~1）',
+  },
+  loadCzml: {
+    id: '图层ID（不传则自动生成）',
+    name: '数据源显示名称',
+    data: 'CZML 数据包数组（与 url 二选一）',
+    url: 'CZML 文件 URL（与 data 二选一，浏览器端 fetch 加载）',
+    sourceUri: 'CZML 中相对引用的基础 URI',
+    clampToGround: '将实体贴地显示',
+    flyTo: '加载后自动飞行到数据范围（默认 true）',
   },
   playTrajectory: {
     id: '轨迹图层ID',

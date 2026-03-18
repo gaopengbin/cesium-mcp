@@ -343,7 +343,7 @@ const TOOLSETS: Record<string, string[]> = {
   'entity-ext': ['addBillboard', 'addBox', 'addCorridor', 'addCylinder', 'addEllipse', 'addRectangle', 'addWall'],
   animation: ['createAnimation', 'controlAnimation', 'removeAnimation', 'listAnimations', 'updateAnimationPath', 'trackEntity', 'controlClock', 'setGlobeLighting'],
   scene: ['setSceneOptions', 'setPostProcess'],
-  tiles: ['load3dTiles', 'loadTerrain', 'loadImageryService'],
+  tiles: ['load3dTiles', 'loadTerrain', 'loadImageryService', 'loadCzml'],
   interaction: ['screenshot', 'highlight'],
   trajectory: ['playTrajectory'],
   heatmap: ['addHeatmap'],
@@ -358,7 +358,7 @@ const TOOLSET_DESCRIPTIONS: Record<string, string> = {
   'entity-ext': 'Extended entity types (billboard, box, corridor, cylinder, ellipse, rectangle, wall)',
   animation: 'Animation system (create/control animations, track entities, clock, lighting)',
   scene: 'Scene environment and post-processing (fog, atmosphere, shadows, bloom, SSAO, FXAA)',
-  tiles: '3D Tiles, terrain, and imagery services',
+  tiles: '3D Tiles, terrain, imagery services, and CZML data sources',
   interaction: 'User interaction (screenshot, highlight)',
   trajectory: 'Trajectory playback',
   heatmap: 'Heatmap visualization',
@@ -910,7 +910,27 @@ _registerTool(
 
 // ==================== Camera Tools (融合官方 Camera Server) ====================
 
-// — lookAtTransform
+// — loadCzml
+_registerTool(
+  'loadCzml',
+  '加载 CZML 时序数据源（CesiumJS 原生格式，支持时变位置/样式/动画）。data 和 url 二选一',
+  {
+    id: z.string().optional().describe('图层ID（不传则自动生成）'),
+    name: z.string().optional().describe('数据源显示名称'),
+    data: z.array(z.unknown()).optional().describe('CZML 数据包数组（与 url 二选一）'),
+    url: z.string().optional().describe('CZML 文件 URL（与 data 二选一，浏览器端 fetch 加载）'),
+    sourceUri: z.string().optional().describe('CZML 中相对引用的基础 URI'),
+    clampToGround: z.boolean().optional().describe('将实体贴地显示'),
+    flyTo: z.boolean().optional().describe('加载后自动飞行到数据范围（默认 true）'),
+  },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Load CZML' },
+  async (params) => {
+    const result = await sendToBrowser('loadCzml', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// ==================== Camera Tools (融合官方 Camera Server) ====================
 _registerTool(
   'lookAtTransform',
   'Look at a specific position from a given heading/pitch/range (orbit-style camera)',

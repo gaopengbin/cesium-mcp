@@ -2,14 +2,14 @@ import * as Cesium from 'cesium'
 import type {
   AddGeoJsonLayerParams, AddHeatmapParams, LayerInfo, SetBasemapParams,
   CategoryStyle, Load3dTilesParams, LoadTerrainParams, LoadImageryServiceParams,
-  UpdateLayerStyleParams,
+  LoadCzmlParams, UpdateLayerStyleParams,
 } from '../types'
 import { parseColor } from '../utils'
 
 // ==================== 图层状态（由 Bridge 实例持有） ====================
 
 interface CesiumRefs {
-  dataSource?: Cesium.GeoJsonDataSource
+  dataSource?: Cesium.GeoJsonDataSource | Cesium.CzmlDataSource
   entity?: Cesium.Entity
   labelEntities?: Cesium.Entity[]
   tileset?: Cesium.Cesium3DTileset
@@ -517,6 +517,60 @@ export class LayerManager {
       color: '#06B6D4',
     }
     this._cesiumRefs.set(layerId, { imageryLayer })
+    this._layers.push(info)
+    return info
+  }
+
+  // ==================== CZML DataSource ====================
+
+  async loadCzml(params: LoadCzmlParams): Promise<LayerInfo> {
+    const { id, name, data, url, sourceUri, clampToGround } = params
+
+    if (!data && !url) throw new Error('Either "data" or "url" must be provided')
+
+    const layerId = id ?? `czml_${Date.now()}`
+
+    // 幂等：先移除同 id 图层
+    this.removeLayer(layerId)
+
+    const loadOptions: { sourceUri?: string } = {}
+    if (sourceUri) loadOptions.sourceUri = sourceUri
+
+    const ds = await Cesium.CzmlDataSource.load(url ?? data!, loadOptions)
+
+    const displayName = name || ds.name || (url ? `CZML (${url.split('/').pop()})` : 'CZML Data')
+
+    if (clampToGround) {
+      for (const entity of ds.entities.values) {
+        if (entity.billboard) {
+          entity.billboard.heightReference = new Cesium.ConstantProperty(Cesium.HeightReference.CLAMP_TO_GROUND)
+        }
+        if (entity.point) {
+          entity.point.heightReference = new Cesium.ConstantProperty(Cesium.HeightReference.CLAMP_TO_GROUND)
+        }
+        if (entity.label) {
+          entity.label.heightReference = new Cesium.ConstantProperty(Cesium.HeightReference.CLAMP_TO_GROUND)
+        }
+        if (entity.model) {
+          entity.model.heightReference = new Cesium.ConstantProperty(Cesium.HeightReference.CLAMP_TO_GROUND)
+        }
+      }
+    }
+
+    this._viewer.dataSources.add(ds)
+
+    if (params.flyTo !== false) {
+      this._viewer.flyTo(ds, { duration: 1.5 })
+    }
+
+    const info: LayerInfo = {
+      id: layerId,
+      name: displayName,
+      type: 'CZML',
+      visible: true,
+      color: '#8B5CF6',
+    }
+    this._cesiumRefs.set(layerId, { dataSource: ds })
     this._layers.push(info)
     return info
   }

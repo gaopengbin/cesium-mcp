@@ -20,6 +20,7 @@ export type {
   Load3dTilesParams,
   LoadTerrainParams,
   LoadImageryServiceParams,
+  LoadCzmlParams,
   PlayTrajectoryParams,
   AddLabelParams,
   AddMarkerParams,
