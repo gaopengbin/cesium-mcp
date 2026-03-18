@@ -29,6 +29,8 @@ import type {
   GetEntityPropertiesParams,
   EntityPropertiesResult,
   ExportSceneResult,
+  GetLayerSchemaParams,
+  LayerSchemaResult,
   UpdateLayerStyleParams,
   LayerInfo,
   BridgeEventHandler,
@@ -202,6 +204,10 @@ export class CesiumBridge {
         case 'listLayers': {
           const layers = this.listLayers()
           return { success: true, data: { layers }, message: `${layers.length} layers found` }
+        }
+        case 'getLayerSchema': {
+          const result = this.getLayerSchema(p as GetLayerSchemaParams)
+          return { success: true, data: result, message: `Layer '${result.layerName}' has ${result.fields.length} fields, ${result.entityCount} entities` }
         }
         // ==================== Camera (融合官方) ====================
         case 'lookAtTransform':
@@ -391,6 +397,10 @@ export class CesiumBridge {
 
   listLayers(): LayerInfo[] {
     return this._layerManager.listLayers()
+  }
+
+  getLayerSchema(params: GetLayerSchemaParams): LayerSchemaResult {
+    return this._layerManager.getLayerSchema(params)
   }
 
   setBasemap(params: SetBasemapParams): string {

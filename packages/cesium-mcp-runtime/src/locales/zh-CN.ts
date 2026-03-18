@@ -27,9 +27,10 @@ export const toolDescriptions: Record<string, string> = {
   // — layer
   addGeoJsonLayer: '添加 GeoJSON 图层到地图（支持 Point/Line/Polygon，可配置颜色/分级/分类渲染）。data 和 url 二选一',
   listLayers: '获取当前所有图层列表（含 ID、名称、类型、可见性）',
+  getLayerSchema: '获取图层的属性字段结构 — 返回字段名、类型、示例值，适用于 GeoJSON/CZML/KML/3D Tiles 图层',
   removeLayer: '从地图上移除指定图层（按图层ID）',
   setLayerVisibility: '设置图层可见性',
-  updateLayerStyle: '修改已有图层的样式（颜色、透明度、标注样式等）',
+  updateLayerStyle: '修改已有图层的样式（颜色、透明度、标注样式、3D Tiles 样式等）',
   setBasemap: '切换底图风格（暗色/卫星影像/标准）',
 
   // — camera
@@ -190,6 +191,9 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     style: '样式配置（color, opacity, pointSize, choropleth, category）',
   },
   listLayers: {},
+  getLayerSchema: {
+    layerId: '图层ID（可通过 listLayers 获取）',
+  },
   removeLayer: {
     id: '要移除的图层ID（可通过 listLayers 获取）',
   },
@@ -201,6 +205,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     layerId: '图层ID',
     labelStyle: '标注样式（font, fillColor, outlineColor, outlineWidth, scale 等）',
     layerStyle: '图层样式（color, opacity, strokeWidth, pointSize）',
+    tileStyle: '3D Tiles 样式（Cesium3DTileStyle 表达式：color, show, pointSize, meta）',
   },
   setBasemap: {
     basemap: '底图类型：dark=暗色, satellite=卫星影像, standard=标准',

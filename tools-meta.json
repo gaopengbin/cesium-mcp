@@ -681,6 +681,24 @@
       }
     },
     {
+      "name": "getLayerSchema",
+      "description": "获取图层的属性字段结构 — 返回字段名、类型、示例值，适用于 GeoJSON/CZML/KML/3D Tiles 图层",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "layerId": {
+            "type": "string",
+            "description": "图层ID（可通过 listLayers 获取）"
+          }
+        },
+        "required": ["layerId"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
       "name": "updateLayerStyle",
       "description": "修改已有图层的样式（颜色、透明度、标注样式等）",
       "inputSchema": {

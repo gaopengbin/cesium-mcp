@@ -76,6 +76,11 @@ export interface LayerStyle {
   color?: string
   opacity?: number
   pointSize?: number
+  strokeWidth?: number
+  /** 每个面/实体随机颜色 */
+  randomColor?: boolean
+  /** 按索引渐变填充，指定色系起止色如 ['#FF0000', '#0000FF'] */
+  gradient?: [string, string]
   choropleth?: ChoroplethStyle
   category?: CategoryStyle
 }
@@ -256,6 +261,12 @@ export interface UpdateLayerStyleParams {
     strokeWidth?: number
     pointSize?: number
   }
+  tileStyle?: {
+    color?: string
+    show?: string
+    pointSize?: string
+    meta?: Record<string, string>
+  }
 }
 
 // ==================== Interaction ====================
@@ -316,6 +327,25 @@ export interface ExportSceneResult {
   layers: LayerInfo[]
   entities: QueryEntityResult[]
   timestamp: string
+}
+
+// ==================== Get Layer Schema ====================
+
+export interface GetLayerSchemaParams {
+  layerId: string
+}
+
+export interface LayerSchemaField {
+  name: string
+  type: string
+  sample?: unknown
+}
+
+export interface LayerSchemaResult {
+  layerId: string
+  layerName: string
+  entityCount: number
+  fields: LayerSchemaField[]
 }
 
 // ==================== Event ====================

@@ -338,7 +338,7 @@ server.resource(
 const TOOLSETS: Record<string, string[]> = {
   view: ['flyTo', 'setView', 'getView', 'zoomToExtent', 'saveViewpoint', 'loadViewpoint', 'listViewpoints', 'exportScene'],
   entity: ['addMarker', 'addLabel', 'addModel', 'addPolygon', 'addPolyline', 'updateEntity', 'removeEntity', 'batchAddEntities', 'queryEntities', 'getEntityProperties'],
-  layer: ['addGeoJsonLayer', 'listLayers', 'removeLayer', 'clearAll', 'setLayerVisibility', 'updateLayerStyle', 'setBasemap'],
+  layer: ['addGeoJsonLayer', 'listLayers', 'getLayerSchema', 'removeLayer', 'clearAll', 'setLayerVisibility', 'updateLayerStyle', 'setBasemap'],
   camera: ['lookAtTransform', 'startOrbit', 'stopOrbit', 'setCameraOptions'],
   'entity-ext': ['addBillboard', 'addBox', 'addCorridor', 'addCylinder', 'addEllipse', 'addRectangle', 'addWall'],
   animation: ['createAnimation', 'controlAnimation', 'removeAnimation', 'listAnimations', 'updateAnimationPath', 'trackEntity', 'controlClock', 'setGlobeLighting'],
@@ -875,14 +875,34 @@ _registerTool(
   },
 )
 
+// — getLayerSchema
+_registerTool(
+  'getLayerSchema',
+  '获取图层的属性字段结构 — 返回字段名、类型、示例值，适用于 GeoJSON/CZML/KML/3D Tiles 图层',
+  {
+    layerId: z.string().describe('图层ID（可通过 listLayers 获取）'),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Get Layer Schema' },
+  async (params) => {
+    const result = await sendToBrowser('getLayerSchema', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
+  },
+)
+
 // — updateLayerStyle
 _registerTool(
   'updateLayerStyle',
-  '修改已有图层的样式（颜色、透明度、标注样式等）',
+  '修改已有图层的样式（颜色、透明度、标注样式、3D Tiles 样式等）',
   {
     layerId: z.string().describe('图层ID'),
     labelStyle: z.record(z.unknown()).optional().describe('标注样式（font, fillColor, outlineColor, outlineWidth, scale 等）'),
     layerStyle: z.record(z.unknown()).optional().describe('图层样式（color, opacity, strokeWidth, pointSize）'),
+    tileStyle: z.object({
+      color: z.string().optional().describe('3D Tiles 颜色表达式，如 "color(\'red\')" 或条件表达式'),
+      show: z.string().optional().describe('3D Tiles 显示条件表达式，如 "${Height} > 50"'),
+      pointSize: z.string().optional().describe('3D Tiles 点大小表达式'),
+      meta: z.record(z.string()).optional().describe('3D Tiles meta 属性'),
+    }).optional().describe('3D Tiles 样式（Cesium3DTileStyle 表达式）'),
   },
   { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Update Layer Style' },
   async (params) => {

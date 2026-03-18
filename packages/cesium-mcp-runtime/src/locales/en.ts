@@ -27,9 +27,10 @@ export const toolDescriptions: Record<string, string> = {
   // — layer
   addGeoJsonLayer: 'Add GeoJSON layer to map (supports Point/Line/Polygon, configurable color/choropleth/category rendering). data and url are mutually exclusive',
   listLayers: 'Get current layer list (with ID, name, type, visibility)',
+  getLayerSchema: 'Get layer field schema — returns field names, types, sample values. Works with GeoJSON/CZML/KML/3D Tiles layers',
   removeLayer: 'Remove a layer from map by layer ID',
   setLayerVisibility: 'Set layer visibility',
-  updateLayerStyle: 'Update layer style (color, opacity, label style, etc.)',
+  updateLayerStyle: 'Update layer style (color, opacity, label style, 3D Tiles style, etc.)',
   setBasemap: 'Switch basemap style (dark/satellite/standard)',
 
   // — camera
@@ -190,6 +191,9 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     style: 'Style config (color, opacity, pointSize, choropleth, category)',
   },
   listLayers: {},
+  getLayerSchema: {
+    layerId: 'Layer ID (get via listLayers)',
+  },
   removeLayer: {
     id: 'Layer ID to remove (get via listLayers)',
   },
@@ -201,6 +205,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     layerId: 'Layer ID',
     labelStyle: 'Label style (font, fillColor, outlineColor, outlineWidth, scale, etc.)',
     layerStyle: 'Layer style (color, opacity, strokeWidth, pointSize)',
+    tileStyle: '3D Tiles style (Cesium3DTileStyle expressions: color, show, pointSize, meta)',
   },
   setBasemap: {
     basemap: 'Basemap type: dark=dark theme, satellite=satellite imagery, standard=standard',

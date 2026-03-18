@@ -3,6 +3,7 @@ import type {
   AddGeoJsonLayerParams, AddHeatmapParams, LayerInfo, SetBasemapParams,
   CategoryStyle, Load3dTilesParams, LoadTerrainParams, LoadImageryServiceParams,
   LoadCzmlParams, LoadKmlParams, UpdateLayerStyleParams,
+  GetLayerSchemaParams, LayerSchemaResult, LayerSchemaField,
 } from '../types'
 import { parseColor } from '../utils'
 
@@ -117,6 +118,41 @@ export class LayerManager {
       }
     }
 
+    // 为贴地 polygon 添加 polyline 描边（clampToGround 下 polygon outline 不支持）
+    const strokeWidth = style?.strokeWidth ?? 3
+    for (let i = 0; i < entities.length; i++) {
+      const e = entities[i]!
+      if (e.polygon) {
+        const hierarchy = e.polygon.hierarchy?.getValue(Cesium.JulianDate.now())
+        if (hierarchy?.positions) {
+          const positions = [...hierarchy.positions, hierarchy.positions[0]]
+          ds.entities.add({
+            polyline: {
+              positions,
+              width: strokeWidth,
+              material: cesiumColor,
+              clampToGround: true,
+            },
+          })
+          // 处理内环
+          if (hierarchy.holes) {
+            for (const hole of hierarchy.holes) {
+              if (hole.positions) {
+                ds.entities.add({
+                  polyline: {
+                    positions: [...hole.positions, hole.positions[0]],
+                    width: strokeWidth,
+                    material: cesiumColor,
+                    clampToGround: true,
+                  },
+                })
+              }
+            }
+          }
+        }
+      }
+    }
+
     // choropleth 分级着色
     const choropleth = style?.choropleth
     if (choropleth?.field && choropleth?.breaks && choropleth?.colors) {
@@ -127,6 +163,16 @@ export class LayerManager {
     const category = style?.category
     if (category?.field) {
       applyCategoryStyle(ds, category.field, category.colors, opacity)
+    }
+
+    // 随机色填充
+    if (style?.randomColor) {
+      applyRandomColorStyle(ds, opacity)
+    }
+
+    // 渐变色填充
+    if (style?.gradient) {
+      applyGradientStyle(ds, style.gradient, opacity)
     }
 
     this._viewer.dataSources.add(ds)
@@ -370,11 +416,106 @@ export class LayerManager {
       return true
     }
 
+    // 3D Tiles 样式更新
+    const ts = params.tileStyle
+    if (ts && refs?.tileset) {
+      const styleObj: Record<string, unknown> = {}
+      if (ts.color) styleObj.color = ts.color
+      if (ts.show) styleObj.show = ts.show
+      if (ts.pointSize) styleObj.pointSize = ts.pointSize
+      if (ts.meta) Object.assign(styleObj, { meta: ts.meta })
+      refs.tileset.style = new Cesium.Cesium3DTileStyle(styleObj)
+      if (ts.color) layer.color = ts.color
+      return true
+    }
+
     return false
   }
 
   listLayers(): LayerInfo[] {
     return this._layers.map(({ id, name, type, visible, color, dataRefId }) => ({ id, name, type, visible, color, dataRefId }))
+  }
+
+  getLayerSchema(params: GetLayerSchemaParams): LayerSchemaResult {
+    const layer = this._layers.find(l => l.id === params.layerId)
+    if (!layer) throw new Error(`Layer not found: ${params.layerId}`)
+
+    const refs = this._cesiumRefs.get(params.layerId)
+
+    // 3D Tiles: 从已加载瓦片的 feature batch table 中提取字段
+    if (refs?.tileset) {
+      return this._getTilesetSchema(params.layerId, layer.name, refs.tileset)
+    }
+
+    const ds = refs?.dataSource
+    if (!ds) throw new Error(`Layer '${params.layerId}' has no DataSource or Tileset`)
+
+    const entities = ds.entities.values
+    // 从首个有属性的实体中采集字段
+    const fieldMap = new Map<string, LayerSchemaField>()
+    for (const e of entities) {
+      if (!e.properties) continue
+      for (const name of e.properties.propertyNames) {
+        if (fieldMap.has(name)) continue
+        const val = e.properties[name]?.getValue?.(Cesium.JulianDate.now())
+        fieldMap.set(name, {
+          name,
+          type: val === null || val === undefined ? 'unknown' : Array.isArray(val) ? 'array' : typeof val,
+          sample: val,
+        })
+      }
+      // 一旦采集到字段就可以停止（所有实体字段结构一致）
+      if (fieldMap.size > 0) break
+    }
+
+    return {
+      layerId: params.layerId,
+      layerName: layer.name,
+      entityCount: entities.length,
+      fields: Array.from(fieldMap.values()),
+    }
+  }
+
+  private _getTilesetSchema(layerId: string, layerName: string, tileset: Cesium.Cesium3DTileset): LayerSchemaResult {
+    const fieldMap = new Map<string, LayerSchemaField>()
+
+    // 方式1：从 tileset.properties（tileset.json 中的 properties 声明）
+    const props = (tileset as any).properties
+    if (props && typeof props === 'object') {
+      for (const key of Object.keys(props)) {
+        const meta = props[key]
+        fieldMap.set(key, {
+          name: key,
+          type: meta?.type ?? (meta?.minimum !== undefined ? 'number' : 'unknown'),
+          sample: meta?.minimum ?? meta?.maximum ?? undefined,
+        })
+      }
+    }
+
+    // 方式2：从已加载的 root tile content 的 feature batch table
+    const root = tileset.root
+    if (root?.content && typeof root.content.featuresLength === 'number' && root.content.featuresLength > 0) {
+      const feature = root.content.getFeature(0) as Cesium.Cesium3DTileFeature
+      if (feature && typeof feature.getPropertyIds === 'function') {
+        const ids = feature.getPropertyIds()
+        for (const id of ids) {
+          if (fieldMap.has(id)) continue
+          const val = feature.getProperty(id)
+          fieldMap.set(id, {
+            name: id,
+            type: val === null || val === undefined ? 'unknown' : Array.isArray(val) ? 'array' : typeof val,
+            sample: val,
+          })
+        }
+      }
+    }
+
+    return {
+      layerId,
+      layerName,
+      entityCount: -1, // 3D Tiles 不提供精确实体数
+      fields: Array.from(fieldMap.values()),
+    }
   }
 
   clearAll(): { removedLayers: number; removedEntities: number } {
@@ -722,6 +863,51 @@ function applyCategoryStyle(
       entity.polyline.material = new Cesium.ColorMaterialProperty(fillColor)
       entity.polyline.width = new Cesium.ConstantProperty(3)
     }
+  }
+}
+
+function applyRandomColorStyle(ds: Cesium.GeoJsonDataSource, opacity: number) {
+  const entities = ds.entities.values
+  for (const entity of entities) {
+    const hue = Math.random()
+    const sat = 0.5 + Math.random() * 0.4
+    const light = 0.4 + Math.random() * 0.25
+    const fillColor = Cesium.Color.fromHsl(hue, sat, light, opacity)
+    const strokeColor = Cesium.Color.fromHsl(hue, sat, light, Math.min(opacity + 0.3, 1))
+    applyColorToEntity(entity, fillColor, strokeColor)
+  }
+}
+
+function applyGradientStyle(
+  ds: Cesium.GeoJsonDataSource,
+  gradient: [string, string],
+  opacity: number,
+) {
+  const startColor = parseColor(gradient[0])
+  const endColor = parseColor(gradient[1])
+  const entities = ds.entities.values
+  const total = Math.max(entities.length - 1, 1)
+  for (let i = 0; i < entities.length; i++) {
+    const t = i / total
+    const r = startColor.red + (endColor.red - startColor.red) * t
+    const g = startColor.green + (endColor.green - startColor.green) * t
+    const b = startColor.blue + (endColor.blue - startColor.blue) * t
+    const fillColor = new Cesium.Color(r, g, b, opacity)
+    const strokeColor = new Cesium.Color(r, g, b, Math.min(opacity + 0.3, 1))
+    applyColorToEntity(entities[i]!, fillColor, strokeColor)
+  }
+}
+
+function applyColorToEntity(entity: Cesium.Entity, fillColor: Cesium.Color, strokeColor: Cesium.Color) {
+  if (entity.polygon) {
+    entity.polygon.material = new Cesium.ColorMaterialProperty(fillColor)
+    entity.polygon.outlineColor = new Cesium.ConstantProperty(strokeColor)
+  } else if (entity.polyline) {
+    entity.polyline.material = new Cesium.ColorMaterialProperty(fillColor)
+  } else if (entity.point) {
+    entity.point.color = new Cesium.ConstantProperty(fillColor)
+  } else if (entity.billboard) {
+    entity.billboard.color = new Cesium.ConstantProperty(fillColor)
   }
 }
 
