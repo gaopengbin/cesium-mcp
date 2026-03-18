@@ -1,5 +1,14 @@
 # cesium-mcp-runtime
 
+## 1.139.8
+
+### Patch Changes
+
+- feat: 9 new tools — getEntityProperties, clearAll, getLayerSchema, loadCzml, loadKml, measure, exportScene, setSceneOptions, setPostProcess
+- feat: 3D Tiles styling support in updateLayerStyle (color, conditional, show filter)
+- feat: enhanced GeoJSON styling — strokeWidth, randomColor, gradient/choropleth
+- docs: comprehensive documentation update — 58 tools / 12 toolsets
+
 ## 1.139.7
 
 ### Patch Changes

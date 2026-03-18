@@ -1,6 +1,6 @@
 # cesium-mcp-runtime
 
-> MCP 服务器（stdio）— 49 个工具（11 个工具集）+ 2 个资源，支持动态发现。
+> MCP 服务器（stdio）— 58 个工具（12 个工具集）+ 2 个资源，支持动态发现。
 
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 
@@ -64,24 +64,25 @@ cesium-mcp-runtime
 }
 ```
 
-## MCP 工具（43 + 2 元工具）
+## MCP 工具（58 + 2 元工具）
 
-工具按 **11 个工具集** 组织。默认启用 4 个核心工具集（约 24 个工具）。设置 `CESIUM_TOOLSETS=all` 启用全部，或由 AI 在运行时动态发现和激活。
+工具按 **12 个工具集** 组织。默认启用 4 个核心工具集（约 31 个工具）。设置 `CESIUM_TOOLSETS=all` 启用全部，或由 AI 在运行时动态发现和激活。
 
 ### 工具集
 
 | 工具集 | 工具数 | 默认启用 | 描述 |
 |--------|--------|----------|------|
-| `view` | 7 | 是 | 相机视角控制 + 视点书签 |
-| `entity` | 9 | 是 | 核心实体操作 + 批量与查询 |
-| `layer` | 6 | 是 | 图层管理 |
-| `interaction` | 2 | 是 | 截图与高亮 |
+| `view` | 8 | 是 | 相机视角控制 + 视点书签 + 场景导出 |
+| `entity` | 10 | 是 | 核心实体操作 + 批量、查询与属性查看 |
+| `layer` | 8 | 是 | 图层管理（GeoJSON、Schema、样式、底图） |
+| `interaction` | 3 | 是 | 截图、高亮与测量 |
 | `camera` | 4 | — | 高级相机控制（环绕、注视） |
 | `entity-ext` | 7 | — | 扩展实体类型（盒体、柱体、墙等） |
-| `animation` | 8 | — | 动画系统（路径点、时钟、追踪） |
-| `tiles` | 3 | — | 3D Tiles、地形、影像服务 |
+| `animation` | 8 | — | 动画系统（路径点、时钟、追踪、光照） |
+| `tiles` | 5 | — | 3D Tiles、地形、影像服务、CZML 与 KML |
 | `trajectory` | 1 | — | 轨迹回放 |
 | `heatmap` | 1 | — | 热力图可视化 |
+| `scene` | 2 | — | 场景选项与后处理效果 |
 | `geolocation` | 1 | — | 地理编码 — 将地址/地名转换为坐标（Nominatim/OSM） |
 
 ### 动态发现
@@ -165,6 +166,14 @@ cesium-mcp-runtime
 列出所有已保存的视点书签。无参数。
 
 **返回值：** `[{ name, state: ViewState }]`
+
+#### `exportScene`
+
+将当前场景中的所有实体和图层导出为结构化 JSON 快照。
+
+无参数。
+
+**返回值：** `{ entities: [...], layers: [...], camera: ViewState }`
 
 ### 实体
 
@@ -278,6 +287,16 @@ cesium-mcp-runtime
 
 **返回值：** `[{ entityId, name?, type, position? }]`
 
+#### `getEntityProperties`
+
+获取指定实体的所有属性。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `entityId` | `string` | ✅ | — | 实体 ID |
+
+**返回值：** `{ entityId, name, type, position?, properties }`
+
 ### 图层
 
 #### `addGeoJsonLayer`
@@ -290,10 +309,9 @@ cesium-mcp-runtime
 | `url` | `string` | — | — | GeoJSON 文件 URL（浏览器端加载） |
 | `id` | `string` | — | 自动 | 图层 ID |
 | `name` | `string` | — | — | 显示名称 |
-| `style` | `object` | — | — | 样式配置（color, opacity, pointSize, choropleth, category） |
+| `style` | `object` | — | — | 样式配置（color, opacity, pointSize, strokeWidth, randomColor, gradient, choropleth, category） |
 
 > `data` 和 `url` 至少提供其一。
-| `style` | `object` | — | — | 样式配置（color, opacity, pointSize, choropleth, category） |
 
 #### `listLayers`
 
@@ -308,6 +326,10 @@ cesium-mcp-runtime
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
 | `id` | `string` | ✅ | — | 图层 ID |
+
+#### `clearAll`
+
+移除所有图层、实体和数据源。无参数。
 
 #### `setLayerVisibility`
 
@@ -327,6 +349,17 @@ cesium-mcp-runtime
 | `layerId` | `string` | ✅ | — | 图层 ID |
 | `labelStyle` | `object` | — | — | 标注样式（font, fillColor, outlineColor, outlineWidth, scale） |
 | `layerStyle` | `object` | — | — | 图层样式（color, opacity, strokeWidth, pointSize） |
+| `tileStyle` | `object` | — | — | 3D Tiles 样式（Cesium3DTileStyle 表达式：color, show, pointSize, meta） |
+
+#### `getLayerSchema`
+
+获取图层属性字段结构（GeoJSON DataSource 或 3D Tiles 批量表）。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `layerId` | `string` | ✅ | — | 图层 ID |
+
+**返回值：** `{ layerId, layerName, entityCount, fields: [{ name, type, sample? }] }`
 
 #### `setBasemap`
 
@@ -618,6 +651,35 @@ cesium-mcp-runtime
 | `layerName` | `string` | — | — | WMS/WMTS 图层名 |
 | `opacity` | `number` | — | `1.0` | 透明度（0–1） |
 
+#### `loadCzml`
+
+加载 CZML 时间动态数据源（内联数据数组或远程 URL）。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `data` | `unknown[]` | — | — | CZML 数据包数组（内联） |
+| `url` | `string` | — | — | CZML 文件 URL |
+| `id` | `string` | — | 自动 | 图层 ID |
+| `name` | `string` | — | — | 显示名称 |
+| `sourceUri` | `string` | — | — | 相对引用的基础 URI |
+| `clampToGround` | `boolean` | — | `false` | 是否贴地 |
+
+> `data` 和 `url` 至少提供其一。
+
+#### `loadKml`
+
+加载 KML/KMZ 数据源（内联字符串或远程 URL）。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `data` | `string` | — | — | KML 文档字符串（内联） |
+| `url` | `string` | — | — | KML/KMZ 文件 URL |
+| `id` | `string` | — | 自动 | 图层 ID |
+| `name` | `string` | — | — | 显示名称 |
+| `clampToGround` | `boolean` | — | `false` | 是否贴地 |
+
+> `data` 和 `url` 至少提供其一。
+
 ### 交互
 
 #### `screenshot`
@@ -635,6 +697,62 @@ cesium-mcp-runtime
 | `layerId` | `string` | ✅ | — | 图层 ID |
 | `featureIndex` | `number` | — | — | 要素索引（省略则高亮全部） |
 | `color` | `string` | — | `"#FFFF00"` | 高亮颜色 |
+
+#### `measure`
+
+测量地球表面上两点间的距离或多点围成的面积。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `type` | `string` | ✅ | — | `"distance"` \| `"area"` |
+| `coordinates` | `number[][]` | ✅ | — | 坐标点 `[[lon, lat], ...]`（距离需 2 个点，面积需 3+ 个点） |
+
+**返回值：** `{ type, value, unit, coordinates }`
+
+### 场景
+
+#### `setSceneOptions`
+
+配置场景环境（雾效、大气、阴影、太阳、月亮、背景色、深度测试）。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `fogEnabled` | `boolean` | — | — | 启用/禁用雾效 |
+| `fogDensity` | `number` | — | `0.0002` | 雾密度（0.0–1.0） |
+| `fogMinimumBrightness` | `number` | — | — | 最小雾亮度（0.0–1.0） |
+| `skyAtmosphereShow` | `boolean` | — | — | 显示天空大气 |
+| `skyAtmosphereHueShift` | `number` | — | — | 天空色调偏移（-1.0–1.0） |
+| `skyAtmosphereSaturationShift` | `number` | — | — | 天空饱和度偏移（-1.0–1.0） |
+| `skyAtmosphereBrightnessShift` | `number` | — | — | 天空亮度偏移（-1.0–1.0） |
+| `groundAtmosphereShow` | `boolean` | — | — | 显示地面大气 |
+| `shadowsEnabled` | `boolean` | — | — | 启用阴影 |
+| `shadowsSoftShadows` | `boolean` | — | — | 使用柔和阴影 |
+| `shadowsDarkness` | `number` | — | — | 阴影深度（0.0–1.0） |
+| `sunShow` | `boolean` | — | — | 显示太阳 |
+| `sunGlowFactor` | `number` | — | `1.0` | 太阳光晕系数 |
+| `moonShow` | `boolean` | — | — | 显示月亮 |
+| `depthTestAgainstTerrain` | `boolean` | — | — | 地形深度测试 |
+| `backgroundColor` | `string` | — | — | 背景颜色（CSS 格式） |
+
+#### `setPostProcess`
+
+配置后处理效果（泛光、环境光遮蔽 SSAO、抗锯齿 FXAA）。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `bloom` | `boolean` | — | — | 启用泛光效果 |
+| `bloomContrast` | `number` | — | `128` | 泛光对比度 |
+| `bloomBrightness` | `number` | — | `-0.3` | 泛光亮度 |
+| `bloomDelta` | `number` | — | `1.0` | 泛光 delta |
+| `bloomSigma` | `number` | — | `3.78` | 泛光 sigma |
+| `bloomStepSize` | `number` | — | `5.0` | 泛光步长 |
+| `bloomGlowOnly` | `boolean` | — | — | 仅显示光晕 |
+| `ambientOcclusion` | `boolean` | — | — | 启用环境光遮蔽（SSAO） |
+| `aoIntensity` | `number` | — | `3.0` | AO 强度 |
+| `aoBias` | `number` | — | `0.1` | AO 偏差 |
+| `aoLengthCap` | `number` | — | `0.26` | AO 长度上限 |
+| `aoStepSize` | `number` | — | `1.95` | AO 步长 |
+| `fxaa` | `boolean` | — | — | 启用 FXAA 抗锯齿 |
 
 ### 其他
 

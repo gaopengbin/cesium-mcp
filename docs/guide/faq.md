@@ -39,7 +39,7 @@ The runtime can't find a connected browser session.
 
 ### Only some tools are available
 
-By default, only core toolsets are enabled. To enable all 49 tools:
+By default, only core toolsets are enabled. To enable all 58 tools:
 
 ```bash
 CESIUM_TOOLSETS=all npx cesium-mcp-runtime

@@ -40,7 +40,7 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 | Package | Description | npm |
 |---------|-------------|-----|
 | [cesium-mcp-bridge](packages/cesium-mcp-bridge/) | Browser SDK — embeds in your CesiumJS app, receives commands via WebSocket | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP Server (stdio) — 49 tools (11 toolsets) + 2 resources, dynamic discovery | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP Server (stdio) — 58 tools (12 toolsets) + 2 resources, dynamic discovery | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [cesium-mcp-dev](packages/cesium-mcp-dev/) | IDE MCP Server — CesiumJS API helper for coding assistants | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 ## Architecture
@@ -98,22 +98,23 @@ Now ask your AI: *"Fly to the Eiffel Tower and add a red marker"*
 
 ## 49 Available Tools
 
-Tools are organized into **11 toolsets**. Default mode enables 4 core toolsets (~24 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically at runtime.
+Tools are organized into **12 toolsets**. Default mode enables 4 core toolsets (~31 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically at runtime.
 
 > **i18n**: Tool descriptions default to English. Set `CESIUM_LOCALE=zh-CN` for Chinese.
 
 | Toolset | Tools |
 |---------|-------|
-| **view** (default) | `flyTo`, `setView`, `getView`, `zoomToExtent`, `saveViewpoint`, `loadViewpoint`, `listViewpoints` |
-| **entity** (default) | `addMarker`, `addLabel`, `addModel`, `addPolygon`, `addPolyline`, `updateEntity`, `removeEntity`, `batchAddEntities`, `queryEntities` |
-| **layer** (default) | `addGeoJsonLayer`, `listLayers`, `removeLayer`, `setLayerVisibility`, `updateLayerStyle`, `setBasemap` |
-| **interaction** (default) | `screenshot`, `highlight` |
+| **view** (default) | `flyTo`, `setView`, `getView`, `zoomToExtent`, `saveViewpoint`, `loadViewpoint`, `listViewpoints`, `exportScene` |
+| **entity** (default) | `addMarker`, `addLabel`, `addModel`, `addPolygon`, `addPolyline`, `updateEntity`, `removeEntity`, `batchAddEntities`, `queryEntities`, `getEntityProperties` |
+| **layer** (default) | `addGeoJsonLayer`, `listLayers`, `removeLayer`, `clearAll`, `setLayerVisibility`, `updateLayerStyle`, `getLayerSchema`, `setBasemap` |
+| **interaction** (default) | `screenshot`, `highlight`, `measure` |
 | camera | `lookAtTransform`, `startOrbit`, `stopOrbit`, `setCameraOptions` |
 | entity-ext | `addBillboard`, `addBox`, `addCorridor`, `addCylinder`, `addEllipse`, `addRectangle`, `addWall` |
 | animation | `createAnimation`, `controlAnimation`, `removeAnimation`, `listAnimations`, `updateAnimationPath`, `trackEntity`, `controlClock`, `setGlobeLighting` |
-| tiles | `load3dTiles`, `loadTerrain`, `loadImageryService` |
+| tiles | `load3dTiles`, `loadTerrain`, `loadImageryService`, `loadCzml`, `loadKml` |
 | trajectory | `playTrajectory` |
 | heatmap | `addHeatmap` |
+| scene | `setSceneOptions`, `setPostProcess` |
 | geolocation | `geocode` |
 
 > **Relationship with CesiumGS official MCP servers**: The `camera`, `entity-ext`, and `animation` toolsets natively fuse capabilities from [CesiumGS/cesium-mcp-server](https://github.com/CesiumGS/cesium-mcp-server) (Camera Server, Entity Server, Animation Server) into this project's unified bridge architecture. This means you get all official functionality plus additional tools — in a single MCP server, without running multiple processes.

@@ -151,6 +151,6 @@ This example includes a CesiumJS Viewer with the bridge pre-configured, ready fo
 ## Next Steps
 
 - [Architecture](/guide/architecture) — understand the three-package design
-- [Bridge API](/api/bridge) — all 49 commands
+- [Bridge API](/api/bridge) — all 58 commands
 - [Runtime API](/api/runtime) — MCP tools and resources
 - [Dev API](/api/dev) — IDE coding assistance tools

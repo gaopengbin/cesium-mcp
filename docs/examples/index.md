@@ -38,6 +38,41 @@ The agent calls `flyTo` with `{ longitude: -74.006, latitude: 40.7128, height: 1
 }
 ```
 
+> "Load GeoJSON with gradient coloring by population"
+
+```json
+{
+  "tool": "addGeoJsonLayer",
+  "params": {
+    "url": "https://example.com/provinces.geojson",
+    "name": "Province Population",
+    "style": {
+      "gradient": {
+        "field": "population",
+        "stops": [
+          { "value": 0, "color": "#ffffcc" },
+          { "value": 50000000, "color": "#fd8d3c" },
+          { "value": 100000000, "color": "#bd0026" }
+        ]
+      },
+      "strokeWidth": 2
+    }
+  }
+}
+```
+
+> "Get the schema of a loaded GeoJSON layer"
+
+```json
+{
+  "tool": "getLayerSchema",
+  "params": { "layerId": "geojson_123456" }
+}
+```
+
+**Returns:** `{ layerId: "geojson_123456", layerName: "Provinces", entityCount: 34, fields: [{ name: "name", type: "string", sample: "Beijing" }, ...] }`
+```
+
 > "Add a heatmap showing population density"
 
 ```json
@@ -64,6 +99,44 @@ The agent calls `flyTo` with `{ longitude: -74.006, latitude: 40.7128, height: 1
   "params": {
     "url": "https://assets.cesium.com/96188/tileset.json",
     "name": "NYC Buildings"
+  }
+}
+```
+
+> "Color the 3D buildings yellow"
+
+```json
+{
+  "tool": "updateLayerStyle",
+  "params": {
+    "layerId": "3dtiles_xxx",
+    "tileStyle": {
+      "color": "color('yellow')"
+    }
+  }
+}
+```
+
+> "Load a CZML animation"
+
+```json
+{
+  "tool": "loadCzml",
+  "params": {
+    "url": "https://example.com/satellite-orbit.czml",
+    "name": "Satellite Orbit"
+  }
+}
+```
+
+> "Load a KML file"
+
+```json
+{
+  "tool": "loadKml",
+  "params": {
+    "url": "https://example.com/landmarks.kml",
+    "name": "Landmarks"
   }
 }
 ```
@@ -130,6 +203,46 @@ The agent calls `screenshot` and receives a base64-encoded image.
 > "What layers are currently loaded?"
 
 The agent reads the `cesium://scene/layers` resource.
+
+### Measurement
+
+> "Measure the distance from Beijing to Shanghai"
+
+```json
+{
+  "tool": "measure",
+  "params": {
+    "type": "distance",
+    "coordinates": [[116.4, 39.9], [121.47, 31.23]]
+  }
+}
+```
+
+### Scene Effects
+
+> "Enable bloom glow effect"
+
+```json
+{
+  "tool": "setPostProcess",
+  "params": {
+    "bloom": true,
+    "bloomBrightness": -0.1
+  }
+}
+```
+
+> "Enable shadows and hide the moon"
+
+```json
+{
+  "tool": "setSceneOptions",
+  "params": {
+    "shadowsEnabled": true,
+    "moonShow": false
+  }
+}
+```
 
 ## Integration with GeoAgent
 

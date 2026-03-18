@@ -1,6 +1,6 @@
 # cesium-mcp-runtime
 
-> MCP Server (stdio) — 49 tools (11 toolsets) + 2 resources, with dynamic discovery.
+> MCP Server (stdio) — 58 tools (12 toolsets) + 2 resources, with dynamic discovery.
 
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 
@@ -64,24 +64,25 @@ cesium-mcp-runtime
 }
 ```
 
-## MCP Tools (43 + 2 meta)
+## MCP Tools (58 + 2 meta)
 
-Tools are organized into **11 toolsets**. By default, 4 core toolsets are enabled (~24 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically.
+Tools are organized into **12 toolsets**. By default, 4 core toolsets are enabled (~31 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically.
 
 ### Toolsets
 
 | Toolset | Tools | Default | Description |
 |---------|-------|---------|-------------|
-| `view` | 7 | Yes | Camera view controls + viewpoint bookmarks |
-| `entity` | 9 | Yes | Core entity operations + batch & query |
-| `layer` | 6 | Yes | Layer management |
-| `interaction` | 2 | Yes | Screenshot & highlight |
+| `view` | 8 | Yes | Camera view controls + viewpoint bookmarks + scene export |
+| `entity` | 10 | Yes | Core entity operations + batch, query & property inspection |
+| `layer` | 8 | Yes | Layer management (GeoJSON, schema, style, basemap) |
+| `interaction` | 3 | Yes | Screenshot, highlight & measurement |
 | `camera` | 4 | — | Advanced camera controls (orbit, lookAt) |
 | `entity-ext` | 7 | — | Extended entity types (box, cylinder, wall, etc.) |
-| `animation` | 8 | — | Animation system (waypoints, clock, tracking) |
-| `tiles` | 3 | — | 3D Tiles, terrain, imagery services |
+| `animation` | 8 | — | Animation system (waypoints, clock, tracking, lighting) |
+| `tiles` | 5 | — | 3D Tiles, terrain, imagery services, CZML & KML |
 | `trajectory` | 1 | — | Trajectory playback |
 | `heatmap` | 1 | — | Heatmap visualization |
+| `scene` | 2 | — | Scene options & post-processing |
 | `geolocation` | 1 | — | Geocoding — convert address/place name to coordinates (Nominatim/OSM) |
 
 ### Dynamic Discovery
@@ -165,6 +166,14 @@ Restore a previously saved viewpoint bookmark.
 List all saved viewpoint bookmarks. No parameters.
 
 **Returns:** `[{ name, state: ViewState }]`
+
+#### `exportScene`
+
+Export all entities and layers in the current scene as a structured JSON snapshot.
+
+No parameters.
+
+**Returns:** `{ entities: [...], layers: [...], camera: ViewState }`
 
 ### Entity
 
@@ -278,6 +287,16 @@ Search and filter entities in the scene.
 
 **Returns:** `[{ entityId, name?, type, position? }]`
 
+#### `getEntityProperties`
+
+Get all properties of a specific entity by ID.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `entityId` | `string` | ✅ | — | Entity ID |
+
+**Returns:** `{ entityId, name, type, position?, properties }`
+
 ### Layer
 
 #### `addGeoJsonLayer`
@@ -290,7 +309,7 @@ Load GeoJSON data as a layer with optional styling. Supports both inline data an
 | `url` | `string` | — | — | URL to fetch GeoJSON from (browser-side fetch) |
 | `id` | `string` | — | auto | Layer ID |
 | `name` | `string` | — | — | Display name |
-| `style` | `object` | — | — | Style config (color, opacity, pointSize, choropleth, category) |
+| `style` | `object` | — | — | Style config (color, opacity, pointSize, strokeWidth, randomColor, gradient, choropleth, category) |
 
 > Either `data` or `url` must be provided.
 
@@ -307,6 +326,10 @@ Remove a layer by ID.
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `id` | `string` | ✅ | — | Layer ID (from `listLayers`) |
+
+#### `clearAll`
+
+Remove all layers, entities, and data sources. No parameters.
 
 #### `setLayerVisibility`
 
@@ -326,6 +349,17 @@ Modify layer styling properties.
 | `layerId` | `string` | ✅ | — | Layer ID |
 | `labelStyle` | `object` | — | — | Label style (font, fillColor, outlineColor, outlineWidth, scale) |
 | `layerStyle` | `object` | — | — | Layer style (color, opacity, strokeWidth, pointSize) |
+| `tileStyle` | `object` | — | — | 3D Tiles style (Cesium3DTileStyle expressions: color, show, pointSize, meta) |
+
+#### `getLayerSchema`
+
+Get the property field structure of a layer (GeoJSON DataSource or 3D Tiles batch table).
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `layerId` | `string` | ✅ | — | Layer ID |
+
+**Returns:** `{ layerId, layerName, entityCount, fields: [{ name, type, sample? }] }`
 
 #### `setBasemap`
 
@@ -618,6 +652,35 @@ Add a WMS/WMTS/XYZ/ArcGIS imagery layer.
 | `layerName` | `string` | — | — | WMS/WMTS layer name |
 | `opacity` | `number` | — | `1.0` | Opacity (0–1) |
 
+#### `loadCzml`
+
+Load CZML time-dynamic data source (inline data array or remote URL).
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `data` | `unknown[]` | — | — | CZML packet array (inline) |
+| `url` | `string` | — | — | URL to CZML file |
+| `id` | `string` | — | auto | Layer ID |
+| `name` | `string` | — | — | Display name |
+| `sourceUri` | `string` | — | — | Base URI for relative references |
+| `clampToGround` | `boolean` | — | `false` | Clamp entities to ground |
+
+> Either `data` or `url` must be provided.
+
+#### `loadKml`
+
+Load KML/KMZ data source (inline string or remote URL).
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `data` | `string` | — | — | KML document as string (inline) |
+| `url` | `string` | — | — | URL to KML/KMZ file |
+| `id` | `string` | — | auto | Layer ID |
+| `name` | `string` | — | — | Display name |
+| `clampToGround` | `boolean` | — | `false` | Clamp entities to ground |
+
+> Either `data` or `url` must be provided.
+
 ### Interaction
 
 #### `screenshot`
@@ -635,6 +698,62 @@ Highlight specific features in a layer.
 | `layerId` | `string` | ✅ | — | Layer ID |
 | `featureIndex` | `number` | — | — | Feature index (omit to highlight all) |
 | `color` | `string` | — | `"#FFFF00"` | Highlight color (CSS) |
+
+#### `measure`
+
+Measure distance or area between points on the globe.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `type` | `string` | ✅ | — | `"distance"` \| `"area"` |
+| `coordinates` | `number[][]` | ✅ | — | Points `[[lon, lat], ...]` (2 for distance, 3+ for area) |
+
+**Returns:** `{ type, value, unit, coordinates }`
+
+### Scene
+
+#### `setSceneOptions`
+
+Configure scene environment (fog, atmosphere, shadows, sun, moon, background color, depth testing).
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `fogEnabled` | `boolean` | — | — | Enable/disable fog |
+| `fogDensity` | `number` | — | `0.0002` | Fog density (0.0–1.0) |
+| `fogMinimumBrightness` | `number` | — | — | Minimum fog brightness (0.0–1.0) |
+| `skyAtmosphereShow` | `boolean` | — | — | Show sky atmosphere |
+| `skyAtmosphereHueShift` | `number` | — | — | Sky hue shift (-1.0–1.0) |
+| `skyAtmosphereSaturationShift` | `number` | — | — | Sky saturation shift (-1.0–1.0) |
+| `skyAtmosphereBrightnessShift` | `number` | — | — | Sky brightness shift (-1.0–1.0) |
+| `groundAtmosphereShow` | `boolean` | — | — | Show ground atmosphere |
+| `shadowsEnabled` | `boolean` | — | — | Enable shadows |
+| `shadowsSoftShadows` | `boolean` | — | — | Use soft shadows |
+| `shadowsDarkness` | `number` | — | — | Shadow darkness (0.0–1.0) |
+| `sunShow` | `boolean` | — | — | Show the sun |
+| `sunGlowFactor` | `number` | — | `1.0` | Sun glow factor |
+| `moonShow` | `boolean` | — | — | Show the moon |
+| `depthTestAgainstTerrain` | `boolean` | — | — | Depth test against terrain |
+| `backgroundColor` | `string` | — | — | Background color (CSS format) |
+
+#### `setPostProcess`
+
+Configure post-processing effects (bloom, SSAO, FXAA).
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `bloom` | `boolean` | — | — | Enable bloom glow effect |
+| `bloomContrast` | `number` | — | `128` | Bloom contrast |
+| `bloomBrightness` | `number` | — | `-0.3` | Bloom brightness |
+| `bloomDelta` | `number` | — | `1.0` | Bloom delta |
+| `bloomSigma` | `number` | — | `3.78` | Bloom sigma |
+| `bloomStepSize` | `number` | — | `5.0` | Bloom step size |
+| `bloomGlowOnly` | `boolean` | — | — | Show only the glow |
+| `ambientOcclusion` | `boolean` | — | — | Enable ambient occlusion (SSAO) |
+| `aoIntensity` | `number` | — | `3.0` | AO intensity |
+| `aoBias` | `number` | — | `0.1` | AO bias |
+| `aoLengthCap` | `number` | — | `0.26` | AO length cap |
+| `aoStepSize` | `number` | — | `1.95` | AO step size |
+| `fxaa` | `boolean` | — | — | Enable FXAA anti-aliasing |
 
 ### Other
 

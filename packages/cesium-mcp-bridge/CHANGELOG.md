@@ -1,5 +1,13 @@
 # cesium-mcp-bridge
 
+## 1.139.8
+
+### Patch Changes
+
+- feat: 9 new commands — getEntityProperties, clearAll, getLayerSchema, loadCzml, loadKml, measure, exportScene, setSceneOptions, setPostProcess
+- feat: 3D Tiles styling support in updateLayerStyle
+- docs: comprehensive documentation update
+
 ## 1.139.7
 
 ### Patch Changes

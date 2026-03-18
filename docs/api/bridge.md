@@ -24,7 +24,7 @@ const bridge = new CesiumBridge(viewer, {
 })
 ```
 
-## Commands (49)
+## Commands (58)
 
 ### View Control
 
@@ -37,6 +37,7 @@ const bridge = new CesiumBridge(viewer, {
 | `saveViewpoint` | Save current view as named bookmark | `name` |
 | `loadViewpoint` | Restore a saved viewpoint bookmark | `name`, `duration` |
 | `listViewpoints` | List all saved viewpoint bookmarks | — |
+| `exportScene` | Export scene as structured JSON snapshot | — |
 
 ### Entity
 
@@ -51,6 +52,7 @@ const bridge = new CesiumBridge(viewer, {
 | `removeEntity` | Remove a single entity | `entityId` |
 | `batchAddEntities` | Add multiple entities at once | `entities` (array of typed defs) |
 | `queryEntities` | Search/filter entities in scene | `name`, `type`, `bbox` |
+| `getEntityProperties` | Get all properties of an entity | `entityId` |
 
 ### Layer Management
 
@@ -59,8 +61,10 @@ const bridge = new CesiumBridge(viewer, {
 | `addGeoJsonLayer` | Load GeoJSON data | `url` or `data`, `name`, `style` |
 | `listLayers` | List all loaded layers | — |
 | `removeLayer` | Remove a layer by ID | `layerId` |
+| `clearAll` | Remove all layers, entities, and data sources | — |
 | `setLayerVisibility` | Show/hide a layer | `layerId`, `visible` |
-| `updateLayerStyle` | Change layer styling | `layerId`, `style` |
+| `updateLayerStyle` | Change layer styling | `layerId`, `style`, `tileStyle` |
+| `getLayerSchema` | Get layer property field structure | `layerId` |
 | `setBasemap` | Switch imagery base layer | `provider`, `url` |
 
 ### Camera (advanced)
@@ -104,6 +108,8 @@ const bridge = new CesiumBridge(viewer, {
 | `load3dTiles` | Load 3D Tileset | `url`, `name`, `maximumScreenSpaceError` |
 | `loadTerrain` | Set terrain provider | `url`, `provider` |
 | `loadImageryService` | Add imagery layer | `url`, `provider`, `name` |
+| `loadCzml` | Load CZML time-dynamic data | `data` or `url`, `name` |
+| `loadKml` | Load KML/KMZ data | `data` or `url`, `name` |
 
 ### Interaction
 
@@ -111,6 +117,7 @@ const bridge = new CesiumBridge(viewer, {
 |---------|-------------|----------------|
 | `screenshot` | Capture current view | `width`, `height`, `format` |
 | `highlight` | Highlight features | `layerId`, `featureId`, `color` |
+| `measure` | Measure distance or area | `type`, `coordinates` |
 
 ### Other
 
@@ -118,6 +125,13 @@ const bridge = new CesiumBridge(viewer, {
 |---------|-------------|----------------|
 | `playTrajectory` | Animate along a path | `positions`, `duration`, `loop` |
 | `addHeatmap` | Create heatmap visualization | `points`, `name`, `radius`, `gradient` |
+
+### Scene
+
+| Command | Description | Key Parameters |
+|---------|-------------|----------------|
+| `setSceneOptions` | Configure scene environment | `fogEnabled`, `shadowsEnabled`, `sunShow`, `backgroundColor` |
+| `setPostProcess` | Configure post-processing effects | `bloom`, `ambientOcclusion`, `fxaa` |
 
 ## Two Calling Styles
 
@@ -200,5 +214,18 @@ import type {
   SetGlobeLightingParams,
   AnimationWaypoint,
   AnimationInfo,
+  // Layer Schema & Style
+  GetLayerSchemaParams,
+  LayerSchemaResult,
+  LayerSchemaField,
+  UpdateLayerStyleParams,
+  // Scene
+  SetSceneOptionsParams,
+  SetPostProcessParams,
+  // Data Formats
+  LoadCzmlParams,
+  LoadKmlParams,
+  // Interaction
+  MeasureParams,
 } from 'cesium-mcp-bridge'
 ```

@@ -24,7 +24,7 @@ const bridge = new CesiumBridge(viewer, {
 })
 ```
 
-## 命令（49 个）
+## 命令（58 个）
 
 ### 视图控制
 
@@ -37,6 +37,7 @@ const bridge = new CesiumBridge(viewer, {
 | `saveViewpoint` | 保存当前视角为命名书签 | `name` |
 | `loadViewpoint` | 恢复已保存的视点书签 | `name`, `duration` |
 | `listViewpoints` | 列出所有视点书签 | — |
+| `exportScene` | 导出场景为结构化 JSON 快照 | — |
 
 ### 实体
 
@@ -51,6 +52,7 @@ const bridge = new CesiumBridge(viewer, {
 | `removeEntity` | 移除单个实体 | `entityId` |
 | `batchAddEntities` | 批量添加多个实体 | `entities`（类型化定义数组） |
 | `queryEntities` | 搜索/筛选场景中的实体 | `name`, `type`, `bbox` |
+| `getEntityProperties` | 获取实体的所有属性 | `entityId` |
 
 ### 图层管理
 
@@ -59,8 +61,10 @@ const bridge = new CesiumBridge(viewer, {
 | `addGeoJsonLayer` | 加载 GeoJSON 数据 | `url` 或 `data`, `name`, `style` |
 | `listLayers` | 列出所有已加载图层 | — |
 | `removeLayer` | 按 ID 移除图层 | `layerId` |
+| `clearAll` | 移除所有图层、实体和数据源 | — |
 | `setLayerVisibility` | 显示/隐藏图层 | `layerId`, `visible` |
-| `updateLayerStyle` | 修改图层样式 | `layerId`, `style` |
+| `updateLayerStyle` | 修改图层样式 | `layerId`, `style`, `tileStyle` |
+| `getLayerSchema` | 获取图层属性字段结构 | `layerId` |
 | `setBasemap` | 切换底图影像 | `provider`, `url` |
 
 ### 高级相机
@@ -104,6 +108,8 @@ const bridge = new CesiumBridge(viewer, {
 | `load3dTiles` | 加载 3D Tileset | `url`, `name`, `maximumScreenSpaceError` |
 | `loadTerrain` | 设置地形提供者 | `url`, `provider` |
 | `loadImageryService` | 添加影像图层 | `url`, `provider`, `name` |
+| `loadCzml` | 加载 CZML 时间动态数据 | `data` 或 `url`, `name` |
+| `loadKml` | 加载 KML/KMZ 数据 | `data` 或 `url`, `name` |
 
 ### 交互
 
@@ -111,6 +117,7 @@ const bridge = new CesiumBridge(viewer, {
 |------|------|----------|
 | `screenshot` | 截取当前视图 | `width`, `height`, `format` |
 | `highlight` | 高亮要素 | `layerId`, `featureId`, `color` |
+| `measure` | 测量距离或面积 | `type`, `coordinates` |
 
 ### 其他
 
@@ -118,6 +125,13 @@ const bridge = new CesiumBridge(viewer, {
 |------|------|----------|
 | `playTrajectory` | 沿路径播放动画 | `positions`, `duration`, `loop` |
 | `addHeatmap` | 创建热力图可视化 | `points`, `name`, `radius`, `gradient` |
+
+### 场景
+
+| 命令 | 描述 | 关键参数 |
+|------|------|----------|
+| `setSceneOptions` | 配置场景环境 | `fogEnabled`, `shadowsEnabled`, `sunShow`, `backgroundColor` |
+| `setPostProcess` | 配置后处理效果 | `bloom`, `ambientOcclusion`, `fxaa` |
 
 ## 两种调用方式
 
@@ -194,5 +208,18 @@ import type {
   SetGlobeLightingParams,
   AnimationWaypoint,
   AnimationInfo,
+  // 图层 Schema 与样式
+  GetLayerSchemaParams,
+  LayerSchemaResult,
+  LayerSchemaField,
+  UpdateLayerStyleParams,
+  // 场景
+  SetSceneOptionsParams,
+  SetPostProcessParams,
+  // 数据格式
+  LoadCzmlParams,
+  LoadKmlParams,
+  // 交互
+  MeasureParams,
 } from 'cesium-mcp-bridge'
 ```

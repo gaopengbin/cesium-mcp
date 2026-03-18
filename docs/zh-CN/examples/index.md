@@ -38,6 +38,41 @@ cd cesium-mcp/examples/minimal
 }
 ```
 
+> "加载 GeoJSON 并按人口渐变着色"
+
+```json
+{
+  "tool": "addGeoJsonLayer",
+  "params": {
+    "url": "https://example.com/provinces.geojson",
+    "name": "省份人口",
+    "style": {
+      "gradient": {
+        "field": "population",
+        "stops": [
+          { "value": 0, "color": "#ffffcc" },
+          { "value": 50000000, "color": "#fd8d3c" },
+          { "value": 100000000, "color": "#bd0026" }
+        ]
+      },
+      "strokeWidth": 2
+    }
+  }
+}
+```
+
+> "获取已加载 GeoJSON 图层的字段结构"
+
+```json
+{
+  "tool": "getLayerSchema",
+  "params": { "layerId": "geojson_123456" }
+}
+```
+
+**返回：** `{ layerId: "geojson_123456", layerName: "省份", entityCount: 34, fields: [{ name: "name", type: "string", sample: "北京" }, ...] }`
+```
+
 > "添加一个人口密度热力图"
 
 ```json
@@ -64,6 +99,44 @@ cd cesium-mcp/examples/minimal
   "params": {
     "url": "https://assets.cesium.com/96188/tileset.json",
     "name": "NYC Buildings"
+  }
+}
+```
+
+> "把 3D 建筑染成黄色"
+
+```json
+{
+  "tool": "updateLayerStyle",
+  "params": {
+    "layerId": "3dtiles_xxx",
+    "tileStyle": {
+      "color": "color('yellow')"
+    }
+  }
+}
+```
+
+> "加载 CZML 动画"
+
+```json
+{
+  "tool": "loadCzml",
+  "params": {
+    "url": "https://example.com/satellite-orbit.czml",
+    "name": "卫星轨道"
+  }
+}
+```
+
+> "加载 KML 文件"
+
+```json
+{
+  "tool": "loadKml",
+  "params": {
+    "url": "https://example.com/landmarks.kml",
+    "name": "地标"
   }
 }
 ```
@@ -130,6 +203,46 @@ cd cesium-mcp/examples/minimal
 > "当前加载了哪些图层？"
 
 智能体读取 `cesium://scene/layers` 资源。
+
+### 测量
+
+> "测量北京到上海的距离"
+
+```json
+{
+  "tool": "measure",
+  "params": {
+    "type": "distance",
+    "coordinates": [[116.4, 39.9], [121.47, 31.23]]
+  }
+}
+```
+
+### 场景效果
+
+> "开启泛光效果"
+
+```json
+{
+  "tool": "setPostProcess",
+  "params": {
+    "bloom": true,
+    "bloomBrightness": -0.1
+  }
+}
+```
+
+> "开启阴影并隐藏月亮"
+
+```json
+{
+  "tool": "setSceneOptions",
+  "params": {
+    "shadowsEnabled": true,
+    "moonShow": false
+  }
+}
+```
 
 ## GeoAgent 集成
 

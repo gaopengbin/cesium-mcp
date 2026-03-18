@@ -110,7 +110,7 @@ The bridge runs **inside the browser** alongside your CesiumJS application. It:
 
 The runtime is a **Node.js MCP server** that acts as a translator between the AI agent and the browser. It:
 
-- Exposes **49 MCP tools** (organized into **11 toolsets**) + 2 resources via stdio
+- Exposes **58 MCP tools** (organized into **12 toolsets**) + 2 resources via stdio
 - Runs a WebSocket + HTTP server (default port 9100)
 - Translates MCP tool calls into bridge commands
 - Supports multi-session routing for multiple browser tabs
@@ -151,7 +151,7 @@ The dev server is a standalone **IDE assistant** that doesn't require a running 
 
 ## Toolsets & Dynamic Discovery
 
-49 tools are organized into **11 toolsets** to manage LLM tool selection complexity:
+58 tools are organized into **12 toolsets** to manage LLM tool selection complexity:
 
 | Toolset | Tools | Default |
 |---------|-------|---------|

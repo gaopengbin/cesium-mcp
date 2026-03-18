@@ -78,24 +78,25 @@ In `.cursor/mcp.json`:
 }
 ```
 
-## MCP Tools (43 + 2 meta)
+## MCP Tools (58 + 2 meta)
 
-Tools are organized into **11 toolsets**. By default, 4 core toolsets are enabled (~24 tools). Additional toolsets can be activated via environment variable or dynamically by the AI agent at runtime.
+Tools are organized into **12 toolsets**. By default, 4 core toolsets are enabled (~31 tools). Additional toolsets can be activated via environment variable or dynamically by the AI agent at runtime.
 
 ### Toolsets Overview
 
 | Toolset | Tools | Default | Description |
 |---------|-------|---------|-------------|
-| `view` | 7 | Yes | Camera view controls + viewpoint bookmarks |
-| `entity` | 9 | Yes | Core entity operations + batch & query |
-| `layer` | 6 | Yes | Layer management |
-| `interaction` | 2 | Yes | Screenshot & highlight |
+| `view` | 8 | Yes | Camera view controls + viewpoint bookmarks + scene export |
+| `entity` | 10 | Yes | Core entity operations + batch, query & property inspection |
+| `layer` | 8 | Yes | Layer management (GeoJSON, schema, style, basemap) |
+| `interaction` | 3 | Yes | Screenshot, highlight & measurement |
 | `camera` | 4 | — | Advanced camera controls (orbit, lookAt) |
 | `entity-ext` | 7 | — | Extended entity types (box, cylinder, wall, etc.) |
-| `animation` | 8 | — | Animation system (waypoints, clock, tracking) |
-| `tiles` | 3 | — | 3D Tiles, terrain, imagery services |
+| `animation` | 8 | — | Animation system (waypoints, clock, tracking, lighting) |
+| `tiles` | 5 | — | 3D Tiles, terrain, imagery services, CZML & KML |
 | `trajectory` | 1 | — | Trajectory playback |
 | `heatmap` | 1 | — | Heatmap visualization |
+| `scene` | 2 | — | Scene options & post-processing |
 | `geolocation` | 1 | — | Geocoding — convert address/place name to coordinates (Nominatim/OSM) |
 
 ### Toolset Configuration
@@ -116,9 +117,9 @@ Tools are organized into **11 toolsets**. By default, 4 core toolsets are enable
 
 | `CESIUM_TOOLSETS` value | Result |
 |-------------------------|--------|
-| *(not set)* | Default 4 toolsets (19 tools + 2 meta-tools) |
+| *(not set)* | Default 4 toolsets (~31 tools + 2 meta-tools) |
 | `view,entity,camera,animation` | Only specified toolsets + 2 meta-tools |
-| `all` | All 49 tools, no meta-tools |
+| `all` | All 58 tools, no meta-tools |
 
 ### Dynamic Discovery (meta-tools)
 
