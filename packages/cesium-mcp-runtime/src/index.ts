@@ -342,6 +342,7 @@ const TOOLSETS: Record<string, string[]> = {
   camera: ['lookAtTransform', 'startOrbit', 'stopOrbit', 'setCameraOptions'],
   'entity-ext': ['addBillboard', 'addBox', 'addCorridor', 'addCylinder', 'addEllipse', 'addRectangle', 'addWall'],
   animation: ['createAnimation', 'controlAnimation', 'removeAnimation', 'listAnimations', 'updateAnimationPath', 'trackEntity', 'controlClock', 'setGlobeLighting'],
+  scene: ['setSceneOptions', 'setPostProcess'],
   tiles: ['load3dTiles', 'loadTerrain', 'loadImageryService'],
   interaction: ['screenshot', 'highlight'],
   trajectory: ['playTrajectory'],
@@ -356,6 +357,7 @@ const TOOLSET_DESCRIPTIONS: Record<string, string> = {
   camera: 'Advanced camera controls (lookAt, orbit, camera options)',
   'entity-ext': 'Extended entity types (billboard, box, corridor, cylinder, ellipse, rectangle, wall)',
   animation: 'Animation system (create/control animations, track entities, clock, lighting)',
+  scene: 'Scene environment and post-processing (fog, atmosphere, shadows, bloom, SSAO, FXAA)',
   tiles: '3D Tiles, terrain, and imagery services',
   interaction: 'User interaction (screenshot, highlight)',
   trajectory: 'Trajectory playback',
@@ -1322,6 +1324,61 @@ _registerTool(
   { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Set Globe Lighting' },
   async (params) => {
     const result = await sendToBrowser('setGlobeLighting', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — setSceneOptions
+_registerTool(
+  'setSceneOptions',
+  'Configure scene environment (fog, atmosphere, shadows, sun, moon, background color, depth testing)',
+  {
+    fogEnabled: z.boolean().optional().describe('Enable/disable fog'),
+    fogDensity: z.number().optional().describe('Fog density (0.0~1.0, default ~0.0002)'),
+    fogMinimumBrightness: z.number().optional().describe('Minimum fog brightness (0.0~1.0)'),
+    skyAtmosphereShow: z.boolean().optional().describe('Show sky atmosphere'),
+    skyAtmosphereHueShift: z.number().optional().describe('Sky hue shift (-1.0~1.0)'),
+    skyAtmosphereSaturationShift: z.number().optional().describe('Sky saturation shift (-1.0~1.0)'),
+    skyAtmosphereBrightnessShift: z.number().optional().describe('Sky brightness shift (-1.0~1.0)'),
+    groundAtmosphereShow: z.boolean().optional().describe('Show ground atmosphere'),
+    shadowsEnabled: z.boolean().optional().describe('Enable shadows'),
+    shadowsSoftShadows: z.boolean().optional().describe('Use soft shadows'),
+    shadowsDarkness: z.number().optional().describe('Shadow darkness (0.0=no shadow, 1.0=fully dark)'),
+    sunShow: z.boolean().optional().describe('Show the sun'),
+    sunGlowFactor: z.number().optional().describe('Sun glow factor (default 1.0)'),
+    moonShow: z.boolean().optional().describe('Show the moon'),
+    depthTestAgainstTerrain: z.boolean().optional().describe('Enable depth test against terrain (entities behind terrain are hidden)'),
+    backgroundColor: z.string().optional().describe('Scene background color (CSS format, e.g. "#000000")'),
+  },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Set Scene Options' },
+  async (params) => {
+    const result = await sendToBrowser('setSceneOptions', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — setPostProcess
+_registerTool(
+  'setPostProcess',
+  'Configure post-processing effects (bloom glow, ambient occlusion SSAO, anti-aliasing FXAA)',
+  {
+    bloom: z.boolean().optional().describe('Enable bloom glow effect'),
+    bloomContrast: z.number().optional().describe('Bloom contrast (default 128)'),
+    bloomBrightness: z.number().optional().describe('Bloom brightness (default -0.3)'),
+    bloomDelta: z.number().optional().describe('Bloom delta (default 1.0)'),
+    bloomSigma: z.number().optional().describe('Bloom sigma (default 3.78)'),
+    bloomStepSize: z.number().optional().describe('Bloom step size (default 5.0)'),
+    bloomGlowOnly: z.boolean().optional().describe('Show only the glow (no base scene)'),
+    ambientOcclusion: z.boolean().optional().describe('Enable ambient occlusion (SSAO)'),
+    aoIntensity: z.number().optional().describe('AO intensity (default 3.0)'),
+    aoBias: z.number().optional().describe('AO bias (default 0.1)'),
+    aoLengthCap: z.number().optional().describe('AO length cap (default 0.26)'),
+    aoStepSize: z.number().optional().describe('AO step size (default 1.95)'),
+    fxaa: z.boolean().optional().describe('Enable FXAA anti-aliasing'),
+  },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Set Post-Processing' },
+  async (params) => {
+    const result = await sendToBrowser('setPostProcess', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
   },
 )

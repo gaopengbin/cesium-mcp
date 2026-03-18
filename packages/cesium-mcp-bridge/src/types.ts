@@ -482,6 +482,43 @@ export interface SetGlobeLightingParams {
   dynamicAtmosphereLightingFromSun?: boolean
 }
 
+// ==================== Scene & Post-Processing ====================
+
+export interface SetSceneOptionsParams {
+  fogEnabled?: boolean
+  fogDensity?: number
+  fogMinimumBrightness?: number
+  skyAtmosphereShow?: boolean
+  skyAtmosphereHueShift?: number
+  skyAtmosphereSaturationShift?: number
+  skyAtmosphereBrightnessShift?: number
+  groundAtmosphereShow?: boolean
+  shadowsEnabled?: boolean
+  shadowsSoftShadows?: boolean
+  shadowsDarkness?: number
+  sunShow?: boolean
+  sunGlowFactor?: number
+  moonShow?: boolean
+  depthTestAgainstTerrain?: boolean
+  backgroundColor?: string
+}
+
+export interface SetPostProcessParams {
+  bloom?: boolean
+  bloomContrast?: number
+  bloomBrightness?: number
+  bloomDelta?: number
+  bloomSigma?: number
+  bloomStepSize?: number
+  bloomGlowOnly?: boolean
+  ambientOcclusion?: boolean
+  aoIntensity?: number
+  aoBias?: number
+  aoLengthCap?: number
+  aoStepSize?: number
+  fxaa?: boolean
+}
+
 export interface AnimationInfo {
   entityId: string
   name?: string

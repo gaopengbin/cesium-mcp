@@ -43,6 +43,8 @@ import type {
   TrackEntityParams,
   ControlClockParams,
   SetGlobeLightingParams,
+  SetSceneOptionsParams,
+  SetPostProcessParams,
   BatchAddEntitiesParams,
   QueryEntitiesParams,
   SaveViewpointParams,
@@ -56,6 +58,7 @@ import { playTrajectory as playTrajectoryCmd } from './commands/trajectory'
 import { lookAtTransform as lookAtTransformCmd, startOrbit as startOrbitCmd, stopOrbit as stopOrbitCmd, setCameraOptions as setCameraOptionsCmd, type OrbitHandler } from './commands/camera'
 import { addBillboard as addBillboardCmd, addBox as addBoxCmd, addCorridor as addCorridorCmd, addCylinder as addCylinderCmd, addEllipse as addEllipseCmd, addRectangle as addRectangleCmd, addWall as addWallCmd } from './commands/entity-types'
 import { createAnimation as createAnimationCmd, controlAnimation as controlAnimationCmd, removeAnimation as removeAnimationCmd, listAnimations as listAnimationsCmd, updateAnimationPath as updateAnimationPathCmd, trackEntity as trackEntityCmd, controlClock as controlClockCmd, setGlobeLighting as setGlobeLightingCmd, type AnimationMap } from './commands/animation'
+import { setSceneOptions as setSceneOptionsCmd, setPostProcess as setPostProcessCmd } from './commands/scene'
 
 /**
  * CesiumBridge — AI Agent 操控 Cesium 的统一执行层
@@ -248,6 +251,13 @@ export class CesiumBridge {
         case 'setGlobeLighting':
           this.setGlobeLighting(p as SetGlobeLightingParams)
           return { success: true, message: 'Globe lighting updated' }
+        // ==================== Scene & Post-Processing ====================
+        case 'setSceneOptions':
+          this.setSceneOptions(p as SetSceneOptionsParams)
+          return { success: true, message: 'Scene options updated' }
+        case 'setPostProcess':
+          this.setPostProcess(p as SetPostProcessParams)
+          return { success: true, message: 'Post-processing effects updated' }
         // ==================== Batch & Query ====================
         case 'batchAddEntities': {
           const result = this.batchAddEntities(p as BatchAddEntitiesParams)
@@ -685,6 +695,16 @@ export class CesiumBridge {
 
   setGlobeLighting(params: SetGlobeLightingParams): void {
     setGlobeLightingCmd(this._viewer, params)
+  }
+
+  // ==================== Scene & Post-Processing ====================
+
+  setSceneOptions(params: SetSceneOptionsParams): void {
+    setSceneOptionsCmd(this._viewer, params)
+  }
+
+  setPostProcess(params: SetPostProcessParams): void {
+    setPostProcessCmd(this._viewer, params)
   }
 
   // ==================== Batch & Query ====================

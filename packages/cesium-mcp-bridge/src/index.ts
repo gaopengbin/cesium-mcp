@@ -56,6 +56,8 @@ export type {
   TrackEntityParams,
   ControlClockParams,
   SetGlobeLightingParams,
+  SetSceneOptionsParams,
+  SetPostProcessParams,
   AnimationInfo,
   // Batch & Query
   BatchEntityDef,
