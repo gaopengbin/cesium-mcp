@@ -29,7 +29,7 @@ vi.mock('cesium', () => ({
   default: {},
 }))
 
-import { computeFeatureCentroid, centroidOfCoords, batchAddEntities, queryEntities } from './entity.js'
+import { computeFeatureCentroid, centroidOfCoords, batchAddEntities, queryEntities, getEntityProperties } from './entity.js'
 
 // ==================== batchAddEntities ====================
 
@@ -335,5 +335,118 @@ describe('computeFeatureCentroid', () => {
       geometry: { type: 'GeometryCollection', geometries: [] },
     }
     expect(computeFeatureCentroid(feature)).toBeNull()
+  })
+})
+
+// ==================== getEntityProperties ====================
+
+describe('getEntityProperties', () => {
+  function makeViewer(entities: any[]) {
+    return {
+      entities: {
+        values: entities,
+        getById: (id: string) => entities.find(e => e.id === id) ?? undefined,
+      },
+    } as any
+  }
+
+  function makeEntity(overrides: {
+    id: string
+    name?: string
+    type: string
+    lon?: number
+    lat?: number
+    height?: number
+    customProps?: Record<string, unknown>
+    graphicOverrides?: Record<string, any>
+  }) {
+    const entity: any = {
+      id: overrides.id,
+      name: overrides.name,
+    }
+    const typeMap: Record<string, string> = {
+      marker: 'point', billboard: 'billboard', polyline: 'polyline',
+      polygon: 'polygon', model: 'model', box: 'box', cylinder: 'cylinder',
+      ellipse: 'ellipse', rectangle: 'rectangle', wall: 'wall', corridor: 'corridor', label: 'label',
+    }
+    const cesiumProp = typeMap[overrides.type]
+    if (cesiumProp) {
+      entity[cesiumProp] = overrides.graphicOverrides ?? {}
+    }
+
+    if (overrides.lon != null) {
+      entity.position = {
+        getValue: () => ({
+          _lon: overrides.lon,
+          _lat: overrides.lat,
+          _h: overrides.height ?? 0,
+        }),
+      }
+    }
+
+    if (overrides.customProps) {
+      entity.properties = {
+        propertyNames: Object.keys(overrides.customProps),
+      }
+      for (const [k, v] of Object.entries(overrides.customProps)) {
+        entity.properties[k] = { getValue: () => v }
+      }
+    }
+
+    return entity
+  }
+
+  it('should throw for non-existent entity', () => {
+    const viewer = makeViewer([])
+    expect(() => getEntityProperties(viewer, { entityId: 'nope' })).toThrow('Entity not found: nope')
+  })
+
+  it('should return type and position for a marker', () => {
+    const e = makeEntity({ id: 'm1', name: 'Test Marker', type: 'marker', lon: 116.4, lat: 39.9, height: 100 })
+    const viewer = makeViewer([e])
+    const result = getEntityProperties(viewer, { entityId: 'm1' })
+    expect(result.entityId).toBe('m1')
+    expect(result.name).toBe('Test Marker')
+    expect(result.type).toBe('marker')
+    expect(result.position).toBeDefined()
+    expect(result.position!.longitude).toBeCloseTo(116.4, 1)
+    expect(result.position!.latitude).toBeCloseTo(39.9, 1)
+    expect(result.position!.height).toBeCloseTo(100, 0)
+  })
+
+  it('should return custom properties', () => {
+    const e = makeEntity({ id: 'p1', type: 'polygon', customProps: { population: 1000000, city: 'Beijing' } })
+    const viewer = makeViewer([e])
+    const result = getEntityProperties(viewer, { entityId: 'p1' })
+    expect(result.properties.population).toBe(1000000)
+    expect(result.properties.city).toBe('Beijing')
+  })
+
+  it('should return empty properties when entity has none', () => {
+    const e = makeEntity({ id: 'e1', type: 'polyline' })
+    const viewer = makeViewer([e])
+    const result = getEntityProperties(viewer, { entityId: 'e1' })
+    expect(result.properties).toEqual({})
+  })
+
+  it('should detect polygon type', () => {
+    const e = makeEntity({ id: 'pg1', type: 'polygon' })
+    const viewer = makeViewer([e])
+    const result = getEntityProperties(viewer, { entityId: 'pg1' })
+    expect(result.type).toBe('polygon')
+  })
+
+  it('should detect model type', () => {
+    const e = makeEntity({ id: 'md1', type: 'model' })
+    const viewer = makeViewer([e])
+    const result = getEntityProperties(viewer, { entityId: 'md1' })
+    expect(result.type).toBe('model')
+  })
+
+  it('should handle entity without position', () => {
+    const e = makeEntity({ id: 'np1', type: 'billboard' })
+    const viewer = makeViewer([e])
+    const result = getEntityProperties(viewer, { entityId: 'np1' })
+    expect(result.position).toBeUndefined()
   })
 })

@@ -405,6 +405,20 @@ export class LayerManager {
     return this._layers.map(({ id, name, type, visible, color, dataRefId }) => ({ id, name, type, visible, color, dataRefId }))
   }
 
+  clearAll(): { removedLayers: number; removedEntities: number } {
+    const removedLayers = this._layers.length
+    // 逐个移除所有已注册图层
+    const ids = this._layers.map(l => l.id)
+    for (const id of ids) {
+      this.removeLayer(id)
+    }
+    // 清除可能残留的非图层实体
+    const removedEntities = this._viewer.entities.values.length
+    this._viewer.entities.removeAll()
+    this._viewer.dataSources.removeAll(true)
+    return { removedLayers, removedEntities }
+  }
+
   /** 更新图层列表引用（供外部响应式框架使用） */
   setLayersRef(layers: LayerInfo[]): void {
     this._layers = layers

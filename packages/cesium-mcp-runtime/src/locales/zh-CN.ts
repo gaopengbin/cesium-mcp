@@ -73,6 +73,15 @@ export const toolDescriptions: Record<string, string> = {
   highlight: '高亮指定图层的要素',
   measure: '测量距离或面积（基于坐标计算，可在地图上显示）',
 
+  // — clear
+  clearAll: '清除地图上的所有图层、实体、动画和轨迹（一键重置场景）',
+
+  // — entity inspection
+  getEntityProperties: '获取指定实体的详细属性 — 包括类型、位置、自定义属性和图形属性',
+
+  // — scene export
+  exportScene: '导出当前场景快照 — 包含视角、图层列表、实体列表和时间戳',
+
   // — trajectory
   playTrajectory: '播放移动轨迹动画',
 
@@ -206,6 +215,9 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     positions: '坐标数组 [[经度, 纬度, 高度?], ...]',
     showOnMap: '是否在地图上显示测量结果',
     id: '自定义测量实体ID',
+  },
+  getEntityProperties: {
+    entityId: '实体ID（可通过 queryEntities 获取）',
   },
   lookAtTransform: {
     longitude: '目标经度（度）',

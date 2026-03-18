@@ -336,9 +336,9 @@ server.resource(
 // ==================== Toolsets (工具分组管理) ====================
 
 const TOOLSETS: Record<string, string[]> = {
-  view: ['flyTo', 'setView', 'getView', 'zoomToExtent', 'saveViewpoint', 'loadViewpoint', 'listViewpoints'],
-  entity: ['addMarker', 'addLabel', 'addModel', 'addPolygon', 'addPolyline', 'updateEntity', 'removeEntity', 'batchAddEntities', 'queryEntities'],
-  layer: ['addGeoJsonLayer', 'listLayers', 'removeLayer', 'setLayerVisibility', 'updateLayerStyle', 'setBasemap'],
+  view: ['flyTo', 'setView', 'getView', 'zoomToExtent', 'saveViewpoint', 'loadViewpoint', 'listViewpoints', 'exportScene'],
+  entity: ['addMarker', 'addLabel', 'addModel', 'addPolygon', 'addPolyline', 'updateEntity', 'removeEntity', 'batchAddEntities', 'queryEntities', 'getEntityProperties'],
+  layer: ['addGeoJsonLayer', 'listLayers', 'removeLayer', 'clearAll', 'setLayerVisibility', 'updateLayerStyle', 'setBasemap'],
   camera: ['lookAtTransform', 'startOrbit', 'stopOrbit', 'setCameraOptions'],
   'entity-ext': ['addBillboard', 'addBox', 'addCorridor', 'addCylinder', 'addEllipse', 'addRectangle', 'addWall'],
   animation: ['createAnimation', 'controlAnimation', 'removeAnimation', 'listAnimations', 'updateAnimationPath', 'trackEntity', 'controlClock', 'setGlobeLighting'],
@@ -351,9 +351,9 @@ const TOOLSETS: Record<string, string[]> = {
 }
 
 const TOOLSET_DESCRIPTIONS: Record<string, string> = {
-  view: 'Camera view controls (flyTo, setView, getView, zoomToExtent) and viewpoint bookmarks (save, load, list)',
-  entity: 'Core entity operations (marker, label, model, polygon, polyline, update, remove) plus batch add and query',
-  layer: 'Layer management (GeoJSON, list, remove, visibility, style, basemap)',
+  view: 'Camera view controls (flyTo, setView, getView, zoomToExtent), viewpoint bookmarks (save, load, list), and scene export',
+  entity: 'Core entity operations (marker, label, model, polygon, polyline, update, remove) plus batch add, query, and property inspection',
+  layer: 'Layer management (GeoJSON, list, remove, clear all, visibility, style, basemap)',
   camera: 'Advanced camera controls (lookAt, orbit, camera options)',
   'entity-ext': 'Extended entity types (billboard, box, corridor, cylinder, ellipse, rectangle, wall)',
   animation: 'Animation system (create/control animations, track entities, clock, lighting)',
@@ -507,6 +507,18 @@ _registerTool(
   { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false, title: 'Remove Layer' },
   async (params) => {
     const result = await sendToBrowser('removeLayer', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — clearAll
+_registerTool(
+  'clearAll',
+  '清除地图上的所有图层、实体、动画和轨迹（一键重置场景）',
+  {},
+  { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false, title: 'Clear All' },
+  async () => {
+    const result = await sendToBrowser('clearAll', {})
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
   },
 )
@@ -769,6 +781,20 @@ _registerTool(
   },
 )
 
+// — getEntityProperties
+_registerTool(
+  'getEntityProperties',
+  '获取指定实体的详细属性 — 包括类型、位置、自定义属性和图形属性',
+  {
+    entityId: z.string().describe('实体ID（可通过 queryEntities 获取）'),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Get Entity Properties' },
+  async (params) => {
+    const result = await sendToBrowser('getEntityProperties', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
 // — saveViewpoint
 _registerTool(
   'saveViewpoint',
@@ -806,6 +832,18 @@ _registerTool(
   { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'List Viewpoints' },
   async () => {
     const result = await sendToBrowser('listViewpoints', {})
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — exportScene
+_registerTool(
+  'exportScene',
+  '导出当前场景快照 — 包含视角、图层列表、实体列表和时间戳',
+  {},
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Export Scene' },
+  async () => {
+    const result = await sendToBrowser('exportScene', {})
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
   },
 )

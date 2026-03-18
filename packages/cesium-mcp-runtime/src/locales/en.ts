@@ -73,6 +73,15 @@ export const toolDescriptions: Record<string, string> = {
   highlight: 'Highlight features in a layer',
   measure: 'Measure distance or area (coordinate-based calculation, optionally displayed on map)',
 
+  // — clear
+  clearAll: 'Clear all layers, entities, animations, and trajectories from the map (reset scene)',
+
+  // — entity inspection
+  getEntityProperties: 'Get detailed properties of a specific entity — type, position, custom properties, and graphic properties',
+
+  // — scene export
+  exportScene: 'Export current scene snapshot — includes camera view, layer list, entity list, and timestamp',
+
   // — trajectory
   playTrajectory: 'Play a moving trajectory animation',
 
@@ -206,6 +215,9 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     positions: 'Coordinate array [[lon, lat, alt?], ...]',
     showOnMap: 'Whether to display measurement result on map',
     id: 'Custom measurement entity ID',
+  },
+  getEntityProperties: {
+    entityId: 'Entity ID (obtainable via queryEntities)',
   },
   lookAtTransform: {
     longitude: 'Target longitude (degrees)',

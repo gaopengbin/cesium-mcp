@@ -34,6 +34,10 @@ export type {
   HighlightParams,
   MeasureParams,
   MeasureResult,
+  ClearAllResult,
+  GetEntityPropertiesParams,
+  EntityPropertiesResult,
+  ExportSceneResult,
   UpdateLayerStyleParams,
   // Camera (融合官方)
   LookAtTransformParams,

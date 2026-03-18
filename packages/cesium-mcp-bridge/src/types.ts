@@ -287,6 +287,37 @@ export interface MeasureResult {
   id?: string
 }
 
+// ==================== Clear All ====================
+
+export interface ClearAllResult {
+  removedLayers: number
+  removedEntities: number
+}
+
+// ==================== Get Entity Properties ====================
+
+export interface GetEntityPropertiesParams {
+  entityId: string
+}
+
+export interface EntityPropertiesResult {
+  entityId: string
+  name?: string
+  type: string
+  position?: { longitude: number; latitude: number; height: number }
+  properties: Record<string, unknown>
+  graphicProperties: Record<string, unknown>
+}
+
+// ==================== Export Scene ====================
+
+export interface ExportSceneResult {
+  view: ViewState
+  layers: LayerInfo[]
+  entities: QueryEntityResult[]
+  timestamp: string
+}
+
 // ==================== Event ====================
 
 export type BridgeEventType = 'layerAdded' | 'layerRemoved' | 'viewChanged' | 'error'

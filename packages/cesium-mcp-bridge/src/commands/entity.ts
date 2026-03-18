@@ -1,5 +1,5 @@
 import * as Cesium from 'cesium'
-import type { AddLabelParams, AddMarkerParams, AddPolylineParams, AddPolygonParams, AddModelParams, UpdateEntityParams, BatchEntityDef, QueryEntitiesParams, QueryEntityResult } from '../types'
+import type { AddLabelParams, AddMarkerParams, AddPolylineParams, AddPolygonParams, AddModelParams, UpdateEntityParams, BatchEntityDef, QueryEntitiesParams, QueryEntityResult, GetEntityPropertiesParams, EntityPropertiesResult } from '../types'
 import { parseColor, validateCoordinate } from '../utils'
 
 /**
@@ -382,6 +382,169 @@ export function queryEntities(viewer: Cesium.Viewer, params: QueryEntitiesParams
     })
   }
   return results
+}
+
+// ==================== getEntityProperties ====================
+
+function detectEntityType(entity: Cesium.Entity): string {
+  if (entity.point) return 'marker'
+  if (entity.billboard) return 'billboard'
+  if (entity.polyline) return 'polyline'
+  if (entity.polygon) return 'polygon'
+  if (entity.model) return 'model'
+  if (entity.box) return 'box'
+  if (entity.cylinder) return 'cylinder'
+  if (entity.ellipse) return 'ellipse'
+  if (entity.rectangle) return 'rectangle'
+  if (entity.wall) return 'wall'
+  if (entity.corridor) return 'corridor'
+  if (entity.label && !entity.point) return 'label'
+  return 'unknown'
+}
+
+function extractGraphicProperties(entity: Cesium.Entity, type: string): Record<string, unknown> {
+  const now = Cesium.JulianDate.now()
+  const props: Record<string, unknown> = {}
+
+  const tryGetValue = (prop: any) => {
+    if (prop == null) return undefined
+    if (typeof prop.getValue === 'function') return prop.getValue(now)
+    return prop
+  }
+
+  const extractColor = (colorProp: any): string | undefined => {
+    const c = tryGetValue(colorProp)
+    if (c && typeof c.toCssColorString === 'function') return c.toCssColorString()
+    return undefined
+  }
+
+  switch (type) {
+    case 'marker': {
+      const pt = entity.point!
+      props.pixelSize = tryGetValue(pt.pixelSize)
+      props.color = extractColor(pt.color)
+      props.outlineColor = extractColor(pt.outlineColor)
+      props.outlineWidth = tryGetValue(pt.outlineWidth)
+      break
+    }
+    case 'polyline': {
+      const pl = entity.polyline!
+      props.width = tryGetValue(pl.width)
+      props.clampToGround = tryGetValue(pl.clampToGround)
+      break
+    }
+    case 'polygon': {
+      const pg = entity.polygon!
+      props.extrudedHeight = tryGetValue(pg.extrudedHeight)
+      props.fill = tryGetValue(pg.fill)
+      props.outline = tryGetValue(pg.outline)
+      break
+    }
+    case 'model': {
+      const m = entity.model!
+      props.scale = tryGetValue(m.scale)
+      props.minimumPixelSize = tryGetValue(m.minimumPixelSize)
+      break
+    }
+    case 'billboard': {
+      const bb = entity.billboard!
+      props.width = tryGetValue(bb.width)
+      props.height = tryGetValue(bb.height)
+      props.scale = tryGetValue(bb.scale)
+      props.rotation = tryGetValue(bb.rotation)
+      break
+    }
+    case 'label': {
+      const lb = entity.label!
+      props.text = tryGetValue(lb.text)
+      props.font = tryGetValue(lb.font)
+      props.fillColor = extractColor(lb.fillColor)
+      props.scale = tryGetValue(lb.scale)
+      break
+    }
+    case 'box': {
+      const bx = entity.box!
+      const dims = tryGetValue(bx.dimensions)
+      if (dims && 'x' in dims && 'y' in dims && 'z' in dims) {
+        props.dimensions = { x: dims.x, y: dims.y, z: dims.z }
+      }
+      break
+    }
+    case 'cylinder': {
+      const cy = entity.cylinder!
+      props.length = tryGetValue(cy.length)
+      props.topRadius = tryGetValue(cy.topRadius)
+      props.bottomRadius = tryGetValue(cy.bottomRadius)
+      break
+    }
+    case 'ellipse': {
+      const el = entity.ellipse!
+      props.semiMajorAxis = tryGetValue(el.semiMajorAxis)
+      props.semiMinorAxis = tryGetValue(el.semiMinorAxis)
+      break
+    }
+    case 'rectangle': {
+      const rc = entity.rectangle!
+      const rect = tryGetValue(rc.coordinates)
+      if (rect && 'west' in rect && 'south' in rect && 'east' in rect && 'north' in rect) {
+        props.coordinates = {
+          west: Cesium.Math.toDegrees(rect.west),
+          south: Cesium.Math.toDegrees(rect.south),
+          east: Cesium.Math.toDegrees(rect.east),
+          north: Cesium.Math.toDegrees(rect.north),
+        }
+      }
+      break
+    }
+  }
+
+  // 移除 undefined 值
+  for (const key of Object.keys(props)) {
+    if (props[key] === undefined) delete props[key]
+  }
+  return props
+}
+
+export function getEntityProperties(viewer: Cesium.Viewer, params: GetEntityPropertiesParams): EntityPropertiesResult {
+  const entity = viewer.entities.getById(params.entityId)
+  if (!entity) throw new Error(`Entity not found: ${params.entityId}`)
+
+  const type = detectEntityType(entity)
+
+  // 提取位置
+  let position: EntityPropertiesResult['position']
+  if (entity.position) {
+    const pos = entity.position.getValue(Cesium.JulianDate.now())
+    if (pos) {
+      const carto = Cesium.Cartographic.fromCartesian(pos)
+      position = {
+        longitude: Cesium.Math.toDegrees(carto.longitude),
+        latitude: Cesium.Math.toDegrees(carto.latitude),
+        height: carto.height,
+      }
+    }
+  }
+
+  // 提取自定义属性
+  const properties: Record<string, unknown> = {}
+  if (entity.properties) {
+    const names = entity.properties.propertyNames
+    for (const name of names) {
+      properties[name] = entity.properties[name]?.getValue(Cesium.JulianDate.now())
+    }
+  }
+
+  // 提取图形属性
+  const graphicProperties = extractGraphicProperties(entity, type)
+
+  return {
+    entityId: entity.id,
+    name: entity.name ?? undefined,
+    type,
+    position,
+    properties,
+    graphicProperties,
+  }
 }
 
 // ==================== Helpers ====================

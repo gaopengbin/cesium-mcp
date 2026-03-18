@@ -245,3 +245,52 @@ describe('LayerManager.loadKml', () => {
     expect(layers).toHaveLength(1)
   })
 })
+
+describe('LayerManager.clearAll', () => {
+  let viewer: any
+  let mgr: LayerManager
+
+  beforeEach(() => {
+    viewer = makeViewer()
+    viewer.entities.values = []
+    viewer.entities.removeAll = vi.fn()
+    viewer.dataSources.removeAll = vi.fn()
+    mgr = new LayerManager(viewer)
+    mockLoadCzml.mockClear()
+    mockLoadKml.mockClear()
+    mockDsEntities.length = 0
+    mockLoadCzml.mockResolvedValue(mockDataSource)
+    mockLoadKml.mockResolvedValue(mockKmlDataSource)
+  })
+
+  it('should return zero counts on empty scene', () => {
+    const result = mgr.clearAll()
+    expect(result.removedLayers).toBe(0)
+    expect(result.removedEntities).toBe(0)
+  })
+
+  it('should clear all layers after adding CZML and KML', async () => {
+    await mgr.loadCzml({ id: 'czml1', url: 'test.czml' })
+    await mgr.loadKml({ id: 'kml1', url: 'test.kml' })
+    expect(mgr.listLayers()).toHaveLength(2)
+
+    const result = mgr.clearAll()
+    expect(result.removedLayers).toBe(2)
+    expect(mgr.listLayers()).toHaveLength(0)
+  })
+
+  it('should call viewer.entities.removeAll and viewer.dataSources.removeAll', async () => {
+    await mgr.loadCzml({ id: 'czml1', url: 'test.czml' })
+    mgr.clearAll()
+    expect(viewer.entities.removeAll).toHaveBeenCalled()
+    expect(viewer.dataSources.removeAll).toHaveBeenCalledWith(true)
+  })
+
+  it('should be idempotent (calling twice is safe)', async () => {
+    await mgr.loadCzml({ id: 'czml1', url: 'test.czml' })
+    mgr.clearAll()
+    const result = mgr.clearAll()
+    expect(result.removedLayers).toBe(0)
+    expect(result.removedEntities).toBe(0)
+  })
+})

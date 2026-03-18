@@ -26,6 +26,9 @@ import type {
   HighlightParams,
   MeasureParams,
   MeasureResult,
+  GetEntityPropertiesParams,
+  EntityPropertiesResult,
+  ExportSceneResult,
   UpdateLayerStyleParams,
   LayerInfo,
   BridgeEventHandler,
@@ -56,7 +59,7 @@ import type {
 } from './types'
 import { flyTo, setView, getView, zoomToExtent, saveViewpoint, loadViewpoint, listViewpoints } from './commands/view'
 import { LayerManager } from './commands/layer'
-import { addLabels, addMarker, addPolyline, addPolygon, addModel, updateEntity, removeEntity, batchAddEntities, queryEntities } from './commands/entity'
+import { addLabels, addMarker, addPolyline, addPolygon, addModel, updateEntity, removeEntity, batchAddEntities, queryEntities, getEntityProperties } from './commands/entity'
 import { screenshot, highlight, measure } from './commands/interaction'
 import { playTrajectory as playTrajectoryCmd } from './commands/trajectory'
 import { lookAtTransform as lookAtTransformCmd, startOrbit as startOrbitCmd, stopOrbit as stopOrbitCmd, setCameraOptions as setCameraOptionsCmd, type OrbitHandler } from './commands/camera'
@@ -147,6 +150,10 @@ export class CesiumBridge {
         case 'removeLayer':
           this.removeLayer(p.id as string)
           return { success: true, message: `Layer '${p.id}' removed` }
+        case 'clearAll': {
+          const result = this.clearAll()
+          return { success: true, data: result, message: `Cleared ${result.removedLayers} layers and ${result.removedEntities} entities` }
+        }
         case 'setBasemap': {
           const basemap = this.setBasemap(p as SetBasemapParams)
           return { success: true, data: { basemap }, message: `Basemap set to '${basemap}'` }
@@ -283,6 +290,10 @@ export class CesiumBridge {
           const entities = this.queryEntities(p as QueryEntitiesParams)
           return { success: true, data: { entities }, message: `${entities.length} entities found` }
         }
+        case 'getEntityProperties': {
+          const result = this.getEntityProperties(p as GetEntityPropertiesParams)
+          return { success: true, data: result, message: `Properties for entity '${result.entityId}'` }
+        }
         // ==================== Viewpoint Bookmarks ====================
         case 'saveViewpoint': {
           const state = this.saveViewpoint(p as SaveViewpointParams)
@@ -296,6 +307,10 @@ export class CesiumBridge {
         case 'listViewpoints': {
           const viewpoints = this.listViewpoints()
           return { success: true, data: { viewpoints }, message: `${viewpoints.length} viewpoints saved` }
+        }
+        case 'exportScene': {
+          const result = this.exportScene()
+          return { success: true, data: result, message: 'Scene exported' }
         }
         default:
           return { success: false, error: `未知指令: ${cmd.action}` }
@@ -337,6 +352,25 @@ export class CesiumBridge {
   removeLayer(id: string): void {
     this._layerManager.removeLayer(id)
     this._emit('layerRemoved', { id })
+  }
+
+  clearAll(): { removedLayers: number; removedEntities: number } {
+    // 停止所有轨迹动画
+    for (const [id, t] of this._activeTrajectories) {
+      t.stop()
+    }
+    this._activeTrajectories.clear()
+    // 停止轨道动画
+    if (this._orbitHandler) {
+      stopOrbitCmd(this._orbitHandler)
+      this._orbitHandler = null
+    }
+    // 清除动画
+    this._animations.clear()
+    // 清除所有图层和实体
+    const result = this._layerManager.clearAll()
+    this._emit('layerRemoved', { id: '*' })
+    return result
   }
 
   setLayerVisibility(id: string, visible: boolean): void {
@@ -594,6 +628,10 @@ export class CesiumBridge {
     return ok
   }
 
+  getEntityProperties(params: GetEntityPropertiesParams): EntityPropertiesResult {
+    return getEntityProperties(this._viewer, params)
+  }
+
   // ==================== Interaction ====================
 
   screenshot(): Promise<ScreenshotResult> {
@@ -769,6 +807,15 @@ export class CesiumBridge {
 
   listViewpoints() {
     return listViewpoints()
+  }
+
+  exportScene(): ExportSceneResult {
+    return {
+      view: this.getView(),
+      layers: this.listLayers(),
+      entities: this.queryEntities({}),
+      timestamp: new Date().toISOString(),
+    }
   }
 
   // ==================== Events ====================
