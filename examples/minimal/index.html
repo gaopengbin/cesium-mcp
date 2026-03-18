@@ -491,6 +491,7 @@
   bridge.on('layerAdded', () => refreshLayers())
   bridge.on('layerRemoved', () => refreshLayers())
   log('Bridge initialized (cesium-mcp-bridge)', 'info')
+  window._bridge = bridge // DEBUG: E2E testing
 
   // ========== WebSocket ==========
   let ws = null
