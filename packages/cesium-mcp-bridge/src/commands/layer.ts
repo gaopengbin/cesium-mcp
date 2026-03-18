@@ -117,34 +117,6 @@ export class LayerManager {
       }
     }
 
-    // 对点图层启用 EntityCluster 聚合
-    if (hasPoints) {
-      ds.clustering.enabled = true
-      ds.clustering.pixelRange = 45
-      ds.clustering.minimumClusterSize = 2
-      const clusterCircle32 = createCircleImage(64, color, 0.85)
-      ;(ds.clustering.clusterEvent as any).addEventListener(
-        (clusteredEntities: any[], cluster: any) => {
-          cluster.billboard.show = true
-          cluster.billboard.image = clusterCircle32
-          cluster.billboard.width = Math.min(32 + clusteredEntities.length * 0.3, 56)
-          cluster.billboard.height = Math.min(32 + clusteredEntities.length * 0.3, 56)
-          cluster.label.show = true
-          cluster.label.text = String(clusteredEntities.length)
-          cluster.label.font = 'bold 13px sans-serif'
-          cluster.label.fillColor = Cesium.Color.WHITE
-          cluster.label.outlineColor = Cesium.Color.BLACK
-          cluster.label.outlineWidth = 2
-          cluster.label.style = Cesium.LabelStyle.FILL_AND_OUTLINE
-          cluster.label.verticalOrigin = Cesium.VerticalOrigin.CENTER
-          cluster.label.horizontalOrigin = Cesium.HorizontalOrigin.CENTER
-          cluster.label.pixelOffset = Cesium.Cartesian2.ZERO
-          cluster.label.disableDepthTestDistance = Number.POSITIVE_INFINITY
-          cluster.point.show = false
-        },
-      )
-    }
-
     // choropleth 分级着色
     const choropleth = style?.choropleth
     if (choropleth?.field && choropleth?.breaks && choropleth?.colors) {
