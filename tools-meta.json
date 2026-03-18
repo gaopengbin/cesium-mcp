@@ -234,6 +234,46 @@
       }
     },
     {
+      "name": "measure",
+      "description": "测量距离或面积（基于坐标计算，可在地图上显示）",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": ["distance", "area"],
+            "description": "测量模式：distance=距离, area=面积"
+          },
+          "positions": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 2,
+              "maxItems": 3
+            },
+            "minItems": 2,
+            "description": "坐标数组 [[lon,lat,alt?], ...]"
+          },
+          "showOnMap": {
+            "type": "boolean",
+            "default": true,
+            "description": "是否在地图上显示测量结果"
+          },
+          "id": {
+            "type": "string",
+            "description": "自定义测量实体ID"
+          }
+        },
+        "required": ["mode", "positions"],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
       "name": "setView",
       "description": "瞬间切换到指定经纬度视角（无动画）",
       "inputSchema": {
@@ -829,6 +869,44 @@
       }
     },
     {
+      "name": "loadCzml",
+      "description": "加载 CZML 时序数据源（CesiumJS 原生格式，支持时变位置/样式/动画）。data 和 url 二选一",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "图层ID（不传则自动生成）" },
+          "name": { "type": "string", "description": "数据源显示名称" },
+          "data": { "type": "array", "description": "CZML 数据包数组（与 url 二选一）" },
+          "url": { "type": "string", "description": "CZML 文件 URL（与 data 二选一，浏览器端 fetch 加载）" },
+          "sourceUri": { "type": "string", "description": "CZML 中相对引用的基础 URI" },
+          "clampToGround": { "type": "boolean", "description": "将实体贴地显示" },
+          "flyTo": { "type": "boolean", "description": "加载后自动飞行到数据范围（默认 true）" }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "loadKml",
+      "description": "加载 KML/KMZ 数据源（Google Earth 格式）。data 和 url 二选一",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "图层ID（不传则自动生成）" },
+          "name": { "type": "string", "description": "数据源显示名称" },
+          "url": { "type": "string", "description": "KML/KMZ 文件 URL（与 data 二选一，浏览器端 fetch 加载）" },
+          "data": { "type": "string", "description": "KML XML 字符串（与 url 二选一）" },
+          "sourceUri": { "type": "string", "description": "KML 中相对引用的基础 URI" },
+          "clampToGround": { "type": "boolean", "description": "将实体贴地显示" },
+          "flyTo": { "type": "boolean", "description": "加载后自动飞行到数据范围（默认 true）" }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
       "name": "lookAtTransform",
       "description": "环绕式相机注视某位置（ENU变换 + 朝向/俯仰/距离）",
       "inputSchema": {
@@ -1127,6 +1205,57 @@
           "enableFog": { "type": "boolean", "description": "启用雾效" },
           "enableGroundAtmosphere": { "type": "boolean", "description": "启用地表大气" },
           "enableSkyAtmosphere": { "type": "boolean", "description": "启用天空大气" }
+        },
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "setSceneOptions",
+      "description": "Configure scene environment (fog, atmosphere, shadows, sun, moon, background color, depth testing)",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "fogEnabled": { "type": "boolean", "description": "Enable/disable fog" },
+          "fogDensity": { "type": "number", "description": "Fog density (0.0~1.0)" },
+          "fogMinimumBrightness": { "type": "number", "description": "Minimum fog brightness (0.0~1.0)" },
+          "skyAtmosphereShow": { "type": "boolean", "description": "Show sky atmosphere" },
+          "skyAtmosphereHueShift": { "type": "number", "description": "Sky hue shift (-1.0~1.0)" },
+          "skyAtmosphereSaturationShift": { "type": "number", "description": "Sky saturation shift (-1.0~1.0)" },
+          "skyAtmosphereBrightnessShift": { "type": "number", "description": "Sky brightness shift (-1.0~1.0)" },
+          "groundAtmosphereShow": { "type": "boolean", "description": "Show ground atmosphere" },
+          "shadowsEnabled": { "type": "boolean", "description": "Enable shadows" },
+          "shadowsSoftShadows": { "type": "boolean", "description": "Use soft shadows" },
+          "shadowsDarkness": { "type": "number", "description": "Shadow darkness (0.0~1.0)" },
+          "sunShow": { "type": "boolean", "description": "Show the sun" },
+          "sunGlowFactor": { "type": "number", "description": "Sun glow factor" },
+          "moonShow": { "type": "boolean", "description": "Show the moon" },
+          "depthTestAgainstTerrain": { "type": "boolean", "description": "Enable depth test against terrain" },
+          "backgroundColor": { "type": "string", "description": "Scene background color (CSS format)" }
+        },
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
+      "name": "setPostProcess",
+      "description": "Configure post-processing effects (bloom glow, ambient occlusion SSAO, anti-aliasing FXAA)",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "bloom": { "type": "boolean", "description": "Enable bloom glow effect" },
+          "bloomContrast": { "type": "number", "description": "Bloom contrast" },
+          "bloomBrightness": { "type": "number", "description": "Bloom brightness" },
+          "bloomDelta": { "type": "number", "description": "Bloom delta" },
+          "bloomSigma": { "type": "number", "description": "Bloom sigma" },
+          "bloomStepSize": { "type": "number", "description": "Bloom step size" },
+          "bloomGlowOnly": { "type": "boolean", "description": "Show only glow" },
+          "ambientOcclusion": { "type": "boolean", "description": "Enable SSAO" },
+          "aoIntensity": { "type": "number", "description": "AO intensity" },
+          "aoBias": { "type": "number", "description": "AO bias" },
+          "aoLengthCap": { "type": "number", "description": "AO length cap" },
+          "aoStepSize": { "type": "number", "description": "AO step size" },
+          "fxaa": { "type": "boolean", "description": "Enable FXAA anti-aliasing" }
         },
         "additionalProperties": false
       },

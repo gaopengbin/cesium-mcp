@@ -66,10 +66,12 @@ export const toolDescriptions: Record<string, string> = {
   loadTerrain: '加载或切换地形（平坦/ArcGIS/CesiumIon/自定义 URL）',
   loadImageryService: '加载影像服务图层（WMS/WMTS/XYZ/ArcGIS MapServer）',
   loadCzml: '加载 CZML 时序数据源（CesiumJS 原生格式，支持时变位置/样式/动画）。data 和 url 二选一',
+  loadKml: '加载 KML/KMZ 数据源（Google Earth 格式）。data 和 url 二选一',
 
   // — interaction
   screenshot: '截取当前地图视图（返回 base64 PNG）',
   highlight: '高亮指定图层的要素',
+  measure: '测量距离或面积（基于坐标计算，可在地图上显示）',
 
   // — trajectory
   playTrajectory: '播放移动轨迹动画',
@@ -198,6 +200,12 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     layerId: '图层ID',
     featureIndex: '要素索引（不传则高亮全部）',
     color: '高亮颜色（CSS 格式）',
+  },
+  measure: {
+    mode: '测量模式：distance=距离, area=面积',
+    positions: '坐标数组 [[经度, 纬度, 高度?], ...]',
+    showOnMap: '是否在地图上显示测量结果',
+    id: '自定义测量实体ID',
   },
   lookAtTransform: {
     longitude: '目标经度（度）',
@@ -421,6 +429,15 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     data: 'CZML 数据包数组（与 url 二选一）',
     url: 'CZML 文件 URL（与 data 二选一，浏览器端 fetch 加载）',
     sourceUri: 'CZML 中相对引用的基础 URI',
+    clampToGround: '将实体贴地显示',
+    flyTo: '加载后自动飞行到数据范围（默认 true）',
+  },
+  loadKml: {
+    id: '图层ID（不传则自动生成）',
+    name: '数据源显示名称',
+    url: 'KML/KMZ 文件 URL（与 data 二选一，浏览器端 fetch 加载）',
+    data: 'KML XML 字符串（与 url 二选一）',
+    sourceUri: 'KML 中相对引用的基础 URI',
     clampToGround: '将实体贴地显示',
     flyTo: '加载后自动飞行到数据范围（默认 true）',
   },

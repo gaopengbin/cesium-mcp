@@ -9,6 +9,7 @@ Thumbs.db
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 docs/design/
+work-logs/
 .mcpregistry_*
 mcp-publisher.exe
 

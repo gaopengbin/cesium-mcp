@@ -145,6 +145,16 @@ export interface LoadCzmlParams {
   flyTo?: boolean
 }
 
+export interface LoadKmlParams {
+  id?: string
+  name?: string
+  url?: string
+  data?: string
+  sourceUri?: string
+  clampToGround?: boolean
+  flyTo?: boolean
+}
+
 // ==================== Trajectory ====================
 
 export interface PlayTrajectoryParams {
@@ -260,6 +270,21 @@ export interface HighlightParams {
   layerId: string
   featureIndex?: number
   color?: ColorInput
+}
+
+export interface MeasureParams {
+  mode: 'distance' | 'area'
+  positions: [number, number, number?][]
+  showOnMap?: boolean
+  id?: string
+}
+
+export interface MeasureResult {
+  mode: 'distance' | 'area'
+  value: number
+  unit: string
+  segments?: number[]
+  id?: string
 }
 
 // ==================== Event ====================

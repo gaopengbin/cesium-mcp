@@ -343,8 +343,8 @@ const TOOLSETS: Record<string, string[]> = {
   'entity-ext': ['addBillboard', 'addBox', 'addCorridor', 'addCylinder', 'addEllipse', 'addRectangle', 'addWall'],
   animation: ['createAnimation', 'controlAnimation', 'removeAnimation', 'listAnimations', 'updateAnimationPath', 'trackEntity', 'controlClock', 'setGlobeLighting'],
   scene: ['setSceneOptions', 'setPostProcess'],
-  tiles: ['load3dTiles', 'loadTerrain', 'loadImageryService', 'loadCzml'],
-  interaction: ['screenshot', 'highlight'],
+  tiles: ['load3dTiles', 'loadTerrain', 'loadImageryService', 'loadCzml', 'loadKml'],
+  interaction: ['screenshot', 'highlight', 'measure'],
   trajectory: ['playTrajectory'],
   heatmap: ['addHeatmap'],
   geolocation: ['geocode'],
@@ -358,8 +358,8 @@ const TOOLSET_DESCRIPTIONS: Record<string, string> = {
   'entity-ext': 'Extended entity types (billboard, box, corridor, cylinder, ellipse, rectangle, wall)',
   animation: 'Animation system (create/control animations, track entities, clock, lighting)',
   scene: 'Scene environment and post-processing (fog, atmosphere, shadows, bloom, SSAO, FXAA)',
-  tiles: '3D Tiles, terrain, imagery services, and CZML data sources',
-  interaction: 'User interaction (screenshot, highlight)',
+  tiles: '3D Tiles, terrain, imagery services, CZML and KML/KMZ data sources',
+  interaction: 'User interaction (screenshot, highlight, measure)',
   trajectory: 'Trajectory playback',
   heatmap: 'Heatmap visualization',
   geolocation: 'Geocoding — convert address/place name to coordinates (Nominatim/OSM)',
@@ -551,6 +551,23 @@ _registerTool(
   { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Highlight' },
   async (params) => {
     const result = await sendToBrowser('highlight', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — measure
+_registerTool(
+  'measure',
+  '测量距离或面积（基于坐标计算，可在地图上显示）',
+  {
+    mode: z.enum(['distance', 'area']).describe('测量模式：distance=距离, area=面积'),
+    positions: z.array(z.array(z.number()).min(2).max(3)).min(2).describe('坐标数组 [[lon,lat,alt?], ...]'),
+    showOnMap: z.boolean().optional().default(true).describe('是否在地图上显示测量结果'),
+    id: z.string().optional().describe('自定义测量实体ID'),
+  },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Measure' },
+  async (params) => {
+    const result = await sendToBrowser('measure', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
   },
 )
@@ -926,6 +943,26 @@ _registerTool(
   { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Load CZML' },
   async (params) => {
     const result = await sendToBrowser('loadCzml', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — loadKml
+_registerTool(
+  'loadKml',
+  '加载 KML/KMZ 数据源（Google Earth 格式）。url 和 data 二选一',
+  {
+    id: z.string().optional().describe('图层ID（不传则自动生成）'),
+    name: z.string().optional().describe('数据源显示名称'),
+    url: z.string().optional().describe('KML/KMZ 文件 URL（与 data 二选一，浏览器端 fetch 加载）'),
+    data: z.string().optional().describe('KML XML 字符串（与 url 二选一）'),
+    sourceUri: z.string().optional().describe('KML 中相对引用的基础 URI'),
+    clampToGround: z.boolean().optional().describe('将实体贴地显示'),
+    flyTo: z.boolean().optional().describe('加载后自动飞行到数据范围（默认 true）'),
+  },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Load KML/KMZ' },
+  async (params) => {
+    const result = await sendToBrowser('loadKml', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
   },
 )

@@ -21,6 +21,7 @@ export type {
   LoadTerrainParams,
   LoadImageryServiceParams,
   LoadCzmlParams,
+  LoadKmlParams,
   PlayTrajectoryParams,
   AddLabelParams,
   AddMarkerParams,
@@ -31,6 +32,8 @@ export type {
   RemoveEntityParams,
   ScreenshotResult,
   HighlightParams,
+  MeasureParams,
+  MeasureResult,
   UpdateLayerStyleParams,
   // Camera (融合官方)
   LookAtTransformParams,

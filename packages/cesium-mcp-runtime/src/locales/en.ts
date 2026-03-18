@@ -66,10 +66,12 @@ export const toolDescriptions: Record<string, string> = {
   loadTerrain: 'Load or switch terrain (flat/ArcGIS/CesiumIon/custom URL)',
   loadImageryService: 'Load imagery service layer (WMS/WMTS/XYZ/ArcGIS MapServer)',
   loadCzml: 'Load CZML time-dynamic data source (CesiumJS native format, supports time-varying position/style/animation). data and url are mutually exclusive',
+  loadKml: 'Load KML/KMZ data source (Google Earth format). data and url are mutually exclusive',
 
   // — interaction
   screenshot: 'Capture current map view (returns base64 PNG)',
   highlight: 'Highlight features in a layer',
+  measure: 'Measure distance or area (coordinate-based calculation, optionally displayed on map)',
 
   // — trajectory
   playTrajectory: 'Play a moving trajectory animation',
@@ -198,6 +200,12 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     layerId: 'Layer ID',
     featureIndex: 'Feature index (highlights all if omitted)',
     color: 'Highlight color (CSS format)',
+  },
+  measure: {
+    mode: 'Measurement mode: distance or area',
+    positions: 'Coordinate array [[lon, lat, alt?], ...]',
+    showOnMap: 'Whether to display measurement result on map',
+    id: 'Custom measurement entity ID',
   },
   lookAtTransform: {
     longitude: 'Target longitude (degrees)',
@@ -421,6 +429,15 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     data: 'CZML packet array (mutually exclusive with url)',
     url: 'CZML file URL (mutually exclusive with data, browser-side fetch)',
     sourceUri: 'Base URI for resolving relative references in CZML',
+    clampToGround: 'Clamp entities to ground surface',
+    flyTo: 'Fly to data extent after loading (default true)',
+  },
+  loadKml: {
+    id: 'Layer ID (auto-generated if omitted)',
+    name: 'Data source display name',
+    url: 'KML/KMZ file URL (mutually exclusive with data, browser-side fetch)',
+    data: 'KML XML string (mutually exclusive with url)',
+    sourceUri: 'Base URI for resolving relative references in KML',
     clampToGround: 'Clamp entities to ground surface',
     flyTo: 'Fly to data extent after loading (default true)',
   },

@@ -2,14 +2,14 @@ import * as Cesium from 'cesium'
 import type {
   AddGeoJsonLayerParams, AddHeatmapParams, LayerInfo, SetBasemapParams,
   CategoryStyle, Load3dTilesParams, LoadTerrainParams, LoadImageryServiceParams,
-  LoadCzmlParams, UpdateLayerStyleParams,
+  LoadCzmlParams, LoadKmlParams, UpdateLayerStyleParams,
 } from '../types'
 import { parseColor } from '../utils'
 
 // ==================== 图层状态（由 Bridge 实例持有） ====================
 
 interface CesiumRefs {
-  dataSource?: Cesium.GeoJsonDataSource | Cesium.CzmlDataSource
+  dataSource?: Cesium.GeoJsonDataSource | Cesium.CzmlDataSource | Cesium.KmlDataSource
   entity?: Cesium.Entity
   labelEntities?: Cesium.Entity[]
   tileset?: Cesium.Cesium3DTileset
@@ -569,6 +569,48 @@ export class LayerManager {
       type: 'CZML',
       visible: true,
       color: '#8B5CF6',
+    }
+    this._cesiumRefs.set(layerId, { dataSource: ds })
+    this._layers.push(info)
+    return info
+  }
+
+  // ==================== KML/KMZ DataSource ====================
+
+  async loadKml(params: LoadKmlParams): Promise<LayerInfo> {
+    const { id, name, url, data, sourceUri, clampToGround } = params
+
+    if (!url && !data) throw new Error('Either "url" or "data" must be provided')
+
+    const layerId = id ?? `kml_${Date.now()}`
+
+    // 幂等：先移除同 id 图层
+    this.removeLayer(layerId)
+
+    const loadOptions: Record<string, unknown> = {
+      camera: this._viewer.scene.camera,
+      canvas: this._viewer.scene.canvas,
+    }
+    if (sourceUri) loadOptions.sourceUri = sourceUri
+    if (clampToGround) loadOptions.clampToGround = true
+
+    const source = url ?? new Blob([data!], { type: 'application/xml' })
+    const ds = await Cesium.KmlDataSource.load(source, loadOptions)
+
+    const displayName = name || ds.name || (url ? `KML (${url.split('/').pop()})` : 'KML Data')
+
+    this._viewer.dataSources.add(ds)
+
+    if (params.flyTo !== false) {
+      this._viewer.flyTo(ds, { duration: 1.5 })
+    }
+
+    const info: LayerInfo = {
+      id: layerId,
+      name: displayName,
+      type: 'KML',
+      visible: true,
+      color: '#F59E0B',
     }
     this._cesiumRefs.set(layerId, { dataSource: ds })
     this._layers.push(info)

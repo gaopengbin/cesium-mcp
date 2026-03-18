@@ -7,8 +7,15 @@ const mockDataSource = {
 }
 const mockLoadCzml = vi.fn().mockResolvedValue(mockDataSource)
 
+const mockKmlDataSource = {
+  name: '',
+  entities: { values: [] as any[] },
+}
+const mockLoadKml = vi.fn().mockResolvedValue(mockKmlDataSource)
+
 vi.mock('cesium', () => ({
   CzmlDataSource: { load: (...args: any[]) => mockLoadCzml(...args) },
+  KmlDataSource: { load: (...args: any[]) => mockLoadKml(...args) },
   GeoJsonDataSource: { load: vi.fn() },
   ConstantProperty: class { value: any; constructor(v: any) { this.value = v } },
   HeightReference: { CLAMP_TO_GROUND: 1 },
@@ -29,7 +36,11 @@ function makeViewer() {
       remove: vi.fn(),
     },
     entities: { remove: vi.fn() },
-    scene: { primitives: { remove: vi.fn() } },
+    scene: {
+      primitives: { remove: vi.fn() },
+      camera: { _mock: true },
+      canvas: { _mock: true },
+    },
     imageryLayers: { remove: vi.fn() },
     flyTo: vi.fn(),
   } as any
@@ -148,6 +159,88 @@ describe('LayerManager.loadCzml', () => {
   it('should be idempotent (remove existing before adding)', async () => {
     await mgr.loadCzml({ id: 'czml1', url: 'test.czml' })
     await mgr.loadCzml({ id: 'czml1', url: 'test2.czml' })
+    const layers = mgr.listLayers()
+    expect(layers).toHaveLength(1)
+  })
+})
+
+describe('LayerManager.loadKml', () => {
+  let viewer: any
+  let mgr: LayerManager
+
+  beforeEach(() => {
+    viewer = makeViewer()
+    mgr = new LayerManager(viewer)
+    mockLoadKml.mockClear()
+    mockKmlDataSource.entities.values.length = 0
+    mockLoadKml.mockResolvedValue(mockKmlDataSource)
+    mockKmlDataSource.name = ''
+  })
+
+  it('should load KML from url', async () => {
+    const info = await mgr.loadKml({ url: 'https://example.com/data.kml' })
+    expect(mockLoadKml).toHaveBeenCalledWith('https://example.com/data.kml', {
+      camera: viewer.scene.camera,
+      canvas: viewer.scene.canvas,
+    })
+    expect(viewer.dataSources.add).toHaveBeenCalledWith(mockKmlDataSource)
+    expect(info.type).toBe('KML')
+    expect(info.name).toBe('KML (data.kml)')
+  })
+
+  it('should load KML from inline data (Blob)', async () => {
+    const kmlString = '<?xml version="1.0"?><kml><Document><Placemark><name>Test</name></Placemark></Document></kml>'
+    const info = await mgr.loadKml({ data: kmlString, name: 'Inline KML' })
+    const call = mockLoadKml.mock.calls[0]
+    expect(call[0]).toBeInstanceOf(Blob)
+    expect(info.name).toBe('Inline KML')
+  })
+
+  it('should throw if neither data nor url provided', async () => {
+    await expect(mgr.loadKml({})).rejects.toThrow('Either "url" or "data" must be provided')
+  })
+
+  it('should pass sourceUri and clampToGround options', async () => {
+    await mgr.loadKml({ url: 'test.kml', sourceUri: 'https://example.com/', clampToGround: true })
+    expect(mockLoadKml).toHaveBeenCalledWith('test.kml', {
+      camera: viewer.scene.camera,
+      canvas: viewer.scene.canvas,
+      sourceUri: 'https://example.com/',
+      clampToGround: true,
+    })
+  })
+
+  it('should auto-generate id if not provided', async () => {
+    const info = await mgr.loadKml({ url: 'test.kml' })
+    expect(info.id).toMatch(/^kml_\d+$/)
+  })
+
+  it('should use provided id', async () => {
+    const info = await mgr.loadKml({ id: 'my-kml', url: 'test.kml' })
+    expect(info.id).toBe('my-kml')
+  })
+
+  it('should register in layers list', async () => {
+    await mgr.loadKml({ id: 'kml1', url: 'test.kml' })
+    const layers = mgr.listLayers()
+    expect(layers).toHaveLength(1)
+    expect(layers[0].id).toBe('kml1')
+    expect(layers[0].type).toBe('KML')
+  })
+
+  it('should flyTo by default', async () => {
+    await mgr.loadKml({ url: 'test.kml' })
+    expect(viewer.flyTo).toHaveBeenCalledWith(mockKmlDataSource, { duration: 1.5 })
+  })
+
+  it('should skip flyTo when flyTo=false', async () => {
+    await mgr.loadKml({ url: 'test.kml', flyTo: false })
+    expect(viewer.flyTo).not.toHaveBeenCalled()
+  })
+
+  it('should be idempotent (remove existing before adding)', async () => {
+    await mgr.loadKml({ id: 'kml1', url: 'test.kml' })
+    await mgr.loadKml({ id: 'kml1', url: 'test2.kml' })
     const layers = mgr.listLayers()
     expect(layers).toHaveLength(1)
   })

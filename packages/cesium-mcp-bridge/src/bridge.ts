@@ -20,9 +20,12 @@ import type {
   LoadTerrainParams,
   LoadImageryServiceParams,
   LoadCzmlParams,
+  LoadKmlParams,
   PlayTrajectoryParams,
   ScreenshotResult,
   HighlightParams,
+  MeasureParams,
+  MeasureResult,
   UpdateLayerStyleParams,
   LayerInfo,
   BridgeEventHandler,
@@ -54,7 +57,7 @@ import type {
 import { flyTo, setView, getView, zoomToExtent, saveViewpoint, loadViewpoint, listViewpoints } from './commands/view'
 import { LayerManager } from './commands/layer'
 import { addLabels, addMarker, addPolyline, addPolygon, addModel, updateEntity, removeEntity, batchAddEntities, queryEntities } from './commands/entity'
-import { screenshot, highlight } from './commands/interaction'
+import { screenshot, highlight, measure } from './commands/interaction'
 import { playTrajectory as playTrajectoryCmd } from './commands/trajectory'
 import { lookAtTransform as lookAtTransformCmd, startOrbit as startOrbitCmd, stopOrbit as stopOrbitCmd, setCameraOptions as setCameraOptionsCmd, type OrbitHandler } from './commands/camera'
 import { addBillboard as addBillboardCmd, addBox as addBoxCmd, addCorridor as addCorridorCmd, addCylinder as addCylinderCmd, addEllipse as addEllipseCmd, addRectangle as addRectangleCmd, addWall as addWallCmd } from './commands/entity-types'
@@ -162,6 +165,10 @@ export class CesiumBridge {
         case 'highlight':
           this.highlight(p as HighlightParams)
           return { success: true, message: 'Features highlighted' }
+        case 'measure': {
+          const result = this.measure(p as MeasureParams)
+          return { success: true, data: result, message: `Measurement complete: ${result.value} ${result.unit}` }
+        }
         case 'load3dTiles': {
           const info = await this.load3dTiles(p as Load3dTilesParams)
           return { success: true, data: info, message: `3D Tiles '${info.name}' loaded` }
@@ -176,6 +183,10 @@ export class CesiumBridge {
         case 'loadCzml': {
           const info = await this.loadCzml(p as LoadCzmlParams)
           return { success: true, data: info, message: `CZML data source '${info.name}' loaded` }
+        }
+        case 'loadKml': {
+          const info = await this.loadKml(p as LoadKmlParams)
+          return { success: true, data: info, message: `KML data source '${info.name}' loaded` }
         }
         case 'playTrajectory': {
           const result = this.playTrajectory(p as PlayTrajectoryParams)
@@ -370,6 +381,10 @@ export class CesiumBridge {
     return this._layerManager.loadCzml(params)
   }
 
+  loadKml(params: LoadKmlParams): Promise<LayerInfo> {
+    return this._layerManager.loadKml(params)
+  }
+
   // ==================== Trajectory ====================
 
   private _activeTrajectories = new Map<string, { stop: () => void; pause: () => void; resume: () => void; isPlaying: () => boolean }>()
@@ -461,7 +476,7 @@ export class CesiumBridge {
   }
 
   /** 将标注附加到现有 GeoJsonDataSource 的实体上（圆点+文字同图层） */
-  private _attachLabelsToDataSource(ds: Cesium.GeoJsonDataSource, params: AddLabelParams): number {
+  private _attachLabelsToDataSource(ds: Cesium.GeoJsonDataSource | Cesium.CzmlDataSource | Cesium.KmlDataSource, params: AddLabelParams): number {
     const { field, style } = params
     const font = style?.font ?? '12px sans-serif'
     const fillColor = style?.fillColor
@@ -587,6 +602,10 @@ export class CesiumBridge {
 
   highlight(params: HighlightParams): void {
     highlight(this._viewer, this._layerManager, params)
+  }
+
+  measure(params: MeasureParams): MeasureResult {
+    return measure(this._viewer, params)
   }
 
   // ==================== Camera (融合官方 Camera Server) ====================
