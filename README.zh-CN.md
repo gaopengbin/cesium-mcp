@@ -143,6 +143,11 @@ npm run build
 
 当 CesiumJS 发布新次版本（如 1.140）时，我们将同步升级：`1.140.0`。
 
+## 相关项目
+
+- [mapbox-mcp](https://github.com/gaopengbin/mapbox-mcp) — AI 控制 Mapbox GL JS
+- [openlayers-mcp](https://github.com/gaopengbin/openlayers-mcp) — AI 控制 OpenLayers
+
 ## 许可证
 
 [MIT](LICENSE)

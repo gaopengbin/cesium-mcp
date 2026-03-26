@@ -143,6 +143,11 @@ Version format: `{CesiumMajor}.{CesiumMinor}.{MCPPatch}`
 
 When CesiumJS releases a new minor version (e.g. 1.140), we will bump accordingly: `1.140.0`.
 
+## Related Projects
+
+- [mapbox-mcp](https://github.com/gaopengbin/mapbox-mcp) — AI control for Mapbox GL JS
+- [openlayers-mcp](https://github.com/gaopengbin/openlayers-mcp) — AI control for OpenLayers
+
 ## License
 
 [MIT](LICENSE)
