@@ -17,11 +17,15 @@
     "docs:preview": "vitepress preview docs",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "npm run build && changeset publish"
+    "release": "npm run build && changeset publish",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.6.0",
     "@changesets/cli": "^2.30.0",
+    "patch-package": "^8.0.1",
+    "playwright": "^1.58.2",
+    "puppeteer-core": "^24.40.0",
     "typescript": "^5.3.0",
     "vitepress": "^1.6.4",
     "vitest": "^4.1.0",

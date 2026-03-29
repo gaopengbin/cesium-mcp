@@ -122,11 +122,57 @@ function _pushViaRelay(sessionId: string, command: { action: string; params: Rec
   }).catch(() => { /* fire-and-forget */ })
 }
 
+/** Convert Zod shape object to JSON Schema (simplified) */
+function zodShapeToJsonSchema(shape: Record<string, z.ZodTypeAny>): Record<string, unknown> {
+  const properties: Record<string, unknown> = {}
+  const required: string[] = []
+
+  for (const [key, zodType] of Object.entries(shape)) {
+    const prop: Record<string, unknown> = {}
+    let innerType = zodType
+
+    // Unwrap defaults and optionals
+    let isOptional = false
+    let defaultValue: unknown = undefined
+    while (innerType) {
+      if (innerType._def?.typeName === 'ZodDefault') {
+        defaultValue = innerType._def.defaultValue()
+        innerType = innerType._def.innerType
+      } else if (innerType._def?.typeName === 'ZodOptional') {
+        isOptional = true
+        innerType = innerType._def.innerType
+      } else {
+        break
+      }
+    }
+
+    const typeName = innerType?._def?.typeName ?? ''
+    switch (typeName) {
+      case 'ZodNumber': prop.type = 'number'; break
+      case 'ZodString': prop.type = 'string'; break
+      case 'ZodBoolean': prop.type = 'boolean'; break
+      case 'ZodEnum': prop.type = 'string'; prop.enum = innerType._def.values; break
+      case 'ZodArray': prop.type = 'array'; break
+      case 'ZodObject': prop.type = 'object'; break
+      case 'ZodRecord': prop.type = 'object'; break
+      default: prop.type = 'string'; break
+    }
+
+    if (defaultValue !== undefined) prop.default = defaultValue
+    if (zodType.description) prop.description = zodType.description
+
+    properties[key] = prop
+    if (!isOptional && defaultValue === undefined) required.push(key)
+  }
+
+  return { type: 'object', properties, required: required.length ? required : undefined }
+}
+
 /** HTTP 请求处理：POST /api/command */
 function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
 
   if (req.method === 'OPTIONS') {
@@ -183,6 +229,21 @@ function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
     const sessions = Array.from(browserClients.keys())
     res.writeHead(200, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ ok: true, server: 'cesium-mcp-runtime', sessions, connections: sessions.length }))
+    return
+  }
+
+  // GET /api/tools — list enabled tools with JSON Schema
+  if (req.method === 'GET' && req.url?.startsWith('/api/tools')) {
+    const tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }> = []
+    for (const [name, args] of _toolDefs.entries()) {
+      if (!_enabledTools.has(name)) continue
+      const description = args[1] as string
+      const zodShape = args[2] as Record<string, z.ZodTypeAny> | undefined
+      const jsonSchema = zodShape ? zodShapeToJsonSchema(zodShape) : { type: 'object', properties: {} }
+      tools.push({ name, description, inputSchema: jsonSchema })
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ ok: true, tools }))
     return
   }
 
@@ -487,10 +548,13 @@ _registerTool(
 // — addHeatmap
 _registerTool(
   'addHeatmap',
-  '添加热力图图层（基于 GeoJSON 点数据生成热力可视化）',
+  '添加热力图图层（基于 GeoJSON 点数据生成热力可视化，贴图到地面）',
   {
     data: z.record(z.unknown()).describe('GeoJSON Point FeatureCollection'),
     radius: z.number().default(30).describe('热力影响半径（像素）'),
+    blur: z.number().default(0.85).describe('热力模糊程度 0-1'),
+    maxOpacity: z.number().default(0.8).describe('最大不透明度 0-1'),
+    resolution: z.number().default(512).describe('热力图分辨率（像素）'),
   },
   { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Heatmap' },
   async (params) => {

@@ -109,6 +109,10 @@ export interface AddHeatmapParams {
   data: Record<string, unknown>
   radius?: number
   gradient?: Record<number, string>
+  blur?: number
+  maxOpacity?: number
+  minOpacity?: number
+  resolution?: number
 }
 
 export interface SetBasemapParams {

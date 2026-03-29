@@ -1,4 +1,5 @@
 import * as Cesium from 'cesium'
+import h337 from 'heatmap.js'
 import type {
   AddGeoJsonLayerParams, AddHeatmapParams, LayerInfo, SetBasemapParams,
   CategoryStyle, Load3dTilesParams, LoadTerrainParams, LoadImageryServiceParams,
@@ -196,7 +197,13 @@ export class LayerManager {
   // ==================== addHeatmap ====================
 
   async addHeatmap(params: AddHeatmapParams): Promise<LayerInfo> {
-    const { id, name, data, radius = 30 } = params
+    const {
+      id, name, data,
+      radius = 30, gradient,
+      blur = 0.85,
+      maxOpacity = 0.8, minOpacity = 0,
+      resolution = 512,
+    } = params
     const layerId = id ?? `heatmap_${Date.now()}`
     const layerName = name ?? layerId
 
@@ -207,12 +214,16 @@ export class LayerManager {
       const geom = f?.geometry
       if (geom?.type === 'Point') {
         const [lon, lat] = geom.coordinates as [number, number]
-        const w = f.properties?.weight ?? f.properties?.density ?? 1
+        const w = f.properties?.weight ?? f.properties?.value ?? f.properties?.density ?? 1
         points.push({ lon, lat, weight: typeof w === 'number' ? w : 1 })
       }
     }
 
-    // 计算数据范围（canvas 和矩形实体共用同一边界）
+    if (!points.length) {
+      return this.addGeoJsonLayer({ id: layerId, name: layerName, data, style: { color: '#FF4500', opacity: 0.8 } })
+    }
+
+    // 计算数据范围
     const lons = points.map(p => p.lon)
     const lats = points.map(p => p.lat)
     const lonRange = Math.max(...lons) - Math.min(...lons)
@@ -224,10 +235,11 @@ export class LayerManager {
     const east = Math.max(...lons) + padLon
     const north = Math.max(...lats) + padLat
 
-    // 生成热力图 canvas（传入精确边界）
-    const canvas = generateHeatmapCanvas(points, radius, { west, south, east, north })
+    // 使用 heatmap.js 生成 canvas
+    const canvas = generateHeatmapCanvas(points, radius, { west, south, east, north }, {
+      gradient, blur, maxOpacity, minOpacity, resolution,
+    })
     if (!canvas) {
-      // 降级：用彩色点图层
       return this.addGeoJsonLayer({ id: layerId, name: layerName, data, style: { color: '#FF4500', opacity: 0.8 } })
     }
 
@@ -953,38 +965,63 @@ function createCircleImage(size: number, cssColor: string, alpha: number): HTMLC
   return canvas
 }
 
-/** 生成热力图 canvas（简易版） */
+/** 使用 heatmap.js 生成热力图 canvas */
 function generateHeatmapCanvas(
   points: Array<{ lon: number; lat: number; weight: number }>,
   radius: number,
   bounds: { west: number; south: number; east: number; north: number },
+  opts: {
+    gradient?: Record<number, string>,
+    blur?: number,
+    maxOpacity?: number,
+    minOpacity?: number,
+    resolution?: number,
+  } = {},
 ): HTMLCanvasElement | null {
   if (!points.length) return null
 
-  const SIZE = 512
-  const canvas = document.createElement('canvas')
-  canvas.width = SIZE
-  canvas.height = SIZE
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return null
-
+  const SIZE = opts.resolution ?? 512
   const { west, south, east, north } = bounds
   const w = east - west
   const h = north - south
 
-  // 绘制热力点（alpha 叠加）
-  for (const p of points) {
-    const x = ((p.lon - west) / w) * SIZE
-    const y = ((north - p.lat) / h) * SIZE
-    const r = radius * Math.min(p.weight, 3)
+  // 创建临时容器
+  const container = document.createElement('div')
+  container.style.cssText = `width:${SIZE}px;height:${SIZE}px;position:fixed;left:-9999px;top:-9999px;`
+  document.body.appendChild(container)
 
-    const gradient = ctx.createRadialGradient(x, y, 0, x, y, r)
-    gradient.addColorStop(0, `rgba(255, 0, 0, ${Math.min(p.weight * 0.4, 0.8)})`)
-    gradient.addColorStop(0.4, `rgba(255, 165, 0, ${Math.min(p.weight * 0.2, 0.4)})`)
-    gradient.addColorStop(1, 'rgba(255, 255, 0, 0)')
-    ctx.fillStyle = gradient
-    ctx.fillRect(x - r, y - r, r * 2, r * 2)
+  try {
+    const heatmapInstance = h337.create({
+      container,
+      radius: Math.max(radius, 10),
+      maxOpacity: opts.maxOpacity ?? 0.8,
+      minOpacity: opts.minOpacity ?? 0,
+      blur: opts.blur ?? 0.85,
+      gradient: opts.gradient ?? { 0.25: 'rgb(0,0,255)', 0.55: 'rgb(0,255,0)', 0.85: 'yellow', 1.0: 'rgb(255,0,0)' },
+    })
+
+    const maxW = Math.max(...points.map(p => p.weight))
+    const data = points.map(p => ({
+      x: Math.round(((p.lon - west) / w) * SIZE),
+      y: Math.round(((north - p.lat) / h) * SIZE),
+      value: p.weight,
+    }))
+
+    heatmapInstance.setData({ max: maxW || 1, data })
+
+    // 从 heatmap.js 容器中提取 canvas
+    const heatCanvas = container.querySelector('canvas')
+    if (!heatCanvas) return null
+
+    // 复制到独立 canvas（脱离 heatmap.js 容器引用）
+    const result = document.createElement('canvas')
+    result.width = SIZE
+    result.height = SIZE
+    const ctx = result.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(heatCanvas, 0, 0)
+    return result
+  } finally {
+    document.body.removeChild(container)
   }
-
-  return canvas
 }
