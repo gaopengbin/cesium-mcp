@@ -12,10 +12,7 @@
    ```bash
    CESIUM_WS_PORT=9200 npx cesium-mcp-runtime
    ```
-   同时更新 Bridge 配置：
-   ```js
-   new CesiumBridge(viewer, { wsUrl: 'ws://localhost:9200' })
-   ```
+   Runtime 将自动在新端口上监听。
 3. 如果使用 HTTPS，浏览器会阻止混合内容（需要使用 wss://）。可使用反向代理或隧道（如 ngrok）。
 
 ### Bridge 已连接但工具不工作

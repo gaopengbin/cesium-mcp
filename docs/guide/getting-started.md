@@ -20,10 +20,7 @@ Initialize the bridge after creating your Cesium Viewer:
 import { CesiumBridge } from 'cesium-mcp-bridge'
 
 const viewer = new Cesium.Viewer('cesiumContainer')
-const bridge = new CesiumBridge(viewer, {
-  wsUrl: 'ws://localhost:9100',
-  sessionId: 'default',
-})
+const bridge = new CesiumBridge(viewer)
 ```
 
 ### 2. Start the MCP Runtime

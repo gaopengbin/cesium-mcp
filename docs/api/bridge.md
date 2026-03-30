@@ -18,10 +18,7 @@ npm install cesium-mcp-bridge
 import { CesiumBridge } from 'cesium-mcp-bridge'
 
 const viewer = new Cesium.Viewer('cesiumContainer')
-const bridge = new CesiumBridge(viewer, {
-  wsUrl: 'ws://localhost:9100',   // Runtime WebSocket URL
-  sessionId: 'default',           // Session ID for routing
-})
+const bridge = new CesiumBridge(viewer)
 ```
 
 ## Commands (58)

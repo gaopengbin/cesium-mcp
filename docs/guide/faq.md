@@ -12,10 +12,7 @@
    ```bash
    CESIUM_WS_PORT=9200 npx cesium-mcp-runtime
    ```
-   And update the bridge config accordingly:
-   ```js
-   new CesiumBridge(viewer, { wsUrl: 'ws://localhost:9200' })
-   ```
+   The runtime will automatically listen on the new port.
 3. If using HTTPS, the browser blocks mixed content (wss:// is required). Use a reverse proxy or tunnel (e.g. ngrok).
 
 ### Bridge connects but tools don't work

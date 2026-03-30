@@ -18,10 +18,7 @@ npm install cesium-mcp-bridge
 import { CesiumBridge } from 'cesium-mcp-bridge'
 
 const viewer = new Cesium.Viewer('cesiumContainer')
-const bridge = new CesiumBridge(viewer, {
-  wsUrl: 'ws://localhost:9100',
-  sessionId: 'default',
-})
+const bridge = new CesiumBridge(viewer)
 ```
 
 ## 命令（58 个）
