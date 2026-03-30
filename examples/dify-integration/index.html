@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cesium MCP — Dify 集成示例页</title>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.139/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.139/Build/Cesium/Cesium.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cesium-mcp-bridge/dist/cesium-mcp-bridge.browser.global.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0e17; color: #e0e0e0; display: flex; height: 100vh; }
+
+  .map-area { flex: 1; min-width: 0; position: relative; }
+  #cesiumContainer { width: 100%; height: 100%; }
+  .cesium-viewer-bottom, .cesium-viewer-animationContainer,
+  .cesium-viewer-timelineContainer, .cesium-viewer-fullscreenContainer { display: none !important; }
+
+  .map-overlay { position: absolute; bottom: 8px; left: 8px; display: flex; gap: 8px; z-index: 10; pointer-events: none; }
+  .coord-bar { background: rgba(0,0,0,0.7); padding: 4px 10px; border-radius: 4px; font-size: 11px; color: #94a3b8; font-family: monospace; pointer-events: auto; }
+
+  .panel { width: 380px; display: flex; flex-direction: column; background: #111827; border-left: 1px solid #1e293b; overflow: hidden; }
+  .panel-header { padding: 14px 16px; border-bottom: 1px solid #1e293b; }
+  .panel-header h1 { font-size: 15px; font-weight: 600; color: #60a5fa; }
+  .panel-header .subtitle { font-size: 11px; color: #4b5563; margin-top: 3px; }
+
+  .panel-scroll { flex: 1; overflow-y: auto; }
+
+  .section { padding: 10px 16px; border-bottom: 1px solid #1e293b; }
+  .section h3 { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+  .section h3 button { background: none; border: none; color: #6b7280; font-size: 11px; cursor: pointer; }
+  .section h3 button:hover { color: #ef4444; }
+
+  .conn-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .status-dot.connected { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+  .status-dot.disconnected { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+  .status-dot.connecting { background: #f59e0b; animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+  .conn-input { display: flex; gap: 6px; margin-top: 6px; }
+  .conn-input input { flex: 1; background: #1e293b; border: 1px solid #334155; border-radius: 4px; color: #e0e0e0; padding: 4px 8px; font-size: 12px; font-family: monospace; }
+  .btn { border: none; border-radius: 4px; padding: 4px 12px; font-size: 12px; cursor: pointer; transition: all 0.12s; }
+  .btn-blue { background: #2563eb; color: white; }
+  .btn-blue:hover { background: #1d4ed8; }
+  .btn-red { background: #dc2626; color: white; }
+  .btn-red:hover { background: #b91c1c; }
+  .btn-ghost { background: transparent; color: #6b7280; border: 1px solid #334155; }
+  .btn-ghost:hover { color: #e0e0e0; border-color: #60a5fa; }
+  .btn-green { background: #059669; color: white; }
+  .btn-green:hover { background: #047857; }
+
+  .info-box { background: #0c1d2d; border: 1px solid #1e3a5f; border-radius: 6px; padding: 8px 10px; font-size: 11px; color: #94a3b8; line-height: 1.6; }
+  .info-box code { color: #60a5fa; font-family: monospace; }
+
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .action-btn { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 7px 10px; color: #d1d5db; font-size: 12px; cursor: pointer; text-align: left; transition: all 0.12s; }
+  .action-btn:hover { background: #334155; border-color: #60a5fa; color: #60a5fa; }
+
+  .cmd-row { display: flex; gap: 6px; }
+  .cmd-row select { width: 150px; background: #1e293b; border: 1px solid #334155; border-radius: 4px; color: #e0e0e0; padding: 4px 8px; font-size: 12px; }
+  .cmd-textarea { width: 100%; background: #0d1117; border: 1px solid #334155; border-radius: 4px; color: #e0e0e0; padding: 6px 8px;
+    font-size: 12px; font-family: 'Cascadia Code', 'Fira Code', monospace; resize: vertical; min-height: 52px; margin-top: 6px; line-height: 1.4; }
+  .cmd-btns { display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end; }
+
+  .log-list { max-height: 280px; overflow-y: auto; }
+  .log-item { padding: 6px 8px; margin-bottom: 3px; border-radius: 5px; font-size: 11px; font-family: 'Cascadia Code', 'Fira Code', monospace; line-height: 1.4; word-break: break-all; }
+  .log-item.recv { background: #0c2d1f; border-left: 3px solid #22c55e; }
+  .log-item.sent { background: #1e1b30; border-left: 3px solid #8b5cf6; }
+  .log-item.error { background: #2d0c0c; border-left: 3px solid #ef4444; }
+  .log-item.info { background: #0c1d2d; border-left: 3px solid #3b82f6; }
+  .log-time { color: #6b7280; margin-right: 4px; }
+</style>
+</head>
+<body>
+
+<div class="map-area">
+  <div id="cesiumContainer"></div>
+  <div class="map-overlay">
+    <div class="coord-bar" id="coordBar">---, ---</div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h1>Cesium MCP Runtime</h1>
+    <div class="subtitle">Dify 集成示例 — session=default</div>
+  </div>
+  <div class="panel-scroll">
+
+    <div class="section">
+      <h3>WebSocket 连接</h3>
+      <div class="conn-row">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">未连接</span>
+      </div>
+      <div class="conn-input">
+        <input id="wsUrl" value="ws://localhost:9100?session=default" />
+        <button class="btn btn-blue" id="connBtn" onclick="toggleConnection()">连接</button>
+      </div>
+      <div style="margin-top:8px">
+        <div class="info-box">
+          Dify 配置中 MCP URL 使用：<br>
+          <code>http://host.docker.internal:3211/mcp</code><br>
+          <br>
+          此页面通过 WebSocket 接收 Dify 下发的地图命令。<br>
+          session 参数必须为 <code>default</code>。
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>快速测试</h3>
+      <div class="action-grid">
+        <button class="action-btn" onclick="quickTest('flyToBeijing')">飞到北京</button>
+        <button class="action-btn" onclick="quickTest('flyToShanghai')">飞到上海</button>
+        <button class="action-btn" onclick="quickTest('addMarker')">添加标注</button>
+        <button class="action-btn" onclick="quickTest('screenshot')">截图</button>
+        <button class="action-btn" onclick="quickTest('setDark')">深色底图</button>
+        <button class="action-btn" onclick="quickTest('setSatellite')">卫星底图</button>
+        <button class="action-btn" onclick="quickTest('clearAll')" style="grid-column:1/-1">清除全部</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>手动命令</h3>
+      <div class="cmd-row">
+        <select id="cmdAction" onchange="onActionChange()">
+          <option value="flyTo">flyTo</option>
+          <option value="setView">setView</option>
+          <option value="addMarker">addMarker</option>
+          <option value="addPolyline">addPolyline</option>
+          <option value="addPolygon">addPolygon</option>
+          <option value="setBasemap">setBasemap</option>
+          <option value="screenshot">screenshot</option>
+          <option value="clearAll">clearAll</option>
+        </select>
+        <button class="btn btn-ghost" onclick="fillTemplate()">填充模板</button>
+      </div>
+      <textarea class="cmd-textarea" id="cmdParams" spellcheck="false">{"longitude": 116.397, "latitude": 39.908, "height": 15000}</textarea>
+      <div class="cmd-btns">
+        <button class="btn btn-green" onclick="sendManualCmd()">本地执行</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>命令日志 <button onclick="clearLogs()">清空</button></h3>
+      <div class="log-list" id="logList"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const TEMPLATES = {
+  flyTo: { longitude: 116.397, latitude: 39.908, height: 15000, pitch: -30, duration: 2 },
+  setView: { longitude: 116.397, latitude: 39.908, height: 50000, pitch: -90 },
+  addMarker: { longitude: 116.397, latitude: 39.908, label: '天安门', color: '#3B82F6', size: 14 },
+  addPolyline: { coordinates: [[116.39, 39.9], [121.47, 31.23]], color: '#FF4444', width: 4, label: '北京-上海' },
+  addPolygon: { coordinates: [[116.3, 39.85], [116.5, 39.85], [116.5, 39.95], [116.3, 39.95]], color: '#3B82F6', opacity: 0.5 },
+  setBasemap: { basemap: 'satellite' },
+  screenshot: {},
+  clearAll: {},
+}
+
+// ==================== Cesium 初始化 ====================
+Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYWE1OWUxNy1mMWZiLTQzYjYtYTQ0OS1kMWFjYmFkNjc5YzciLCJpZCI6NTc3MzMsImlhdCI6MTYyMjY0NDE0OH0.XcKpgAjDwlOntSHtGydTVfDEF39UOlSP_LpPiaUL0Zg'
+
+const viewer = new Cesium.Viewer('cesiumContainer', {
+  baseLayer: false,
+  baseLayerPicker: false, geocoder: false, homeButton: false,
+  sceneModePicker: false, navigationHelpButton: false,
+  animation: false, timeline: false, fullscreenButton: false,
+  infoBox: false, selectionIndicator: false,
+})
+viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#0B1120')
+viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#0B1120')
+viewer.imageryLayers.add(new Cesium.ImageryLayer(
+  new Cesium.UrlTemplateImageryProvider({ url: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', maximumLevel: 18 })
+))
+viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(104, 35, 6000000), duration: 0 })
+
+const bridge = new CesiumMcpBridge.CesiumBridge(viewer)
+
+// ==================== 鼠标坐标 ====================
+const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas)
+handler.setInputAction((movement) => {
+  const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid)
+  if (cartesian) {
+    const carto = Cesium.Cartographic.fromCartesian(cartesian)
+    const lon = Cesium.Math.toDegrees(carto.longitude).toFixed(4)
+    const lat = Cesium.Math.toDegrees(carto.latitude).toFixed(4)
+    document.getElementById('coordBar').textContent = `${lon}°E, ${lat}°N`
+  }
+}, Cesium.ScreenSpaceEventType.MOUSE_MOVE)
+
+// ==================== WebSocket ====================
+let ws = null
+let reconnectTimer = null
+
+function updateStatus(state) {
+  const dot = document.getElementById('statusDot')
+  const text = document.getElementById('statusText')
+  const btn = document.getElementById('connBtn')
+  dot.className = 'status-dot ' + state
+  text.textContent = state === 'connected' ? '已连接' : state === 'connecting' ? '连接中...' : '未连接'
+  btn.textContent = (state === 'connected') ? '断开' : '连接'
+  btn.className = (state === 'connected') ? 'btn btn-red' : 'btn btn-blue'
+}
+
+function toggleConnection() {
+  if (ws && ws.readyState <= WebSocket.OPEN) {
+    ws.onclose = null; ws.close(); ws = null
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
+    updateStatus('disconnected'); addLog('info', '手动断开')
+    return
+  }
+  connect()
+}
+
+function connect() {
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
+  const url = document.getElementById('wsUrl').value
+  updateStatus('connecting'); addLog('info', `连接 ${url}`)
+  ws = new WebSocket(url)
+  ws.onopen = () => { updateStatus('connected'); addLog('info', 'WebSocket 已连接') }
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data)
+      if (msg.method) {
+        addLog('recv', `<b>${msg.method}</b> — ${JSON.stringify(msg.params ?? {}).slice(0, 100)}`)
+        executeCommand(msg.method, msg.params ?? {}).then(result => {
+          if (msg.id) {
+            ws.send(JSON.stringify({ id: msg.id, result }))
+            addLog('sent', `响应 #${msg.id} — ${JSON.stringify(result).slice(0, 80)}`)
+          }
+        }).catch(err => {
+          if (msg.id) ws.send(JSON.stringify({ id: msg.id, error: { message: err.message } }))
+          addLog('error', `${msg.method} 失败: ${err.message}`)
+        })
+      }
+    } catch (e) { addLog('error', '消息解析失败: ' + e.message) }
+  }
+  ws.onclose = () => {
+    updateStatus('disconnected'); addLog('info', '连接断开，3s 后重连...')
+    reconnectTimer = setTimeout(connect, 3000)
+  }
+  ws.onerror = () => {}
+}
+
+async function executeCommand(action, params) {
+  return bridge.execute({ action, params })
+}
+
+// ==================== 快速测试 ====================
+function quickTest(name) {
+  const map = {
+    flyToBeijing: () => executeAndLog('flyTo', { longitude: 116.397, latitude: 39.908, height: 15000, pitch: -30 }),
+    flyToShanghai: () => executeAndLog('flyTo', { longitude: 121.4737, latitude: 31.2304, height: 20000, pitch: -40 }),
+    addMarker: () => executeAndLog('addMarker', { longitude: 116.397, latitude: 39.908, label: '天安门', color: '#ef4444', size: 14 }),
+    screenshot: () => executeAndLog('screenshot', {}),
+    setDark: () => executeAndLog('setBasemap', { basemap: 'dark' }),
+    setSatellite: () => executeAndLog('setBasemap', { basemap: 'satellite' }),
+    clearAll: () => { viewer.entities.removeAll(); addLog('info', '已清除所有实体') },
+  }
+  map[name]?.()
+}
+
+async function executeAndLog(action, params) {
+  addLog('info', `执行: <b>${action}</b>`)
+  try {
+    const result = await executeCommand(action, params)
+    const display = { ...result }; delete display.dataUrl
+    addLog('sent', `结果: ${JSON.stringify(display).slice(0, 120)}`)
+    return result
+  } catch (e) {
+    addLog('error', `失败: ${e.message}`)
+    return { success: false, error: e.message }
+  }
+}
+
+// ==================== 手动命令 ====================
+function onActionChange() {
+  const action = document.getElementById('cmdAction').value
+  const tpl = TEMPLATES[action]
+  if (tpl) document.getElementById('cmdParams').value = JSON.stringify(tpl, null, 2)
+}
+
+function fillTemplate() { onActionChange() }
+
+function sendManualCmd() {
+  const action = document.getElementById('cmdAction').value
+  let params = {}
+  try { params = JSON.parse(document.getElementById('cmdParams').value || '{}') }
+  catch (e) { addLog('error', `JSON 格式错误: ${e.message}`); return }
+  executeAndLog(action, params)
+}
+
+// ==================== 日志 ====================
+function addLog(type, text) {
+  const list = document.getElementById('logList')
+  const time = new Date().toLocaleTimeString('zh-CN', { hour12: false })
+  const item = document.createElement('div')
+  item.className = 'log-item ' + type
+  item.innerHTML = `<span class="log-time">${time}</span> ${text}`
+  list.appendChild(item)
+  list.scrollTop = list.scrollHeight
+  if (list.children.length > 200) list.removeChild(list.firstChild)
+}
+
+function clearLogs() { document.getElementById('logList').innerHTML = '' }
+
+document.getElementById('cmdParams').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.ctrlKey) { sendManualCmd(); e.preventDefault() }
+})
+
+addLog('info', '点击「连接」按钮连接 WebSocket，然后在 Dify 中发送地图指令')
+</script>
+</body>
+</html>
