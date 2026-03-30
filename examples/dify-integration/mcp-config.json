@@ -1,0 +1,7 @@
+{
+  "cesium-mcp": {
+    "transport": "streamable_http",
+    "url": "http://host.docker.internal:3211/mcp",
+    "timeout": 60
+  }
+}

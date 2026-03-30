@@ -53,7 +53,7 @@ function sendToBrowser(action: string, params: Record<string, unknown>, timeoutM
   return new Promise((resolve, reject) => {
     const ws = getDefaultBrowser()
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      reject(new Error('无浏览器连接。请先在浏览器中打开 GeoAgent 并连接 WebSocket。'))
+      reject(new Error('无浏览器连接。请在浏览器中打开包含 CesiumJS 的页面并连接 WebSocket。示例：http://localhost:9100/demo/'))
       return
     }
 
