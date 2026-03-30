@@ -10,6 +10,7 @@ vi.mock('cesium', () => {
   const Color = {
     YELLOW: { withAlpha: (a: number) => ({ _color: 'yellow', _alpha: a }) },
     BLACK: {},
+    fromCssColorString: (s: string) => ({ _css: s, withAlpha: (a: number) => ({ _css: s, _alpha: a }) }),
   }
 
   return {
@@ -64,7 +65,7 @@ vi.mock('cesium', () => {
   }
 })
 
-import { measure } from './interaction.js'
+import { measure, highlight } from './interaction.js'
 
 function makeViewer() {
   const entities: any[] = []
@@ -295,5 +296,138 @@ describe('measure', () => {
     })
     expect(mockRemoveById).toHaveBeenCalledWith('reuse-area')
     expect(mockRemoveById).toHaveBeenCalledWith('reuse-area_label')
+  })
+})
+
+// ==================== highlight ====================
+
+describe('highlight', () => {
+  function makeEntity(id: string, type: string) {
+    const entity: any = { id }
+    if (type === 'polygon') entity.polygon = { material: 'original-mat' }
+    if (type === 'polyline') entity.polyline = { material: 'original-mat', width: 'original-width' }
+    if (type === 'point') entity.point = { color: 'original-color', pixelSize: 'original-size' }
+    if (type === 'billboard') entity.billboard = { color: 'original-color' }
+    if (type === 'box') entity.box = { material: 'original-mat' }
+    if (type === 'cylinder') entity.cylinder = { material: 'original-mat' }
+    if (type === 'ellipse') entity.ellipse = { material: 'original-mat' }
+    if (type === 'rectangle') entity.rectangle = { material: 'original-mat' }
+    if (type === 'wall') entity.wall = { material: 'original-mat' }
+    if (type === 'corridor') entity.corridor = { material: 'original-mat' }
+    if (type === 'label') entity.label = { fillColor: 'original-fill' }
+    if (type === 'model') entity.model = { silhouetteColor: 'original-sil-color', silhouetteSize: 'original-sil-size' }
+    return entity
+  }
+
+  function makeLayerManager(entities: any[]) {
+    return {
+      getCesiumRefs: (id: string) => id === 'layer1' ? { dataSource: { entities: { values: entities } } } : undefined,
+    } as any
+  }
+
+  function makeViewer(topEntities: any[] = [], dsEntities: any[][] = []) {
+    return {
+      entities: { values: topEntities },
+      dataSources: {
+        length: dsEntities.length,
+        get: (i: number) => ({ entities: { values: dsEntities[i] } }),
+      },
+    } as any
+  }
+
+  it('should highlight all entities in a layer', () => {
+    const entities = [makeEntity('e1', 'polygon'), makeEntity('e2', 'polyline')]
+    const lm = makeLayerManager(entities)
+    const viewer = makeViewer()
+    highlight(viewer, lm, { layerId: 'layer1', color: '#FF0000' })
+    // polygon material should be changed
+    expect(entities[0].polygon.material).not.toBe('original-mat')
+    // polyline material should be changed
+    expect(entities[1].polyline.material).not.toBe('original-mat')
+  })
+
+  it('should highlight single entity by featureIndex', () => {
+    const entities = [makeEntity('e1', 'polygon'), makeEntity('e2', 'polygon')]
+    const lm = makeLayerManager(entities)
+    const viewer = makeViewer()
+    highlight(viewer, lm, { layerId: 'layer1', featureIndex: 0 })
+    expect(entities[0].polygon.material).not.toBe('original-mat')
+    expect(entities[1].polygon.material).toBe('original-mat') // untouched
+  })
+
+  it('should restore original style on clear with layerId', () => {
+    const entities = [makeEntity('e1', 'polygon')]
+    const lm = makeLayerManager(entities)
+    const viewer = makeViewer()
+    const originalMat = entities[0].polygon.material
+    highlight(viewer, lm, { layerId: 'layer1' })
+    expect(entities[0].polygon.material).not.toBe(originalMat)
+    // clear
+    highlight(viewer, lm, { layerId: 'layer1', clear: true })
+    expect(entities[0].polygon.material).toBe(originalMat)
+  })
+
+  it('should restore original style on global clear (no layerId)', () => {
+    const entities = [makeEntity('e1', 'polygon')]
+    const lm = makeLayerManager(entities)
+    const viewer = makeViewer([], [entities.map(e => e)]) // put entities in a DataSource
+    // Also register in layerManager for highlighting
+    const originalMat = entities[0].polygon.material
+    highlight(viewer, lm, { layerId: 'layer1' })
+    expect(entities[0].polygon.material).not.toBe(originalMat)
+    // Global clear
+    highlight(viewer, lm, { clear: true })
+    expect(entities[0].polygon.material).toBe(originalMat)
+  })
+
+  it('should handle highlight and clear for billboard entities', () => {
+    const entities = [makeEntity('bb1', 'billboard')]
+    const lm = makeLayerManager(entities)
+    const viewer = makeViewer()
+    const origColor = entities[0].billboard.color
+    highlight(viewer, lm, { layerId: 'layer1' })
+    expect(entities[0].billboard.color).not.toBe(origColor)
+    highlight(viewer, lm, { layerId: 'layer1', clear: true })
+    expect(entities[0].billboard.color).toBe(origColor)
+  })
+
+  it('should handle highlight and clear for box entities', () => {
+    const entities = [makeEntity('box1', 'box')]
+    const lm = makeLayerManager(entities)
+    const viewer = makeViewer()
+    const origMat = entities[0].box.material
+    highlight(viewer, lm, { layerId: 'layer1' })
+    expect(entities[0].box.material).not.toBe(origMat)
+    highlight(viewer, lm, { layerId: 'layer1', clear: true })
+    expect(entities[0].box.material).toBe(origMat)
+  })
+
+  it('should not re-backup if already highlighted', () => {
+    const entities = [makeEntity('e1', 'polygon')]
+    const lm = makeLayerManager(entities)
+    const viewer = makeViewer()
+    const originalMat = entities[0].polygon.material
+    highlight(viewer, lm, { layerId: 'layer1', color: '#FF0000' })
+    const firstHighlight = entities[0].polygon.material
+    // Highlight again with different color
+    highlight(viewer, lm, { layerId: 'layer1', color: '#00FF00' })
+    expect(entities[0].polygon.material).not.toBe(firstHighlight)
+    // Clear should restore original, not the first highlight
+    highlight(viewer, lm, { layerId: 'layer1', clear: true })
+    expect(entities[0].polygon.material).toBe(originalMat)
+  })
+
+  it('should do nothing when layerId is not found', () => {
+    const lm = { getCesiumRefs: () => undefined } as any
+    const viewer = makeViewer()
+    // Should not throw
+    highlight(viewer, lm, { layerId: 'nonexistent' })
+  })
+
+  it('should do nothing for highlight without layerId and without clear', () => {
+    const lm = { getCesiumRefs: () => undefined } as any
+    const viewer = makeViewer()
+    // Should not throw
+    highlight(viewer, lm, {})
   })
 })

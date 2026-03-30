@@ -24,14 +24,48 @@ export function screenshot(viewer: Cesium.Viewer): Promise<ScreenshotResult> {
 }
 
 /**
- * 高亮指定图层的要素
+ * 高亮指定图层的要素（支持备份/恢复原始样式）
  */
+
+// 模块级备份存储：entityId -> 原始样式
+const _highlightBackups = new Map<string, Record<string, any>>()
+
 export function highlight(
   viewer: Cesium.Viewer,
   layerManager: LayerManager,
   params: HighlightParams,
 ): void {
-  const { layerId, featureIndex, color = '#FFFF00' } = params
+  const { layerId, featureIndex, color = '#FFFF00', clear } = params
+
+  // 清除模式
+  if (clear) {
+    if (layerId) {
+      const refs = layerManager.getCesiumRefs(layerId)
+      if (refs?.dataSource) {
+        for (const entity of refs.dataSource.entities.values) {
+          restoreEntityStyle(entity)
+        }
+      }
+    } else {
+      // 无 layerId → 清除所有已备份的高亮
+      // 遍历所有 DataSource 恢复
+      const dsColl = viewer.dataSources
+      if (dsColl) {
+        for (let i = 0; i < dsColl.length; i++) {
+          for (const entity of dsColl.get(i).entities.values) {
+            restoreEntityStyle(entity)
+          }
+        }
+      }
+      // 也恢复 viewer 顶层实体
+      for (const entity of viewer.entities.values) {
+        restoreEntityStyle(entity)
+      }
+    }
+    return
+  }
+
+  if (!layerId) return
   const refs = layerManager.getCesiumRefs(layerId)
   if (!refs?.dataSource) return
 
@@ -40,23 +74,83 @@ export function highlight(
 
   if (featureIndex != null && featureIndex < entities.length) {
     const entity = entities[featureIndex]!
-    applyHighlight(entity, highlightColor)
+    backupAndHighlight(entity, highlightColor)
   } else {
     for (const entity of entities) {
-      applyHighlight(entity, highlightColor)
+      backupAndHighlight(entity, highlightColor)
     }
   }
 }
 
+function backupAndHighlight(entity: Cesium.Entity, color: Cesium.Color): void {
+  // 仅首次备份，避免覆盖原始值
+  if (!_highlightBackups.has(entity.id)) {
+    const b: Record<string, any> = {}
+    if (entity.polygon) b.polygonMaterial = entity.polygon.material
+    if (entity.polyline) { b.polylineMaterial = entity.polyline.material; b.polylineWidth = entity.polyline.width }
+    if (entity.point) { b.pointColor = entity.point.color; b.pointPixelSize = entity.point.pixelSize }
+    if (entity.billboard) b.billboardColor = entity.billboard.color
+    if (entity.model) { b.modelSilhouetteColor = (entity.model as any).silhouetteColor; b.modelSilhouetteSize = (entity.model as any).silhouetteSize }
+    if (entity.label) b.labelFillColor = entity.label.fillColor
+    if (entity.box) b.boxMaterial = entity.box.material
+    if (entity.cylinder) b.cylinderMaterial = entity.cylinder.material
+    if (entity.ellipse) b.ellipseMaterial = entity.ellipse.material
+    if (entity.rectangle) b.rectangleMaterial = entity.rectangle.material
+    if (entity.wall) b.wallMaterial = entity.wall.material
+    if (entity.corridor) b.corridorMaterial = entity.corridor.material
+    _highlightBackups.set(entity.id, b)
+  }
+  applyHighlight(entity, color)
+}
+
+function restoreEntityStyle(entity: Cesium.Entity): void {
+  const b = _highlightBackups.get(entity.id)
+  if (!b) return
+  if (entity.polygon) entity.polygon.material = b.polygonMaterial
+  if (entity.polyline) { entity.polyline.material = b.polylineMaterial; entity.polyline.width = b.polylineWidth }
+  if (entity.point) { entity.point.color = b.pointColor; entity.point.pixelSize = b.pointPixelSize }
+  if (entity.billboard) entity.billboard.color = b.billboardColor
+  if (entity.model) { (entity.model as any).silhouetteColor = b.modelSilhouetteColor; (entity.model as any).silhouetteSize = b.modelSilhouetteSize }
+  if (entity.label) entity.label.fillColor = b.labelFillColor
+  if (entity.box) entity.box.material = b.boxMaterial
+  if (entity.cylinder) entity.cylinder.material = b.cylinderMaterial
+  if (entity.ellipse) entity.ellipse.material = b.ellipseMaterial
+  if (entity.rectangle) entity.rectangle.material = b.rectangleMaterial
+  if (entity.wall) entity.wall.material = b.wallMaterial
+  if (entity.corridor) entity.corridor.material = b.corridorMaterial
+  _highlightBackups.delete(entity.id)
+}
+
 function applyHighlight(entity: Cesium.Entity, color: Cesium.Color): void {
+  const mat = new Cesium.ColorMaterialProperty(color)
+  const colorProp = new Cesium.ConstantProperty(color)
   if (entity.polygon) {
-    entity.polygon.material = new Cesium.ColorMaterialProperty(color)
+    entity.polygon.material = mat
   } else if (entity.polyline) {
-    entity.polyline.material = new Cesium.ColorMaterialProperty(color)
+    entity.polyline.material = mat
     entity.polyline.width = new Cesium.ConstantProperty(3)
   } else if (entity.point) {
-    entity.point.color = new Cesium.ConstantProperty(color)
+    entity.point.color = colorProp
     entity.point.pixelSize = new Cesium.ConstantProperty(16)
+  } else if (entity.billboard) {
+    entity.billboard.color = colorProp
+  } else if (entity.model) {
+    ;(entity.model as any).silhouetteColor = colorProp
+    ;(entity.model as any).silhouetteSize = new Cesium.ConstantProperty(2)
+  } else if (entity.label) {
+    entity.label.fillColor = colorProp
+  } else if (entity.box) {
+    entity.box.material = mat
+  } else if (entity.cylinder) {
+    entity.cylinder.material = mat
+  } else if (entity.ellipse) {
+    entity.ellipse.material = mat
+  } else if (entity.rectangle) {
+    entity.rectangle.material = mat
+  } else if (entity.wall) {
+    entity.wall.material = mat
+  } else if (entity.corridor) {
+    entity.corridor.material = mat
   }
 }
 

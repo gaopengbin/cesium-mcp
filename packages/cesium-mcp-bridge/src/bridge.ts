@@ -173,7 +173,7 @@ export class CesiumBridge {
         }
         case 'highlight':
           this.highlight(p as HighlightParams)
-          return { success: true, message: 'Features highlighted' }
+          return { success: true, message: (p as HighlightParams).clear ? 'Highlight cleared' : 'Features highlighted' }
         case 'measure': {
           const result = this.measure(p as MeasureParams)
           return { success: true, data: result, message: `Measurement complete: ${result.value} ${result.unit}` }

@@ -242,6 +242,91 @@ describe('queryEntities', () => {
     expect(results[0].position!.longitude).toBeCloseTo(116.4, 1)
     expect(results[0].position!.latitude).toBeCloseTo(39.9, 1)
   })
+
+  // ---- DataSource 实体查询 ----
+
+  function makeViewerWithDataSources(topEntities: any[], dataSources: { entities: any[] }[]) {
+    return {
+      entities: { values: topEntities },
+      dataSources: {
+        length: dataSources.length,
+        get: (i: number) => ({
+          entities: { values: dataSources[i].entities },
+        }),
+      },
+    } as any
+  }
+
+  it('should find entities inside DataSources', () => {
+    const viewer = makeViewerWithDataSources([], [
+      { entities: [makeEntity({ id: 'ds1', type: 'polygon', name: 'GeoJSON Feature' })] },
+    ])
+    const results = queryEntities(viewer, {})
+    expect(results).toHaveLength(1)
+    expect(results[0].entityId).toBe('ds1')
+    expect(results[0].type).toBe('polygon')
+  })
+
+  it('should combine viewer entities and DataSource entities', () => {
+    const viewer = makeViewerWithDataSources(
+      [makeEntity({ id: 'top1', type: 'marker' })],
+      [{ entities: [makeEntity({ id: 'ds1', type: 'polygon' }), makeEntity({ id: 'ds2', type: 'polyline' })] }],
+    )
+    const results = queryEntities(viewer, {})
+    expect(results).toHaveLength(3)
+    expect(results.map(r => r.entityId).sort()).toEqual(['ds1', 'ds2', 'top1'])
+  })
+
+  it('should filter DataSource entities by type', () => {
+    const viewer = makeViewerWithDataSources([], [
+      { entities: [
+        makeEntity({ id: 'a', type: 'polygon' }),
+        makeEntity({ id: 'b', type: 'polyline' }),
+      ] },
+    ])
+    const results = queryEntities(viewer, { type: 'polygon' })
+    expect(results).toHaveLength(1)
+    expect(results[0].entityId).toBe('a')
+  })
+
+  it('should filter DataSource entities by name', () => {
+    const viewer = makeViewerWithDataSources([], [
+      { entities: [
+        makeEntity({ id: 'a', type: 'polygon', name: 'Beijing District' }),
+        makeEntity({ id: 'b', type: 'polygon', name: 'Shanghai District' }),
+      ] },
+    ])
+    const results = queryEntities(viewer, { name: 'beijing' })
+    expect(results).toHaveLength(1)
+    expect(results[0].entityId).toBe('a')
+  })
+
+  it('should filter DataSource entities by bbox', () => {
+    const viewer = makeViewerWithDataSources([], [
+      { entities: [
+        makeEntity({ id: 'in', type: 'marker', lon: 116.4, lat: 39.9 }),
+        makeEntity({ id: 'out', type: 'marker', lon: 121.0, lat: 31.0 }),
+      ] },
+    ])
+    const results = queryEntities(viewer, { bbox: [115, 39, 117, 41] })
+    expect(results).toHaveLength(1)
+    expect(results[0].entityId).toBe('in')
+  })
+
+  it('should handle multiple DataSources', () => {
+    const viewer = makeViewerWithDataSources([], [
+      { entities: [makeEntity({ id: 'a', type: 'polygon' })] },
+      { entities: [makeEntity({ id: 'b', type: 'polyline' })] },
+    ])
+    const results = queryEntities(viewer, {})
+    expect(results).toHaveLength(2)
+  })
+
+  it('should work when viewer has no dataSources property', () => {
+    const viewer = { entities: { values: [makeEntity({ id: '1', type: 'marker' })] } } as any
+    const results = queryEntities(viewer, {})
+    expect(results).toHaveLength(1)
+  })
 })
 
 // ==================== Pure helpers ====================
@@ -448,5 +533,28 @@ describe('getEntityProperties', () => {
     const viewer = makeViewer([e])
     const result = getEntityProperties(viewer, { entityId: 'np1' })
     expect(result.position).toBeUndefined()
+  })
+
+  it('should find entity inside a DataSource', () => {
+    const e = makeEntity({ id: 'ds-entity', name: 'From GeoJSON', type: 'polygon', lon: 116, lat: 40 })
+    const viewer = {
+      entities: {
+        values: [],
+        getById: () => undefined,
+      },
+      dataSources: {
+        length: 1,
+        get: () => ({
+          entities: {
+            values: [e],
+            getById: (id: string) => id === 'ds-entity' ? e : undefined,
+          },
+        }),
+      },
+    } as any
+    const result = getEntityProperties(viewer, { entityId: 'ds-entity' })
+    expect(result.entityId).toBe('ds-entity')
+    expect(result.name).toBe('From GeoJSON')
+    expect(result.type).toBe('polygon')
   })
 })

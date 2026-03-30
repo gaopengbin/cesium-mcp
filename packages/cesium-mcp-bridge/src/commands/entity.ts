@@ -322,66 +322,71 @@ export function batchAddEntities(
 
 /**
  * 查询已有实体 — 按名称/类型/空间范围过滤
+ * 搜索范围包含 viewer.entities 和所有 DataSource 中的实体
  */
 export function queryEntities(viewer: Cesium.Viewer, params: QueryEntitiesParams): QueryEntityResult[] {
   const results: QueryEntityResult[] = []
-  const entities = viewer.entities.values
 
-  for (const entity of entities) {
-    // 确定实体类型
-    let type = 'unknown'
-    if (entity.point) type = 'marker'
-    else if (entity.billboard) type = 'billboard'
-    else if (entity.polyline) type = 'polyline'
-    else if (entity.polygon) type = 'polygon'
-    else if (entity.model) type = 'model'
-    else if (entity.box) type = 'box'
-    else if (entity.cylinder) type = 'cylinder'
-    else if (entity.ellipse) type = 'ellipse'
-    else if (entity.rectangle) type = 'rectangle'
-    else if (entity.wall) type = 'wall'
-    else if (entity.corridor) type = 'corridor'
-    else if (entity.label && !entity.point) type = 'label'
+  // viewer 顶层实体
+  for (const entity of viewer.entities.values) {
+    matchEntityForQuery(entity, params, results)
+  }
 
-    // 按类型过滤
-    if (params.type && type !== params.type) continue
-
-    // 按名称模糊匹配
-    const name = entity.name ?? entity.label?.text?.getValue(Cesium.JulianDate.now()) ?? undefined
-    if (params.name && name && !String(name).toLowerCase().includes(params.name.toLowerCase())) continue
-    if (params.name && !name) continue
-
-    // 获取位置
-    let position: QueryEntityResult['position']
-    if (entity.position) {
-      const pos = entity.position.getValue(Cesium.JulianDate.now())
-      if (pos) {
-        const carto = Cesium.Cartographic.fromCartesian(pos)
-        position = {
-          longitude: Cesium.Math.toDegrees(carto.longitude),
-          latitude: Cesium.Math.toDegrees(carto.latitude),
-          height: carto.height,
-        }
+  // DataSource 中的实体（GeoJSON / CZML / KML 等图层）
+  const dsColl = viewer.dataSources
+  if (dsColl) {
+    for (let i = 0; i < dsColl.length; i++) {
+      const ds = dsColl.get(i)
+      for (const entity of ds.entities.values) {
+        matchEntityForQuery(entity, params, results)
       }
     }
-
-    // 按空间范围过滤
-    if (params.bbox && position) {
-      const [west, south, east, north] = params.bbox
-      if (position.longitude < west || position.longitude > east ||
-          position.latitude < south || position.latitude > north) continue
-    } else if (params.bbox && !position) {
-      continue
-    }
-
-    results.push({
-      entityId: entity.id,
-      name: name ? String(name) : undefined,
-      type,
-      position,
-    })
   }
+
   return results
+}
+
+/** 将单个实体与查询条件匹配，命中则追加到 results */
+function matchEntityForQuery(
+  entity: Cesium.Entity,
+  params: QueryEntitiesParams,
+  results: QueryEntityResult[],
+): void {
+  const type = detectEntityType(entity)
+
+  if (params.type && type !== params.type) return
+
+  const name = entity.name ?? entity.label?.text?.getValue(Cesium.JulianDate.now()) ?? undefined
+  if (params.name && name && !String(name).toLowerCase().includes(params.name.toLowerCase())) return
+  if (params.name && !name) return
+
+  let position: QueryEntityResult['position']
+  if (entity.position) {
+    const pos = entity.position.getValue(Cesium.JulianDate.now())
+    if (pos) {
+      const carto = Cesium.Cartographic.fromCartesian(pos)
+      position = {
+        longitude: Cesium.Math.toDegrees(carto.longitude),
+        latitude: Cesium.Math.toDegrees(carto.latitude),
+        height: carto.height,
+      }
+    }
+  }
+
+  if (params.bbox && position) {
+    const [west, south, east, north] = params.bbox
+    if (position.longitude < west || position.longitude > east ||
+        position.latitude < south || position.latitude > north) return
+  } else if (params.bbox && !position) {
+    return
+  }
+
+  results.push({
+    entityId: entity.id,
+    name: name ? String(name) : undefined,
+    type,
+    position,
+  })
 }
 
 // ==================== getEntityProperties ====================
@@ -505,8 +510,22 @@ function extractGraphicProperties(entity: Cesium.Entity, type: string): Record<s
   return props
 }
 
+/** 在 viewer.entities 及所有 DataSource 中查找实体 */
+function findEntityById(viewer: Cesium.Viewer, entityId: string): Cesium.Entity | undefined {
+  const entity = viewer.entities.getById(entityId)
+  if (entity) return entity
+  const dsColl = viewer.dataSources
+  if (dsColl) {
+    for (let i = 0; i < dsColl.length; i++) {
+      const found = dsColl.get(i).entities.getById(entityId)
+      if (found) return found
+    }
+  }
+  return undefined
+}
+
 export function getEntityProperties(viewer: Cesium.Viewer, params: GetEntityPropertiesParams): EntityPropertiesResult {
-  const entity = viewer.entities.getById(params.entityId)
+  const entity = findEntityById(viewer, params.entityId)
   if (!entity) throw new Error(`Entity not found: ${params.entityId}`)
 
   const type = detectEntityType(entity)

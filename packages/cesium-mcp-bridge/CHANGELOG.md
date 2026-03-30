@@ -1,5 +1,16 @@
 # cesium-mcp-bridge
 
+## 1.139.10
+
+### Patch Changes
+
+- fix: queryEntities now searches DataSource entities (GeoJSON/CZML/KML layers) — previously only checked viewer.entities, missing all layer-loaded features
+- fix: getEntityProperties now finds entities across all DataSources
+- feat: highlight supports backup/restore — `clear: true` precisely restores original material/color/size
+- feat: highlight supports global clear (no layerId) to restore all highlighted entities
+- feat: highlight expanded from 3 to 13 entity types (added billboard, model, label, box, cylinder, ellipse, rectangle, wall, corridor)
+- refactor: queryEntities deduplicates type detection via shared `detectEntityType` helper
+
 ## 1.139.9
 
 ### Patch Changes

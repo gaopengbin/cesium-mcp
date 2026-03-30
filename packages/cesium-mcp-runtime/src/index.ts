@@ -618,11 +618,12 @@ _registerTool(
 // — highlight
 _registerTool(
   'highlight',
-  '高亮指定图层的要素',
+  '高亮指定图层的要素（支持清除恢复原始样式）',
   {
-    layerId: z.string().describe('图层ID'),
-    featureIndex: z.number().optional().describe('要素索引（不传则高亮全部）'),
+    layerId: z.string().optional().describe('图层ID（清除所有高亮时可不传）'),
+    featureIndex: z.number().optional().describe('要素索引（不传则高亮/清除全部）'),
     color: z.string().default('#FFFF00').describe('高亮颜色（CSS 格式）'),
+    clear: z.boolean().optional().describe('传 true 清除高亮、恢复原始样式'),
   },
   { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Highlight' },
   async (params) => {

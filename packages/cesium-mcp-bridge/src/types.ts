@@ -282,9 +282,10 @@ export interface ScreenshotResult {
 }
 
 export interface HighlightParams {
-  layerId: string
+  layerId?: string
   featureIndex?: number
   color?: ColorInput
+  clear?: boolean
 }
 
 export interface MeasureParams {

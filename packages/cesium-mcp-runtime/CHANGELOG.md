@@ -1,5 +1,11 @@
 # cesium-mcp-runtime
 
+## 1.139.9
+
+### Patch Changes
+
+- fix: highlight tool schema updated — layerId now optional, added `clear` parameter for restoring original styles
+
 ## 1.139.8
 
 ### Patch Changes
