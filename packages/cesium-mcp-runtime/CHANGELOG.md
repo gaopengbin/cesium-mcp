@@ -1,5 +1,11 @@
 # cesium-mcp-runtime
 
+## 1.139.10
+
+### Patch Changes
+
+- fix: bin path corrected for `npx cesium-mcp-runtime` (`./dist/cli.js` → `dist/cli.js`)
+
 ## 1.139.9
 
 ### Patch Changes
