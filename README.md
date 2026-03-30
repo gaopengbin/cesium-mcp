@@ -148,6 +148,16 @@ When CesiumJS releases a new minor version (e.g. 1.140), we will bump accordingl
 - [mapbox-mcp](https://github.com/gaopengbin/mapbox-mcp) — AI control for Mapbox GL JS
 - [openlayers-mcp](https://github.com/gaopengbin/openlayers-mcp) — AI control for OpenLayers
 
+## Star History
+
+<a href="https://star-history.com/#gaopengbin/cesium-mcp&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=gaopengbin/cesium-mcp&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=gaopengbin/cesium-mcp&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=gaopengbin/cesium-mcp&type=Date" />
+ </picture>
+</a>
+
 ## License
 
 [MIT](LICENSE)
