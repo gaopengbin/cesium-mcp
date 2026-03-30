@@ -11,6 +11,9 @@ vi.mock('cesium', () => ({
   Rectangle: {
     fromDegrees: (w: number, s: number, e: number, n: number) => ({ west: w, south: s, east: e, north: n }),
   },
+  BoundingSphere: class { center: any; radius: number; constructor(c: any, r: number) { this.center = c; this.radius = r } },
+  HeadingPitchRange: class { heading: number; pitch: number; range: number; constructor(h: number, p: number, r: number) { this.heading = h; this.pitch = p; this.range = r } },
+  Matrix4: { IDENTITY: 'IDENTITY' },
   default: {},
 }))
 
@@ -33,7 +36,10 @@ function makeViewer(pos = { lon: 116.4, lat: 39.9, height: 5000, heading: 0, pit
       pitch: pitchRad,
       roll: rollRad,
       flyTo: (opts: any) => { flyToCalled = true; opts.complete?.() },
+      flyToBoundingSphere: (_bs: any, opts: any) => { flyToCalled = true; opts.complete?.() },
       setView: () => { setViewCalled = true },
+      lookAt: () => { setViewCalled = true },
+      lookAtTransform: () => {},
     },
     get _flyToCalled() { return flyToCalled },
     get _setViewCalled() { return setViewCalled },
