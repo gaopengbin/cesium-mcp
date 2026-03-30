@@ -283,7 +283,10 @@ function _tryListen(httpServer: ReturnType<typeof createServer>, port: number): 
 async function startServer() {
   // Phase 1: check if target port is available
   const httpServer = createServer(handleHttpRequest)
-  const wss = new WebSocketServer({ server: httpServer })
+  const wss = new WebSocketServer({ server: httpServer, noServer: false })
+
+  // Prevent unhandled error crash when httpServer fails to bind
+  wss.on('error', () => { /* handled by httpServer error listener in _tryListen */ })
 
   _setupWss(wss)
 
@@ -309,6 +312,7 @@ async function startServer() {
     const tryPort = WS_PORT + offset
     const altServer = createServer(handleHttpRequest)
     const altWss = new WebSocketServer({ server: altServer })
+    altWss.on('error', () => { /* handled by altServer error listener */ })
     _setupWss(altWss)
     if (await _tryListen(altServer, tryPort)) {
       console.error(`[cesium-mcp-runtime] Port ${WS_PORT} occupied by another service, using port ${tryPort}`)
