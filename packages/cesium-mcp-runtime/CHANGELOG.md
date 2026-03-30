@@ -1,5 +1,18 @@
 # cesium-mcp-runtime
 
+## 1.139.12
+
+### Minor Changes
+
+- feat: Streamable HTTP transport support — `--transport http --port 3211`, MCP_TRANSPORT / MCP_HTTP_PORT env vars
+- feat: compatible with Dify MCP plugin (junjiem/mcp_sse_agent) via streamable_http transport
+
+### Patch Changes
+
+- fix: prevent WSS unhandled error crash on port conflict
+- fix: improve error message — remove GeoAgent reference, show CesiumJS demo URL
+- docs: add Dify integration tutorial in examples/dify-integration/
+
 ## 1.139.11
 
 ### Patch Changes
