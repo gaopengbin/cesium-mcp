@@ -323,6 +323,7 @@ export interface EntityPropertiesResult {
   position?: { longitude: number; latitude: number; height: number }
   properties: Record<string, unknown>
   graphicProperties: Record<string, unknown>
+  description?: string
 }
 
 // ==================== Export Scene ====================
@@ -351,6 +352,15 @@ export interface LayerSchemaResult {
   layerName: string
   entityCount: number
   fields: LayerSchemaField[]
+  /** 3D Tiles / Ion 资产元数据 */
+  metadata?: {
+    assetVersion?: string
+    tilesetVersion?: string
+    ionAssetId?: number
+    geometricError?: number
+    boundingSphere?: { longitude: number; latitude: number; height: number; radius: number }
+    extras?: Record<string, unknown>
+  }
 }
 
 // ==================== Event ====================

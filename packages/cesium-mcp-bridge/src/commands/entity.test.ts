@@ -327,6 +327,79 @@ describe('queryEntities', () => {
     const results = queryEntities(viewer, {})
     expect(results).toHaveLength(1)
   })
+
+  it('should compute centroid for polygon entity without position', () => {
+    const polyEntity: any = {
+      id: 'poly1',
+      name: 'Test Polygon',
+      polygon: {
+        hierarchy: {
+          getValue: () => ({
+            positions: [
+              { _lon: 10, _lat: 20, _h: 0 },
+              { _lon: 20, _lat: 20, _h: 0 },
+              { _lon: 20, _lat: 30, _h: 0 },
+              { _lon: 10, _lat: 30, _h: 0 },
+            ],
+          }),
+        },
+      },
+    }
+    const viewer = makeViewer([polyEntity])
+    const results = queryEntities(viewer, {})
+    expect(results).toHaveLength(1)
+    expect(results[0].position).toBeDefined()
+    expect(results[0].position!.longitude).toBeCloseTo(15, 0)
+    expect(results[0].position!.latitude).toBeCloseTo(25, 0)
+  })
+
+  it('should use bbox intersection for polygon entities', () => {
+    // Polygon spanning lon 10-20, lat 20-30
+    const polyEntity: any = {
+      id: 'bigpoly',
+      name: 'Large Polygon',
+      polygon: {
+        hierarchy: {
+          getValue: () => ({
+            positions: [
+              { _lon: 10, _lat: 20, _h: 0 },
+              { _lon: 20, _lat: 20, _h: 0 },
+              { _lon: 20, _lat: 30, _h: 0 },
+              { _lon: 10, _lat: 30, _h: 0 },
+            ],
+          }),
+        },
+      },
+    }
+    const viewer = makeViewer([polyEntity])
+    // Query bbox overlaps with polygon's corner (lon 18-22, lat 28-32)
+    const results = queryEntities(viewer, { bbox: [18, 28, 22, 32] })
+    expect(results).toHaveLength(1) // Should match via bbox intersection
+    expect(results[0].entityId).toBe('bigpoly')
+  })
+
+  it('should exclude polygon when bbox does not intersect', () => {
+    const polyEntity: any = {
+      id: 'farpoly',
+      name: 'Far Polygon',
+      polygon: {
+        hierarchy: {
+          getValue: () => ({
+            positions: [
+              { _lon: 10, _lat: 20, _h: 0 },
+              { _lon: 20, _lat: 20, _h: 0 },
+              { _lon: 20, _lat: 30, _h: 0 },
+              { _lon: 10, _lat: 30, _h: 0 },
+            ],
+          }),
+        },
+      },
+    }
+    const viewer = makeViewer([polyEntity])
+    // Query bbox far from polygon (lon 100-110, lat 50-60)
+    const results = queryEntities(viewer, { bbox: [100, 50, 110, 60] })
+    expect(results).toHaveLength(0)
+  })
 })
 
 // ==================== Pure helpers ====================
@@ -556,5 +629,66 @@ describe('getEntityProperties', () => {
     expect(result.entityId).toBe('ds-entity')
     expect(result.name).toBe('From GeoJSON')
     expect(result.type).toBe('polygon')
+  })
+
+  it('should extract description field', () => {
+    const e = makeEntity({ id: 'd1', type: 'marker', lon: 116, lat: 40 })
+    e.description = { getValue: () => '<p>Some description HTML</p>' }
+    const viewer = makeViewer([e])
+    const result = getEntityProperties(viewer, { entityId: 'd1' })
+    expect(result.description).toBe('<p>Some description HTML</p>')
+  })
+
+  it('should tolerate property getValue throwing', () => {
+    const e = makeEntity({ id: 'err1', type: 'marker', lon: 116, lat: 40 })
+    e.properties = {
+      propertyNames: ['badProp', 'goodProp'],
+      badProp: { getValue: () => { throw new Error('no sample') } },
+      goodProp: { getValue: () => 42 },
+    }
+    const viewer = makeViewer([e])
+    const result = getEntityProperties(viewer, { entityId: 'err1' })
+    expect(result.properties.goodProp).toBe(42)
+    expect(result.properties.badProp).toBeUndefined()
+  })
+
+  it('should compute centroid for polygon entity without position', () => {
+    const e: any = {
+      id: 'poly-no-pos',
+      name: 'No Position Polygon',
+      polygon: {
+        hierarchy: {
+          getValue: () => ({
+            positions: [
+              { _lon: 0, _lat: 0, _h: 0 },
+              { _lon: 10, _lat: 0, _h: 0 },
+              { _lon: 10, _lat: 10, _h: 0 },
+              { _lon: 0, _lat: 10, _h: 0 },
+            ],
+          }),
+        },
+      },
+    }
+    const viewer = makeViewer([e])
+    const result = getEntityProperties(viewer, { entityId: 'poly-no-pos' })
+    expect(result.position).toBeDefined()
+    expect(result.position!.longitude).toBeCloseTo(5, 0)
+    expect(result.position!.latitude).toBeCloseTo(5, 0)
+  })
+
+  it('should extract material color for polygon', () => {
+    const e = makeEntity({
+      id: 'pgc1', type: 'polygon',
+      graphicOverrides: {
+        material: { getValue: () => ({ color: { toCssColorString: () => 'rgba(255,0,0,0.6)' } }) },
+        hierarchy: { getValue: () => null },
+        extrudedHeight: null,
+        fill: null,
+        outline: null,
+      },
+    })
+    const viewer = makeViewer([e])
+    const result = getEntityProperties(viewer, { entityId: 'pgc1' })
+    expect(result.graphicProperties.color).toBe('rgba(255,0,0,0.6)')
   })
 })

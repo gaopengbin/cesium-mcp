@@ -522,11 +522,42 @@ export class LayerManager {
       }
     }
 
+    // 提取 3D Tiles / Ion 元数据
+    const metadata: LayerSchemaResult['metadata'] = {}
+    const asset = (tileset as any).asset
+    if (asset && typeof asset === 'object') {
+      if (asset.version) metadata.assetVersion = String(asset.version)
+      if (asset.tilesetVersion) metadata.tilesetVersion = String(asset.tilesetVersion)
+    }
+    // Cesium Ion 资产 ID（从 IonResource 中提取）
+    const resource = (tileset as any).resource ?? (tileset as any)._resource
+    if (resource?.ionAssetId) metadata.ionAssetId = resource.ionAssetId
+    // 几何误差
+    if (tileset.maximumScreenSpaceError != null) metadata.geometricError = tileset.maximumScreenSpaceError
+    // 包围球
+    if (tileset.boundingSphere) {
+      try {
+        const center = Cesium.Cartographic.fromCartesian(tileset.boundingSphere.center)
+        metadata.boundingSphere = {
+          longitude: Cesium.Math.toDegrees(center.longitude),
+          latitude: Cesium.Math.toDegrees(center.latitude),
+          height: center.height,
+          radius: tileset.boundingSphere.radius,
+        }
+      } catch { /* degenerate bounding sphere */ }
+    }
+    // extras（tileset.json 中的自定义字段）
+    const extras = (tileset as any).extras
+    if (extras && typeof extras === 'object' && Object.keys(extras).length > 0) {
+      metadata.extras = extras
+    }
+
     return {
       layerId,
       layerName,
       entityCount: -1, // 3D Tiles 不提供精确实体数
       fields: Array.from(fieldMap.values()),
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
     }
   }
 

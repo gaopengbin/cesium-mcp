@@ -5,13 +5,30 @@ import type { LayerManager } from './layer'
 
 /**
  * 地图截图，返回 base64 DataURL
+ * 带 5 秒超时保护，防止 postRender 不触发导致 Promise 悬挂
  */
 export function screenshot(viewer: Cesium.Viewer): Promise<ScreenshotResult> {
-  return new Promise((resolve) => {
-    // 等待下一帧渲染完成
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const timeout = setTimeout(() => {
+      if (settled) return
+      settled = true
+      // 超时后仍尝试直接从 canvas 取图
+      try {
+        const canvas = viewer.scene.canvas
+        const dataUrl = canvas.toDataURL('image/png')
+        resolve({ dataUrl, width: canvas.width, height: canvas.height })
+      } catch {
+        reject(new Error('Screenshot timeout: postRender did not fire within 5s'))
+      }
+    }, 5000)
+
     viewer.scene.requestRender()
     const removeListener = viewer.scene.postRender.addEventListener(() => {
       removeListener()
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
       const canvas = viewer.scene.canvas
       const dataUrl = canvas.toDataURL('image/png')
       resolve({

@@ -65,7 +65,7 @@ vi.mock('cesium', () => {
   }
 })
 
-import { measure, highlight } from './interaction.js'
+import { measure, highlight, screenshot } from './interaction.js'
 
 function makeViewer() {
   const entities: any[] = []
@@ -429,5 +429,62 @@ describe('highlight', () => {
     const viewer = makeViewer()
     // Should not throw
     highlight(viewer, lm, {})
+  })
+})
+
+// ==================== screenshot ====================
+
+describe('screenshot', () => {
+  it('should resolve when postRender fires', async () => {
+    let listener: Function
+    const viewer = {
+      scene: {
+        requestRender: vi.fn(),
+        canvas: {
+          toDataURL: () => 'data:image/png;base64,abc',
+          width: 800,
+          height: 600,
+        },
+        postRender: {
+          addEventListener: (fn: Function) => {
+            listener = fn
+            // Simulate postRender firing on next tick
+            setTimeout(() => fn(), 0)
+            return () => {}
+          },
+        },
+      },
+    } as any
+    const result = await screenshot(viewer)
+    expect(result.dataUrl).toBe('data:image/png;base64,abc')
+    expect(result.width).toBe(800)
+    expect(result.height).toBe(600)
+  })
+
+  it('should fallback to canvas read on timeout', async () => {
+    vi.useFakeTimers()
+    const viewer = {
+      scene: {
+        requestRender: vi.fn(),
+        canvas: {
+          toDataURL: () => 'data:image/png;base64,timeout-fallback',
+          width: 1024,
+          height: 768,
+        },
+        postRender: {
+          addEventListener: () => {
+            // Never fires! Simulates hung render
+            return () => {}
+          },
+        },
+      },
+    } as any
+    const promise = screenshot(viewer)
+    // Advance timer past the 5s timeout
+    vi.advanceTimersByTime(5100)
+    const result = await promise
+    expect(result.dataUrl).toBe('data:image/png;base64,timeout-fallback')
+    expect(result.width).toBe(1024)
+    vi.useRealTimers()
   })
 })
