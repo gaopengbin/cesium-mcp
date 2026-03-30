@@ -40,7 +40,7 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 | 包名 | 描述 | npm |
 |------|------|-----|
 | [cesium-mcp-bridge](packages/cesium-mcp-bridge/) | 浏览器 SDK — 嵌入你的 CesiumJS 应用，通过 WebSocket 接收命令 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP 服务器 (stdio) — 58 个工具（12 个工具集）+ 2 个资源，支持动态发现 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP 服务器 (stdio + HTTP) — 58 个工具（12 个工具集）+ 2 个资源，支持动态发现 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [cesium-mcp-dev](packages/cesium-mcp-dev/) | IDE MCP 服务器 — 为代码助手提供 CesiumJS API 辅助 | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 ## 架构
@@ -51,11 +51,11 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 │  (Claude,    │   MCP      │  runtime         │   JSON-RPC  │  bridge          │
 │   Cursor…)   │            │  (Node.js)       │             │  (浏览器)         │
 └──────────────┘            └──────────────────┘             └──────────────────┘
-                                                                     │
-                                                              ┌──────▼──────┐
-                                                              │  CesiumJS   │
-                                                              │  Viewer     │
-                                                              └─────────────┘
+                              ▲                                      │
+┌──────────────┐   HTTP     │                               ┌──────▼──────┐
+│  Dify /      │ ◄──────────┘                               │  CesiumJS   │
+│  远程 MCP    │  Streamable HTTP                           │  Viewer     │
+└──────────────┘                                            └─────────────┘
 ```
 
 ## 快速开始
@@ -75,7 +75,11 @@ const bridge = new CesiumBridge(viewer);
 ### 2. 启动 MCP 运行时
 
 ```bash
+# stdio 模式（默认 — 用于 Claude Desktop、VS Code、Cursor）
 npx cesium-mcp-runtime
+
+# HTTP 模式（用于 Dify、远程/云端 MCP 客户端）
+npx cesium-mcp-runtime --transport http --port 3000
 ```
 
 ### 3. 连接你的 AI 智能体

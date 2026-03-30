@@ -11,6 +11,8 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
+import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import { WebSocketServer, WebSocket, type RawData } from 'ws'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -1713,6 +1715,124 @@ if (!_allMode) {
   )
 }
 
+// ==================== Streamable HTTP Transport ====================
+
+/**
+ * Create a fresh McpServer instance with all enabled tools replayed.
+ * Used for stateless HTTP transport mode — each request gets its own server.
+ */
+function _createHttpMcpServer(): McpServer {
+  const s = new McpServer({
+    name: 'cesium-mcp-runtime',
+    version: __VERSION__,
+    title: 'Cesium MCP Runtime',
+    description: 'AI-powered 3D globe control via MCP — camera, layers, entities, animation, and interaction with CesiumJS.',
+    websiteUrl: 'https://github.com/gaopengbin/cesium-mcp',
+  }, {
+    instructions: 'Cesium MCP Runtime provides tools for controlling a CesiumJS 3D globe via AI. A browser with cesium-mcp-bridge must be connected via WebSocket for command execution. Use view tools (flyTo, setView) to navigate, entity tools to add markers/polygons/models, layer tools to manage GeoJSON/3D Tiles, and animation tools for time-based animations.',
+  })
+
+  // Replay resources
+  s.resource(
+    'camera', 'cesium://scene/camera',
+    { description: '当前相机状态（经纬度、高度、角度）', mimeType: 'application/json' },
+    async () => {
+      try {
+        const result = await sendToBrowser('getView', {})
+        return { contents: [{ uri: 'cesium://scene/camera', text: JSON.stringify(result), mimeType: 'application/json' }] }
+      } catch {
+        return { contents: [{ uri: 'cesium://scene/camera', text: '{"error":"no browser connected"}', mimeType: 'application/json' }] }
+      }
+    },
+  )
+  s.resource(
+    'layers', 'cesium://scene/layers',
+    { description: '当前已加载的图层列表（ID、名称、类型、可见性）', mimeType: 'application/json' },
+    async () => {
+      try {
+        const result = await sendToBrowser('listLayers', {})
+        return { contents: [{ uri: 'cesium://scene/layers', text: JSON.stringify(result), mimeType: 'application/json' }] }
+      } catch {
+        return { contents: [{ uri: 'cesium://scene/layers', text: '{"error":"no browser connected"}', mimeType: 'application/json' }] }
+      }
+    },
+  )
+
+  // Replay all enabled tools from _toolDefs
+  for (const [name, args] of _toolDefs.entries()) {
+    if (_enabledTools.has(name)) {
+      ;(s.tool as Function).apply(s, args)
+    }
+  }
+
+  // In HTTP mode, always enable all toolsets (no interactive enable_toolset)
+  if (!_allMode) {
+    for (const setName of Object.keys(TOOLSETS)) {
+      if (!_enabledSets.has(setName)) {
+        for (const toolName of TOOLSETS[setName]!) {
+          const def = _toolDefs.get(toolName)
+          if (def) (s.tool as Function).apply(s, def)
+        }
+      }
+    }
+  }
+
+  return s
+}
+
+/**
+ * Handle MCP Streamable HTTP requests (stateless mode).
+ * Each POST creates a fresh McpServer + transport, handles the request, then cleans up.
+ */
+async function _handleMcpRequest(req: IncomingMessage, res: ServerResponse) {
+  // CORS
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-session-id')
+  res.setHeader('Access-Control-Expose-Headers', 'mcp-session-id')
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204)
+    res.end()
+    return
+  }
+
+  // Only serve /mcp endpoint
+  const url = req.url?.split('?')[0]
+  if (url !== '/mcp') {
+    res.writeHead(404)
+    res.end('Not Found — MCP endpoint is POST /mcp')
+    return
+  }
+
+  if (req.method === 'POST') {
+    let body = ''
+    req.on('data', (chunk: Buffer) => { body += chunk.toString() })
+    req.on('end', async () => {
+      try {
+        const parsedBody = JSON.parse(body)
+        const mcpServer = _createHttpMcpServer()
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: undefined, // stateless
+        })
+        res.on('close', () => { transport.close().catch(() => {}) })
+        await mcpServer.connect(transport)
+        await transport.handleRequest(req, res, parsedBody)
+      } catch (err) {
+        if (!res.headersSent) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null }))
+        }
+      }
+    })
+    return
+  }
+
+  // GET and DELETE are not supported in stateless mode
+  res.writeHead(405, { 'Content-Type': 'application/json' })
+  res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed in stateless mode' }, id: null }))
+}
+
 // ==================== Smithery Sandbox ====================
 
 /**
@@ -1730,9 +1850,30 @@ export function createSandboxServer() {
 
 // ==================== 启动 ====================
 
-export async function main() {
+export async function main(argv: string[] = []) {
+  // Parse CLI arguments
+  const transportArg = _parseArg(argv, '--transport') ?? process.env.MCP_TRANSPORT ?? 'stdio'
+  const mcpPortArg = parseInt(_parseArg(argv, '--port') ?? process.env.MCP_HTTP_PORT ?? '0')
+
   await startServer()
 
+  if (transportArg === 'http') {
+    // Streamable HTTP transport mode
+    const port = mcpPortArg || WS_PORT + 100 // default: WS_PORT + 100 (e.g. 9200)
+    const mcpHttpServer = createServer(_handleMcpRequest)
+    mcpHttpServer.listen(port, () => {
+      const allToolCount = _toolDefs.size
+      console.error(`[cesium-mcp-runtime] MCP Server running (Streamable HTTP), ${allToolCount} tools available`)
+      console.error(`[cesium-mcp-runtime] MCP endpoint: http://localhost:${port}/mcp`)
+      console.error(`[cesium-mcp-runtime] All toolsets enabled for HTTP mode`)
+      if (_relayPort > 0) {
+        console.error(`[cesium-mcp-runtime] Relay mode active → commands forwarded to port ${_relayPort}`)
+      }
+    })
+    return
+  }
+
+  // Default: stdio transport
   const transport = new StdioServerTransport()
   await server.connect(transport)
   const metaCount = _allMode ? 0 : 2
@@ -1740,4 +1881,13 @@ export async function main() {
   if (_relayPort > 0) {
     console.error(`[cesium-mcp-runtime] Relay mode active → commands forwarded to port ${_relayPort}`)
   }
+}
+
+/** Parse a CLI argument value: --key value or --key=value */
+function _parseArg(argv: string[], key: string): string | undefined {
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === key && i + 1 < argv.length) return argv[i + 1]
+    if (argv[i]?.startsWith(key + '=')) return argv[i]!.slice(key.length + 1)
+  }
+  return undefined
 }

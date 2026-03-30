@@ -40,7 +40,7 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 | Package | Description | npm |
 |---------|-------------|-----|
 | [cesium-mcp-bridge](packages/cesium-mcp-bridge/) | Browser SDK — embeds in your CesiumJS app, receives commands via WebSocket | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP Server (stdio) — 58 tools (12 toolsets) + 2 resources, dynamic discovery | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP Server (stdio + HTTP) — 58 tools (12 toolsets) + 2 resources, dynamic discovery | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [cesium-mcp-dev](packages/cesium-mcp-dev/) | IDE MCP Server — CesiumJS API helper for coding assistants | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 ## Architecture
@@ -51,11 +51,11 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 │  (Claude,    │   MCP      │  runtime         │   JSON-RPC  │  bridge          │
 │   Cursor…)   │            │  (Node.js)       │             │  (Browser)       │
 └──────────────┘            └──────────────────┘             └──────────────────┘
-                                                                     │
-                                                              ┌──────▼──────┐
-                                                              │  CesiumJS   │
-                                                              │  Viewer     │
-                                                              └─────────────┘
+                              ▲                                      │
+┌──────────────┐   HTTP     │                               ┌──────▼──────┐
+│  Dify /      │ ◄──────────┘                               │  CesiumJS   │
+│  Remote MCP  │  Streamable HTTP                           │  Viewer     │
+└──────────────┘                                            └─────────────┘
 ```
 
 ## Quick Start
@@ -75,7 +75,11 @@ const bridge = new CesiumBridge(viewer);
 ### 2. Start the MCP runtime
 
 ```bash
+# stdio mode (default — for Claude Desktop, VS Code, Cursor)
 npx cesium-mcp-runtime
+
+# HTTP mode (for Dify, remote/cloud MCP clients)
+npx cesium-mcp-runtime --transport http --port 3000
 ```
 
 ### 3. Connect your AI agent

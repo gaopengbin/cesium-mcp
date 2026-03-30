@@ -4,12 +4,25 @@
     "toolsets": {
       "type": "string",
       "description": "Comma-separated toolset names to enable on startup (e.g. 'camera,bindbindEntity,bindLayer'). If not set, all toolsets are enabled by default.",
-      "examples": ["camera,bindEntity,bindLayer", "camera,bindEntity,bindLayer,bindAnimation"]    },
+      "examples": ["camera,bindEntity,bindLayer", "camera,bindEntity,bindLayer,bindAnimation"]
+    },
     "locale": {
       "type": "string",
       "description": "Tool description language. 'en' for English (default), 'zh-CN' for Chinese.",
       "enum": ["en", "zh-CN"],
-      "default": "en"    }
+      "default": "en"
+    },
+    "transport": {
+      "type": "string",
+      "description": "MCP transport mode. 'stdio' for standard I/O (default), 'http' for Streamable HTTP.",
+      "enum": ["stdio", "http"],
+      "default": "stdio"
+    },
+    "port": {
+      "type": "number",
+      "description": "HTTP port for Streamable HTTP transport mode. Default: WS_PORT + 100 (typically 9200).",
+      "examples": [3000, 8080, 9200]
+    }
   },
   "additionalProperties": false
 }

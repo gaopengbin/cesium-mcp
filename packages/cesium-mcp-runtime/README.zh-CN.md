@@ -11,20 +11,47 @@
 
 ```
 AI 智能体 <--MCP stdio--> cesium-mcp-runtime <--WebSocket--> 浏览器 (cesium-mcp-bridge)
+AI 智能体 <--MCP HTTP---> cesium-mcp-runtime <--WebSocket--> 浏览器 (cesium-mcp-bridge)
 ```
 
 运行时作为 MCP 兼容 AI 客户端（Claude Desktop、VS Code Copilot、Cursor 等）与运行 CesiumJS 的浏览器之间的桥梁。它将 MCP 工具调用转换为 WebSocket 命令，由 [cesium-mcp-bridge](https://www.npmjs.com/package/cesium-mcp-bridge) 在浏览器端执行。
 
+支持两种传输模式：
+
+| 传输方式 | 适用场景 | 协议 |
+|----------|----------|------|
+| **stdio**（默认） | 本地 AI 客户端（Claude Desktop、VS Code、Cursor） | 标准输入输出 |
+| **http** | 远程/云端 MCP 客户端（Dify、自定义后端） | [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) |
+
 ## 安装与运行
 
 ```bash
-# 使用 npx 直接运行
+# 使用 npx 直接运行（stdio 模式，默认）
 npx cesium-mcp-runtime
 
 # 或全局安装
 npm install -g cesium-mcp-runtime
 cesium-mcp-runtime
 ```
+
+### Streamable HTTP 模式
+
+用于远程/云端 MCP 客户端（如 Dify）：
+
+```bash
+# 以 HTTP 传输模式启动
+npx cesium-mcp-runtime --transport http --port 3000
+
+# MCP 端点：POST http://localhost:3000/mcp
+```
+
+也可通过环境变量配置：
+
+```bash
+MCP_TRANSPORT=http MCP_HTTP_PORT=3000 npx cesium-mcp-runtime
+```
+
+HTTP 模式下默认启用全部 58 个工具（无需动态工具集发现）。
 
 ## MCP 客户端配置
 
@@ -233,6 +260,8 @@ cesium-mcp-runtime
 | `DEFAULT_SESSION_ID` | `default` | MCP 工具路由的首选浏览器会话 |
 | `CESIUM_TOOLSETS` | *（未设置）* | 工具集激活：省略使用默认集，`all` 启用全部，或逗号分隔列表 |
 | `CESIUM_LOCALE` | `en` | 工具描述语言：`en`（英文，默认）或 `zh-CN`（中文） |
+| `MCP_TRANSPORT` | `stdio` | MCP 传输模式：`stdio` 或 `http` |
+| `MCP_HTTP_PORT` | *（自动）* | Streamable HTTP 模式的端口（默认：`CESIUM_WS_PORT` + 100） |
 
 ## 浏览器端设置
 

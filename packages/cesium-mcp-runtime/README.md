@@ -11,20 +11,47 @@
 
 ```
 AI Agent <--MCP stdio--> cesium-mcp-runtime <--WebSocket--> Browser (cesium-mcp-bridge)
+AI Agent <--MCP HTTP---> cesium-mcp-runtime <--WebSocket--> Browser (cesium-mcp-bridge)
 ```
 
 The runtime acts as a bridge between MCP-compatible AI clients (Claude Desktop, VS Code Copilot, Cursor, etc.) and a browser running CesiumJS. It translates MCP tool calls into WebSocket commands that [cesium-mcp-bridge](https://www.npmjs.com/package/cesium-mcp-bridge) executes.
 
+Two transport modes are supported:
+
+| Transport | Use Case | Protocol |
+|-----------|----------|----------|
+| **stdio** (default) | Local AI clients (Claude Desktop, VS Code, Cursor) | Standard I/O |
+| **http** | Remote/cloud MCP clients (Dify, custom backends) | [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) |
+
 ## Install & Run
 
 ```bash
-# Run directly with npx
+# Run directly with npx (stdio mode, default)
 npx cesium-mcp-runtime
 
 # Or install globally
 npm install -g cesium-mcp-runtime
 cesium-mcp-runtime
 ```
+
+### Streamable HTTP Mode
+
+For remote/cloud MCP clients like Dify:
+
+```bash
+# Start in HTTP transport mode
+npx cesium-mcp-runtime --transport http --port 3000
+
+# MCP endpoint: POST http://localhost:3000/mcp
+```
+
+Environment variable alternative:
+
+```bash
+MCP_TRANSPORT=http MCP_HTTP_PORT=3000 npx cesium-mcp-runtime
+```
+
+In HTTP mode, all 58 tools are enabled by default (no dynamic toolset discovery needed).
 
 ## MCP Client Configuration
 
@@ -233,6 +260,8 @@ When not in `all` mode, two meta-tools are always available so the AI can discov
 | `DEFAULT_SESSION_ID` | `default` | Preferred browser session for MCP tool routing |
 | `CESIUM_TOOLSETS` | *(not set)* | Toolset activation: omit for defaults, `all` for everything, or comma-separated list |
 | `CESIUM_LOCALE` | `en` | Tool description language: `en` (English, default) or `zh-CN` (Chinese) |
+| `MCP_TRANSPORT` | `stdio` | MCP transport mode: `stdio` or `http` |
+| `MCP_HTTP_PORT` | *(auto)* | HTTP port for Streamable HTTP mode (default: `CESIUM_WS_PORT` + 100) |
 
 ## Browser-Side Setup
 
