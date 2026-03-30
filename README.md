@@ -67,10 +67,9 @@ npm install cesium-mcp-bridge
 ```
 
 ```js
-import { CesiumMcpBridge } from 'cesium-mcp-bridge';
+import { CesiumBridge } from 'cesium-mcp-bridge';
 
-const bridge = new CesiumMcpBridge(viewer, { port: 9100 });
-bridge.connect();
+const bridge = new CesiumBridge(viewer);
 ```
 
 ### 2. Start the MCP runtime
@@ -96,7 +95,7 @@ Add to your MCP client config (e.g. Claude Desktop):
 
 Now ask your AI: *"Fly to the Eiffel Tower and add a red marker"*
 
-## 49 Available Tools
+## 58 Available Tools
 
 Tools are organized into **12 toolsets**. Default mode enables 4 core toolsets (~31 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically at runtime.
 

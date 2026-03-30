@@ -67,10 +67,9 @@ npm install cesium-mcp-bridge
 ```
 
 ```js
-import { CesiumMcpBridge } from 'cesium-mcp-bridge';
+import { CesiumBridge } from 'cesium-mcp-bridge';
 
-const bridge = new CesiumMcpBridge(viewer, { port: 9100 });
-bridge.connect();
+const bridge = new CesiumBridge(viewer);
 ```
 
 ### 2. 启动 MCP 运行时
