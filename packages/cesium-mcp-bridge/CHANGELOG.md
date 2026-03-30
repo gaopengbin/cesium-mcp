@@ -1,5 +1,13 @@
 # cesium-mcp-bridge
 
+## 1.139.9
+
+### Patch Changes
+
+- fix: use Cesium native APIs for flyTo/setView to fix view centering — target point now precisely centered in viewport at all pitch/heading angles
+  - flyTo: replaced manual `_offsetCamera()` with `camera.flyToBoundingSphere` + `HeadingPitchRange`
+  - setView: replaced offset approach with `camera.lookAt` + `lookAtTransform(Matrix4.IDENTITY)`
+
 ## 1.139.8
 
 ### Patch Changes
