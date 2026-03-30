@@ -95,6 +95,10 @@ Add to your MCP client config (e.g. Claude Desktop):
 
 Now ask your AI: *"Fly to the Eiffel Tower and add a red marker"*
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/gaopengbin-cesium-mcp).
+
 ## 58 Available Tools
 
 Tools are organized into **12 toolsets**. Default mode enables 4 core toolsets (~31 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically at runtime.
