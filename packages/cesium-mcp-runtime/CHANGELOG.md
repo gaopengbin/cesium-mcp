@@ -1,5 +1,11 @@
 # cesium-mcp-runtime
 
+## 1.139.11
+
+### Patch Changes
+
+- chore: bump to align with bridge@1.139.11 (perception capability enhancements)
+
 ## 1.139.10
 
 ### Patch Changes

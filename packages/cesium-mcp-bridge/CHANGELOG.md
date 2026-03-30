@@ -1,5 +1,16 @@
 # cesium-mcp-bridge
 
+## 1.139.11
+
+### Patch Changes
+
+- feat: screenshot adds 5s timeout fallback — if postRender doesn't fire, directly captures canvas
+- feat: queryEntities computes centroid from polygon/polyline geometry for bbox matching (entities without position property)
+- feat: queryEntities uses bounding box intersection instead of point containment for geometry entities
+- feat: getEntityProperties extracts description, material color, polygon/polyline coordinates
+- feat: getEntityProperties falls back to geometry centroid for position-less entities
+- feat: layer schema extracts 3DTiles/Ion metadata (asset version, geometricError, boundingSphere center, ionAssetId)
+
 ## 1.139.10
 
 ### Patch Changes
