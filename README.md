@@ -15,11 +15,23 @@
   </p>
 
   <p>
-    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-    <a href="https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml"><img src="https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-    <a href="https://www.npmjs.com/package/cesium-mcp-bridge"><img src="https://img.shields.io/npm/v/cesium-mcp-bridge?label=bridge" alt="npm bridge"></a>
-    <a href="https://www.npmjs.com/package/cesium-mcp-runtime"><img src="https://img.shields.io/npm/v/cesium-mcp-runtime?label=runtime" alt="npm runtime"></a>
-    <a href="https://www.npmjs.com/package/cesium-mcp-dev"><img src="https://img.shields.io/npm/v/cesium-mcp-dev?label=dev" alt="npm dev"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-155EEF?style=flat-square" alt="License: MIT"></a>
+    <a href="https://github.com/gaopengbin/cesium-mcp/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/gaopengbin/cesium-mcp/ci.yml?branch=main&label=CI&style=flat-square" alt="CI"></a>
+    <a href="https://github.com/gaopengbin/cesium-mcp/stargazers"><img src="https://img.shields.io/github/stars/gaopengbin/cesium-mcp?style=flat-square" alt="GitHub stars"></a>
+    <a href="https://www.npmjs.com/package/cesium-mcp-runtime"><img src="https://img.shields.io/npm/dm/cesium-mcp-runtime?label=runtime%20downloads&style=flat-square" alt="Runtime downloads"></a>
+  </p>
+
+  <p>
+    <a href="https://www.npmjs.com/package/cesium-mcp-bridge"><img src="https://img.shields.io/badge/bridge-npm-528bff?style=for-the-badge&logo=npm&logoColor=white" alt="bridge npm"></a>
+    <a href="https://www.npmjs.com/package/cesium-mcp-runtime"><img src="https://img.shields.io/badge/runtime-npm-155EEF?style=for-the-badge&logo=npm&logoColor=white" alt="runtime npm"></a>
+    <a href="https://www.npmjs.com/package/cesium-mcp-dev"><img src="https://img.shields.io/badge/dev-npm-364fc7?style=for-the-badge&logo=npm&logoColor=white" alt="dev npm"></a>
+  </p>
+
+  <p>
+    <a href="https://img.shields.io/badge/tools-58-12B76A?style=flat-square"><img src="https://img.shields.io/badge/tools-58-12B76A?style=flat-square" alt="58 tools"></a>
+    <a href="https://img.shields.io/badge/toolsets-12-16B364?style=flat-square"><img src="https://img.shields.io/badge/toolsets-12-16B364?style=flat-square" alt="12 toolsets"></a>
+    <a href="https://img.shields.io/badge/transport-stdio%20%7C%20http-7A5AF8?style=flat-square"><img src="https://img.shields.io/badge/transport-stdio%20%7C%20http-7A5AF8?style=flat-square" alt="Transport: stdio and HTTP"></a>
+    <a href="https://img.shields.io/badge/i18n-en%20%7C%20zh--CN-F79009?style=flat-square"><img src="https://img.shields.io/badge/i18n-en%20%7C%20zh--CN-F79009?style=flat-square" alt="i18n: en and zh-CN"></a>
   </p>
 
   <p>
@@ -45,17 +57,30 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 
 ## Architecture
 
-```
-┌──────────────┐   stdio    ┌──────────────────┐  WebSocket  ┌──────────────────┐
-│  AI Agent    │ ◄────────► │  cesium-mcp-     │ ◄─────────► │  cesium-mcp-     │
-│  (Claude,    │   MCP      │  runtime         │   JSON-RPC  │  bridge          │
-│   Cursor…)   │            │  (Node.js)       │             │  (Browser)       │
-└──────────────┘            └──────────────────┘             └──────────────────┘
-                              ▲                                      │
-┌──────────────┐   HTTP     │                               ┌──────▼──────┐
-│  Dify /      │ ◄──────────┘                               │  CesiumJS   │
-│  Remote MCP  │  Streamable HTTP                           │  Viewer     │
-└──────────────┘                                            └─────────────┘
+```mermaid
+flowchart LR
+  subgraph clients ["AI Clients"]
+    A["Claude / Cursor\nVS Code"]
+    D["Dify / n8n\nRemote MCP"]
+  end
+
+  subgraph server ["cesium-mcp-runtime\n(Node.js)"]
+    R["MCP Server\n58 tools · 12 toolsets"]
+  end
+
+  subgraph browser ["Browser"]
+    B["cesium-mcp-bridge"]
+    C["CesiumJS Viewer"]
+  end
+
+  A -- "stdio / MCP" --> R
+  D -- "Streamable HTTP" --> R
+  R -- "WebSocket\nJSON-RPC" --> B
+  B --> C
+
+  style clients fill:#1e293b,stroke:#528bff,color:#e2e8f0
+  style server fill:#1e293b,stroke:#155EEF,color:#e2e8f0
+  style browser fill:#1e293b,stroke:#12B76A,color:#e2e8f0
 ```
 
 ## Quick Start
