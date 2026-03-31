@@ -25,12 +25,20 @@ const bridge = new CesiumBridge(viewer)
 
 ### 2. Start the MCP Runtime
 
+**stdio mode** (for Claude Desktop, VS Code, Cursor):
+
 ```bash
 npx cesium-mcp-runtime
 ```
 
+**HTTP mode** (for Dify, n8n, and other HTTP-based AI platforms):
+
+```bash
+npx cesium-mcp-runtime --transport http --port 3211
+```
+
 This starts a Node.js process that:
-- Listens for MCP tool calls on **stdio** (from your AI agent)
+- Exposes MCP tools on the selected transport (stdio or HTTP)
 - Opens a **WebSocket server** on port 9100 (for the browser bridge)
 
 ### 3. Configure Your AI Agent
@@ -80,6 +88,29 @@ Create `.cursor/mcp.json`:
 }
 ```
 
+#### Dify / n8n (HTTP transport)
+
+Start the runtime in HTTP mode first:
+
+```bash
+npx cesium-mcp-runtime --transport http --port 3211
+```
+
+Then in Dify, add an MCP tool node with:
+
+```json
+{
+  "cesium-mcp": {
+    "transport": "streamable_http",
+    "url": "http://localhost:3211/mcp",
+    "timeout": 60
+  }
+}
+```
+
+> For Docker-hosted Dify, replace `localhost` with `host.docker.internal`.
+> See the full guide: [examples/dify-integration/](https://github.com/gaopengbin/cesium-mcp/tree/main/examples/dify-integration)
+
 ### 4. Try It Out
 
 Open your CesiumJS app in a browser, then ask your AI agent:
@@ -109,6 +140,8 @@ Configure it the same way as the runtime, replacing `cesium-mcp-runtime` with `c
 |----------|---------|-------------|
 | `CESIUM_WS_PORT` | `9100` | WebSocket server port |
 | `DEFAULT_SESSION_ID` | `default` | Session ID for multi-tab routing |
+| `MCP_TRANSPORT` | `stdio` | Transport mode: `stdio` or `http` |
+| `MCP_HTTP_PORT` | `3211` | HTTP server port (when `MCP_TRANSPORT=http`) |
 | `HTTPS_PROXY` | — | HTTP proxy URL for geocode requests (e.g. `http://127.0.0.1:10808`) |
 | `OSM_USER_AGENT` | `cesium-mcp-runtime/1.0` | User-Agent for Nominatim geocode API |
 | `CESIUM_LOCALE` | `en` | Tool description language: `en` (English, default) or `zh-CN` (Chinese) |

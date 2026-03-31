@@ -25,13 +25,21 @@ const bridge = new CesiumBridge(viewer)
 
 ### 2. 启动 MCP Runtime
 
+**stdio 模式**（适用于 Claude Desktop、VS Code、Cursor）：
+
 ```bash
 npx cesium-mcp-runtime
 ```
 
-这会启动一个 Node.js 进程：
-- 通过 **stdio** 监听 MCP 工具调用（来自 AI 智能体）
-- 在 **9100 端口**开启 WebSocket 服务器（供浏览器 Bridge 连接）
+**HTTP 模式**（适用于 Dify、n8n 等 HTTP 平台）：
+
+```bash
+npx cesium-mcp-runtime --transport http --port 3211
+```
+
+运行后会启动一个 Node.js 进程，它会：
+- 在所选传输方式（stdio 或 HTTP）上提供 MCP 工具
+- 在 9100 端口开启 **WebSocket 服务器**（与浏览器 Bridge 通信）
 
 ### 3. 配置 AI 智能体
 
@@ -80,6 +88,29 @@ npx cesium-mcp-runtime
 }
 ```
 
+#### Dify / n8n（HTTP 传输模式）
+
+首先以 HTTP 模式启动 Runtime：
+
+```bash
+npx cesium-mcp-runtime --transport http --port 3211
+```
+
+然后在 Dify 中添加 MCP 工具节点，配置如下：
+
+```json
+{
+  "cesium-mcp": {
+    "transport": "streamable_http",
+    "url": "http://localhost:3211/mcp",
+    "timeout": 60
+  }
+}
+```
+
+> Docker 部署的 Dify 需将 `localhost` 替换为 `host.docker.internal`。
+> 完整指南：[examples/dify-integration/](https://github.com/gaopengbin/cesium-mcp/tree/main/examples/dify-integration)
+
 ### 4. 试一试
 
 在浏览器中打开你的 CesiumJS 应用，然后对 AI 智能体说：
@@ -109,6 +140,8 @@ npx cesium-mcp-dev
 |------|--------|------|
 | `CESIUM_WS_PORT` | `9100` | WebSocket 服务器端口 |
 | `DEFAULT_SESSION_ID` | `default` | 多标签页路由的会话 ID |
+| `MCP_TRANSPORT` | `stdio` | 传输模式：`stdio` 或 `http` |
+| `MCP_HTTP_PORT` | `3211` | HTTP 服务器端口（`MCP_TRANSPORT=http` 时生效） |
 | `HTTPS_PROXY` | — | geocode 请求的 HTTP 代理地址（如 `http://127.0.0.1:10808`） |
 | `OSM_USER_AGENT` | `cesium-mcp-runtime/1.0` | Nominatim geocode API 的 User-Agent |
 | `CESIUM_LOCALE` | `en` | 工具描述语言：`en`（英文，默认）或 `zh-CN`（中文） |
