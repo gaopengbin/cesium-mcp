@@ -49,9 +49,13 @@ function getDefaultBrowser(): WebSocket | null {
 }
 
 function sendToBrowser(action: string, params: Record<string, unknown>, timeoutMs = 30000): Promise<unknown> {
-  if (_relayPort > 0) return _sendViaRelay(action, params, timeoutMs)
+  // Extract sessionId from params for multi-browser routing (transparent to tool handlers)
+  const { sessionId, ...cleanParams } = params as { sessionId?: string; [k: string]: unknown }
+  if (_relayPort > 0) return _sendViaRelay(action, cleanParams, timeoutMs, sessionId)
   return new Promise((resolve, reject) => {
-    const ws = getDefaultBrowser()
+    const ws = sessionId
+      ? (browserClients.get(sessionId) ?? getDefaultBrowser())
+      : getDefaultBrowser()
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       reject(new Error('无浏览器连接。请在浏览器中打开包含 CesiumJS 的页面并连接 WebSocket。示例：http://localhost:9100/demo/'))
       return
@@ -69,7 +73,7 @@ function sendToBrowser(action: string, params: Record<string, unknown>, timeoutM
       jsonrpc: '2.0',
       id: reqId,
       method: action,
-      params,
+      params: cleanParams,
     }))
   })
 }
@@ -92,14 +96,14 @@ function pushToBrowser(sessionId: string, command: { action: string; params: Rec
 }
 
 /** Relay mode: forward sendToBrowser via HTTP POST to existing instance */
-async function _sendViaRelay(action: string, params: Record<string, unknown>, timeoutMs: number): Promise<unknown> {
+async function _sendViaRelay(action: string, params: Record<string, unknown>, timeoutMs: number, sessionId?: string): Promise<unknown> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const resp = await fetch(`http://127.0.0.1:${_relayPort}/api/relay`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, params }),
+      body: JSON.stringify({ action, params, sessionId }),
       signal: controller.signal,
     })
     const data = await resp.json() as { ok: boolean; result?: unknown; error?: string }
@@ -214,8 +218,10 @@ function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
     req.on('data', (chunk: Buffer) => { body += chunk.toString() })
     req.on('end', async () => {
       try {
-        const { action, params } = JSON.parse(body) as { action: string; params: Record<string, unknown> }
-        const result = await sendToBrowser(action, params)
+        const { action, params, sessionId } = JSON.parse(body) as { action: string; params: Record<string, unknown>; sessionId?: string }
+        // Inject sessionId into params so sendToBrowser can route to the correct browser
+        const routedParams = sessionId ? { ...params, sessionId } : params
+        const result = await sendToBrowser(action, routedParams)
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ ok: true, result }))
       } catch (err) {
@@ -330,6 +336,12 @@ async function startServer() {
 function _setupWss(wss: WebSocketServer) {
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     const sessionId = new URL(req.url ?? '/', `http://localhost`).searchParams.get('session') ?? 'default'
+    const oldWs = browserClients.get(sessionId)
+    if (oldWs && oldWs.readyState === WebSocket.OPEN) {
+      console.error(`[ws] 同名 session=${sessionId} 已存在，关闭旧连接`)
+      oldWs.removeAllListeners('close')
+      oldWs.close(1000, 'replaced by new connection')
+    }
     console.error(`[ws] 浏览器连接: session=${sessionId}`)
     browserClients.set(sessionId, ws)
 
@@ -470,6 +482,15 @@ const _registerTool = ((...args: unknown[]) => {
     for (const [key, desc] of Object.entries(paramOverrides)) {
       if (schema[key]) schema[key] = schema[key].describe(desc)
     }
+  }
+  // Auto-inject optional sessionId for multi-browser routing
+  if (typeof args[2] === 'object' && args[2] !== null) {
+    const schema = args[2] as Record<string, z.ZodTypeAny>
+    schema.sessionId = z.string().optional().describe(
+      _localeKey === 'zh-cn'
+        ? '目标浏览器 session ID（多浏览器路由，可选）'
+        : 'Target browser session ID for multi-browser routing (optional)',
+    )
   }
   _toolDefs.set(name, args)
   if (_enabledTools.has(name)) {
@@ -1715,6 +1736,25 @@ if (!_allMode) {
   )
 }
 
+// ==================== Session Management ====================
+
+server.tool(
+  'listSessions',
+  _localeKey === 'zh-cn'
+    ? '列出当前所有已连接的浏览器 session（ID 和连接状态），用于多浏览器路由'
+    : 'List all connected browser sessions (ID and connection state) for multi-browser routing',
+  {},
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'List Sessions' },
+  async () => {
+    const sessions = Array.from(browserClients.entries()).map(([id, ws]) => ({
+      sessionId: id,
+      connected: ws.readyState === WebSocket.OPEN,
+      isDefault: id === DEFAULT_SESSION_ID,
+    }))
+    return { content: [{ type: 'text' as const, text: JSON.stringify(sessions, null, 2) }] }
+  },
+)
+
 // ==================== Streamable HTTP Transport ====================
 
 /**
@@ -1776,6 +1816,24 @@ function _createHttpMcpServer(): McpServer {
       }
     }
   }
+
+  // Register listSessions for HTTP mode
+  s.tool(
+    'listSessions',
+    _localeKey === 'zh-cn'
+      ? '列出当前所有已连接的浏览器 session（ID 和连接状态），用于多浏览器路由'
+      : 'List all connected browser sessions (ID and connection state) for multi-browser routing',
+    {},
+    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'List Sessions' },
+    async () => {
+      const sessions = Array.from(browserClients.entries()).map(([id, ws]) => ({
+        sessionId: id,
+        connected: ws.readyState === WebSocket.OPEN,
+        isDefault: id === DEFAULT_SESSION_ID,
+      }))
+      return { content: [{ type: 'text' as const, text: JSON.stringify(sessions, null, 2) }] }
+    },
+  )
 
   return s
 }

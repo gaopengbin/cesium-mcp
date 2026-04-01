@@ -74,3 +74,83 @@ describe('HTTP route matching logic', () => {
     expect(routeRequest('GET', '/api/unknown')).toBe('not-found')
   })
 })
+
+describe('sendToBrowser sessionId routing (standalone reimplementation)', () => {
+  const OPEN = 1
+  const CLOSED = 3
+
+  /** Reimplements the sessionId extraction + routing logic from sendToBrowser */
+  function resolveTarget(
+    params: Record<string, unknown>,
+    clients: Map<string, { readyState: number }>,
+    defaultSessionId: string,
+  ): { ws: { readyState: number } | null; cleanParams: Record<string, unknown> } {
+    const { sessionId, ...cleanParams } = params as { sessionId?: string; [k: string]: unknown }
+
+    function getDefaultBrowser() {
+      if (clients.size === 0) return null
+      const preferred = clients.get(defaultSessionId)
+      if (preferred && preferred.readyState === OPEN) return preferred
+      return clients.values().next().value ?? null
+    }
+
+    const ws = sessionId
+      ? (clients.get(sessionId) ?? getDefaultBrowser())
+      : getDefaultBrowser()
+
+    return { ws, cleanParams }
+  }
+
+  it('should strip sessionId from params', () => {
+    const clients = new Map([['default', { readyState: OPEN }]])
+    const { cleanParams } = resolveTarget({ longitude: 116, latitude: 39, sessionId: 'abc' }, clients, 'default')
+    expect(cleanParams).toEqual({ longitude: 116, latitude: 39 })
+    expect(cleanParams).not.toHaveProperty('sessionId')
+  })
+
+  it('should route to specified sessionId when provided', () => {
+    const clients = new Map([
+      ['default', { readyState: OPEN }],
+      ['session-b', { readyState: OPEN }],
+    ])
+    const { ws } = resolveTarget({ sessionId: 'session-b' }, clients, 'default')
+    expect(ws).toBe(clients.get('session-b'))
+  })
+
+  it('should fallback to default when specified sessionId not found', () => {
+    const clients = new Map([['default', { readyState: OPEN }]])
+    const { ws } = resolveTarget({ sessionId: 'nonexistent' }, clients, 'default')
+    expect(ws).toBe(clients.get('default'))
+  })
+
+  it('should use default browser when sessionId not provided', () => {
+    const clients = new Map([
+      ['default', { readyState: OPEN }],
+      ['session-b', { readyState: OPEN }],
+    ])
+    const { ws } = resolveTarget({ longitude: 116 }, clients, 'default')
+    expect(ws).toBe(clients.get('default'))
+  })
+
+  it('should return null when no clients and sessionId provided', () => {
+    const { ws } = resolveTarget({ sessionId: 'abc' }, new Map(), 'default')
+    expect(ws).toBeNull()
+  })
+
+  it('should pass through params without sessionId field unchanged', () => {
+    const clients = new Map([['default', { readyState: OPEN }]])
+    const original = { longitude: 116, latitude: 39, height: 5000 }
+    const { cleanParams } = resolveTarget(original, clients, 'default')
+    expect(cleanParams).toEqual({ longitude: 116, latitude: 39, height: 5000 })
+  })
+
+  it('should route to sessionId even when that session is closed (fallback to default)', () => {
+    const clients = new Map([
+      ['default', { readyState: OPEN }],
+      ['session-b', { readyState: CLOSED }],
+    ])
+    // session-b exists but is found in map → returns it (caller checks readyState)
+    const { ws } = resolveTarget({ sessionId: 'session-b' }, clients, 'default')
+    expect(ws).toBe(clients.get('session-b'))
+  })
+})
