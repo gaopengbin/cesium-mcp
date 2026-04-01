@@ -124,7 +124,8 @@ export interface SetBasemapParams {
 export interface Load3dTilesParams {
   id?: string
   name?: string
-  url: string
+  url?: string
+  ionAssetId?: number
   maximumScreenSpaceError?: number
   heightOffset?: number
 }
@@ -138,8 +139,9 @@ export interface LoadTerrainParams {
 export interface LoadImageryServiceParams {
   id?: string
   name?: string
-  url: string
-  serviceType: 'wms' | 'wmts' | 'xyz' | 'arcgis_mapserver'
+  url?: string
+  ionAssetId?: number
+  serviceType?: 'wms' | 'wmts' | 'xyz' | 'arcgis_mapserver' | 'ion'
   layerName?: string
   opacity?: number
 }

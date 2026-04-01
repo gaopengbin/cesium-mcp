@@ -1031,11 +1031,12 @@ _registerTool(
 // — load3dTiles
 _registerTool(
   'load3dTiles',
-  '加载 3D Tiles 数据集（如建筑白膜、城市模型）',
+  '加载 3D Tiles 数据集（支持 URL 或 Cesium Ion 资产 ID）',
   {
     id: z.string().optional().describe('图层ID'),
     name: z.string().optional().describe('图层名称'),
-    url: z.string().describe('tileset.json 的 URL'),
+    url: z.string().optional().describe('tileset.json 的 URL（与 ionAssetId 二选一）'),
+    ionAssetId: z.number().optional().describe('Cesium Ion 资产 ID（与 url 二选一）'),
     maximumScreenSpaceError: z.number().optional().default(16).describe('最大屏幕空间误差（值越小越精细）'),
     heightOffset: z.number().optional().describe('高度偏移（米）'),
   },
@@ -1065,12 +1066,13 @@ _registerTool(
 // — loadImageryService
 _registerTool(
   'loadImageryService',
-  '加载影像服务图层（WMS/WMTS/XYZ/ArcGIS MapServer）',
+  '加载影像服务图层（WMS/WMTS/XYZ/ArcGIS MapServer/Cesium Ion）',
   {
     id: z.string().optional().describe('图层ID'),
     name: z.string().optional().describe('图层名称'),
-    url: z.string().describe('影像服务 URL'),
-    serviceType: z.enum(['wms', 'wmts', 'xyz', 'arcgis_mapserver']).describe('服务类型'),
+    url: z.string().optional().describe('影像服务 URL（与 ionAssetId 二选一）'),
+    ionAssetId: z.number().optional().describe('Cesium Ion 影像资产 ID（与 url 二选一）'),
+    serviceType: z.enum(['wms', 'wmts', 'xyz', 'arcgis_mapserver', 'ion']).optional().describe('服务类型（使用 ionAssetId 时可不填）'),
     layerName: z.string().optional().describe('WMS/WMTS 图层名'),
     opacity: z.number().optional().default(1.0).describe('透明度（0~1）'),
   },

@@ -780,7 +780,7 @@
     },
     {
       "name": "load3dTiles",
-      "description": "加载 3D Tiles 数据集（如建筑白膜、城市模型）",
+      "description": "加载 3D Tiles 数据集（支持 URL 或 Cesium Ion 资产 ID）",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -794,7 +794,11 @@
           },
           "url": {
             "type": "string",
-            "description": "tileset.json 的 URL"
+            "description": "tileset.json 的 URL（与 ionAssetId 二选一）"
+          },
+          "ionAssetId": {
+            "type": "number",
+            "description": "Cesium Ion 资产 ID（与 url 二选一）"
           },
           "maximumScreenSpaceError": {
             "type": "number",
@@ -806,9 +810,6 @@
             "description": "高度偏移（米）"
           }
         },
-        "required": [
-          "url"
-        ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
@@ -852,7 +853,7 @@
     },
     {
       "name": "loadImageryService",
-      "description": "加载影像服务图层（WMS/WMTS/XYZ/ArcGIS MapServer）",
+      "description": "加载影像服务图层（WMS/WMTS/XYZ/ArcGIS MapServer/Cesium Ion）",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -866,7 +867,11 @@
           },
           "url": {
             "type": "string",
-            "description": "影像服务 URL"
+            "description": "影像服务 URL（与 ionAssetId 二选一）"
+          },
+          "ionAssetId": {
+            "type": "number",
+            "description": "Cesium Ion 影像资产 ID（与 url 二选一）"
           },
           "serviceType": {
             "type": "string",
@@ -874,9 +879,10 @@
               "wms",
               "wmts",
               "xyz",
-              "arcgis_mapserver"
+              "arcgis_mapserver",
+              "ion"
             ],
-            "description": "服务类型"
+            "description": "服务类型（使用 ionAssetId 时可不填）"
           },
           "layerName": {
             "type": "string",
@@ -888,10 +894,6 @@
             "description": "透明度（0~1）"
           }
         },
-        "required": [
-          "url",
-          "serviceType"
-        ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },

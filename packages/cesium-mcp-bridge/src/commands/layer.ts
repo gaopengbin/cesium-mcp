@@ -583,15 +583,17 @@ export class LayerManager {
   // ==================== 3D Scene ====================
 
   async load3dTiles(params: Load3dTilesParams): Promise<LayerInfo> {
-    const { id, name, url, maximumScreenSpaceError = 16, heightOffset = 0 } = params
+    const { id, name, url, ionAssetId, maximumScreenSpaceError = 16, heightOffset = 0 } = params
     const layerId = id ?? `3dtiles_${Date.now()}`
     const layerName = name ?? '3D Tiles'
 
+    if (!url && !ionAssetId) throw new Error('Either "url" or "ionAssetId" must be provided')
+
     this.removeLayer(layerId)
 
-    const tileset = await Cesium.Cesium3DTileset.fromUrl(url, {
-      maximumScreenSpaceError,
-    })
+    const tileset = ionAssetId
+      ? await Cesium.Cesium3DTileset.fromIonAssetId(ionAssetId, { maximumScreenSpaceError })
+      : await Cesium.Cesium3DTileset.fromUrl(url!, { maximumScreenSpaceError })
 
     if (heightOffset !== 0) {
       const cartographic = Cesium.Cartographic.fromCartesian(tileset.boundingSphere.center)
@@ -643,41 +645,51 @@ export class LayerManager {
     }
   }
 
-  loadImageryService(params: LoadImageryServiceParams): LayerInfo {
-    const { id, name, url, serviceType, layerName, opacity = 1.0 } = params
+  async loadImageryService(params: LoadImageryServiceParams): Promise<LayerInfo> {
+    const { id, name, url, ionAssetId, serviceType, layerName, opacity = 1.0 } = params
     const layerId = id ?? `imagery_${Date.now()}`
-    const layerName_ = name ?? `影像 (${serviceType})`
 
-    let provider: Cesium.ImageryProvider
-    switch (serviceType) {
-      case 'wms':
-        provider = new Cesium.WebMapServiceImageryProvider({
-          url,
-          layers: layerName ?? '',
-        })
-        break
-      case 'wmts':
-        provider = new Cesium.WebMapTileServiceImageryProvider({
-          url,
-          layer: layerName ?? '',
-          style: 'default',
-          tileMatrixSetID: 'default028mm',
-        })
-        break
-      case 'arcgis_mapserver':
-        provider = new Cesium.ArcGisMapServerImageryProvider({ url } as any)
-        break
-      case 'xyz':
-      default:
-        provider = new Cesium.UrlTemplateImageryProvider({
-          url,
-          maximumLevel: 18,
-        })
-        break
+    if (!url && !ionAssetId) throw new Error('Either "url" or "ionAssetId" must be provided')
+
+    let imageryLayer: Cesium.ImageryLayer
+
+    if (ionAssetId) {
+      const resource = await Cesium.IonResource.fromAssetId(ionAssetId)
+      const provider = await Cesium.IonImageryProvider.fromAssetId(ionAssetId)
+      imageryLayer = this._viewer.imageryLayers.addImageryProvider(provider)
+    } else {
+      let provider: Cesium.ImageryProvider
+      switch (serviceType) {
+        case 'wms':
+          provider = new Cesium.WebMapServiceImageryProvider({
+            url: url!,
+            layers: layerName ?? '',
+          })
+          break
+        case 'wmts':
+          provider = new Cesium.WebMapTileServiceImageryProvider({
+            url: url!,
+            layer: layerName ?? '',
+            style: 'default',
+            tileMatrixSetID: 'default028mm',
+          })
+          break
+        case 'arcgis_mapserver':
+          provider = new Cesium.ArcGisMapServerImageryProvider({ url: url! } as any)
+          break
+        case 'xyz':
+        default:
+          provider = new Cesium.UrlTemplateImageryProvider({
+            url: url!,
+            maximumLevel: 18,
+          })
+          break
+      }
+      imageryLayer = this._viewer.imageryLayers.addImageryProvider(provider)
     }
 
-    const imageryLayer = this._viewer.imageryLayers.addImageryProvider(provider)
     imageryLayer.alpha = opacity
+    const layerName_ = name ?? (ionAssetId ? `Ion 影像 (${ionAssetId})` : `影像 (${serviceType})`)
 
     const info: LayerInfo = {
       id: layerId,

@@ -417,7 +417,7 @@ export class CesiumBridge {
     this._layerManager.loadTerrain(params)
   }
 
-  loadImageryService(params: LoadImageryServiceParams): LayerInfo {
+  loadImageryService(params: LoadImageryServiceParams): Promise<LayerInfo> {
     return this._layerManager.loadImageryService(params)
   }
 
