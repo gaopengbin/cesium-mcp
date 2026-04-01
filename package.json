@@ -1,6 +1,6 @@
 {
   "name": "cesium-mcp",
-  "version": "1.139.14",
+  "version": "1.139.15",
   "private": true,
   "description": "MCP (Model Context Protocol) integration for CesiumJS",
   "workspaces": [
