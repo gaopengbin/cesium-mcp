@@ -6,6 +6,7 @@ coverage/
 .env
 .DS_Store
 Thumbs.db
+.vscode/mcp.json
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 docs/design/
