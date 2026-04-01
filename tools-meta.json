@@ -1295,6 +1295,19 @@
       "execution": { "taskSupport": "forbidden" }
     },
     {
+      "name": "setIonToken",
+      "description": "Set Cesium Ion access token for loading Ion assets (3D Tiles, imagery, terrain). Must be called before loading private Ion resources.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string", "description": "Cesium Ion access token" }
+        },
+        "required": ["token"],
+        "additionalProperties": false
+      },
+      "execution": { "taskSupport": "forbidden" }
+    },
+    {
       "name": "geocode",
       "description": "将地址、地标或地名转换为地理坐标（经纬度）。使用 OpenStreetMap Nominatim 免费服务，无需 API Key。",
       "inputSchema": {

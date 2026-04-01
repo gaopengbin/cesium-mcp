@@ -427,7 +427,7 @@ const TOOLSETS: Record<string, string[]> = {
   camera: ['lookAtTransform', 'startOrbit', 'stopOrbit', 'setCameraOptions'],
   'entity-ext': ['addBillboard', 'addBox', 'addCorridor', 'addCylinder', 'addEllipse', 'addRectangle', 'addWall'],
   animation: ['createAnimation', 'controlAnimation', 'removeAnimation', 'listAnimations', 'updateAnimationPath', 'trackEntity', 'controlClock', 'setGlobeLighting'],
-  scene: ['setSceneOptions', 'setPostProcess'],
+  scene: ['setSceneOptions', 'setPostProcess', 'setIonToken'],
   tiles: ['load3dTiles', 'loadTerrain', 'loadImageryService', 'loadCzml', 'loadKml'],
   interaction: ['screenshot', 'highlight', 'measure'],
   trajectory: ['playTrajectory'],
@@ -1594,6 +1594,18 @@ _registerTool(
   { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Set Post-Processing' },
   async (params) => {
     const result = await sendToBrowser('setPostProcess', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — setIonToken
+_registerTool(
+  'setIonToken',
+  'Set Cesium Ion access token for loading Ion assets (3D Tiles, imagery, terrain). Must be called before loading private Ion resources.',
+  { token: z.string().describe('Cesium Ion access token') },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Set Ion Token' },
+  async (params: Record<string, unknown>) => {
+    const result = await sendToBrowser('setIonToken', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
   },
 )

@@ -287,6 +287,9 @@ export class CesiumBridge {
         case 'setPostProcess':
           this.setPostProcess(p as SetPostProcessParams)
           return { success: true, message: 'Post-processing effects updated' }
+        case 'setIonToken':
+          Cesium.Ion.defaultAccessToken = p.token as string
+          return { success: true, message: 'Cesium Ion access token updated' }
         // ==================== Batch & Query ====================
         case 'batchAddEntities': {
           const result = this.batchAddEntities(p as BatchAddEntitiesParams)
