@@ -16,6 +16,7 @@ import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import { WebSocketServer, WebSocket, type RawData } from 'ws'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { toolDescriptions as _enToolDesc, paramDescriptions as _enParamDesc } from './locales/en.js'
 import { toolDescriptions as _zhToolDesc, paramDescriptions as _zhParamDesc } from './locales/zh-CN.js'
 
@@ -39,6 +40,9 @@ let _relayPort = 0 // >0 means relay mode: forward commands to an existing insta
 
 const DEFAULT_SESSION_ID = process.env.DEFAULT_SESSION_ID ?? 'default'
 
+/** URL-level session context for MCP HTTP requests (e.g. /mcp?session=xxx) */
+const _httpSessionStore = new AsyncLocalStorage<string>()
+
 function getDefaultBrowser(): WebSocket | null {
   if (browserClients.size === 0) return null
   // 优先返回绑定的 session 连接
@@ -50,7 +54,9 @@ function getDefaultBrowser(): WebSocket | null {
 
 function sendToBrowser(action: string, params: Record<string, unknown>, timeoutMs = 30000): Promise<unknown> {
   // Extract sessionId from params for multi-browser routing (transparent to tool handlers)
-  const { sessionId, ...cleanParams } = params as { sessionId?: string; [k: string]: unknown }
+  const { sessionId: paramSessionId, ...cleanParams } = params as { sessionId?: string; [k: string]: unknown }
+  // Priority: tool param > URL query (?session=xxx) > default
+  const sessionId = paramSessionId ?? _httpSessionStore.getStore()
   if (_relayPort > 0) return _sendViaRelay(action, cleanParams, timeoutMs, sessionId)
   return new Promise((resolve, reject) => {
     const ws = sessionId
@@ -1856,31 +1862,41 @@ async function _handleMcpRequest(req: IncomingMessage, res: ServerResponse) {
   }
 
   // Only serve /mcp endpoint
-  const url = req.url?.split('?')[0]
-  if (url !== '/mcp') {
+  const parsedUrl = new URL(req.url ?? '/', 'http://localhost')
+  if (parsedUrl.pathname !== '/mcp') {
     res.writeHead(404)
     res.end('Not Found — MCP endpoint is POST /mcp')
     return
   }
 
+  // Extract ?session=xxx for browser routing (propagated via AsyncLocalStorage to sendToBrowser)
+  const urlSession = parsedUrl.searchParams.get('session') ?? undefined
+
   if (req.method === 'POST') {
     let body = ''
     req.on('data', (chunk: Buffer) => { body += chunk.toString() })
     req.on('end', async () => {
-      try {
-        const parsedBody = JSON.parse(body)
-        const mcpServer = _createHttpMcpServer()
-        const transport = new StreamableHTTPServerTransport({
-          sessionIdGenerator: undefined, // stateless
-        })
-        res.on('close', () => { transport.close().catch(() => {}) })
-        await mcpServer.connect(transport)
-        await transport.handleRequest(req, res, parsedBody)
-      } catch (err) {
-        if (!res.headersSent) {
-          res.writeHead(400, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null }))
+      const run = async () => {
+        try {
+          const parsedBody = JSON.parse(body)
+          const mcpServer = _createHttpMcpServer()
+          const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: undefined, // stateless
+          })
+          res.on('close', () => { transport.close().catch(() => {}) })
+          await mcpServer.connect(transport)
+          await transport.handleRequest(req, res, parsedBody)
+        } catch (err) {
+          if (!res.headersSent) {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null }))
+          }
         }
+      }
+      if (urlSession) {
+        await _httpSessionStore.run(urlSession, run)
+      } else {
+        await run()
       }
     })
     return
