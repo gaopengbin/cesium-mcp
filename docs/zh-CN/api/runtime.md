@@ -618,15 +618,18 @@ cesium-mcp-runtime
 
 #### `load3dTiles`
 
-加载 3D Tileset（建筑白膜、城市模型等）。
+从 URL 或 Cesium Ion 资产 ID 加载 3D Tileset（建筑白膜、城市模型等）。
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| `url` | `string` | ✅ | — | tileset.json URL |
+| `url` | `string` | — | — | tileset.json URL |
+| `ionAssetId` | `number` | — | — | Cesium Ion 资产 ID |
 | `id` | `string` | — | 自动 | 图层 ID |
 | `name` | `string` | — | — | 显示名称 |
 | `maximumScreenSpaceError` | `number` | — | `16` | 最大屏幕空间误差（值越小越精细） |
 | `heightOffset` | `number` | — | — | 高度偏移（米） |
+
+> `url` 和 `ionAssetId` 至少提供其一。
 
 #### `loadTerrain`
 
@@ -640,16 +643,19 @@ cesium-mcp-runtime
 
 #### `loadImageryService`
 
-添加影像服务图层。
+从 URL 或 Cesium Ion 资产 ID 添加影像图层。
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| `url` | `string` | ✅ | — | 影像服务 URL |
-| `serviceType` | `string` | ✅ | — | `"wms"` \| `"wmts"` \| `"xyz"` \| `"arcgis_mapserver"` |
+| `url` | `string` | — | — | 影像服务 URL |
+| `serviceType` | `string` | — | — | `"wms"` \| `"wmts"` \| `"xyz"` \| `"arcgis_mapserver"` \| `"ion"` |
+| `ionAssetId` | `number` | — | — | Cesium Ion 资产 ID |
 | `id` | `string` | — | 自动 | 图层 ID |
 | `name` | `string` | — | — | 显示名称 |
 | `layerName` | `string` | — | — | WMS/WMTS 图层名 |
 | `opacity` | `number` | — | `1.0` | 透明度（0–1） |
+
+> `url` + `serviceType` 和 `ionAssetId` 至少提供其一。
 
 #### `loadCzml`
 

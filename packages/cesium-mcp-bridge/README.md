@@ -116,7 +116,7 @@ await bridge.execute({
 |---------|-------------|
 | `load3dTiles` | Load a 3D Tiles dataset from URL or Cesium Ion |
 | `loadTerrain` | Switch terrain provider (flat / arcgis / cesiumion / url) |
-| `loadImageryService` | Add WMS / WMTS / XYZ / ArcGIS imagery layer |
+| `loadImageryService` | Add WMS / WMTS / XYZ / ArcGIS / Ion imagery layer |
 
 ### Interaction
 

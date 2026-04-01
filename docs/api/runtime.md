@@ -619,15 +619,18 @@ Enable/disable globe lighting and atmospheric effects.
 
 #### `load3dTiles`
 
-Load a 3D Tileset (buildings, terrain mesh, etc.).
+Load a 3D Tileset (buildings, terrain mesh, etc.) from URL or Cesium Ion asset ID.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `url` | `string` | ✅ | — | URL to `tileset.json` |
+| `url` | `string` | — | — | URL to `tileset.json` |
+| `ionAssetId` | `number` | — | — | Cesium Ion asset ID |
 | `id` | `string` | — | auto | Layer ID |
 | `name` | `string` | — | — | Display name |
 | `maximumScreenSpaceError` | `number` | — | `16` | Max screen space error (lower = more detail) |
 | `heightOffset` | `number` | — | — | Height offset in meters |
+
+> Either `url` or `ionAssetId` must be provided.
 
 #### `loadTerrain`
 
@@ -641,16 +644,19 @@ Set the terrain provider.
 
 #### `loadImageryService`
 
-Add a WMS/WMTS/XYZ/ArcGIS imagery layer.
+Add an imagery layer from URL or Cesium Ion asset ID.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `url` | `string` | ✅ | — | Imagery service URL |
-| `serviceType` | `string` | ✅ | — | `"wms"` \| `"wmts"` \| `"xyz"` \| `"arcgis_mapserver"` |
+| `url` | `string` | — | — | Imagery service URL |
+| `serviceType` | `string` | — | — | `"wms"` \| `"wmts"` \| `"xyz"` \| `"arcgis_mapserver"` \| `"ion"` |
+| `ionAssetId` | `number` | — | — | Cesium Ion asset ID |
 | `id` | `string` | — | auto | Layer ID |
 | `name` | `string` | — | — | Display name |
 | `layerName` | `string` | — | — | WMS/WMTS layer name |
 | `opacity` | `number` | — | `1.0` | Opacity (0–1) |
+
+> Either `url` + `serviceType` or `ionAssetId` must be provided.
 
 #### `loadCzml`
 

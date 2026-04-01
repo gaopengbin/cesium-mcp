@@ -116,7 +116,7 @@ await bridge.execute({
 |------|------|
 | `load3dTiles` | 从 URL 或 Cesium Ion 加载 3D Tiles 数据集 |
 | `loadTerrain` | 切换地形（平坦/arcgis/cesiumion/url） |
-| `loadImageryService` | 添加 WMS / WMTS / XYZ / ArcGIS 影像图层 |
+| `loadImageryService` | 添加 WMS / WMTS / XYZ / ArcGIS / Ion 影像图层 |
 
 ### 交互
 

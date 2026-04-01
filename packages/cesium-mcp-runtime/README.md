@@ -229,7 +229,7 @@ When not in `all` mode, two meta-tools are always available so the AI can discov
 |------|-------------|
 | `load3dTiles` | Load 3D Tiles from URL or Ion asset ID |
 | `loadTerrain` | Set terrain provider |
-| `loadImageryService` | Add imagery service (WMS/WMTS/XYZ) |
+| `loadImageryService` | Add imagery service (WMS/WMTS/XYZ/Ion) |
 
 ### Interaction *(toolset: interaction)*
 

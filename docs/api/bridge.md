@@ -102,9 +102,9 @@ const bridge = new CesiumBridge(viewer)
 
 | Command | Description | Key Parameters |
 |---------|-------------|----------------|
-| `load3dTiles` | Load 3D Tileset | `url`, `name`, `maximumScreenSpaceError` |
+| `load3dTiles` | Load 3D Tileset | `url` or `ionAssetId`, `name`, `maximumScreenSpaceError` |
 | `loadTerrain` | Set terrain provider | `url`, `provider` |
-| `loadImageryService` | Add imagery layer | `url`, `provider`, `name` |
+| `loadImageryService` | Add imagery layer | `url`/`serviceType` or `ionAssetId`, `name` |
 | `loadCzml` | Load CZML time-dynamic data | `data` or `url`, `name` |
 | `loadKml` | Load KML/KMZ data | `data` or `url`, `name` |
 
