@@ -293,7 +293,22 @@ ws.onmessage = async (event) => {
 标签页 B: ws://localhost:9100?session=demo
 ```
 
-MCP 工具调用会路由到匹配 `DEFAULT_SESSION_ID` 的会话。如果该会话不可用，将回退到第一个已连接的会话。
+### 通过 MCP URL 路由（推荐用于 Dify 等第三方集成）
+
+在 MCP HTTP 端点 URL 后添加 `?session=xxx`：
+
+```
+http://localhost:3216/mcp?session=geoagent
+```
+
+该连接的所有工具调用会自动路由到对应浏览器，无需在提示词或工具参数中注入 `sessionId`。
+
+### 路由优先级
+
+1. 工具参数中的 `sessionId`（单次调用级覆盖）
+2. MCP HTTP URL 中的 `?session=xxx`（连接级）
+3. `DEFAULT_SESSION_ID` 环境变量
+4. 第一个已连接的浏览器（兜底）
 
 ## HTTP 推送 API
 

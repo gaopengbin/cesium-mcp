@@ -818,7 +818,22 @@ Tab 1: sessionId = "project-a"
 Tab 2: sessionId = "project-b"
 ```
 
-The runtime routes MCP tool calls to the session matching `DEFAULT_SESSION_ID`.
+### Routing via MCP URL
+
+Add `?session=xxx` to the MCP HTTP endpoint URL to route all tool calls to a specific browser:
+
+```
+http://localhost:3216/mcp?session=project-a
+```
+
+This is the recommended approach for third-party integrations (e.g., Dify) — no prompt injection or tool parameter needed.
+
+### Routing priority
+
+1. `sessionId` in tool parameters (explicit per-call override)
+2. `?session=xxx` in MCP HTTP URL (connection-level)
+3. `DEFAULT_SESSION_ID` environment variable
+4. First connected browser (fallback)
 
 ## HTTP Push API
 

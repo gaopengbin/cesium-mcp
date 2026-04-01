@@ -189,7 +189,13 @@ Browser Tab 1 (sessionId: "project-a") ──┐
 Browser Tab 2 (sessionId: "project-b") ──┘
 ```
 
-The runtime routes MCP tool calls to the session matching `DEFAULT_SESSION_ID`.
+For MCP HTTP mode, add `?session=xxx` to the endpoint URL to automatically route all tool calls to the specified browser:
+
+```
+http://localhost:3216/mcp?session=project-a
+```
+
+Routing priority: tool param `sessionId` > URL `?session=xxx` > `DEFAULT_SESSION_ID` env > first connected browser.
 
 ## Version Strategy
 

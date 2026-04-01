@@ -817,7 +817,22 @@ cesium-mcp-runtime
 标签页 2：sessionId = "project-b"
 ```
 
-Runtime 将 MCP 工具调用路由到匹配 `DEFAULT_SESSION_ID` 的会话。
+### 通过 MCP URL 路由
+
+在 MCP HTTP 端点 URL 后添加 `?session=xxx`，即可将所有工具调用路由到指定浏览器：
+
+```
+http://localhost:3216/mcp?session=project-a
+```
+
+推荐用于第三方集成（如 Dify），无需在提示词或工具参数中注入 sessionId。
+
+### 路由优先级
+
+1. 工具参数中的 `sessionId`（单次调用级覆盖）
+2. MCP HTTP URL 中的 `?session=xxx`（连接级）
+3. `DEFAULT_SESSION_ID` 环境变量
+4. 第一个已连接的浏览器（兜底）
 
 ## HTTP Push API
 

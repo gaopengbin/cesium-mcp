@@ -189,7 +189,13 @@ AI："我需要创建一个动画"
 浏览器标签页 2 (sessionId: "project-b") ──┘
 ```
 
-Runtime 将 MCP 工具调用路由到匹配 `DEFAULT_SESSION_ID` 的会话。
+MCP HTTP 模式下，在端点 URL 后添加 `?session=xxx` 可自动将所有工具调用路由到指定浏览器：
+
+```
+http://localhost:3216/mcp?session=project-a
+```
+
+路由优先级：工具参数 `sessionId` > URL `?session=xxx` > `DEFAULT_SESSION_ID` 环境变量 > 第一个已连接的浏览器。
 
 ## 版本策略
 

@@ -293,7 +293,22 @@ Tab A: ws://localhost:9100?session=geoagent
 Tab B: ws://localhost:9100?session=demo
 ```
 
-MCP tool calls are routed to the session matching `DEFAULT_SESSION_ID`. If that session is unavailable, the first connected session is used as fallback.
+### Routing via MCP URL (recommended for Dify / third-party integrations)
+
+Add `?session=xxx` to the MCP HTTP endpoint URL:
+
+```
+http://localhost:3216/mcp?session=geoagent
+```
+
+All tool calls from that connection are automatically routed to the matching browser — no need to inject `sessionId` into prompts or tool parameters.
+
+### Routing priority
+
+1. `sessionId` in tool parameters (explicit per-call override)
+2. `?session=xxx` in MCP HTTP URL (connection-level)
+3. `DEFAULT_SESSION_ID` environment variable
+4. First connected browser (fallback)
 
 ## HTTP Push API
 
