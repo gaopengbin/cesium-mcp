@@ -1,7 +1,7 @@
 {
   "serverInfo": {
     "name": "cesium-mcp-runtime",
-    "version": "1.139.16",
+    "version": "1.139.17",
     "description": "MCP server for CesiumJS 3D globe - 58 tools for map visualization, layer management, entity types, camera control, animation, geocoding, and interaction. Works with Claude, Cursor, VS Code Copilot and other MCP-compatible AI agents."
   },
   "tools": [

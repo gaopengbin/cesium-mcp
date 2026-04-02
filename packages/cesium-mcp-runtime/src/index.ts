@@ -248,13 +248,20 @@ function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
 
   // GET /api/tools — list enabled tools with JSON Schema
   if (req.method === 'GET' && req.url?.startsWith('/api/tools')) {
-    const tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }> = []
+    // Support ?toolsets=view,layer filtering
+    const parsedToolsUrl = new URL(req.url, 'http://localhost')
+    const tsParam = parsedToolsUrl.searchParams.get('toolsets')?.trim()
+    const allowedTools = tsParam
+      ? new Set(tsParam.split(',').flatMap(s => TOOLSETS[s.trim()] ?? []))
+      : null // null = no filter, show all enabled
+    const tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown>; _meta?: Record<string, unknown> }> = []
     for (const [name, args] of _toolDefs.entries()) {
-      if (!_enabledTools.has(name)) continue
+      if (allowedTools ? !allowedTools.has(name) : !_enabledTools.has(name)) continue
       const description = args[1] as string
       const zodShape = args[2] as Record<string, z.ZodTypeAny> | undefined
       const jsonSchema = zodShape ? zodShapeToJsonSchema(zodShape) : { type: 'object', properties: {} }
-      tools.push({ name, description, inputSchema: jsonSchema })
+      const toolset = TOOL_TO_TOOLSET.get(name)
+      tools.push({ name, description, inputSchema: jsonSchema, ...(toolset ? { _meta: { toolset } } : {}) })
     }
     res.writeHead(200, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ ok: true, tools }))

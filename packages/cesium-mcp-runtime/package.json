@@ -1,6 +1,6 @@
 {
   "name": "cesium-mcp-runtime",
-  "version": "1.139.16",
+  "version": "1.139.17",
   "description": "Cesium MCP Runtime Server — AI Agent 通过 MCP 协议操控浏览器 Cesium",
   "mcpName": "io.github.gaopengbin/cesium-mcp-runtime",
   "type": "module",
