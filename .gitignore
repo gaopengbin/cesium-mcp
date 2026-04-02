@@ -7,6 +7,7 @@ coverage/
 .DS_Store
 Thumbs.db
 .vscode/mcp.json
+.cursor/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 docs/design/
@@ -19,5 +20,10 @@ packages/cesium-mcp-bridge/dist-iife/
 
 # Temporary / generated
 .playwright-mcp/
+.smithery/
 articles/
 integration-*.png
+
+# IDE configs in subdirectories
+examples/.github/
+examples/.vscode/
