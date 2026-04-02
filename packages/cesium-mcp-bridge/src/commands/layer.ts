@@ -805,6 +805,14 @@ export class LayerManager {
     const basemap = params.basemap ?? 'dark'
     this._viewer.imageryLayers.removeAll()
 
+    // Custom URL template takes priority
+    if (params.url) {
+      this._viewer.imageryLayers.addImageryProvider(
+        new Cesium.UrlTemplateImageryProvider({ url: params.url, maximumLevel: 18 }),
+      )
+      return params.url
+    }
+
     switch (basemap) {
       case 'satellite':
         this._viewer.imageryLayers.addImageryProvider(
@@ -814,6 +822,7 @@ export class LayerManager {
           }),
         )
         break
+      case 'osm':
       case 'standard':
         this._viewer.imageryLayers.addImageryProvider(
           new Cesium.UrlTemplateImageryProvider({
@@ -822,6 +831,60 @@ export class LayerManager {
           }),
         )
         break
+      case 'arcgis':
+        this._viewer.imageryLayers.addImageryProvider(
+          new Cesium.UrlTemplateImageryProvider({
+            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+            maximumLevel: 18,
+          }),
+        )
+        break
+      case 'light':
+        this._viewer.imageryLayers.addImageryProvider(
+          new Cesium.UrlTemplateImageryProvider({
+            url: 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+            maximumLevel: 18,
+          }),
+        )
+        break
+      case 'tianditu_vec': {
+        const tk = params.token ?? ''
+        this._viewer.imageryLayers.addImageryProvider(
+          new Cesium.UrlTemplateImageryProvider({
+            url: `https://t{s}.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=${tk}`,
+            subdomains: ['0', '1', '2', '3', '4', '5', '6', '7'],
+            maximumLevel: 18,
+          }),
+        )
+        // Add annotation layer
+        this._viewer.imageryLayers.addImageryProvider(
+          new Cesium.UrlTemplateImageryProvider({
+            url: `https://t{s}.tianditu.gov.cn/cva_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cva&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=${tk}`,
+            subdomains: ['0', '1', '2', '3', '4', '5', '6', '7'],
+            maximumLevel: 18,
+          }),
+        )
+        break
+      }
+      case 'tianditu_img': {
+        const tk = params.token ?? ''
+        this._viewer.imageryLayers.addImageryProvider(
+          new Cesium.UrlTemplateImageryProvider({
+            url: `https://t{s}.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=${tk}`,
+            subdomains: ['0', '1', '2', '3', '4', '5', '6', '7'],
+            maximumLevel: 18,
+          }),
+        )
+        // Add annotation layer
+        this._viewer.imageryLayers.addImageryProvider(
+          new Cesium.UrlTemplateImageryProvider({
+            url: `https://t{s}.tianditu.gov.cn/cia_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=${tk}`,
+            subdomains: ['0', '1', '2', '3', '4', '5', '6', '7'],
+            maximumLevel: 18,
+          }),
+        )
+        break
+      }
       case 'dark':
       default:
         this._viewer.imageryLayers.addImageryProvider(

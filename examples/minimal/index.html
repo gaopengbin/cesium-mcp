@@ -272,10 +272,13 @@
       </div>
       <div class="section-body">
         <div class="btn-grid">
-          <button class="btn" onclick="cmd('setBasemap',{type:'osm'})">OSM</button>
-          <button class="btn" onclick="cmd('setBasemap',{type:'arcgis'})">ArcGIS</button>
-          <button class="btn" onclick="cmd('setBasemap',{type:'tianditu_vec',token:'your_token'})" data-i18n="btn.tdtVec">天地图矢量</button>
-          <button class="btn" onclick="cmd('setBasemap',{type:'tianditu_img',token:'your_token'})" data-i18n="btn.tdtImg">天地图影像</button>
+          <button class="btn" onclick="cmd('setBasemap',{basemap:'osm'})">OSM</button>
+          <button class="btn" onclick="cmd('setBasemap',{basemap:'arcgis'})">ArcGIS</button>
+          <button class="btn" onclick="cmd('setBasemap',{basemap:'light'})">Light</button>
+          <button class="btn" onclick="cmd('setBasemap',{basemap:'dark'})">Dark</button>
+          <button class="btn" onclick="cmd('setBasemap',{basemap:'satellite'})">Satellite</button>
+          <button class="btn" onclick="cmd('setBasemap',{basemap:'tianditu_vec',token:'your_token'})" data-i18n="btn.tdtVec">天地图矢量</button>
+          <button class="btn" onclick="cmd('setBasemap',{basemap:'tianditu_img',token:'your_token'})" data-i18n="btn.tdtImg">天地图影像</button>
         </div>
       </div>
     </div>
