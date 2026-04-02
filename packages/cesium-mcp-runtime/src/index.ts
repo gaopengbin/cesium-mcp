@@ -180,6 +180,23 @@ function zodShapeToJsonSchema(shape: Record<string, z.ZodTypeAny>): Record<strin
   return { type: 'object', properties, required: required.length ? required : undefined }
 }
 
+// Server-side tools: handlers run on Node.js, NOT forwarded to browser bridge
+const SERVER_SIDE_TOOLS = new Set(['geocode'])
+
+/** Invoke a server-side tool handler from _toolDefs, return parsed result */
+async function _invokeServerSideTool(action: string, params: Record<string, unknown>): Promise<unknown> {
+  const def = _toolDefs.get(action)
+  if (!def) throw new Error(`Server-side tool "${action}" not found`)
+  const handler = def[def.length - 1] as (params: Record<string, unknown>) => Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }>
+  const mcpResult = await handler(params)
+  // Unwrap MCP content format to raw result for HTTP API compatibility
+  const text = mcpResult?.content?.[0]?.text
+  if (text) {
+    try { return JSON.parse(text) } catch { return text }
+  }
+  return mcpResult
+}
+
 /** HTTP 请求处理：POST /api/command */
 function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
   // CORS
@@ -205,7 +222,14 @@ function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
 
         let sent = 0
         for (const cmd of commands) {
-          if (cmd && pushToBrowser(sessionId, cmd)) sent++
+          if (!cmd) continue
+          if (SERVER_SIDE_TOOLS.has(cmd.action) && _toolDefs.has(cmd.action)) {
+            // Server-side tool: invoke handler directly (fire-and-forget)
+            _invokeServerSideTool(cmd.action, cmd.params ?? {}).catch(() => {})
+            sent++
+          } else if (pushToBrowser(sessionId, cmd)) {
+            sent++
+          }
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -225,9 +249,15 @@ function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
     req.on('end', async () => {
       try {
         const { action, params, sessionId } = JSON.parse(body) as { action: string; params: Record<string, unknown>; sessionId?: string }
-        // Inject sessionId into params so sendToBrowser can route to the correct browser
-        const routedParams = sessionId ? { ...params, sessionId } : params
-        const result = await sendToBrowser(action, routedParams)
+        let result: unknown
+        if (SERVER_SIDE_TOOLS.has(action) && _toolDefs.has(action)) {
+          // Server-side tool: invoke handler directly
+          result = await _invokeServerSideTool(action, params ?? {})
+        } else {
+          // Bridge tool: forward to browser
+          const routedParams = sessionId ? { ...params, sessionId } : params
+          result = await sendToBrowser(action, routedParams)
+        }
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ ok: true, result }))
       } catch (err) {
