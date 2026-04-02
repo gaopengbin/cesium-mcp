@@ -7,6 +7,7 @@ import type {
   GetLayerSchemaParams, LayerSchemaResult, LayerSchemaField,
 } from '../types'
 import { parseColor } from '../utils'
+import { BASEMAP_PRESETS } from './basemap-presets'
 
 // ==================== 图层状态（由 Bridge 实例持有） ====================
 
@@ -813,89 +814,16 @@ export class LayerManager {
       return params.url
     }
 
-    switch (basemap) {
-      case 'satellite':
-        this._viewer.imageryLayers.addImageryProvider(
-          new Cesium.UrlTemplateImageryProvider({
-            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-            maximumLevel: 18,
-          }),
-        )
-        break
-      case 'osm':
-      case 'standard':
-        this._viewer.imageryLayers.addImageryProvider(
-          new Cesium.UrlTemplateImageryProvider({
-            url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            maximumLevel: 19,
-          }),
-        )
-        break
-      case 'arcgis':
-        this._viewer.imageryLayers.addImageryProvider(
-          new Cesium.UrlTemplateImageryProvider({
-            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-            maximumLevel: 18,
-          }),
-        )
-        break
-      case 'light':
-        this._viewer.imageryLayers.addImageryProvider(
-          new Cesium.UrlTemplateImageryProvider({
-            url: 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-            maximumLevel: 18,
-          }),
-        )
-        break
-      case 'tianditu_vec': {
-        const tk = params.token ?? ''
-        this._viewer.imageryLayers.addImageryProvider(
-          new Cesium.UrlTemplateImageryProvider({
-            url: `https://t{s}.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=${tk}`,
-            subdomains: ['0', '1', '2', '3', '4', '5', '6', '7'],
-            maximumLevel: 18,
-          }),
-        )
-        // Add annotation layer
-        this._viewer.imageryLayers.addImageryProvider(
-          new Cesium.UrlTemplateImageryProvider({
-            url: `https://t{s}.tianditu.gov.cn/cva_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cva&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=${tk}`,
-            subdomains: ['0', '1', '2', '3', '4', '5', '6', '7'],
-            maximumLevel: 18,
-          }),
-        )
-        break
-      }
-      case 'tianditu_img': {
-        const tk = params.token ?? ''
-        this._viewer.imageryLayers.addImageryProvider(
-          new Cesium.UrlTemplateImageryProvider({
-            url: `https://t{s}.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=${tk}`,
-            subdomains: ['0', '1', '2', '3', '4', '5', '6', '7'],
-            maximumLevel: 18,
-          }),
-        )
-        // Add annotation layer
-        this._viewer.imageryLayers.addImageryProvider(
-          new Cesium.UrlTemplateImageryProvider({
-            url: `https://t{s}.tianditu.gov.cn/cia_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=${tk}`,
-            subdomains: ['0', '1', '2', '3', '4', '5', '6', '7'],
-            maximumLevel: 18,
-          }),
-        )
-        break
-      }
-      case 'dark':
-      default:
-        this._viewer.imageryLayers.addImageryProvider(
-          new Cesium.UrlTemplateImageryProvider({
-            url: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-            maximumLevel: 18,
-          }),
-        )
-        this._viewer.scene.backgroundColor = parseColor('#0B1120')
-        this._viewer.scene.globe.baseColor = parseColor('#0B1120')
-        break
+    const tk = params.token ?? ''
+    const preset = BASEMAP_PRESETS[basemap] ?? BASEMAP_PRESETS['dark']!
+    for (const layer of preset.layers(tk)) {
+      this._viewer.imageryLayers.addImageryProvider(
+        new Cesium.UrlTemplateImageryProvider(layer),
+      )
+    }
+    if (preset.backgroundColor) {
+      this._viewer.scene.backgroundColor = parseColor(preset.backgroundColor)
+      this._viewer.scene.globe.baseColor = parseColor(preset.backgroundColor)
     }
     return basemap
   }
