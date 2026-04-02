@@ -31,7 +31,7 @@ export const toolDescriptions: Record<string, string> = {
   removeLayer: 'Remove a layer from map by layer ID',
   setLayerVisibility: 'Set layer visibility',
   updateLayerStyle: 'Update layer style (color, opacity, label style, 3D Tiles style, etc.)',
-  setBasemap: 'Switch basemap style (dark/satellite/standard/osm/arcgis/light/tianditu)',
+  setBasemap: 'Switch basemap style (dark/satellite/standard/osm/arcgis/light/tianditu/amap)',
 
   // — camera
   lookAtTransform: 'Look at a specific position from a given heading/pitch/range (orbit-style camera)',
@@ -208,7 +208,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     tileStyle: '3D Tiles style (Cesium3DTileStyle expressions: color, show, pointSize, meta)',
   },
   setBasemap: {
-    basemap: 'Basemap type: dark=dark theme, satellite=satellite imagery, standard=standard, osm=OpenStreetMap, arcgis=ArcGIS streets, light=light theme, tianditu_vec=Tianditu vector, tianditu_img=Tianditu imagery',
+    basemap: 'Basemap type: dark=dark theme, satellite=satellite imagery, standard=standard, osm=OpenStreetMap, arcgis=ArcGIS streets, light=light theme, tianditu_vec=Tianditu vector, tianditu_img=Tianditu imagery, amap=Amap roads, amap_satellite=Amap satellite',
     token: 'Token for providers requiring authentication (e.g. Tianditu)',
     url: 'Custom URL template with {x},{y},{z} placeholders. When provided, basemap param is ignored.',
   },

@@ -1,4 +1,5 @@
 const TDT_SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7']
+const AMAP_SUBDOMAINS = ['1', '2', '3', '4']
 
 export interface BasemapLayer {
   url: string
@@ -43,6 +44,17 @@ export const BASEMAP_PRESETS: Record<string, BasemapPreset> = {
     layers: (tk) => [
       { url: `https://t{s}.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=${tk}`, subdomains: TDT_SUBDOMAINS, maximumLevel: 18 },
       { url: `https://t{s}.tianditu.gov.cn/cia_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=${tk}`, subdomains: TDT_SUBDOMAINS, maximumLevel: 18 },
+    ],
+  },
+  amap: {
+    layers: () => [
+      { url: 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', subdomains: AMAP_SUBDOMAINS, maximumLevel: 18 },
+    ],
+  },
+  amap_satellite: {
+    layers: () => [
+      { url: 'https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', subdomains: AMAP_SUBDOMAINS, maximumLevel: 18 },
+      { url: 'https://webst0{s}.is.autonavi.com/appmaptile?style=8&x={x}&y={y}&z={z}', subdomains: AMAP_SUBDOMAINS, maximumLevel: 18 },
     ],
   },
 }

@@ -182,9 +182,11 @@
               "arcgis",
               "light",
               "tianditu_vec",
-              "tianditu_img"
+              "tianditu_img",
+              "amap",
+              "amap_satellite"
             ],
-            "description": "底图类型：dark=暗色, satellite=卫星影像, standard=标准, osm=OpenStreetMap, arcgis=ArcGIS街道, light=浅色, tianditu_vec=天地图矢量, tianditu_img=天地图影像"
+            "description": "底图类型：dark=暗色, satellite=卫星影像, standard=标准, osm=OpenStreetMap, arcgis=ArcGIS街道, light=浅色, tianditu_vec=天地图矢量, tianditu_img=天地图影像, amap=高德地图, amap_satellite=高德卫星"
           },
           "token": {
             "type": "string",

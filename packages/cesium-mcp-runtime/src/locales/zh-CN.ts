@@ -31,7 +31,7 @@ export const toolDescriptions: Record<string, string> = {
   removeLayer: '从地图上移除指定图层（按图层ID）',
   setLayerVisibility: '设置图层可见性',
   updateLayerStyle: '修改已有图层的样式（颜色、透明度、标注样式、3D Tiles 样式等）',
-  setBasemap: '切换底图风格（暗色/卫星/标准/OSM/ArcGIS/浅色/天地图等）',
+  setBasemap: '切换底图风格（暗色/卫星/标准/OSM/ArcGIS/浅色/天地图/高德等）',
 
   // — camera
   lookAtTransform: '从指定航向/俯仰/距离观察特定位置（环绕式相机）',
@@ -208,7 +208,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     tileStyle: '3D Tiles 样式（Cesium3DTileStyle 表达式：color, show, pointSize, meta）',
   },
   setBasemap: {
-    basemap: '底图类型：dark=暗色, satellite=卫星影像, standard=标准, osm=OpenStreetMap, arcgis=ArcGIS街道, light=浅色, tianditu_vec=天地图矢量, tianditu_img=天地图影像',
+    basemap: '底图类型：dark=暗色, satellite=卫星影像, standard=标准, osm=OpenStreetMap, arcgis=ArcGIS街道, light=浅色, tianditu_vec=天地图矢量, tianditu_img=天地图影像, amap=高德地图, amap_satellite=高德卫星',
     token: '底图服务令牌（天地图等需要认证的服务必填）',
     url: '自定义URL模板（{x},{y},{z}占位符），提供时忽略basemap参数',
   },

@@ -625,7 +625,7 @@ _registerTool(
   'setBasemap',
   '切换底图风格',
   {
-    basemap: z.enum(['dark', 'satellite', 'standard', 'osm', 'arcgis', 'light', 'tianditu_vec', 'tianditu_img']).describe('底图类型：dark=暗色, satellite=卫星影像, standard=标准, osm=OpenStreetMap, arcgis=ArcGIS街道, light=浅色, tianditu_vec=天地图矢量, tianditu_img=天地图影像'),
+    basemap: z.enum(['dark', 'satellite', 'standard', 'osm', 'arcgis', 'light', 'tianditu_vec', 'tianditu_img', 'amap', 'amap_satellite']).describe('底图类型：dark=暗色, satellite=卫星影像, standard=标准, osm=OpenStreetMap, arcgis=ArcGIS街道, light=浅色, tianditu_vec=天地图矢量, tianditu_img=天地图影像, amap=高德地图, amap_satellite=高德卫星'),
     token: z.string().optional().describe('底图服务令牌（天地图等需要认证的服务必填）'),
     url: z.string().optional().describe('自定义URL模板（{x},{y},{z}占位符），提供时忽略basemap参数'),
   },

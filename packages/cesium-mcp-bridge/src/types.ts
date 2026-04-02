@@ -116,7 +116,7 @@ export interface AddHeatmapParams {
 }
 
 export interface SetBasemapParams {
-  basemap: 'dark' | 'satellite' | 'standard' | 'osm' | 'arcgis' | 'light' | 'tianditu_vec' | 'tianditu_img' | string
+  basemap: 'dark' | 'satellite' | 'standard' | 'osm' | 'arcgis' | 'light' | 'tianditu_vec' | 'tianditu_img' | 'amap' | 'amap_satellite' | string
   /** Token for providers that require authentication (e.g. tianditu) */
   token?: string
   /** Custom URL template with {x},{y},{z} placeholders. When provided, basemap type is ignored. */
