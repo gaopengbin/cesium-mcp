@@ -469,6 +469,12 @@ for (const setName of _enabledSets) {
   }
 }
 
+// Reverse map: tool name → toolset name (for _meta injection)
+const TOOL_TO_TOOLSET = new Map<string, string>()
+for (const [setName, tools] of Object.entries(TOOLSETS)) {
+  for (const tool of tools) TOOL_TO_TOOLSET.set(tool, setName)
+}
+
 // Store all tool definitions for lazy registration (Dynamic Discovery)
 const _toolDefs = new Map<string, unknown[]>()
 
@@ -476,6 +482,23 @@ const _toolDefs = new Map<string, unknown[]>()
 const _localeKey = process.env.CESIUM_LOCALE?.trim().toLowerCase()
 const _toolDesc = _localeKey === 'zh-cn' ? _zhToolDesc : _enToolDesc
 const _paramDesc = _localeKey === 'zh-cn' ? _zhParamDesc : _enParamDesc
+
+/** Apply a stored tool definition to a McpServer, injecting _meta.toolset via registerTool API */
+function _applyToolDef(s: McpServer, args: unknown[]) {
+  const name = args[0] as string
+  const toolset = TOOL_TO_TOOLSET.get(name)
+  if (toolset) {
+    // Use registerTool API which supports _meta
+    ;(s as any).registerTool(name, {
+      description: args[1] as string,
+      inputSchema: args[2],
+      annotations: args[3],
+      _meta: { toolset },
+    }, args[4])
+  } else {
+    ;(s.tool as Function).apply(s, args)
+  }
+}
 
 /** Register tool only if it belongs to an enabled toolset */
 const _registerTool = ((...args: unknown[]) => {
@@ -500,7 +523,7 @@ const _registerTool = ((...args: unknown[]) => {
   }
   _toolDefs.set(name, args)
   if (_enabledTools.has(name)) {
-    ;(server.tool as Function).apply(server, args)
+    _applyToolDef(server, args)
   }
 }) as typeof server.tool
 
@@ -514,7 +537,7 @@ function _enableToolset(setName: string): string[] {
       _enabledTools.add(toolName)
       const def = _toolDefs.get(toolName)
       if (def) {
-        ;(server.tool as Function).apply(server, def)
+        _applyToolDef(server, def)
         added.push(toolName)
       }
     }
@@ -1785,7 +1808,7 @@ server.tool(
  * Create a fresh McpServer instance with all enabled tools replayed.
  * Used for stateless HTTP transport mode — each request gets its own server.
  */
-function _createHttpMcpServer(): McpServer {
+function _createHttpMcpServer(filterToolsets?: Set<string>): McpServer {
   const s = new McpServer({
     name: 'cesium-mcp-runtime',
     version: __VERSION__,
@@ -1822,22 +1845,17 @@ function _createHttpMcpServer(): McpServer {
     },
   )
 
-  // Replay all enabled tools from _toolDefs
-  for (const [name, args] of _toolDefs.entries()) {
-    if (_enabledTools.has(name)) {
-      ;(s.tool as Function).apply(s, args)
+  // Replay tools with _meta.toolset, optionally filtered by toolsets param
+  const allowedToolsets = filterToolsets ?? new Set(Object.keys(TOOLSETS))
+  const allowedTools = new Set<string>()
+  for (const setName of allowedToolsets) {
+    if (TOOLSETS[setName]) {
+      for (const tool of TOOLSETS[setName]) allowedTools.add(tool)
     }
   }
-
-  // In HTTP mode, always enable all toolsets (no interactive enable_toolset)
-  if (!_allMode) {
-    for (const setName of Object.keys(TOOLSETS)) {
-      if (!_enabledSets.has(setName)) {
-        for (const toolName of TOOLSETS[setName]!) {
-          const def = _toolDefs.get(toolName)
-          if (def) (s.tool as Function).apply(s, def)
-        }
-      }
+  for (const [name, args] of _toolDefs.entries()) {
+    if (allowedTools.has(name)) {
+      _applyToolDef(s, args)
     }
   }
 
@@ -1890,6 +1908,12 @@ async function _handleMcpRequest(req: IncomingMessage, res: ServerResponse) {
   // Extract ?session=xxx for browser routing (propagated via AsyncLocalStorage to sendToBrowser)
   const urlSession = parsedUrl.searchParams.get('session') ?? undefined
 
+  // Extract ?toolsets=view,layer for filtering available tools in HTTP mode
+  const urlToolsets = parsedUrl.searchParams.get('toolsets')?.trim()
+  const filterToolsets = urlToolsets
+    ? new Set(urlToolsets.split(',').map(s => s.trim()).filter(s => s in TOOLSETS))
+    : undefined
+
   if (req.method === 'POST') {
     let body = ''
     req.on('data', (chunk: Buffer) => { body += chunk.toString() })
@@ -1897,7 +1921,7 @@ async function _handleMcpRequest(req: IncomingMessage, res: ServerResponse) {
       const run = async () => {
         try {
           const parsedBody = JSON.parse(body)
-          const mcpServer = _createHttpMcpServer()
+          const mcpServer = _createHttpMcpServer(filterToolsets)
           const transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: undefined, // stateless
           })
