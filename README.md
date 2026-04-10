@@ -37,7 +37,7 @@
   <p>
     <a href="https://glama.ai/mcp/servers/gaopengbin/cesium-mcp"><img src="https://glama.ai/mcp/servers/gaopengbin/cesium-mcp/badges/score.svg" alt="cesium-mcp on Glama"></a>
     <a href="https://mcpservers.org/servers/gaopengbin/cesium-mcp"><img src="https://img.shields.io/badge/MCP_Servers-cesium--mcp-blue" alt="cesium-mcp on MCP Servers"></a>
-    <a href="https://smithery.ai/server/cesium-mcp-runtime"><img src="https://smithery.ai/badge/cesium-mcp-runtime" alt="cesium-mcp on Smithery"></a>
+    <a href="https://smithery.ai/server/gaopengbin/cesium-mcp-runtime"><img src="https://smithery.ai/badge/cesium-mcp-runtime" alt="cesium-mcp on Smithery"></a>
   </p>
 </div>
 
