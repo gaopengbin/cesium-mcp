@@ -30,19 +30,6 @@
     <a href="https://www.npmjs.com/package/cesium-mcp-runtime"><img src="https://img.shields.io/badge/runtime-npm-155EEF?style=for-the-badge&logo=npm&logoColor=white" alt="runtime npm"></a>
     <a href="https://www.npmjs.com/package/cesium-mcp-dev"><img src="https://img.shields.io/badge/dev-npm-364fc7?style=for-the-badge&logo=npm&logoColor=white" alt="dev npm"></a>
   </p>
-
-  <p>
-    <a href="https://img.shields.io/badge/tools-58-12B76A?style=flat-square"><img src="https://img.shields.io/badge/tools-58-12B76A?style=flat-square" alt="58 个工具"></a>
-    <a href="https://img.shields.io/badge/toolsets-12-16B364?style=flat-square"><img src="https://img.shields.io/badge/toolsets-12-16B364?style=flat-square" alt="12 个工具集"></a>
-    <a href="https://img.shields.io/badge/transport-stdio%20%7C%20http-7A5AF8?style=flat-square"><img src="https://img.shields.io/badge/transport-stdio%20%7C%20http-7A5AF8?style=flat-square" alt="传输模式: stdio 与 HTTP"></a>
-    <a href="https://img.shields.io/badge/i18n-en%20%7C%20zh--CN-F79009?style=flat-square"><img src="https://img.shields.io/badge/i18n-en%20%7C%20zh--CN-F79009?style=flat-square" alt="多语言: en 与 zh-CN"></a>
-  </p>
-
-  <p>
-    <a href="https://glama.ai/mcp/servers/gaopengbin/cesium-mcp"><img src="https://glama.ai/mcp/servers/gaopengbin/cesium-mcp/badges/score.svg" alt="cesium-mcp on Glama"></a>
-    <a href="https://mcpservers.org/servers/gaopengbin/cesium-mcp"><img src="https://img.shields.io/badge/MCP_Servers-cesium--mcp-blue" alt="cesium-mcp on MCP Servers"></a>
-    <a href="https://smithery.ai/server/gaopengbin/cesium-mcp-runtime"><img src="https://smithery.ai/badge/cesium-mcp-runtime" alt="cesium-mcp on Smithery"></a>
-  </p>
 </div>
 
 ---
