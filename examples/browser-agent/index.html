@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CesiumJS AI Agent - Browser Only</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.139/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.139/Build/Cesium/Cesium.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cesium-mcp-bridge@1.139/dist/cesium-mcp-bridge.browser.global.js"></script>
+  <style>
+    :root {
+      --bg: #09090b; --bg-card: #18181b; --bg-hover: #1f1f23;
+      --border: #27272a; --border-hover: #3f3f46;
+      --fg: #fafafa; --fg-muted: #a1a1aa; --fg-dim: #71717a;
+      --accent: #3b82f6; --accent-hover: #2563eb;
+      --success: #22c55e; --danger: #ef4444;
+      --radius: 8px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      display: flex; height: 100vh;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg); color: var(--fg); overflow: hidden;
+    }
+
+    /* Cesium */
+    #cesiumContainer { flex: 1; height: 100%; }
+    .cesium-viewer-bottom, .cesium-viewer-animationContainer,
+    .cesium-viewer-timelineContainer, .cesium-viewer-fullscreenContainer { display: none !important; }
+
+    /* Chat Panel */
+    .chat-panel {
+      width: 420px; display: flex; flex-direction: column;
+      background: var(--bg); border-left: 1px solid var(--border);
+    }
+    .chat-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .chat-header h1 { font-size: 14px; font-weight: 600; }
+    .chat-header h1 span { color: var(--fg-dim); font-weight: 400; margin-left: 6px; font-size: 12px; }
+    .chat-header-actions { display: flex; gap: 8px; }
+    .chat-header-actions button {
+      background: none; border: 1px solid var(--border); color: var(--fg-muted);
+      padding: 4px 10px; border-radius: var(--radius); font-size: 11px; cursor: pointer;
+    }
+    .chat-header-actions button:hover { border-color: var(--border-hover); color: var(--fg); }
+
+    /* Messages */
+    .chat-messages {
+      flex: 1; overflow-y: auto; padding: 16px 20px;
+      display: flex; flex-direction: column; gap: 12px;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    }
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .msg { max-width: 90%; padding: 10px 14px; border-radius: var(--radius); font-size: 13px; line-height: 1.6; flex-shrink: 0; }
+    .msg-user {
+      align-self: flex-end; background: var(--accent); color: white;
+      border-bottom-right-radius: 2px;
+    }
+    .msg-ai {
+      align-self: flex-start; background: var(--bg-card); border: 1px solid var(--border);
+      border-bottom-left-radius: 2px;
+    }
+    .msg-system {
+      align-self: center; color: var(--fg-dim); font-size: 11px;
+      background: none; padding: 4px 0;
+    }
+
+    /* Tool Call */
+    .tool-call {
+      align-self: flex-start; width: 100%;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      font-size: 12px; overflow: hidden; flex-shrink: 0;
+    }
+    .tool-call-header {
+      padding: 8px 12px; background: var(--bg-card);
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer; user-select: none;
+    }
+    .tool-call-header:hover { background: var(--bg-hover); }
+    .tool-call-icon {
+      width: 6px; height: 6px; border-radius: 50%;
+    }
+    .tool-call-icon.running { background: var(--accent); animation: pulse 1s infinite; }
+    .tool-call-icon.done { background: var(--success); }
+    .tool-call-icon.error { background: var(--danger); }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .tool-call-name { font-family: 'JetBrains Mono', monospace; color: var(--fg-muted); }
+    .tool-call-detail {
+      display: none; padding: 8px 12px; border-top: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: var(--fg-dim); white-space: pre-wrap; word-break: break-all;
+      max-height: 200px; overflow-y: auto;
+    }
+    .tool-call.expanded .tool-call-detail { display: block; }
+
+    /* Thinking indicator */
+    .thinking {
+      align-self: flex-start; display: flex; gap: 4px; padding: 12px 14px;
+    }
+    .thinking span {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--fg-dim);
+      animation: bounce 1.4s ease-in-out infinite;
+    }
+    .thinking span:nth-child(2) { animation-delay: 0.2s; }
+    .thinking span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-8px); } }
+
+    /* Input */
+    .chat-input-area {
+      padding: 16px 20px; border-top: 1px solid var(--border);
+      display: flex; gap: 8px;
+    }
+    .chat-input {
+      flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--fg); padding: 10px 14px; border-radius: var(--radius);
+      font-family: inherit; font-size: 13px; outline: none; resize: none;
+    }
+    .chat-input:focus { border-color: var(--accent); }
+    .chat-input::placeholder { color: var(--fg-dim); }
+    .chat-send {
+      background: var(--accent); border: none; color: white;
+      padding: 10px 16px; border-radius: var(--radius); cursor: pointer;
+      font-size: 13px; font-weight: 500; white-space: nowrap;
+    }
+    .chat-send:hover { background: var(--accent-hover); }
+    .chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Setup dialog */
+    .setup-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .setup-dialog {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 32px; width: 420px;
+    }
+    .setup-dialog h2 { font-size: 16px; margin-bottom: 4px; }
+    .setup-dialog p { font-size: 12px; color: var(--fg-muted); margin-bottom: 20px; line-height: 1.6; }
+    .setup-field { margin-bottom: 16px; }
+    .setup-field label { display: block; font-size: 12px; color: var(--fg-muted); margin-bottom: 6px; }
+    .setup-field input {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      color: var(--fg); padding: 10px 12px; border-radius: var(--radius);
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; outline: none;
+    }
+    .setup-field input:focus { border-color: var(--accent); }
+    .setup-field small { display: block; margin-top: 4px; font-size: 11px; color: var(--fg-dim); }
+    .setup-submit {
+      width: 100%; background: var(--accent); border: none; color: white;
+      padding: 10px; border-radius: var(--radius); font-size: 13px;
+      font-weight: 500; cursor: pointer;
+    }
+    .setup-submit:hover { background: var(--accent-hover); }
+    .hidden { display: none !important; }
+
+    /* Tools Panel */
+    .tools-panel {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.25s ease;
+      border-bottom: 1px solid var(--border);
+    }
+    .tools-panel.open { max-height: 320px; }
+    .tools-list {
+      padding: 4px 12px; overflow-y: auto; max-height: 310px;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    }
+    .tools-list::-webkit-scrollbar { width: 4px; }
+    .tools-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .tool-item {
+      padding: 6px 8px; border-radius: 4px; display: flex; gap: 8px; align-items: baseline;
+    }
+    .tool-item:hover { background: var(--bg-hover); }
+    .tool-item-name {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: var(--accent); white-space: nowrap; min-width: 110px;
+    }
+    .tool-item-desc {
+      font-size: 11px; color: var(--fg-dim); line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+<div id="cesiumContainer"></div>
+
+<div class="chat-panel">
+  <div class="chat-header">
+    <h1>CesiumJS Agent <span>browser-only</span></h1>
+    <div class="chat-header-actions">
+      <button onclick="toggleTools()">Tools</button>
+      <button onclick="clearChat()">Clear</button>
+      <button onclick="showSetup()">Settings</button>
+    </div>
+  </div>
+  <div class="tools-panel" id="toolsPanel">
+    <div class="tools-list" id="toolsList"></div>
+  </div>
+  <div class="chat-messages" id="messages">
+    <div class="msg msg-system">Natural language control of CesiumJS -- no MCP needed.</div>
+  </div>
+  <div class="thinking hidden" id="thinking"><span></span><span></span><span></span></div>
+  <div class="chat-input-area">
+    <input class="chat-input" id="chatInput" placeholder="Try: fly to Tokyo..." 
+           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}" />
+    <button class="chat-send" id="sendBtn" onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<!-- Setup Dialog -->
+<div class="setup-overlay" id="setupOverlay">
+  <div class="setup-dialog">
+    <h2>Setup</h2>
+    <p>This demo calls OpenAI's API via a proxy endpoint. You can use the default proxy or provide your own API key for direct calls.</p>
+    <div class="setup-field">
+      <label>API Endpoint</label>
+      <input id="setupEndpoint" value="/api/chat" placeholder="/api/chat or https://your-proxy.com/api/chat" />
+      <small>Default /api/chat works with Cloudflare Pages deployment</small>
+    </div>
+    <div class="setup-field">
+      <label>OpenAI API Key (optional, for direct calls)</label>
+      <input id="setupApiKey" type="password" placeholder="sk-..." />
+      <small>If provided, calls OpenAI directly (CORS required). Leave empty to use proxy.</small>
+    </div>
+    <div class="setup-field">
+      <label>Model</label>
+      <input id="setupModel" placeholder="deepseek/deepseek-chat-v3-0324" />
+      <small>Default deepseek/deepseek-chat-v3-0324 via proxy. For direct call use openai/gpt-4o-mini</small>
+    </div>
+    <div class="setup-field">
+      <label>Cesium Ion Token (optional)</label>
+      <input id="setupIonToken" placeholder="eyJ..." />
+      <small>For terrain/imagery access. Default demo token used if empty.</small>
+    </div>
+    <button class="setup-submit" onclick="applySetup()">Start</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Configuration
+// ============================================================
+let CONFIG = {
+  endpoint: '/api/chat',
+  apiKey: '',
+  ionToken: '',
+  model: 'deepseek/deepseek-chat-v3-0324',
+};
+
+// Try restore from localStorage
+try {
+  const saved = JSON.parse(localStorage.getItem('cesium-agent-config'));
+  if (saved) Object.assign(CONFIG, saved);
+} catch {}
+
+// ============================================================
+// Tool Definitions (OpenAI function calling format)
+// ============================================================
+const TOOLS = [
+  {type:"function",function:{name:"flyTo",description:"Fly the camera to a geographic location (animated transition)",parameters:{type:"object",properties:{longitude:{type:"number",description:"Longitude (-180 to 180)"},latitude:{type:"number",description:"Latitude (-90 to 90)"},height:{type:"number",description:"Camera height in meters (default 50000)"},heading:{type:"number",description:"Heading in degrees, 0 = north"},pitch:{type:"number",description:"Pitch in degrees, -90 = straight down"},duration:{type:"number",description:"Flight duration in seconds"}},required:["longitude","latitude"]}}},
+  {type:"function",function:{name:"setView",description:"Instantly set camera to a geographic position (no animation)",parameters:{type:"object",properties:{longitude:{type:"number",description:"Longitude (-180 to 180)"},latitude:{type:"number",description:"Latitude (-90 to 90)"},height:{type:"number",description:"Height in meters (default 50000)"},heading:{type:"number",description:"Heading in degrees"},pitch:{type:"number",description:"Pitch in degrees"},roll:{type:"number",description:"Roll in degrees"}},required:["longitude","latitude"]}}},
+  {type:"function",function:{name:"getView",description:"Get current camera position (longitude, latitude, height, angles)",parameters:{type:"object",properties:{}}}},
+  {type:"function",function:{name:"addMarker",description:"Add a point marker at coordinates, returns entityId for later reference",parameters:{type:"object",properties:{longitude:{type:"number",description:"Longitude"},latitude:{type:"number",description:"Latitude"},label:{type:"string",description:"Marker label text"},color:{type:"string",description:"CSS color (default #3B82F6)"},size:{type:"number",description:"Point size in pixels"},id:{type:"string",description:"Custom entity ID"}},required:["longitude","latitude"]}}},
+  {type:"function",function:{name:"addPolyline",description:"Draw a polyline (path/route) on the map, returns entityId",parameters:{type:"object",properties:{coordinates:{type:"array",items:{type:"array",items:{type:"number"}},description:"Array of [lon, lat, height?] coordinate pairs"},color:{type:"string",description:"Line color (CSS format)"},width:{type:"number",description:"Line width in pixels"},clampToGround:{type:"boolean",description:"Clamp to terrain surface"},label:{type:"string",description:"Polyline label text"}},required:["coordinates"]}}},
+  {type:"function",function:{name:"addPolygon",description:"Draw a polygon area on the map, returns entityId",parameters:{type:"object",properties:{coordinates:{type:"array",items:{type:"array",items:{type:"number"}},description:"Outer ring coordinates [[lon, lat, height?], ...]"},color:{type:"string",description:"Fill color (CSS format)"},outlineColor:{type:"string",description:"Outline color"},opacity:{type:"number",description:"Fill opacity (0-1)"},extrudedHeight:{type:"number",description:"Extrude height in meters for 3D effect"},clampToGround:{type:"boolean",description:"Clamp to terrain"},label:{type:"string",description:"Polygon label text"}},required:["coordinates"]}}},
+  {type:"function",function:{name:"addLabel",description:"Add text labels for GeoJSON features (display property values)",parameters:{type:"object",properties:{data:{type:"object",description:"GeoJSON FeatureCollection object"},field:{type:"string",description:"Property field name to use as label text"},style:{type:"object",description:"Label style (font, fillColor, scale, etc.)"}},required:["data","field"]}}},
+  {type:"function",function:{name:"addGeoJsonLayer",description:"Add a GeoJSON data layer to the map (Point/Line/Polygon with styling)",parameters:{type:"object",properties:{id:{type:"string",description:"Layer ID"},name:{type:"string",description:"Layer display name"},data:{type:"object",description:"GeoJSON FeatureCollection object"},style:{type:"object",description:"Style config (color, opacity, pointSize, choropleth, category)"}},required:["data"]}}},
+  {type:"function",function:{name:"setBasemap",description:"Switch basemap style",parameters:{type:"object",properties:{basemap:{type:"string",enum:["dark","satellite","standard","osm","arcgis","light"],description:"Basemap type: dark, satellite, standard, osm, arcgis, light"}},required:["basemap"]}}},
+  {type:"function",function:{name:"removeEntity",description:"Remove a single entity by its entityId",parameters:{type:"object",properties:{entityId:{type:"string",description:"Entity ID to remove"}},required:["entityId"]}}},
+  {type:"function",function:{name:"clearAll",description:"Clear all layers, entities, animations, and trajectories (reset scene)",parameters:{type:"object",properties:{}}}},
+  {type:"function",function:{name:"geocode",description:"Convert address/place name to geographic coordinates (uses OSM Nominatim, no API key needed)",parameters:{type:"object",properties:{address:{type:"string",description:"Address or place name, e.g. 'Eiffel Tower', 'Tokyo'"},countryCode:{type:"string",description:"ISO country code to limit search (e.g. 'US', 'JP')"}},required:["address"]}}},
+  {type:"function",function:{name:"highlight",description:"Highlight features of a layer",parameters:{type:"object",properties:{layerId:{type:"string",description:"Layer ID to highlight"},featureIndex:{type:"number",description:"Feature index (omit to highlight all)"},color:{type:"string",description:"Highlight color (CSS format, default #FFFF00)"}},required:["layerId"]}}},
+  {type:"function",function:{name:"measure",description:"Measure distance or area between coordinates",parameters:{type:"object",properties:{mode:{type:"string",enum:["distance","area"],description:"Measurement mode"},positions:{type:"array",items:{type:"array",items:{type:"number"},minItems:2,maxItems:3},minItems:2,description:"Coordinate array [[lon,lat,alt?], ...]"},showOnMap:{type:"boolean",description:"Show measurement result on map"},id:{type:"string",description:"Custom measurement entity ID"}},required:["mode","positions"]}}},
+  {type:"function",function:{name:"screenshot",description:"Capture current map view (returns base64 PNG)",parameters:{type:"object",properties:{}}}},
+];
+
+const SYSTEM_PROMPT = `You are a CesiumJS 3D globe assistant. You help users explore and visualize geographic data by controlling a live CesiumJS viewer in the browser.
+
+When the user asks you to do something on the map, use the provided tools to execute it. You can chain multiple tool calls in one response.
+
+Guidelines:
+- Be concise in your text replies
+- When adding markers or shapes, pick reasonable default colors if not specified
+- For place names, use the geocode tool first to get coordinates, then use flyTo or addMarker
+- After executing actions, briefly confirm what you did
+- If the user asks about capabilities, explain what tools are available`;
+
+// ============================================================
+// State
+// ============================================================
+let messages = [];  // OpenAI message format
+let bridge = null;
+let isProcessing = false;
+
+// ============================================================
+// Setup
+// ============================================================
+function showSetup() {
+  document.getElementById('setupEndpoint').value = CONFIG.endpoint;
+  document.getElementById('setupApiKey').value = CONFIG.apiKey;
+  document.getElementById('setupModel').value = CONFIG.model;
+  document.getElementById('setupIonToken').value = CONFIG.ionToken;
+  document.getElementById('setupOverlay').classList.remove('hidden');
+}
+
+function applySetup() {
+  CONFIG.endpoint = document.getElementById('setupEndpoint').value.trim() || '/api/chat';
+  CONFIG.apiKey = document.getElementById('setupApiKey').value.trim();
+  CONFIG.model = document.getElementById('setupModel').value.trim() || 'deepseek/deepseek-chat-v3-0324';
+  CONFIG.ionToken = document.getElementById('setupIonToken').value.trim();
+  localStorage.setItem('cesium-agent-config', JSON.stringify(CONFIG));
+  document.getElementById('setupOverlay').classList.add('hidden');
+  initCesium();
+}
+
+// ============================================================
+// Cesium Init
+// ============================================================
+function initCesium() {
+  if (CONFIG.ionToken) {
+    Cesium.Ion.defaultAccessToken = CONFIG.ionToken;
+  }
+  if (bridge) return; // already initialized
+
+  const viewer = new Cesium.Viewer('cesiumContainer', {
+    terrain: Cesium.Terrain.fromWorldTerrain(),
+    baseLayerPicker: false,
+    geocoder: false,
+    homeButton: false,
+    sceneModePicker: false,
+    navigationHelpButton: false,
+    animation: false,
+    timeline: false,
+    fullscreenButton: false,
+    selectionIndicator: false,
+    infoBox: false,
+  });
+  viewer.scene.globe.enableLighting = true;
+
+  bridge = new CesiumMcpBridge.CesiumBridge(viewer);
+  console.log('[Agent] CesiumBridge initialized with', TOOLS.length, 'tools');
+}
+
+// ============================================================
+// Chat Logic
+// ============================================================
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || isProcessing) return;
+
+  input.value = '';
+  appendMessage('user', text);
+  messages.push({ role: 'user', content: text });
+
+  await runAgentLoop();
+}
+
+async function runAgentLoop() {
+  isProcessing = true;
+  document.getElementById('sendBtn').disabled = true;
+  showThinking(true);
+
+  try {
+    let maxIterations = 10;  // safety limit
+    while (maxIterations-- > 0) {
+      const response = await callLLM();
+      if (!response) break;
+
+      const choice = response.choices[0];
+      const msg = choice.message;
+
+      // Add assistant message to history
+      messages.push(msg);
+
+      // Handle tool calls
+      if (msg.tool_calls && msg.tool_calls.length > 0) {
+        showThinking(false);
+        for (const tc of msg.tool_calls) {
+          const toolEl = appendToolCall(tc.function.name, tc.function.arguments);
+          try {
+            const params = JSON.parse(tc.function.arguments);
+            // geocode runs client-side (Nominatim API), not via bridge
+            const result = tc.function.name === 'geocode'
+              ? await clientGeocode(params)
+              : await bridge.execute({ action: tc.function.name, params });
+            updateToolCall(toolEl, 'done', result);
+            // Truncate large results (e.g. screenshot base64) to avoid context overflow
+            const resultStr = JSON.stringify(result);
+            const content = resultStr.length > 2000
+              ? JSON.stringify({ success: result.success, message: result.message || 'Result too large to include in context', truncated: true })
+              : resultStr;
+            messages.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content,
+            });
+          } catch (err) {
+            const errorResult = { success: false, error: err.message };
+            updateToolCall(toolEl, 'error', errorResult);
+            messages.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content: JSON.stringify(errorResult),
+            });
+          }
+        }
+        showThinking(true);
+        continue;  // call LLM again with tool results
+      }
+
+      // Text response
+      if (msg.content) {
+        showThinking(false);
+        appendMessage('ai', msg.content);
+      }
+      break;
+    }
+  } catch (err) {
+    showThinking(false);
+    appendMessage('system', 'Error: ' + err.message);
+    console.error('[Agent]', err);
+  } finally {
+    isProcessing = false;
+    document.getElementById('sendBtn').disabled = false;
+    showThinking(false);
+  }
+}
+
+async function callLLM() {
+  const allMessages = [{ role: 'system', content: SYSTEM_PROMPT }, ...messages];
+  const body = { model: CONFIG.model, messages: allMessages, tools: TOOLS };
+
+  // If API key provided and endpoint looks like a full URL, call directly;
+  // otherwise go through the proxy endpoint (which holds the key server-side)
+  const isDirectUrl = CONFIG.endpoint.startsWith('http');
+  const url = isDirectUrl ? CONFIG.endpoint : CONFIG.endpoint;
+  const headers = { 'Content-Type': 'application/json' };
+  if (CONFIG.apiKey && isDirectUrl) {
+    headers['Authorization'] = `Bearer ${CONFIG.apiKey}`;
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const msg = typeof err.error === 'string' ? err.error : err.error?.message;
+    throw new Error(msg || `Proxy error: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ============================================================
+// UI Helpers
+// ============================================================
+function appendMessage(role, text) {
+  const container = document.getElementById('messages');
+  const el = document.createElement('div');
+  el.className = `msg msg-${role}`;
+  el.textContent = text;
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
+}
+
+function appendToolCall(name, argsStr) {
+  const container = document.getElementById('messages');
+  const el = document.createElement('div');
+  el.className = 'tool-call';
+  el.innerHTML = `
+    <div class="tool-call-header" onclick="this.parentElement.classList.toggle('expanded')">
+      <div class="tool-call-icon running"></div>
+      <span class="tool-call-name">${name}()</span>
+    </div>
+    <div class="tool-call-detail">
+      <div class="tc-args">Args: ${formatJson(argsStr)}</div>
+      <div class="tc-result"></div>
+    </div>
+  `;
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
+  return el;
+}
+
+function updateToolCall(el, status, result) {
+  const icon = el.querySelector('.tool-call-icon');
+  icon.className = `tool-call-icon ${status}`;
+  const resultEl = el.querySelector('.tc-result');
+  const resultStr = JSON.stringify(result, null, 2);
+  resultEl.textContent = 'Result: ' + (resultStr.length > 500 ? resultStr.slice(0, 500) + '...' : resultStr);
+}
+
+function formatJson(str) {
+  try { return JSON.stringify(JSON.parse(str), null, 2); } catch { return str; }
+}
+
+function showThinking(show) {
+  const el = document.getElementById('thinking');
+  const container = document.getElementById('messages');
+  if (show) {
+    el.classList.remove('hidden');
+    container.appendChild(el);
+    container.scrollTop = container.scrollHeight;
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
+function clearChat() {
+  messages = [];
+  const container = document.getElementById('messages');
+  container.innerHTML = '<div class="msg msg-system">Chat cleared. Start a new conversation.</div>';
+}
+
+async function clientGeocode({ address, countryCode }) {
+  const params = new URLSearchParams({ q: address, format: 'json', addressdetails: '1', limit: '1' });
+  if (countryCode) params.set('countrycodes', countryCode);
+  const resp = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+    headers: { 'User-Agent': 'cesium-mcp-browser-agent/1.0' },
+  });
+  if (!resp.ok) return { success: false, message: `Nominatim API error: ${resp.status}` };
+  const data = await resp.json();
+  if (!data.length) return { success: false, message: `No results found for: ${address}` };
+  const item = data[0];
+  return {
+    success: true,
+    longitude: parseFloat(item.lon),
+    latitude: parseFloat(item.lat),
+    displayName: item.display_name,
+    boundingBox: item.boundingbox ? {
+      south: parseFloat(item.boundingbox[0]), north: parseFloat(item.boundingbox[1]),
+      west: parseFloat(item.boundingbox[2]), east: parseFloat(item.boundingbox[3]),
+    } : undefined,
+  };
+}
+
+function toggleTools() {
+  document.getElementById('toolsPanel').classList.toggle('open');
+}
+
+function initToolsList() {
+  const list = document.getElementById('toolsList');
+  list.innerHTML = TOOLS.map(t => {
+    const f = t.function;
+    return `<div class="tool-item"><span class="tool-item-name">${f.name}</span><span class="tool-item-desc">${f.description}</span></div>`;
+  }).join('');
+}
+
+// ============================================================
+// Init
+// ============================================================
+initToolsList();
+if (CONFIG.ionToken || CONFIG.endpoint !== '/api/chat' || CONFIG.apiKey) {
+  document.getElementById('setupOverlay').classList.add('hidden');
+  initCesium();
+} else {
+  // Show setup on first visit
+}
+</script>
+</body>
+</html>

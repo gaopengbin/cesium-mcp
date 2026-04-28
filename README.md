@@ -3,9 +3,11 @@
 
   <h1>Cesium MCP</h1>
 
-  <p><strong>AI-Powered 3D Globe Control via Model Context Protocol</strong></p>
+  <p><strong>The minimum-overhead way to add AI commands to CesiumJS</strong></p>
 
-  <p>Connect any MCP-compatible AI agent to <a href="https://cesium.com/">CesiumJS</a> — camera, layers, entities, spatial analysis, all through natural language.</p>
+  <p><a href="packages/cesium-mcp-bridge/">cesium-mcp-bridge</a> is a protocol-agnostic command dispatcher with 60+ tools, drivable from <strong>browser-only agents</strong>, <strong>function calling</strong>, or <strong>MCP</strong> — your choice.</p>
+
+  <p>Three entry points: <a href="examples/browser-agent/">Browser Agent</a> (simplest, zero backend) · function calling (embed in your web app) · <a href="packages/cesium-mcp-runtime/">MCP runtime</a> (Claude Desktop / Cursor / Dify)</p>
 
   <p>
     <a href="https://gaopengbin.github.io/cesium-mcp/">Website</a> &middot;
@@ -47,45 +49,53 @@
 
 https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 
-## Packages
+## Packages & Entry Points
 
-| Package | Description | npm |
-|---------|-------------|-----|
-| [cesium-mcp-bridge](packages/cesium-mcp-bridge/) | Browser SDK — embeds in your CesiumJS app, receives commands via WebSocket | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP Server (stdio + HTTP) — 58 tools (12 toolsets) + 2 resources, dynamic discovery | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
-| [cesium-mcp-dev](packages/cesium-mcp-dev/) | IDE MCP Server — CesiumJS API helper for coding assistants | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) |
+| Module | Role | Status | Links |
+|--------|------|--------|-------|
+| **cesium-mcp-bridge** | Protocol-agnostic command dispatcher (60+ tools) | Mainline, actively iterated | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) · [source](packages/cesium-mcp-bridge/) |
+| **examples/browser-agent** | Browser-only AI agent (recommended starting point, zero backend) | Recommended | [example](examples/browser-agent/) · [live demo](https://cesium-browser-agent.pages.dev/) |
+| **cesium-mcp-runtime** | MCP server (stdio + HTTP) | Stable, slow updates | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) · [source](packages/cesium-mcp-runtime/) |
+| **cesium-mcp-dev** | CesiumJS API knowledge base for coding assistants | Maintained | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) · [source](packages/cesium-mcp-dev/) |
+
+> **Which one?** Personal project or quick try → browser-agent. Existing web app embedding an AI assistant → bridge + your own function calling. Calling from Claude Desktop / Cursor / Dify → MCP runtime.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  subgraph clients ["AI Clients"]
-    A["Claude / Cursor\nVS Code"]
-    D["Dify / n8n\nRemote MCP"]
+  subgraph clients ["AI Drivers (pick one)"]
+    BA["Browser Agent\n(in the same page)"]
+    FC["Your web app\nfunction calling"]
+    MCP["Claude / Cursor / Dify\nvia MCP runtime"]
   end
 
-  subgraph server ["cesium-mcp-runtime\n(Node.js)"]
-    R["MCP Server\n58 tools · 12 toolsets"]
-  end
-
-  subgraph browser ["Browser"]
-    B["cesium-mcp-bridge"]
+  subgraph core ["cesium-mcp-bridge (browser)"]
+    B["60+ tools\nprotocol-agnostic dispatcher"]
     C["CesiumJS Viewer"]
   end
 
-  A -- "stdio / MCP" --> R
-  D -- "Streamable HTTP" --> R
-  R -- "WebSocket\nJSON-RPC" --> B
+  BA -- "in-page call" --> B
+  FC -- "in-page call" --> B
+  MCP -- "WebSocket / JSON-RPC" --> B
   B --> C
 
   style clients fill:#1e293b,stroke:#528bff,color:#e2e8f0
-  style server fill:#1e293b,stroke:#155EEF,color:#e2e8f0
-  style browser fill:#1e293b,stroke:#12B76A,color:#e2e8f0
+  style core fill:#1e293b,stroke:#12B76A,color:#e2e8f0
 ```
+
+The bridge is the only required piece. Pick whichever driver matches your scenario — they all hit the same 60+ tools.
 
 ## Quick Start
 
-### 1. Install the bridge in your CesiumJS app
+### Path 0 — Try in 30 seconds (browser agent, recommended)
+
+Open the [live demo](https://cesium-browser-agent.pages.dev/), paste an OpenAI-compatible API key, and ask:
+> *"Fly to the Eiffel Tower and drop a red marker"*
+
+Fork the [examples/browser-agent](examples/browser-agent/) folder to deploy your own.
+
+### Path 1 — Embed in your own web app (function calling)
 
 ```bash
 npm install cesium-mcp-bridge
@@ -95,21 +105,25 @@ npm install cesium-mcp-bridge
 import { CesiumBridge } from 'cesium-mcp-bridge';
 
 const bridge = new CesiumBridge(viewer);
+// Then: send the bridge's tool schema to any LLM that supports function/tool calling,
+// route the model's tool calls to bridge.execute(name, params).
 ```
 
-### 2. Start the MCP runtime
+See [examples/browser-agent/index.html](examples/browser-agent/index.html) for a complete loop with OpenAI-compatible APIs.
+
+### Path 2 — Use from Claude Desktop / Cursor / Dify (MCP)
+
+Install bridge as in Path 1, then start the MCP runtime:
 
 ```bash
-# stdio mode (default — for Claude Desktop, VS Code, Cursor)
+# stdio mode (Claude Desktop, VS Code, Cursor)
 npx cesium-mcp-runtime
 
-# HTTP mode (for Dify, remote/cloud MCP clients)
+# HTTP mode (Dify, remote/cloud MCP clients)
 npx cesium-mcp-runtime --transport http --port 3000
 ```
 
-### 3. Connect your AI agent
-
-Add to your MCP client config (e.g. Claude Desktop):
+MCP client config:
 
 ```json
 {
@@ -121,8 +135,6 @@ Add to your MCP client config (e.g. Claude Desktop):
   }
 }
 ```
-
-Now ask your AI: *"Fly to the Eiffel Tower and add a red marker"*
 
 ## 58 Available Tools
 

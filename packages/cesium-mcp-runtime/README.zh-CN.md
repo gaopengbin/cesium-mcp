@@ -7,6 +7,8 @@
 [![npm version](https://img.shields.io/npm/v/cesium-mcp-runtime.svg)](https://www.npmjs.com/package/cesium-mcp-runtime)
 [![license](https://img.shields.io/npm/l/cesium-mcp-runtime.svg)](LICENSE)
 
+> **状态说明**：release 节奏偏慢（按需更新）。如果你只是想试 "AI + Cesium" 的效果，[examples/browser-agent](../../examples/browser-agent/) 是更推荐的起点（零后端、三分钟上手）。详见 [我应该用哪种模式？](https://gaopengbin.github.io/cesium-mcp/zh-CN/guide/which-mode.html)
+
 ## 架构
 
 ```

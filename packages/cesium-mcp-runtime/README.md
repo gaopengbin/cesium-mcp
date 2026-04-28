@@ -7,6 +7,8 @@
 [![npm version](https://img.shields.io/npm/v/cesium-mcp-runtime.svg)](https://www.npmjs.com/package/cesium-mcp-runtime)
 [![license](https://img.shields.io/npm/l/cesium-mcp-runtime.svg)](LICENSE)
 
+> **Status**: stable, slow release cadence (updated as needed). If you only want to try the "AI + Cesium" feel, [examples/browser-agent](../../examples/browser-agent/) is the recommended starting point — zero backend, runs in three minutes. See [Which mode should I use?](https://gaopengbin.github.io/cesium-mcp/guide/which-mode.html)
+
 ## Architecture
 
 ```

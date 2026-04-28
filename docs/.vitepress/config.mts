@@ -33,6 +33,7 @@ export default defineConfig({
               text: '入门',
               items: [
                 { text: '快速开始', link: '/zh-CN/guide/getting-started' },
+                { text: '我应该用哪种模式？', link: '/zh-CN/guide/which-mode' },
                 { text: '架构概览', link: '/zh-CN/guide/architecture' },
                 { text: '常见问题', link: '/zh-CN/guide/faq' },
               ],
@@ -180,6 +181,7 @@ export default defineConfig({
           text: 'Introduction',
           items: [
             { text: 'Getting Started', link: '/guide/getting-started' },
+            { text: 'Which Mode Should I Use?', link: '/guide/which-mode' },
             { text: 'Architecture', link: '/guide/architecture' },
             { text: 'FAQ', link: '/guide/faq' },
           ],

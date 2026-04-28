@@ -7,6 +7,8 @@
 [![npm version](https://img.shields.io/npm/v/cesium-mcp-bridge.svg)](https://www.npmjs.com/package/cesium-mcp-bridge)
 [![license](https://img.shields.io/npm/l/cesium-mcp-bridge.svg)](LICENSE)
 
+> **cesium-mcp 的协议无关核心。** 既可以从纯浏览器 agent 驱动（[在线 demo](https://cesium-browser-agent.pages.dev/) · [示例](../../examples/browser-agent/)），也可以接入你自己的 function calling 循环，或通过 [cesium-mcp-runtime](../cesium-mcp-runtime/) MCP 包装。60+ 工具，一套核心。
+
 ## 简介
 
 `cesium-mcp-bridge` 是一个轻量级 SDK，让 AI 智能体（LangChain, LangGraph, Claude 等）通过统一命令接口操控浏览器端的 [CesiumJS](https://cesium.com) 地球。支持类型安全的方法调用和 JSON 命令分发。

@@ -7,6 +7,8 @@
 [![npm version](https://img.shields.io/npm/v/cesium-mcp-bridge.svg)](https://www.npmjs.com/package/cesium-mcp-bridge)
 [![license](https://img.shields.io/npm/l/cesium-mcp-bridge.svg)](LICENSE)
 
+> **The protocol-agnostic core of cesium-mcp.** Drive it from a browser-only agent ([live demo](https://cesium-browser-agent.pages.dev/) · [example](../../examples/browser-agent/)), from your own function-calling loop, or via the [cesium-mcp-runtime](../cesium-mcp-runtime/) MCP wrapper. 60+ tools, one core.
+
 ## What is this?
 
 `cesium-mcp-bridge` is a lightweight SDK that lets AI Agents (LangChain, LangGraph, Claude, etc.) control a browser-side [CesiumJS](https://cesium.com) globe through a unified command interface. It supports both type-safe method calls and JSON command dispatch.

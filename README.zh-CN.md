@@ -3,9 +3,11 @@
 
   <h1>Cesium MCP</h1>
 
-  <p><strong>通过模型上下文协议，用 AI 操控三维地球</strong></p>
+  <p><strong>给 CesiumJS 加 AI 命令的最小代价</strong></p>
 
-  <p>将任何 MCP 兼容的 AI 智能体接入 <a href="https://cesium.com/">CesiumJS</a> — 相机、图层、实体、空间分析，全部通过自然语言完成。</p>
+  <p><a href="packages/cesium-mcp-bridge/">cesium-mcp-bridge</a> 是协议无关的命令分发核心，60+ 工具一次实现，可同时通过 <strong>纯浏览器 Agent</strong>、<strong>function calling</strong>、<strong>MCP</strong> 三种方式驱动。</p>
+
+  <p>三种入口任选其一：<a href="examples/browser-agent/">浏览器 Agent</a>（最简单，零后端）· function calling（自托管 Web 应用嵌入）· <a href="packages/cesium-mcp-runtime/">MCP runtime</a>（接 Claude Desktop / Cursor / Dify）</p>
 
   <p>
     <a href="https://gaopengbin.github.io/cesium-mcp/">官方网站</a> &middot;
@@ -47,45 +49,53 @@
 
 https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 
-## 包
+## 包与入口
 
-| 包名 | 描述 | npm |
-|------|------|-----|
-| [cesium-mcp-bridge](packages/cesium-mcp-bridge/) | 浏览器 SDK — 嵌入你的 CesiumJS 应用，通过 WebSocket 接收命令 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [cesium-mcp-runtime](packages/cesium-mcp-runtime/) | MCP 服务器 (stdio + HTTP) — 58 个工具（12 个工具集）+ 2 个资源，支持动态发现 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) |
-| [cesium-mcp-dev](packages/cesium-mcp-dev/) | IDE MCP 服务器 — 为代码助手提供 CesiumJS API 辅助 | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) |
+| 模块 | 角色 | 状态 | 链接 |
+|------|------|------|------|
+| **cesium-mcp-bridge** | 协议无关的命令分发核心（60+ 工具） | 主线，持续迭代 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) · [源码](packages/cesium-mcp-bridge/) |
+| **examples/browser-agent** | 纯浏览器 AI Agent（推荐起点，零后端） | 推荐入口 | [示例](examples/browser-agent/) · [在线 demo](https://cesium-browser-agent.pages.dev/) |
+| **cesium-mcp-runtime** | MCP 服务器（stdio + HTTP） | 稳定，按需更新 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) · [源码](packages/cesium-mcp-runtime/) |
+| **cesium-mcp-dev** | 给代码助手用的 CesiumJS API 知识库 | 维护中 | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) · [源码](packages/cesium-mcp-dev/) |
+
+> **怎么选？** 个人项目或想最快试用 → browser-agent；已有 Web 应用要嵌 AI 助手 → bridge + 自己接 function calling；要从 Claude Desktop / Cursor / Dify 调用 → MCP runtime。
 
 ## 架构
 
 ```mermaid
 flowchart LR
-  subgraph clients ["AI 客户端"]
-    A["Claude / Cursor\nVS Code"]
-    D["Dify / n8n\n远程 MCP"]
+  subgraph clients ["AI 驱动方（任选其一）"]
+    BA["浏览器 Agent\n（同页调用）"]
+    FC["你的 Web 应用\nfunction calling"]
+    MCP["Claude / Cursor / Dify\n通过 MCP runtime"]
   end
 
-  subgraph server ["cesium-mcp-runtime\n(Node.js)"]
-    R["MCP 服务器\n58 工具 · 12 工具集"]
-  end
-
-  subgraph browser ["浏览器"]
-    B["cesium-mcp-bridge"]
+  subgraph core ["cesium-mcp-bridge（浏览器内）"]
+    B["60+ 工具\n协议无关的命令分发器"]
     C["CesiumJS Viewer"]
   end
 
-  A -- "stdio / MCP" --> R
-  D -- "Streamable HTTP" --> R
-  R -- "WebSocket\nJSON-RPC" --> B
+  BA -- "页内调用" --> B
+  FC -- "页内调用" --> B
+  MCP -- "WebSocket / JSON-RPC" --> B
   B --> C
 
   style clients fill:#1e293b,stroke:#528bff,color:#e2e8f0
-  style server fill:#1e293b,stroke:#155EEF,color:#e2e8f0
-  style browser fill:#1e293b,stroke:#12B76A,color:#e2e8f0
+  style core fill:#1e293b,stroke:#12B76A,color:#e2e8f0
 ```
+
+bridge 是唯一必需的部分。三种驱动方调用的是同一套 60+ 工具，按场景选一种即可。
 
 ## 快速开始
 
-### 1. 在你的 CesiumJS 应用中安装 bridge
+### 路径 0 — 30 秒体验（浏览器 Agent，推荐）
+
+打开 [在线 demo](https://cesium-browser-agent.pages.dev/)，粘贴一个 OpenAI 兼容的 API key，问一句：
+> *“飞到埃菲尔铁塔，放个红色标记”*
+
+Fork [examples/browser-agent](examples/browser-agent/) 部署你自己的。
+
+### 路径 1 — 嵌进你的 Web 应用（function calling）
 
 ```bash
 npm install cesium-mcp-bridge
@@ -95,21 +105,25 @@ npm install cesium-mcp-bridge
 import { CesiumBridge } from 'cesium-mcp-bridge';
 
 const bridge = new CesiumBridge(viewer);
+// 然后：把 bridge 的工具 schema 交给任何支持 function/tool calling 的 LLM，
+// 把模型返回的 tool call 路由到 bridge.execute(name, params) 即可。
 ```
 
-### 2. 启动 MCP 运行时
+完整闭环示例：[examples/browser-agent/index.html](examples/browser-agent/index.html)。
+
+### 路径 2 — 从 Claude Desktop / Cursor / Dify 调用（MCP）
+
+按路径 1 安装 bridge，然后启动 MCP runtime：
 
 ```bash
-# stdio 模式（默认 — 用于 Claude Desktop、VS Code、Cursor）
+# stdio 模式（Claude Desktop、VS Code、Cursor）
 npx cesium-mcp-runtime
 
-# HTTP 模式（用于 Dify、远程/云端 MCP 客户端）
+# HTTP 模式（Dify、远程/云端 MCP 客户端）
 npx cesium-mcp-runtime --transport http --port 3000
 ```
 
-### 3. 连接你的 AI 智能体
-
-在 MCP 客户端配置中添加（如 Claude Desktop）：
+MCP 客户端配置：
 
 ```json
 {
@@ -121,8 +135,6 @@ npx cesium-mcp-runtime --transport http --port 3000
   }
 }
 ```
-
-然后对 AI 说：*"飞到埃菲尔铁塔，添加一个红色标记"*
 
 ## 58 个可用工具
 
