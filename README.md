@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/gaopengbin-cesium-mcp-badge.png)](https://mseep.ai/app/gaopengbin-cesium-mcp)
+
 <div align="center">
   <img src="docs/public/logo.svg" alt="Cesium MCP" width="120">
 
