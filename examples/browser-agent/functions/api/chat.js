@@ -40,6 +40,19 @@ export async function onRequestPost(context) {
     openaiBody.tools = tools;
   }
 
+  // Lightweight structured log (no PII, no message content).
+  // Tail with: `npx wrangler pages deployment tail`
+  try {
+    console.log(JSON.stringify({
+      event: 'chat',
+      model: openaiBody.model,
+      msgCount: messages.length,
+      toolCount: tools?.length ?? 0,
+      lastRole: messages[messages.length - 1]?.role,
+      ts: Date.now(),
+    }));
+  } catch { /* never fail the request because of logging */ }
+
   const baseUrl = env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
   const openaiRes = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',

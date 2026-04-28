@@ -2,6 +2,8 @@
 
 A minimal demo showing how to control CesiumJS with natural language **without MCP**. The browser-side agent loop uses OpenAI's function calling to map user intent to CesiumJS operations via [cesium-mcp-bridge](../../packages/cesium-mcp-bridge).
 
+**[Live Demo](https://cesium-browser-agent.pages.dev/)** · **[Deploy your own](https://deploy.workers.cloudflare.com/?url=https://github.com/gaopengbin/cesium-mcp/tree/main/examples/browser-agent)**
+
 ## Architecture
 
 ```
@@ -42,10 +44,11 @@ The reusable core is `cesium-mcp-bridge`'s command dispatcher (`bridge.execute()
 
 ```bash
 cd examples/browser-agent
-npx wrangler pages dev . --binding OPENAI_API_KEY=sk-your-key-here
+cp .dev.vars.example .dev.vars   # then edit .dev.vars and put in your key
+npx wrangler pages dev .
 ```
 
-Open `http://localhost:8788`.
+Open `http://localhost:8788`. The included `wrangler.toml` handles the rest.
 
 ### Option B: Direct API key in browser
 
@@ -65,6 +68,16 @@ Open `http://localhost:8788`.
 3. Deploy.
 
 The `functions/api/chat.js` file is automatically detected as a Pages Function.
+
+## Telemetry
+
+The Pages Function emits one structured `console.log` per request with **no PII and no message content** — only `{ event, model, msgCount, toolCount, lastRole, ts }`. Tail it with:
+
+```bash
+npx wrangler pages deployment tail
+```
+
+Remove the `console.log(...)` block in `functions/api/chat.js` if you don't want it.
 
 ## How It Works
 

@@ -1,0 +1,11 @@
+name = "cesium-browser-agent"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "."
+
+# Local dev:
+#   1. cp .dev.vars.example .dev.vars
+#   2. fill in OPENAI_API_KEY
+#   3. npx wrangler pages dev .
+#
+# Production: set OPENAI_API_KEY in the Cloudflare Pages dashboard
+# (Project Settings → Environment Variables).

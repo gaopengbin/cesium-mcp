@@ -1,0 +1,11 @@
+# Copy this file to .dev.vars and fill in your key.
+# .dev.vars is loaded by `wrangler pages dev` and is gitignored.
+
+# Required: an OpenAI-compatible API key (works with OpenAI, OpenRouter, DeepSeek, etc.)
+OPENAI_API_KEY=sk-replace-me
+
+# Optional: override the OpenAI base URL (defaults to https://api.openai.com/v1)
+# Examples:
+#   https://openrouter.ai/api/v1
+#   https://api.deepseek.com/v1
+# OPENAI_BASE_URL=https://openrouter.ai/api/v1
