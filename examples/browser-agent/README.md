@@ -2,7 +2,7 @@
 
 A minimal demo showing how to control CesiumJS with natural language **without MCP**. The browser-side agent loop uses OpenAI's function calling to map user intent to CesiumJS operations via [cesium-mcp-bridge](../../packages/cesium-mcp-bridge).
 
-**[Live Demo](https://cesium-browser-agent.pages.dev/)** · **[Deploy your own](https://deploy.workers.cloudflare.com/?url=https://github.com/gaopengbin/cesium-mcp/tree/main/examples/browser-agent)**
+**[Live Demo](https://cesium-browser-agent.pages.dev/)** — open it, click Start, type "fly to Tokyo". Self-host steps below.
 
 ## Architecture
 
@@ -49,6 +49,8 @@ npx wrangler pages dev .
 ```
 
 Open `http://localhost:8788`. The included `wrangler.toml` handles the rest.
+
+> First run will download `wrangler` (~30s). Subsequent runs are instant.
 
 ### Option B: Direct API key in browser
 

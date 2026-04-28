@@ -9,6 +9,8 @@
 
   <p>Three entry points: <a href="examples/browser-agent/">Browser Agent</a> (simplest, zero backend) · function calling (embed in your web app) · <a href="packages/cesium-mcp-runtime/">MCP runtime</a> (Claude Desktop / Cursor / Dify)</p>
 
+  <p><a href="https://cesium-browser-agent.pages.dev/"><strong>Try it now</strong></a> — open the live browser demo, no install, no signup.</p>
+
   <p>
     <a href="https://gaopengbin.github.io/cesium-mcp/">Website</a> &middot;
     <a href="README.zh-CN.md">中文</a> &middot;

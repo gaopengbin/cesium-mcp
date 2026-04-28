@@ -9,6 +9,8 @@
 
   <p>三种入口任选其一：<a href="examples/browser-agent/">浏览器 Agent</a>（最简单，零后端）· function calling（自托管 Web 应用嵌入）· <a href="packages/cesium-mcp-runtime/">MCP runtime</a>（接 Claude Desktop / Cursor / Dify）</p>
 
+  <p><a href="https://cesium-browser-agent.pages.dev/"><strong>立即体验</strong></a> — 在线 Demo，零安装、零注册</p>
+
   <p>
     <a href="https://gaopengbin.github.io/cesium-mcp/">官方网站</a> &middot;
     <a href="README.md">English</a> &middot;

@@ -1,11 +1,19 @@
 # Copy this file to .dev.vars and fill in your key.
 # .dev.vars is loaded by `wrangler pages dev` and is gitignored.
 
-# Required: an OpenAI-compatible API key (works with OpenAI, OpenRouter, DeepSeek, etc.)
+# Required: an OpenAI-compatible API key.
+# Works with OpenAI, OpenRouter, DeepSeek, Moonshot, Together, Groq, etc.
 OPENAI_API_KEY=sk-replace-me
 
-# Optional: override the OpenAI base URL (defaults to https://api.openai.com/v1)
-# Examples:
-#   https://openrouter.ai/api/v1
-#   https://api.deepseek.com/v1
+# Optional: override the OpenAI base URL (defaults to https://api.openai.com/v1).
+# If you're outside the US/EU and api.openai.com is unreachable, switch to one
+# of the OpenAI-compatible providers below:
+#
+#   OpenRouter (proxies most models, cheap):  https://openrouter.ai/api/v1
+#   DeepSeek  (Chinese provider, fast):       https://api.deepseek.com/v1
+#   Moonshot  (Chinese provider):             https://api.moonshot.cn/v1
+#   Together  (open models):                  https://api.together.xyz/v1
+#
+# Remember to also change the model in the in-browser Setup dialog
+# (e.g. deepseek-chat, openai/gpt-4o-mini, moonshot-v1-8k, ...).
 # OPENAI_BASE_URL=https://openrouter.ai/api/v1
