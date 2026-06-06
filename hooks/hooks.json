@@ -1,0 +1,18 @@
+{
+  "description": "cesium-mcp plugin hooks — auto-launch viewer on session start",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/ensure-ready.js\"",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}

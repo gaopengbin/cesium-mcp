@@ -23,6 +23,8 @@ packages/cesium-mcp-bridge/dist-iife/
 .smithery/
 articles/
 integration-*.png
+.codegraph/
+.claude/
 
 # IDE configs in subdirectories
 examples/.github/

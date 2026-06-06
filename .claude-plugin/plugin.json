@@ -1,0 +1,22 @@
+{
+  "name": "cesium-mcp",
+  "version": "1.0.0",
+  "description": "AI-powered 3D globe control for Claude Code — load tilesets, fly to locations, style layers, and query spatial data with natural language",
+  "author": {
+    "name": "gaopengbin"
+  },
+  "repository": "https://github.com/gaopengbin/cesium-mcp",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "mcp",
+    "plugin",
+    "cesium",
+    "3d-tiles",
+    "geospatial",
+    "gis",
+    "globe",
+    "visualization"
+  ],
+  "homepage": "https://github.com/gaopengbin/cesium-mcp#readme"
+}

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "cesium": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["cesium-mcp-runtime"],
+      "env": {
+        "CESIUM_TOOLSETS": "all",
+        "CESIUM_WS_PORT": "9100",
+        "CESIUM_ION_TOKEN": ""
+      }
+    }
+  }
+}

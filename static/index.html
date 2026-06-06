@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cesium MCP Viewer</title>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.142/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.142/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <script src="https://unpkg.com/cesium-mcp-bridge@latest/dist/cesium-mcp-bridge.browser.global.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #cesiumContainer { width: 100%; height: 100%; overflow: hidden; }
+    #status {
+      position: fixed; top: 12px; right: 12px; z-index: 999;
+      padding: 6px 12px; border-radius: 6px;
+      font: 13px/1.4 -apple-system, sans-serif;
+      backdrop-filter: blur(8px);
+      transition: all 0.3s;
+    }
+    #status.connecting { background: rgba(255,170,0,0.85); color: #333; }
+    #status.connected { background: rgba(0,180,80,0.85); color: #fff; }
+    #status.disconnected { background: rgba(220,50,50,0.85); color: #fff; }
+  </style>
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+  <div id="status" class="connecting">Connecting...</div>
+  <script>
+    const WS_PORT = new URLSearchParams(location.search).get('ws') || '9100';
+    const SESSION = new URLSearchParams(location.search).get('session') || 'default';
+
+    const ION_TOKEN = new URLSearchParams(location.search).get('token') || '';
+    if (ION_TOKEN) {
+      Cesium.Ion.defaultAccessToken = ION_TOKEN;
+    }
+
+    const viewer = new Cesium.Viewer('cesiumContainer', {
+      terrain: Cesium.Terrain.fromWorldTerrain(),
+      baseLayerPicker: true,
+      geocoder: true,
+      animation: true,
+      timeline: true,
+    });
+
+    const statusEl = document.getElementById('status');
+    const bridge = new CesiumMcpBridge.CesiumBridge(viewer);
+
+    function connect() {
+      const wsUrl = `ws://localhost:${WS_PORT}?session=${SESSION}`;
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        statusEl.className = 'connected';
+        statusEl.textContent = 'Connected';
+      };
+
+      ws.onmessage = async (event) => {
+        const msg = JSON.parse(event.data);
+        const result = await bridge.execute({
+          action: msg.method,
+          params: msg.params || {},
+        });
+        if (msg.id) {
+          ws.send(JSON.stringify({ id: msg.id, result: result || { success: true } }));
+        }
+      };
+
+      ws.onclose = () => {
+        statusEl.className = 'disconnected';
+        statusEl.textContent = 'Disconnected - retrying...';
+        setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => ws.close();
+    }
+
+    connect();
+  </script>
+</body>
+</html>
