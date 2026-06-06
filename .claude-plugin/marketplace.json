@@ -1,0 +1,15 @@
+{
+  "name": "cesium-mcp",
+  "owner": {
+    "name": "gaopengbin",
+    "url": "https://github.com/gaopengbin"
+  },
+  "plugins": [
+    {
+      "name": "cesium-mcp",
+      "source": "./",
+      "description": "AI-powered 3D globe control for Claude Code",
+      "version": "1.0.0"
+    }
+  ]
+}
