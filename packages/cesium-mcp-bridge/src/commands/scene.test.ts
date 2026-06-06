@@ -4,6 +4,11 @@ vi.mock('cesium', () => ({
   Color: {
     fromCssColorString: (s: string) => ({ _css: s }),
   },
+  EdgeDisplayMode: {
+    SURFACES_ONLY: 0,
+    SURFACES_AND_EDGES: 1,
+    EDGES_ONLY: 2,
+  },
   default: {},
 }))
 
