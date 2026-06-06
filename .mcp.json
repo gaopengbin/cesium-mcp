@@ -2,8 +2,8 @@
   "mcpServers": {
     "cesium": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["cesium-mcp-runtime"],
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/packages/cesium-mcp-runtime/dist/cli.js"],
       "env": {
         "CESIUM_TOOLSETS": "all",
         "CESIUM_WS_PORT": "9100",
