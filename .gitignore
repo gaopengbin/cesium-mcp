@@ -1,5 +1,7 @@
 node_modules/
 dist/
+!packages/cesium-mcp-runtime/dist/
+!packages/cesium-mcp-bridge/dist/
 *.tgz
 .turbo/
 coverage/
@@ -25,6 +27,10 @@ articles/
 integration-*.png
 .codegraph/
 .claude/
+
+# Local agent workflow scaffolding
+COPILOT_ENHANCE_LOOP_PROMPT*
+docs/superpowers/
 
 # IDE configs in subdirectories
 examples/.github/

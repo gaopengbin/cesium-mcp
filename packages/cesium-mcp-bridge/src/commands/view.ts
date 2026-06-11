@@ -19,7 +19,6 @@ export function flyTo(viewer: Cesium.Viewer, params: FlyToParams): Promise<void>
     height = 50000,
     heading = 0,
     pitch = -45,
-    roll = 0,
     duration = 2,
   } = params
 
@@ -42,7 +41,7 @@ export function flyTo(viewer: Cesium.Viewer, params: FlyToParams): Promise<void>
 }
 
 export function setView(viewer: Cesium.Viewer, params: SetViewParams): void {
-  const { longitude, latitude, height = 50000, heading = 0, pitch = -45, roll = 0 } = params
+  const { longitude, latitude, height = 50000, heading = 0, pitch = -45 } = params
   validateCoordinate(longitude, latitude, height)
 
   const target = Cesium.Cartesian3.fromDegrees(longitude, latitude, 0)

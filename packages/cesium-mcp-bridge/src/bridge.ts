@@ -385,7 +385,7 @@ export class CesiumBridge {
 
   clearAll(): { removedLayers: number; removedEntities: number } {
     // 停止所有轨迹动画
-    for (const [id, t] of this._activeTrajectories) {
+    for (const [, t] of this._activeTrajectories) {
       t.stop()
     }
     this._activeTrajectories.clear()

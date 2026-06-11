@@ -137,9 +137,9 @@ describe('measure', () => {
       positions: [[116, 39], [117, 40]],
     })
     expect(mockEntitiesAdd).toHaveBeenCalledTimes(2) // polyline + label
-    const polylineEntity = mockEntitiesAdd.mock.calls[0][0]
+    const polylineEntity = mockEntitiesAdd.mock.calls[0]![0]
     expect(polylineEntity.polyline).toBeDefined()
-    const labelEntity = mockEntitiesAdd.mock.calls[1][0]
+    const labelEntity = mockEntitiesAdd.mock.calls[1]![0]
     expect(labelEntity.label).toBeDefined()
   })
 
@@ -162,9 +162,9 @@ describe('measure', () => {
       id: 'my-dist',
     })
     expect(result.id).toBe('my-dist')
-    const polylineEntity = mockEntitiesAdd.mock.calls[0][0]
+    const polylineEntity = mockEntitiesAdd.mock.calls[0]![0]
     expect(polylineEntity.id).toBe('my-dist')
-    const labelEntity = mockEntitiesAdd.mock.calls[1][0]
+    const labelEntity = mockEntitiesAdd.mock.calls[1]![0]
     expect(labelEntity.id).toBe('my-dist_label')
   })
 
@@ -189,9 +189,9 @@ describe('measure', () => {
       positions: [[116, 39], [117, 39], [117, 40]],
     })
     expect(mockEntitiesAdd).toHaveBeenCalledTimes(2) // polygon + label
-    const polygonEntity = mockEntitiesAdd.mock.calls[0][0]
+    const polygonEntity = mockEntitiesAdd.mock.calls[0]![0]
     expect(polygonEntity.polygon).toBeDefined()
-    const labelEntity = mockEntitiesAdd.mock.calls[1][0]
+    const labelEntity = mockEntitiesAdd.mock.calls[1]![0]
     expect(labelEntity.label).toBeDefined()
   })
 
@@ -214,7 +214,7 @@ describe('measure', () => {
       id: 'my-area',
     })
     expect(result.id).toBe('my-area')
-    const polygonEntity = mockEntitiesAdd.mock.calls[0][0]
+    const polygonEntity = mockEntitiesAdd.mock.calls[0]![0]
     expect(polygonEntity.id).toBe('my-area')
   })
 
@@ -436,7 +436,6 @@ describe('highlight', () => {
 
 describe('screenshot', () => {
   it('should resolve when postRender fires', async () => {
-    let listener: Function
     const viewer = {
       scene: {
         requestRender: vi.fn(),
@@ -446,8 +445,7 @@ describe('screenshot', () => {
           height: 600,
         },
         postRender: {
-          addEventListener: (fn: Function) => {
-            listener = fn
+          addEventListener: (fn: () => void) => {
             // Simulate postRender firing on next tick
             setTimeout(() => fn(), 0)
             return () => {}

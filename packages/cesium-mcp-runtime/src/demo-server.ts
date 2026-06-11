@@ -84,14 +84,14 @@ const httpServer = createServer(handleHttpRequest)
 const wss = new WebSocketServer({ server: httpServer })
 
 wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
-  const sessionId = new URL(req.url ?? '/', `http://localhost`).searchParams.get('session') ?? 'default'
+  const sessionId = new URL(req.url ?? '/', 'http://localhost').searchParams.get('session') ?? 'default'
   console.log(`[ws] 浏览器连接: session=${sessionId}`)
   browserClients.set(sessionId, ws)
 
   ws.on('message', (raw: RawData) => {
     try {
       const msg = JSON.parse(raw.toString())
-      console.log(`[ws] ← 浏览器响应:`, JSON.stringify(msg).slice(0, 120))
+      console.log('[ws] ← 浏览器响应:', JSON.stringify(msg).slice(0, 120))
     } catch { /* ignore */ }
   })
 
@@ -102,13 +102,13 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
 })
 
 httpServer.listen(WS_PORT, () => {
-  console.log(`\n  ╔══════════════════════════════════════════════╗`)
-  console.log(`  ║  cesium-mcp-runtime Demo Server              ║`)
-  console.log(`  ╠══════════════════════════════════════════════╣`)
+  console.log('\n  ╔══════════════════════════════════════════════╗')
+  console.log('  ║  cesium-mcp-runtime Demo Server              ║')
+  console.log('  ╠══════════════════════════════════════════════╣')
   console.log(`  ║  HTTP + WS : http://localhost:${WS_PORT}            ║`)
-  console.log(`  ║  POST      : /api/command                    ║`)
-  console.log(`  ║  GET       : /api/status                     ║`)
+  console.log('  ║  POST      : /api/command                    ║')
+  console.log('  ║  GET       : /api/status                     ║')
   console.log(`  ║  WS        : ws://localhost:${WS_PORT}?session=xxx  ║`)
-  console.log(`  ╚══════════════════════════════════════════════╝`)
-  console.log(`\n  打开 demo/index.html 或 npm run demo 启动测试页面\n`)
+  console.log('  ╚══════════════════════════════════════════════╝')
+  console.log('\n  打开 demo/index.html 或 npm run demo 启动测试页面\n')
 })

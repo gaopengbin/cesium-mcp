@@ -73,9 +73,9 @@ describe('batchAddEntities', () => {
 
     expect(result.entityIds).toHaveLength(3)
     expect(result.errors).toHaveLength(0)
-    expect(calls[0].fn).toBe('addMarker')
-    expect(calls[1].fn).toBe('addPolyline')
-    expect(calls[2].fn).toBe('addPolygon')
+    expect(calls[0]!.fn).toBe('addMarker')
+    expect(calls[1]!.fn).toBe('addPolyline')
+    expect(calls[2]!.fn).toBe('addPolygon')
   })
 
   it('should collect errors without stopping', () => {
@@ -130,8 +130,8 @@ describe('batchAddEntities', () => {
       { type: 'marker', longitude: 100, latitude: 30, label: 'test' },
     ] as any, helpers)
 
-    expect(calls[0].params).toEqual({ longitude: 100, latitude: 30, label: 'test' })
-    expect(calls[0].params).not.toHaveProperty('type')
+    expect(calls[0]!.params).toEqual({ longitude: 100, latitude: 30, label: 'test' })
+    expect(calls[0]!.params).not.toHaveProperty('type')
   })
 })
 
@@ -215,7 +215,7 @@ describe('queryEntities', () => {
     // bbox: [west, south, east, north] around Beijing
     const results = queryEntities(viewer, { bbox: [115, 39, 117, 41] })
     expect(results).toHaveLength(1)
-    expect(results[0].entityId).toBe('inside')
+    expect(results[0]!.entityId).toBe('inside')
   })
 
   it('should exclude entities without position when bbox filter is set', () => {
@@ -225,7 +225,7 @@ describe('queryEntities', () => {
     ])
     const results = queryEntities(viewer, { bbox: [115, 39, 117, 41] })
     expect(results).toHaveLength(1)
-    expect(results[0].entityId).toBe('haspos')
+    expect(results[0]!.entityId).toBe('haspos')
   })
 
   it('should return empty array for empty scene', () => {
@@ -238,9 +238,9 @@ describe('queryEntities', () => {
       makeEntity({ id: '1', type: 'marker', lon: 116.4, lat: 39.9, height: 100 }),
     ])
     const results = queryEntities(viewer, {})
-    expect(results[0].position).toBeDefined()
-    expect(results[0].position!.longitude).toBeCloseTo(116.4, 1)
-    expect(results[0].position!.latitude).toBeCloseTo(39.9, 1)
+    expect(results[0]!.position).toBeDefined()
+    expect(results[0]!.position!.longitude).toBeCloseTo(116.4, 1)
+    expect(results[0]!.position!.latitude).toBeCloseTo(39.9, 1)
   })
 
   // ---- DataSource 实体查询 ----
@@ -251,7 +251,7 @@ describe('queryEntities', () => {
       dataSources: {
         length: dataSources.length,
         get: (i: number) => ({
-          entities: { values: dataSources[i].entities },
+          entities: { values: dataSources[i]!.entities },
         }),
       },
     } as any
@@ -263,8 +263,8 @@ describe('queryEntities', () => {
     ])
     const results = queryEntities(viewer, {})
     expect(results).toHaveLength(1)
-    expect(results[0].entityId).toBe('ds1')
-    expect(results[0].type).toBe('polygon')
+    expect(results[0]!.entityId).toBe('ds1')
+    expect(results[0]!.type).toBe('polygon')
   })
 
   it('should combine viewer entities and DataSource entities', () => {
@@ -286,7 +286,7 @@ describe('queryEntities', () => {
     ])
     const results = queryEntities(viewer, { type: 'polygon' })
     expect(results).toHaveLength(1)
-    expect(results[0].entityId).toBe('a')
+    expect(results[0]!.entityId).toBe('a')
   })
 
   it('should filter DataSource entities by name', () => {
@@ -298,7 +298,7 @@ describe('queryEntities', () => {
     ])
     const results = queryEntities(viewer, { name: 'beijing' })
     expect(results).toHaveLength(1)
-    expect(results[0].entityId).toBe('a')
+    expect(results[0]!.entityId).toBe('a')
   })
 
   it('should filter DataSource entities by bbox', () => {
@@ -310,7 +310,7 @@ describe('queryEntities', () => {
     ])
     const results = queryEntities(viewer, { bbox: [115, 39, 117, 41] })
     expect(results).toHaveLength(1)
-    expect(results[0].entityId).toBe('in')
+    expect(results[0]!.entityId).toBe('in')
   })
 
   it('should handle multiple DataSources', () => {
@@ -348,9 +348,9 @@ describe('queryEntities', () => {
     const viewer = makeViewer([polyEntity])
     const results = queryEntities(viewer, {})
     expect(results).toHaveLength(1)
-    expect(results[0].position).toBeDefined()
-    expect(results[0].position!.longitude).toBeCloseTo(15, 0)
-    expect(results[0].position!.latitude).toBeCloseTo(25, 0)
+    expect(results[0]!.position).toBeDefined()
+    expect(results[0]!.position!.longitude).toBeCloseTo(15, 0)
+    expect(results[0]!.position!.latitude).toBeCloseTo(25, 0)
   })
 
   it('should use bbox intersection for polygon entities', () => {
@@ -375,7 +375,7 @@ describe('queryEntities', () => {
     // Query bbox overlaps with polygon's corner (lon 18-22, lat 28-32)
     const results = queryEntities(viewer, { bbox: [18, 28, 22, 32] })
     expect(results).toHaveLength(1) // Should match via bbox intersection
-    expect(results[0].entityId).toBe('bigpoly')
+    expect(results[0]!.entityId).toBe('bigpoly')
   })
 
   it('should exclude polygon when bbox does not intersect', () => {
