@@ -1,4 +1,3 @@
-import type * as Cesium from 'cesium'
 import type { ColorInput } from './utils'
 
 // ==================== Command & Result ====================
@@ -77,12 +76,33 @@ export interface LayerStyle {
   opacity?: number
   pointSize?: number
   strokeWidth?: number
+  /** Thematic styles are mutually exclusive: randomColor, gradient, choropleth, category. */
   /** 每个面/实体随机颜色 */
   randomColor?: boolean
   /** 按索引渐变填充，指定色系起止色如 ['#FF0000', '#0000FF'] */
   gradient?: [string, string]
   choropleth?: ChoroplethStyle
   category?: CategoryStyle
+}
+
+export interface ImageryLayerStyle {
+  /** Alpha in range 0-1. Visibility is controlled by setLayerVisibility. */
+  alpha?: number
+  brightness?: number
+  contrast?: number
+  hue?: number
+  saturation?: number
+  gamma?: number
+}
+
+export interface PrimitiveLayerStyle {
+  color?: string
+  /** Updates the current fill alpha even when color is omitted. */
+  opacity?: number
+  outlineColor?: string
+  outlineWidth?: number
+  pointSize?: number
+  lineWidth?: number
 }
 
 export interface AddGeoJsonLayerParams {
@@ -282,12 +302,9 @@ export interface UpdateLayerStyleParams {
     scale?: number
     fontSize?: number
   }
-  layerStyle?: {
-    color?: string
-    opacity?: number
-    strokeWidth?: number
-    pointSize?: number
-  }
+  layerStyle?: LayerStyle
+  imageryStyle?: ImageryLayerStyle
+  primitiveStyle?: PrimitiveLayerStyle
   tileStyle?: {
     color?: string
     show?: string

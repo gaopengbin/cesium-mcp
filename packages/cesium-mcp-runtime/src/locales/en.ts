@@ -213,7 +213,9 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
   updateLayerStyle: {
     layerId: 'Layer ID',
     labelStyle: 'Label style (font, fillColor, outlineColor, outlineWidth, scale, etc.)',
-    layerStyle: 'Layer style (color, opacity, strokeWidth, pointSize)',
+    layerStyle: 'Entity layer style (color, opacity, strokeWidth, pointSize; GeoJSON thematic styles choropleth/category/randomColor/gradient are mutually exclusive)',
+    imageryStyle: 'Imagery visual style (alpha, brightness, contrast, hue, saturation, gamma); use setLayerVisibility for show/hide',
+    primitiveStyle: 'GeoJSON Primitive material style (color, opacity, outlineColor, outlineWidth, pointSize, lineWidth); use setLayerVisibility for show/hide',
     tileStyle: '3D Tiles style (Cesium3DTileStyle expressions: color, show, pointSize, meta)',
   },
   setBasemap: {

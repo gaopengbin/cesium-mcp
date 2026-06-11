@@ -213,7 +213,9 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
   updateLayerStyle: {
     layerId: '图层ID',
     labelStyle: '标注样式（font, fillColor, outlineColor, outlineWidth, scale 等）',
-    layerStyle: '图层样式（color, opacity, strokeWidth, pointSize）',
+    layerStyle: '实体图层样式（color, opacity, strokeWidth, pointSize；GeoJSON 主题样式 choropleth/category/randomColor/gradient 互斥）',
+    imageryStyle: '影像图层视觉样式（alpha, brightness, contrast, hue, saturation, gamma）；显隐请使用 setLayerVisibility',
+    primitiveStyle: 'GeoJSON Primitive 材质样式（color, opacity, outlineColor, outlineWidth, pointSize, lineWidth）；显隐请使用 setLayerVisibility',
     tileStyle: '3D Tiles 样式（Cesium3DTileStyle 表达式：color, show, pointSize, meta）',
   },
   setBasemap: {

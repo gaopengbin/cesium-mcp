@@ -348,7 +348,9 @@ Modify layer styling properties.
 |-----------|------|----------|---------|-------------|
 | `layerId` | `string` | ✅ | — | Layer ID |
 | `labelStyle` | `object` | — | — | Label style (font, fillColor, outlineColor, outlineWidth, scale) |
-| `layerStyle` | `object` | — | — | Layer style (color, opacity, strokeWidth, pointSize) |
+| `layerStyle` | `object` | — | — | Entity layer style (color, opacity, strokeWidth, pointSize; GeoJSON thematic styles: choropleth/category/randomColor/gradient, mutually exclusive) |
+| `imageryStyle` | `object` | — | — | Imagery visual style (alpha, brightness, contrast, hue, saturation, gamma); use `setLayerVisibility` for visibility |
+| `primitiveStyle` | `object` | — | — | GeoJSON Primitive material style (color, opacity, outlineColor, outlineWidth, pointSize, lineWidth) |
 | `tileStyle` | `object` | — | — | 3D Tiles style (Cesium3DTileStyle expressions: color, show, pointSize, meta) |
 
 #### `getLayerSchema`

@@ -348,7 +348,9 @@ cesium-mcp-runtime
 |------|------|------|--------|------|
 | `layerId` | `string` | ✅ | — | 图层 ID |
 | `labelStyle` | `object` | — | — | 标注样式（font, fillColor, outlineColor, outlineWidth, scale） |
-| `layerStyle` | `object` | — | — | 图层样式（color, opacity, strokeWidth, pointSize） |
+| `layerStyle` | `object` | — | — | 实体图层样式（color, opacity, strokeWidth, pointSize；GeoJSON 主题样式 choropleth/category/randomColor/gradient 互斥） |
+| `imageryStyle` | `object` | — | — | 影像图层视觉样式（alpha, brightness, contrast, hue, saturation, gamma）；显隐请使用 `setLayerVisibility` |
+| `primitiveStyle` | `object` | — | — | GeoJSON Primitive 材质样式（color, opacity, outlineColor, outlineWidth, pointSize, lineWidth） |
 | `tileStyle` | `object` | — | — | 3D Tiles 样式（Cesium3DTileStyle 表达式：color, show, pointSize, meta） |
 
 #### `getLayerSchema`

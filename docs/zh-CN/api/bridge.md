@@ -60,7 +60,7 @@ const bridge = new CesiumBridge(viewer)
 | `removeLayer` | 按 ID 移除图层 | `layerId` |
 | `clearAll` | 移除所有图层、实体和数据源 | — |
 | `setLayerVisibility` | 显示/隐藏图层 | `layerId`, `visible` |
-| `updateLayerStyle` | 修改图层样式 | `layerId`, `style`, `tileStyle` |
+| `updateLayerStyle` | 修改图层样式 | `layerId`, `layerStyle`, `imageryStyle`, `primitiveStyle`, `tileStyle` |
 | `getLayerSchema` | 获取图层属性字段结构 | `layerId` |
 | `setBasemap` | 切换底图影像 | `provider`, `url` |
 

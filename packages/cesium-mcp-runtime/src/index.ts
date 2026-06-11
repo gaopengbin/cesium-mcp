@@ -12,7 +12,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import { WebSocketServer, WebSocket, type RawData } from 'ws'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -156,6 +155,8 @@ function zodShapeToJsonSchema(shape: Record<string, z.ZodTypeAny>): Record<strin
       } else if (innerType._def?.typeName === 'ZodOptional') {
         isOptional = true
         innerType = innerType._def.innerType
+      } else if (innerType._def?.typeName === 'ZodEffects') {
+        innerType = innerType._def.schema
       } else {
         break
       }
@@ -237,7 +238,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
 
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ ok: true, sent, total: commands.length }))
-      } catch (err) {
+      } catch {
         res.writeHead(400, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ ok: false, error: 'Invalid JSON' }))
       }
@@ -387,9 +388,9 @@ function _getViewerHtml(token: string, wsPort: number): string {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cesium MCP Viewer</title>
-<script src="https://cesium.com/downloads/cesiumjs/releases/1.142/Build/Cesium/Cesium.js"><\/script>
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.142/Build/Cesium/Cesium.js"></script>
 <link href="https://cesium.com/downloads/cesiumjs/releases/1.142/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-<script src="/bridge.js" onerror="var s=document.createElement('script');s.src='https://unpkg.com/cesium-mcp-bridge@latest/dist/cesium-mcp-bridge.browser.global.js';document.head.appendChild(s)"><\/script>
+<script src="/bridge.js" onerror="var s=document.createElement('script');s.src='https://unpkg.com/cesium-mcp-bridge@latest/dist/cesium-mcp-bridge.browser.global.js';document.head.appendChild(s)"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body,#c{width:100%;height:100%;overflow:hidden}
@@ -412,7 +413,7 @@ ws.onmessage=function(e){var m=JSON.parse(e.data);b.execute({action:m.method,par
 ws.onclose=function(){el.className='c2';el.textContent='Disconnected';setTimeout(conn,3000)};
 ws.onerror=function(){ws.close()}}
 conn();
-<\/script>
+</script>
 </body></html>`
 }
 
@@ -433,7 +434,7 @@ function _tryListen(httpServer: ReturnType<typeof createServer>, port: number): 
     const onError = (err: NodeJS.ErrnoException) => {
       httpServer.removeListener('listening', onListening)
       if (err.code === 'EADDRINUSE') resolve(false)
-      else { console.error(`[cesium-mcp-runtime] HTTP server error:`, err.message); resolve(false) }
+      else { console.error('[cesium-mcp-runtime] HTTP server error:', err.message); resolve(false) }
     }
     const onListening = () => {
       httpServer.removeListener('error', onError)
@@ -457,9 +458,9 @@ async function startServer() {
 
   if (await _tryListen(httpServer, WS_PORT)) {
     console.error(`[cesium-mcp-runtime] HTTP + WebSocket server on http://localhost:${WS_PORT}`)
-    console.error(`[cesium-mcp-runtime] POST /api/command — 推送地图命令`)
-    console.error(`[cesium-mcp-runtime] POST /api/relay   — 命令中继（request-response）`)
-    console.error(`[cesium-mcp-runtime] GET  /api/status  — 连接状态`)
+    console.error('[cesium-mcp-runtime] POST /api/command — 推送地图命令')
+    console.error('[cesium-mcp-runtime] POST /api/relay   — 命令中继（request-response）')
+    console.error('[cesium-mcp-runtime] GET  /api/status  — 连接状态')
     return
   }
 
@@ -492,7 +493,7 @@ async function startServer() {
 
 function _setupWss(wss: WebSocketServer) {
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
-    const sessionId = new URL(req.url ?? '/', `http://localhost`).searchParams.get('session') ?? 'default'
+    const sessionId = new URL(req.url ?? '/', 'http://localhost').searchParams.get('session') ?? 'default'
     const oldWs = browserClients.get(sessionId)
     if (oldWs && oldWs.readyState === WebSocket.OPEN) {
       console.error(`[ws] 同名 session=${sessionId} 已存在，关闭旧连接`)
@@ -1185,13 +1186,89 @@ _registerTool(
 )
 
 // — updateLayerStyle
+const choroplethStyleSchema = z.object({
+  field: z.string().min(1).describe('Property field used for choropleth classification'),
+  breaks: z.array(z.number()).min(2).describe('Ascending class break values; colors length must be breaks length minus one'),
+  colors: z.array(z.string()).min(1).describe('CSS colors for each choropleth interval'),
+}).superRefine((value, ctx) => {
+  if (value.colors.length !== value.breaks.length - 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['colors'],
+      message: 'colors length must equal breaks length minus one',
+    })
+  }
+  for (let i = 1; i < value.breaks.length; i++) {
+    if (value.breaks[i]! <= value.breaks[i - 1]!) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['breaks', i],
+        message: 'breaks must be strictly ascending',
+      })
+    }
+  }
+})
+
+const categoryStyleSchema = z.object({
+  field: z.string().min(1).describe('Property field used for category styling'),
+  colors: z.array(z.string()).min(1).optional().describe('Optional CSS color palette'),
+})
+
+const layerStyleSchema = z.object({
+  color: z.string().optional().describe('CSS color for entity layer features'),
+  opacity: z.number().min(0).max(1).optional().describe('Opacity in range 0-1'),
+  strokeWidth: z.number().min(0).optional().describe('Polyline or polygon outline width'),
+  pointSize: z.number().min(0).optional().describe('Point or billboard size'),
+  randomColor: z.boolean().optional().describe('Apply random colors to original GeoJSON entities'),
+  gradient: z.tuple([z.string(), z.string()]).optional().describe('Two CSS colors used as index gradient'),
+  choropleth: choroplethStyleSchema.optional().describe('GeoJSON choropleth style'),
+  category: categoryStyleSchema.optional().describe('GeoJSON category style'),
+}).superRefine((value, ctx) => {
+  const enabled = [
+    value.choropleth !== undefined,
+    value.category !== undefined,
+    value.randomColor === true,
+    value.gradient !== undefined,
+  ].filter(Boolean).length
+  if (enabled > 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Only one thematic style is allowed: choropleth, category, randomColor, or gradient',
+    })
+  }
+})
+
+const imageryStyleSchema = z.object({
+  alpha: z.number().min(0).max(1).optional().describe('Imagery alpha in range 0-1'),
+  brightness: z.number().optional().describe('Imagery brightness multiplier'),
+  contrast: z.number().optional().describe('Imagery contrast multiplier'),
+  hue: z.number().optional().describe('Imagery hue shift in radians'),
+  saturation: z.number().optional().describe('Imagery saturation multiplier'),
+  gamma: z.number().optional().describe('Imagery gamma correction'),
+}).refine(value => Object.values(value).some(v => v !== undefined), {
+  message: 'At least one imagery style field is required',
+})
+
+const primitiveStyleSchema = z.object({
+  color: z.string().optional().describe('CSS fill color for GeoJSON Primitive materials'),
+  opacity: z.number().min(0).max(1).optional().describe('Fill alpha in range 0-1'),
+  outlineColor: z.string().optional().describe('CSS outline color for GeoJSON Primitive materials'),
+  outlineWidth: z.number().min(0).max(255).optional().describe('Outline width in range 0-255'),
+  pointSize: z.number().min(0).max(255).optional().describe('Point size in range 0-255'),
+  lineWidth: z.number().min(0).max(255).optional().describe('Polyline width in range 0-255'),
+}).refine(value => Object.values(value).some(v => v !== undefined), {
+  message: 'At least one primitive style field is required',
+})
+
 _registerTool(
   'updateLayerStyle',
   '修改已有图层的样式（颜色、透明度、标注样式、3D Tiles 样式等）',
   {
     layerId: z.string().describe('图层ID'),
     labelStyle: z.record(z.unknown()).optional().describe('标注样式（font, fillColor, outlineColor, outlineWidth, scale 等）'),
-    layerStyle: z.record(z.unknown()).optional().describe('图层样式（color, opacity, strokeWidth, pointSize）'),
+    layerStyle: layerStyleSchema.optional().describe('Entity layer style. Thematic fields are GeoJSON-only and mutually exclusive.'),
+    imageryStyle: imageryStyleSchema.optional().describe('Imagery layer visual style. Visibility is controlled by setLayerVisibility.'),
+    primitiveStyle: primitiveStyleSchema.optional().describe('GeoJSON Primitive material style. Visibility is controlled by setLayerVisibility.'),
     tileStyle: z.object({
       color: z.string().optional().describe('3D Tiles 颜色表达式，如 "color(\'red\')" 或条件表达式'),
       show: z.string().optional().describe('3D Tiles 显示条件表达式，如 "${Height} > 50"'),
@@ -2131,7 +2208,7 @@ async function _handleMcpRequest(req: IncomingMessage, res: ServerResponse) {
           res.on('close', () => { transport.close().catch(() => {}) })
           await mcpServer.connect(transport)
           await transport.handleRequest(req, res, parsedBody)
-        } catch (err) {
+        } catch {
           if (!res.headersSent) {
             res.writeHead(400, { 'Content-Type': 'application/json' })
             res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null }))
@@ -2184,7 +2261,7 @@ export async function main(argv: string[] = []) {
       const allToolCount = _toolDefs.size
       console.error(`[cesium-mcp-runtime] MCP Server running (Streamable HTTP), ${allToolCount} tools available`)
       console.error(`[cesium-mcp-runtime] MCP endpoint: http://localhost:${port}/mcp`)
-      console.error(`[cesium-mcp-runtime] All toolsets enabled for HTTP mode`)
+      console.error('[cesium-mcp-runtime] All toolsets enabled for HTTP mode')
       if (_relayPort > 0) {
         console.error(`[cesium-mcp-runtime] Relay mode active → commands forwarded to port ${_relayPort}`)
       }

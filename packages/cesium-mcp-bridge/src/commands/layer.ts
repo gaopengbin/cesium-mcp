@@ -2,7 +2,7 @@ import * as Cesium from 'cesium'
 import h337 from 'heatmap.js'
 import type {
   AddGeoJsonLayerParams, AddGeoJsonPrimitiveParams, AddHeatmapParams, LayerInfo, SetBasemapParams,
-  CategoryStyle, Load3dTilesParams, AddGaussianSplatParams, LoadTerrainParams, LoadImageryServiceParams,
+  LayerStyle, ImageryLayerStyle, PrimitiveLayerStyle, Load3dTilesParams, AddGaussianSplatParams, LoadTerrainParams, LoadImageryServiceParams,
   LoadCzmlParams, LoadKmlParams, UpdateLayerStyleParams,
   GetLayerSchemaParams, LayerSchemaResult, LayerSchemaField,
 } from '../types'
@@ -18,6 +18,8 @@ interface CesiumRefs {
   tileset?: Cesium.Cesium3DTileset
   primitive?: any
   imageryLayer?: Cesium.ImageryLayer
+  styleEntities?: Cesium.Entity[]
+  polygonOutlines?: Map<Cesium.Entity, Cesium.Entity[]>
   movingEntity?: Cesium.Entity
   trailEntity?: Cesium.Entity
   trajectoryId?: string
@@ -53,7 +55,7 @@ export class LayerManager {
 
     const layerId = id ?? `layer_${Date.now()}`
     const layerName = name ?? layerId
-    const color = style?.color ?? '#3B82F6'
+    const color = style?.color ?? DEFAULT_LAYER_COLOR
     const opacity = style?.opacity ?? 0.6
     const pointSize = style?.pointSize ?? 10
 
@@ -72,9 +74,11 @@ export class LayerManager {
     ds.name = layerName
 
     // 将默认 pin 图标替换为 canvas 圆点图片（保留 billboard 以兼容 EntityCluster）
-    const circleImage = createCircleImage(pointSize * 2, color, opacity)
+    const circleImage = createCircleImage(pointSize * 2, '#FFFFFF', 1)
     const entities = ds.entities.values
-    let hasPoints = false
+    // 在下方追加描边 polyline 前快照原始要素，专题着色只作用于原始要素而非描边
+    const styleEntities = [...entities]
+    const polygonOutlines = new Map<Cesium.Entity, Cesium.Entity[]>()
     const labelField = params.labelField
     const ls = params.labelStyle
     const labelFont = ls?.font ?? '12px sans-serif'
@@ -92,8 +96,8 @@ export class LayerManager {
     for (let i = 0; i < entities.length; i++) {
       const e = entities[i]!
       if (e.billboard) {
-        hasPoints = true
         e.billboard.image = new Cesium.ConstantProperty(circleImage) as any
+        e.billboard.color = new Cesium.ConstantProperty(cesiumColor) as any
         e.billboard.width = new Cesium.ConstantProperty(pointSize * 2) as any
         e.billboard.height = new Cesium.ConstantProperty(pointSize * 2) as any
         e.billboard.heightReference = new Cesium.ConstantProperty(Cesium.HeightReference.CLAMP_TO_GROUND) as any
@@ -128,8 +132,9 @@ export class LayerManager {
       if (e.polygon) {
         const hierarchy = e.polygon.hierarchy?.getValue(Cesium.JulianDate.now())
         if (hierarchy?.positions) {
+          const outlines: Cesium.Entity[] = []
           const positions = [...hierarchy.positions, hierarchy.positions[0]]
-          ds.entities.add({
+          const outline = ds.entities.add({
             polyline: {
               positions,
               width: strokeWidth,
@@ -137,11 +142,11 @@ export class LayerManager {
               clampToGround: true,
             },
           })
-          // 处理内环
+          outlines.push(outline)
           if (hierarchy.holes) {
             for (const hole of hierarchy.holes) {
               if (hole.positions) {
-                ds.entities.add({
+                const holeOutline = ds.entities.add({
                   polyline: {
                     positions: [...hole.positions, hole.positions[0]],
                     width: strokeWidth,
@@ -149,9 +154,11 @@ export class LayerManager {
                     clampToGround: true,
                   },
                 })
+                outlines.push(holeOutline)
               }
             }
           }
+          if (outlines.length) polygonOutlines.set(e, outlines)
         }
       }
     }
@@ -159,23 +166,20 @@ export class LayerManager {
     // choropleth 分级着色
     const choropleth = style?.choropleth
     if (choropleth?.field && choropleth?.breaks && choropleth?.colors) {
-      applyChoroplethStyle(ds, choropleth.field, choropleth.breaks, choropleth.colors, opacity)
+      applyChoroplethStyle(styleEntities, choropleth.field, choropleth.breaks, choropleth.colors, opacity, polygonOutlines)
     }
 
-    // category 分类着色（聚类等）
     const category = style?.category
     if (category?.field) {
-      applyCategoryStyle(ds, category.field, category.colors, opacity)
+      applyCategoryStyle(styleEntities, category.field, category.colors, opacity, polygonOutlines)
     }
 
-    // 随机色填充
     if (style?.randomColor) {
-      applyRandomColorStyle(ds, opacity)
+      applyRandomColorStyle(styleEntities, opacity, polygonOutlines)
     }
 
-    // 渐变色填充
     if (style?.gradient) {
-      applyGradientStyle(ds, style.gradient, opacity)
+      applyGradientStyle(styleEntities, style.gradient, opacity, polygonOutlines)
     }
 
     this._viewer.dataSources.add(ds)
@@ -189,7 +193,7 @@ export class LayerManager {
       color,
       dataRefId,
     }
-    this._cesiumRefs.set(layerId, { dataSource: ds })
+    this._cesiumRefs.set(layerId, { dataSource: ds, styleEntities, polygonOutlines })
     this._layers.push(info)
 
     this._viewer.flyTo(ds, { duration: 1.5 })
@@ -447,37 +451,29 @@ export class LayerManager {
     const gs = params.layerStyle
     if (gs && refs?.dataSource) {
       const ds = refs.dataSource
-      const entities = ds.entities.values
-      const color = gs.color ? parseColor(gs.color) : null
-      const opacity = gs.opacity ?? 0.6
-      for (const entity of entities) {
-        if (entity.polyline) {
-          if (color) entity.polyline.material = new Cesium.ColorMaterialProperty(color.withAlpha(opacity))
-          if (gs.strokeWidth !== undefined) entity.polyline.width = new Cesium.ConstantProperty(gs.strokeWidth)
-        }
-        if (entity.polygon) {
-          if (color) {
-            entity.polygon.material = new Cesium.ColorMaterialProperty(color.withAlpha(opacity * 0.4))
-            entity.polygon.outlineColor = new Cesium.ConstantProperty(color)
-          }
-        }
-        if (entity.billboard) {
-          const newSize = gs.pointSize ?? undefined
-          const newColor = color ?? undefined
-          if (newColor || newSize) {
-            const cssCol = gs.color ?? layer.color ?? '#3B82F6'
-            const sz = newSize ?? 10
-            entity.billboard.image = new Cesium.ConstantProperty(createCircleImage(sz * 2, cssCol, opacity)) as any
-            entity.billboard.width = new Cesium.ConstantProperty(sz * 2) as any
-            entity.billboard.height = new Cesium.ConstantProperty(sz * 2) as any
-          }
-        }
-        if (entity.point) {
-          if (color) entity.point.color = new Cesium.ConstantProperty(color.withAlpha(opacity))
-          if (gs.pointSize !== undefined) entity.point.pixelSize = new Cesium.ConstantProperty(gs.pointSize)
-        }
-      }
+      if (!isValidLayerStyleForUpdate(gs)) return false
+      if (hasThematicStyle(gs) && !refs.styleEntities) return false
+
+      applyBasicLayerStyle(ds.entities.values, gs, layer.color, refs.polygonOutlines)
+      applyThematicLayerStyle(gs, refs.styleEntities ?? ds.entities.values, refs.polygonOutlines)
       if (gs.color) layer.color = gs.color
+      return true
+    }
+
+    const imageryStyle = params.imageryStyle
+    if (imageryStyle && refs?.imageryLayer) {
+      if (!isValidImageryLayerStyle(imageryStyle)) return false
+      applyImageryLayerStyle(refs.imageryLayer, imageryStyle)
+      this._viewer.scene.requestRender?.()
+      return true
+    }
+
+    const primitiveStyle = params.primitiveStyle
+    if (primitiveStyle && refs?.primitive) {
+      if (!isValidPrimitiveLayerStyle(primitiveStyle)) return false
+      applyGeoJsonPrimitiveStyle(refs.primitive, primitiveStyle)
+      this._viewer.scene.requestRender?.()
+      if (primitiveStyle.color) layer.color = primitiveStyle.color
       return true
     }
 
@@ -736,7 +732,6 @@ export class LayerManager {
     let imageryLayer: Cesium.ImageryLayer
 
     if (ionAssetId) {
-      const resource = await Cesium.IonResource.fromAssetId(ionAssetId)
       const provider = await Cesium.IonImageryProvider.fromAssetId(ionAssetId)
       imageryLayer = this._viewer.imageryLayers.addImageryProvider(provider)
     } else {
@@ -912,14 +907,247 @@ export class LayerManager {
 
 // ==================== Helpers ====================
 
+const DEFAULT_LAYER_COLOR = '#3B82F6'
+// 贴地 polygon 填充比描边更透明，避免压住底图
+const POLYGON_FILL_ALPHA_RATIO = 0.4
+
+const IMAGERY_LAYER_STYLE_KEYS = [
+  'alpha',
+  'brightness',
+  'contrast',
+  'hue',
+  'saturation',
+  'gamma',
+] as const
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function isInRange(value: number, min: number, max: number): boolean {
+  return value >= min && value <= max
+}
+
+function countThematicStyles(style: LayerStyle): number {
+  return [
+    style.choropleth !== undefined,
+    style.category !== undefined,
+    style.randomColor === true,
+    style.gradient !== undefined,
+  ].filter(Boolean).length
+}
+
+function hasThematicStyle(style: LayerStyle): boolean {
+  return countThematicStyles(style) > 0
+}
+
+function isValidLayerStyleForUpdate(style: LayerStyle): boolean {
+  if (countThematicStyles(style) > 1) return false
+  if (style.opacity !== undefined && (!isFiniteNumber(style.opacity) || !isInRange(style.opacity, 0, 1))) return false
+  if (style.pointSize !== undefined && (!isFiniteNumber(style.pointSize) || style.pointSize < 0)) return false
+  if (style.strokeWidth !== undefined && (!isFiniteNumber(style.strokeWidth) || style.strokeWidth < 0)) return false
+
+  if (style.gradient !== undefined && style.gradient.length !== 2) return false
+  if (style.category !== undefined && !style.category.field) return false
+
+  const choropleth = style.choropleth
+  if (choropleth) {
+    if (!choropleth.field || choropleth.breaks.length < 2) return false
+    if (choropleth.colors.length !== choropleth.breaks.length - 1) return false
+    for (let i = 0; i < choropleth.breaks.length; i++) {
+      const current = choropleth.breaks[i]!
+      if (!isFiniteNumber(current)) return false
+      if (i > 0 && current <= choropleth.breaks[i - 1]!) return false
+    }
+  }
+
+  return true
+}
+
+function applyBasicLayerStyle(
+  entities: Cesium.Entity[],
+  style: LayerStyle,
+  fallbackColor: string,
+  polygonOutlines?: Map<Cesium.Entity, Cesium.Entity[]>,
+) {
+  const shouldUpdateColor = style.color !== undefined || style.opacity !== undefined
+  const baseColor = shouldUpdateColor ? parseColor(style.color ?? fallbackColor) : undefined
+  const alpha = style.opacity ?? baseColor?.alpha
+  const fillColor = baseColor && alpha !== undefined ? baseColor.withAlpha(alpha) : undefined
+  const polygonFillColor = fillColor ? baseColor!.withAlpha(alpha! * POLYGON_FILL_ALPHA_RATIO) : undefined
+
+  // 同一图层所有实体共用样式值，材质/属性实例只构造一次复用
+  const lineMaterial = fillColor ? new Cesium.ColorMaterialProperty(fillColor) : undefined
+  const fillMaterial = polygonFillColor ? new Cesium.ColorMaterialProperty(polygonFillColor) : undefined
+  const fillColorProp = fillColor ? new Cesium.ConstantProperty(fillColor) : undefined
+  const strokeWidthProp = style.strokeWidth !== undefined ? new Cesium.ConstantProperty(style.strokeWidth) : undefined
+  const billboardSizeProp = style.pointSize !== undefined ? new Cesium.ConstantProperty(style.pointSize * 2) : undefined
+  const pointSizeProp = style.pointSize !== undefined ? new Cesium.ConstantProperty(style.pointSize) : undefined
+
+  for (const entity of entities) {
+    if (entity.polyline) {
+      if (lineMaterial) entity.polyline.material = lineMaterial
+      if (strokeWidthProp) entity.polyline.width = strokeWidthProp
+    }
+    if (entity.polygon) {
+      if (fillMaterial && fillColorProp) {
+        entity.polygon.material = fillMaterial
+        entity.polygon.outlineColor = fillColorProp
+      }
+      syncPolygonOutlines(entity, fillColor, style.strokeWidth, polygonOutlines)
+    }
+    if (entity.billboard) {
+      if (fillColorProp) entity.billboard.color = fillColorProp as any
+      if (billboardSizeProp) {
+        entity.billboard.width = billboardSizeProp as any
+        entity.billboard.height = billboardSizeProp as any
+      }
+    }
+    if (entity.point) {
+      if (fillColorProp) entity.point.color = fillColorProp
+      if (pointSizeProp) entity.point.pixelSize = pointSizeProp
+    }
+  }
+}
+
+function applyThematicLayerStyle(
+  style: LayerStyle,
+  entities: Cesium.Entity[],
+  polygonOutlines?: Map<Cesium.Entity, Cesium.Entity[]>,
+) {
+  const opacity = style.opacity ?? 0.6
+  const choropleth = style.choropleth
+  if (choropleth) {
+    applyChoroplethStyle(entities, choropleth.field, choropleth.breaks, choropleth.colors, opacity, polygonOutlines)
+    return
+  }
+
+  const category = style.category
+  if (category) {
+    applyCategoryStyle(entities, category.field, category.colors, opacity, polygonOutlines)
+    return
+  }
+
+  if (style.randomColor) {
+    applyRandomColorStyle(entities, opacity, polygonOutlines)
+    return
+  }
+
+  if (style.gradient) {
+    applyGradientStyle(entities, style.gradient, opacity, polygonOutlines)
+  }
+}
+
+function isValidImageryLayerStyle(style: ImageryLayerStyle): boolean {
+  const hasField = IMAGERY_LAYER_STYLE_KEYS.some(key => style[key] !== undefined)
+  if (!hasField) return false
+
+  for (const key of IMAGERY_LAYER_STYLE_KEYS) {
+    const value = style[key]
+    if (value === undefined) continue
+    if (!isFiniteNumber(value)) return false
+    if (key === 'alpha' && !isInRange(value, 0, 1)) return false
+  }
+
+  return true
+}
+
+function applyImageryLayerStyle(layer: Cesium.ImageryLayer, style: ImageryLayerStyle) {
+  for (const key of IMAGERY_LAYER_STYLE_KEYS) {
+    const value = style[key]
+    if (value !== undefined) {
+      (layer as any)[key] = value
+    }
+  }
+}
+
+function isValidPrimitiveLayerStyle(style: PrimitiveLayerStyle): boolean {
+  const hasField = [
+    style.color,
+    style.opacity,
+    style.outlineColor,
+    style.outlineWidth,
+    style.pointSize,
+    style.lineWidth,
+  ].some(value => value !== undefined)
+  if (!hasField) return false
+  if (style.opacity !== undefined && (!isFiniteNumber(style.opacity) || !isInRange(style.opacity, 0, 1))) return false
+  if (style.outlineWidth !== undefined && (!isFiniteNumber(style.outlineWidth) || !isInRange(style.outlineWidth, 0, 255))) return false
+  if (style.pointSize !== undefined && (!isFiniteNumber(style.pointSize) || !isInRange(style.pointSize, 0, 255))) return false
+  if (style.lineWidth !== undefined && (!isFiniteNumber(style.lineWidth) || !isInRange(style.lineWidth, 0, 255))) return false
+  return true
+}
+
+function applyGeoJsonPrimitiveStyle(primitive: any, style: PrimitiveLayerStyle) {
+  const C = Cesium as any
+  if (primitive.points && C.BufferPoint && C.BufferPointMaterial) {
+    applyPrimitiveCollectionStyle(
+      primitive.points,
+      new C.BufferPoint(),
+      new C.BufferPointMaterial(),
+      style,
+      'point',
+    )
+  }
+  if (primitive.polylines && C.BufferPolyline && C.BufferPolylineMaterial) {
+    applyPrimitiveCollectionStyle(
+      primitive.polylines,
+      new C.BufferPolyline(),
+      new C.BufferPolylineMaterial(),
+      style,
+      'polyline',
+    )
+  }
+  if (primitive.polygons && C.BufferPolygon && C.BufferPolygonMaterial) {
+    applyPrimitiveCollectionStyle(
+      primitive.polygons,
+      new C.BufferPolygon(),
+      new C.BufferPolygonMaterial(),
+      style,
+      'polygon',
+    )
+  }
+}
+
+function applyPrimitiveCollectionStyle(
+  collection: any,
+  element: any,
+  material: any,
+  style: PrimitiveLayerStyle,
+  target: 'point' | 'polyline' | 'polygon',
+) {
+  const color = style.color ? parseColor(style.color) : undefined
+  const outlineColor = style.outlineColor ? parseColor(style.outlineColor) : undefined
+  const count = collection.primitiveCount ?? 0
+
+  for (let i = 0; i < count; i++) {
+    collection.get(i, element)
+    element.getMaterial(material)
+
+    if (color) {
+      material.color = color.withAlpha(style.opacity ?? color.alpha)
+    } else if (style.opacity !== undefined && material.color) {
+      material.color = material.color.withAlpha(style.opacity)
+    }
+    if (outlineColor) material.outlineColor = outlineColor
+    if (style.outlineWidth !== undefined) material.outlineWidth = style.outlineWidth
+    if (target === 'point' && style.pointSize !== undefined) material.size = style.pointSize
+    if (target === 'polyline' && style.lineWidth !== undefined) material.width = style.lineWidth
+
+    element.setMaterial(material)
+  }
+}
+
 function applyChoroplethStyle(
-  ds: Cesium.GeoJsonDataSource,
+  entities: Cesium.Entity[],
   field: string,
   breaks: number[],
   colors: string[],
   opacity: number,
+  polygonOutlines?: Map<Cesium.Entity, Cesium.Entity[]>,
 ) {
-  const entities = ds.entities.values
+  const fillColors = colors.map(c => parseColor(c ?? DEFAULT_LAYER_COLOR).withAlpha(opacity))
+  const strokeColor = parseColor('#333333').withAlpha(0.6)
   for (const entity of entities) {
     const props = entity.properties
     if (!props) continue
@@ -934,20 +1162,7 @@ function applyChoroplethStyle(
         break
       }
     }
-    const fillColor = parseColor(colors[classIdx] ?? '#3B82F6').withAlpha(opacity)
-    const strokeColor = parseColor('#333333').withAlpha(0.6)
-
-    if (entity.polygon) {
-      entity.polygon.material = new Cesium.ColorMaterialProperty(fillColor)
-      entity.polygon.outlineColor = new Cesium.ConstantProperty(strokeColor)
-      entity.polygon.outlineWidth = new Cesium.ConstantProperty(1)
-    } else if (entity.polyline) {
-      entity.polyline.material = new Cesium.ColorMaterialProperty(fillColor)
-    } else if (entity.point) {
-      entity.point.color = new Cesium.ConstantProperty(fillColor)
-    } else if (entity.billboard) {
-      entity.billboard.color = new Cesium.ConstantProperty(fillColor)
-    }
+    applyColorToEntity(entity, fillColors[classIdx]!, strokeColor, polygonOutlines)
   }
 }
 
@@ -958,61 +1173,72 @@ const CATEGORY_PALETTE = [
   '#E11D48', '#84CC16',
 ]
 
+function getCategoryIndex(raw: unknown, categoryIndexes: Map<string, number>): number {
+  if (raw === undefined || raw === null) return -1
+  if (typeof raw === 'number' && Number.isFinite(raw)) return Math.trunc(raw)
+
+  const text = String(raw).trim()
+  if (!text) return -1
+
+  const numeric = Number(text)
+  if (Number.isFinite(numeric)) return Math.trunc(numeric)
+
+  if (!categoryIndexes.has(text)) {
+    categoryIndexes.set(text, categoryIndexes.size)
+  }
+  return categoryIndexes.get(text)!
+}
+
 function applyCategoryStyle(
-  ds: Cesium.GeoJsonDataSource,
+  entities: Cesium.Entity[],
   field: string,
   customColors: string[] | undefined,
   opacity: number,
+  polygonOutlines?: Map<Cesium.Entity, Cesium.Entity[]>,
 ) {
   const palette = customColors?.length ? customColors : CATEGORY_PALETTE
-  const entities = ds.entities.values
+  const fillColors = palette.map(c => parseColor(c).withAlpha(opacity))
+  const strokeColors = palette.map(c => parseColor(c).withAlpha(Math.min(opacity + 0.2, 1)))
+  const noiseFill = parseColor('#6B7280').withAlpha(opacity)
+  const noiseStroke = parseColor('#6B7280').withAlpha(Math.min(opacity + 0.2, 1))
+  const categoryIndexes = new Map<string, number>()
   for (const entity of entities) {
     const props = entity.properties
     if (!props) continue
     const raw = props[field]?.getValue(Cesium.JulianDate.now())
-    const val = raw !== undefined && raw !== null ? Number(raw) : -1
-    // -1 (noise in DBSCAN) → 灰色
-    const cssColor = val < 0 ? '#6B7280' : (palette[val % palette.length] ?? '#6B7280')
-    const fillColor = parseColor(cssColor).withAlpha(opacity)
-    const strokeColor = parseColor(cssColor).withAlpha(Math.min(opacity + 0.2, 1))
+    const val = getCategoryIndex(raw, categoryIndexes)
+    // -1 (DBSCAN 噪声点) → 灰色
+    const idx = val < 0 ? -1 : val % palette.length
+    const fillColor = idx < 0 ? noiseFill : fillColors[idx]!
+    const strokeColor = idx < 0 ? noiseStroke : strokeColors[idx]!
 
-    if (entity.point) {
-      entity.point.color = new Cesium.ConstantProperty(fillColor)
-      entity.point.pixelSize = new Cesium.ConstantProperty(10)
-      entity.point.outlineColor = new Cesium.ConstantProperty(strokeColor)
-      entity.point.outlineWidth = new Cesium.ConstantProperty(1)
-    } else if (entity.billboard) {
-      entity.billboard.color = new Cesium.ConstantProperty(fillColor)
-    } else if (entity.polygon) {
-      entity.polygon.material = new Cesium.ColorMaterialProperty(fillColor)
-      entity.polygon.outlineColor = new Cesium.ConstantProperty(strokeColor)
-    } else if (entity.polyline) {
-      entity.polyline.material = new Cesium.ColorMaterialProperty(fillColor)
-      entity.polyline.width = new Cesium.ConstantProperty(3)
-    }
+    applyColorToEntity(entity, fillColor, strokeColor, polygonOutlines)
   }
 }
 
-function applyRandomColorStyle(ds: Cesium.GeoJsonDataSource, opacity: number) {
-  const entities = ds.entities.values
+function applyRandomColorStyle(
+  entities: Cesium.Entity[],
+  opacity: number,
+  polygonOutlines?: Map<Cesium.Entity, Cesium.Entity[]>,
+) {
   for (const entity of entities) {
     const hue = Math.random()
     const sat = 0.5 + Math.random() * 0.4
     const light = 0.4 + Math.random() * 0.25
     const fillColor = Cesium.Color.fromHsl(hue, sat, light, opacity)
     const strokeColor = Cesium.Color.fromHsl(hue, sat, light, Math.min(opacity + 0.3, 1))
-    applyColorToEntity(entity, fillColor, strokeColor)
+    applyColorToEntity(entity, fillColor, strokeColor, polygonOutlines)
   }
 }
 
 function applyGradientStyle(
-  ds: Cesium.GeoJsonDataSource,
+  entities: Cesium.Entity[],
   gradient: [string, string],
   opacity: number,
+  polygonOutlines?: Map<Cesium.Entity, Cesium.Entity[]>,
 ) {
   const startColor = parseColor(gradient[0])
   const endColor = parseColor(gradient[1])
-  const entities = ds.entities.values
   const total = Math.max(entities.length - 1, 1)
   for (let i = 0; i < entities.length; i++) {
     const t = i / total
@@ -1021,20 +1247,42 @@ function applyGradientStyle(
     const b = startColor.blue + (endColor.blue - startColor.blue) * t
     const fillColor = new Cesium.Color(r, g, b, opacity)
     const strokeColor = new Cesium.Color(r, g, b, Math.min(opacity + 0.3, 1))
-    applyColorToEntity(entities[i]!, fillColor, strokeColor)
+    applyColorToEntity(entities[i]!, fillColor, strokeColor, polygonOutlines)
   }
 }
 
-function applyColorToEntity(entity: Cesium.Entity, fillColor: Cesium.Color, strokeColor: Cesium.Color) {
+function applyColorToEntity(
+  entity: Cesium.Entity,
+  fillColor: Cesium.Color,
+  strokeColor: Cesium.Color,
+  polygonOutlines?: Map<Cesium.Entity, Cesium.Entity[]>,
+) {
   if (entity.polygon) {
     entity.polygon.material = new Cesium.ColorMaterialProperty(fillColor)
     entity.polygon.outlineColor = new Cesium.ConstantProperty(strokeColor)
+    syncPolygonOutlines(entity, strokeColor, undefined, polygonOutlines)
   } else if (entity.polyline) {
     entity.polyline.material = new Cesium.ColorMaterialProperty(fillColor)
   } else if (entity.point) {
     entity.point.color = new Cesium.ConstantProperty(fillColor)
   } else if (entity.billboard) {
     entity.billboard.color = new Cesium.ConstantProperty(fillColor)
+  }
+}
+
+function syncPolygonOutlines(
+  entity: Cesium.Entity,
+  strokeColor: Cesium.Color | undefined,
+  strokeWidth: number | undefined,
+  polygonOutlines?: Map<Cesium.Entity, Cesium.Entity[]>,
+) {
+  const outlines = polygonOutlines?.get(entity)
+  if (!outlines) return
+
+  for (const outline of outlines) {
+    if (!outline.polyline) continue
+    if (strokeColor) outline.polyline.material = new Cesium.ColorMaterialProperty(strokeColor)
+    if (strokeWidth !== undefined) outline.polyline.width = new Cesium.ConstantProperty(strokeWidth)
   }
 }
 

@@ -60,7 +60,7 @@ const bridge = new CesiumBridge(viewer)
 | `removeLayer` | Remove a layer by ID | `layerId` |
 | `clearAll` | Remove all layers, entities, and data sources | — |
 | `setLayerVisibility` | Show/hide a layer | `layerId`, `visible` |
-| `updateLayerStyle` | Change layer styling | `layerId`, `style`, `tileStyle` |
+| `updateLayerStyle` | Change layer styling | `layerId`, `layerStyle`, `imageryStyle`, `primitiveStyle`, `tileStyle` |
 | `getLayerSchema` | Get layer property field structure | `layerId` |
 | `setBasemap` | Switch imagery base layer | `provider`, `url` |
 

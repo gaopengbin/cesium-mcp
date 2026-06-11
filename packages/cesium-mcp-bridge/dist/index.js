@@ -69,7 +69,6 @@ function flyTo(viewer, params) {
     height = 5e4,
     heading = 0,
     pitch = -45,
-    roll = 0,
     duration = 2
   } = params;
   validateCoordinate(longitude, latitude, height);
@@ -88,7 +87,7 @@ function flyTo(viewer, params) {
   });
 }
 function setView(viewer, params) {
-  const { longitude, latitude, height = 5e4, heading = 0, pitch = -45, roll = 0 } = params;
+  const { longitude, latitude, height = 5e4, heading = 0, pitch = -45 } = params;
   validateCoordinate(longitude, latitude, height);
   const target = Cesium3.Cartesian3.fromDegrees(longitude, latitude, 0);
   const range = _heightToRange(height, pitch);
@@ -215,7 +214,7 @@ var LayerManager = class {
     if (!data && !url) throw new Error('Either "data" or "url" must be provided');
     const layerId = id ?? `layer_${Date.now()}`;
     const layerName = name ?? layerId;
-    const color = style?.color ?? "#3B82F6";
+    const color = style?.color ?? DEFAULT_LAYER_COLOR;
     const opacity = style?.opacity ?? 0.6;
     const pointSize = style?.pointSize ?? 10;
     this.removeLayer(layerId);
@@ -229,8 +228,10 @@ var LayerManager = class {
       clampToGround: true
     });
     ds.name = layerName;
-    const circleImage = createCircleImage(pointSize * 2, color, opacity);
+    const circleImage = createCircleImage(pointSize * 2, "#FFFFFF", 1);
     const entities = ds.entities.values;
+    const styleEntities = [...entities];
+    const polygonOutlines = /* @__PURE__ */ new Map();
     const labelField = params.labelField;
     const ls = params.labelStyle;
     const labelFont = ls?.font ?? "12px sans-serif";
@@ -242,6 +243,7 @@ var LayerManager = class {
       const e = entities[i];
       if (e.billboard) {
         e.billboard.image = new Cesium3.ConstantProperty(circleImage);
+        e.billboard.color = new Cesium3.ConstantProperty(cesiumColor);
         e.billboard.width = new Cesium3.ConstantProperty(pointSize * 2);
         e.billboard.height = new Cesium3.ConstantProperty(pointSize * 2);
         e.billboard.heightReference = new Cesium3.ConstantProperty(Cesium3.HeightReference.CLAMP_TO_GROUND);
@@ -272,8 +274,9 @@ var LayerManager = class {
       if (e.polygon) {
         const hierarchy = e.polygon.hierarchy?.getValue(Cesium3.JulianDate.now());
         if (hierarchy?.positions) {
+          const outlines = [];
           const positions = [...hierarchy.positions, hierarchy.positions[0]];
-          ds.entities.add({
+          const outline = ds.entities.add({
             polyline: {
               positions,
               width: strokeWidth,
@@ -281,10 +284,11 @@ var LayerManager = class {
               clampToGround: true
             }
           });
+          outlines.push(outline);
           if (hierarchy.holes) {
             for (const hole of hierarchy.holes) {
               if (hole.positions) {
-                ds.entities.add({
+                const holeOutline = ds.entities.add({
                   polyline: {
                     positions: [...hole.positions, hole.positions[0]],
                     width: strokeWidth,
@@ -292,25 +296,27 @@ var LayerManager = class {
                     clampToGround: true
                   }
                 });
+                outlines.push(holeOutline);
               }
             }
           }
+          if (outlines.length) polygonOutlines.set(e, outlines);
         }
       }
     }
     const choropleth = style?.choropleth;
     if (choropleth?.field && choropleth?.breaks && choropleth?.colors) {
-      applyChoroplethStyle(ds, choropleth.field, choropleth.breaks, choropleth.colors, opacity);
+      applyChoroplethStyle(styleEntities, choropleth.field, choropleth.breaks, choropleth.colors, opacity, polygonOutlines);
     }
     const category = style?.category;
     if (category?.field) {
-      applyCategoryStyle(ds, category.field, category.colors, opacity);
+      applyCategoryStyle(styleEntities, category.field, category.colors, opacity, polygonOutlines);
     }
     if (style?.randomColor) {
-      applyRandomColorStyle(ds, opacity);
+      applyRandomColorStyle(styleEntities, opacity, polygonOutlines);
     }
     if (style?.gradient) {
-      applyGradientStyle(ds, style.gradient, opacity);
+      applyGradientStyle(styleEntities, style.gradient, opacity, polygonOutlines);
     }
     this._viewer.dataSources.add(ds);
     const geomType = data ? detectGeometryType(data) : detectGeometryTypeFromDataSource(ds);
@@ -322,7 +328,7 @@ var LayerManager = class {
       color,
       dataRefId
     };
-    this._cesiumRefs.set(layerId, { dataSource: ds });
+    this._cesiumRefs.set(layerId, { dataSource: ds, styleEntities, polygonOutlines });
     this._layers.push(info);
     this._viewer.flyTo(ds, { duration: 1.5 });
     return info;
@@ -567,37 +573,26 @@ var LayerManager = class {
     const gs = params.layerStyle;
     if (gs && refs?.dataSource) {
       const ds = refs.dataSource;
-      const entities = ds.entities.values;
-      const color = gs.color ? parseColor(gs.color) : null;
-      const opacity = gs.opacity ?? 0.6;
-      for (const entity of entities) {
-        if (entity.polyline) {
-          if (color) entity.polyline.material = new Cesium3.ColorMaterialProperty(color.withAlpha(opacity));
-          if (gs.strokeWidth !== void 0) entity.polyline.width = new Cesium3.ConstantProperty(gs.strokeWidth);
-        }
-        if (entity.polygon) {
-          if (color) {
-            entity.polygon.material = new Cesium3.ColorMaterialProperty(color.withAlpha(opacity * 0.4));
-            entity.polygon.outlineColor = new Cesium3.ConstantProperty(color);
-          }
-        }
-        if (entity.billboard) {
-          const newSize = gs.pointSize ?? void 0;
-          const newColor = color ?? void 0;
-          if (newColor || newSize) {
-            const cssCol = gs.color ?? layer.color ?? "#3B82F6";
-            const sz = newSize ?? 10;
-            entity.billboard.image = new Cesium3.ConstantProperty(createCircleImage(sz * 2, cssCol, opacity));
-            entity.billboard.width = new Cesium3.ConstantProperty(sz * 2);
-            entity.billboard.height = new Cesium3.ConstantProperty(sz * 2);
-          }
-        }
-        if (entity.point) {
-          if (color) entity.point.color = new Cesium3.ConstantProperty(color.withAlpha(opacity));
-          if (gs.pointSize !== void 0) entity.point.pixelSize = new Cesium3.ConstantProperty(gs.pointSize);
-        }
-      }
+      if (!isValidLayerStyleForUpdate(gs)) return false;
+      if (hasThematicStyle(gs) && !refs.styleEntities) return false;
+      applyBasicLayerStyle(ds.entities.values, gs, layer.color, refs.polygonOutlines);
+      applyThematicLayerStyle(gs, refs.styleEntities ?? ds.entities.values, refs.polygonOutlines);
       if (gs.color) layer.color = gs.color;
+      return true;
+    }
+    const imageryStyle = params.imageryStyle;
+    if (imageryStyle && refs?.imageryLayer) {
+      if (!isValidImageryLayerStyle(imageryStyle)) return false;
+      applyImageryLayerStyle(refs.imageryLayer, imageryStyle);
+      this._viewer.scene.requestRender?.();
+      return true;
+    }
+    const primitiveStyle = params.primitiveStyle;
+    if (primitiveStyle && refs?.primitive) {
+      if (!isValidPrimitiveLayerStyle(primitiveStyle)) return false;
+      applyGeoJsonPrimitiveStyle(refs.primitive, primitiveStyle);
+      this._viewer.scene.requestRender?.();
+      if (primitiveStyle.color) layer.color = primitiveStyle.color;
       return true;
     }
     const ts = params.tileStyle;
@@ -811,7 +806,6 @@ var LayerManager = class {
     if (!url && !ionAssetId) throw new Error('Either "url" or "ionAssetId" must be provided');
     let imageryLayer;
     if (ionAssetId) {
-      await Cesium3.IonResource.fromAssetId(ionAssetId);
       const provider = await Cesium3.IonImageryProvider.fromAssetId(ionAssetId);
       imageryLayer = this._viewer.imageryLayers.addImageryProvider(provider);
     } else {
@@ -952,8 +946,196 @@ var LayerManager = class {
     return basemap;
   }
 };
-function applyChoroplethStyle(ds, field, breaks, colors, opacity) {
-  const entities = ds.entities.values;
+var DEFAULT_LAYER_COLOR = "#3B82F6";
+var POLYGON_FILL_ALPHA_RATIO = 0.4;
+var IMAGERY_LAYER_STYLE_KEYS = [
+  "alpha",
+  "brightness",
+  "contrast",
+  "hue",
+  "saturation",
+  "gamma"
+];
+function isFiniteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value);
+}
+function isInRange(value, min, max) {
+  return value >= min && value <= max;
+}
+function countThematicStyles(style) {
+  return [
+    style.choropleth !== void 0,
+    style.category !== void 0,
+    style.randomColor === true,
+    style.gradient !== void 0
+  ].filter(Boolean).length;
+}
+function hasThematicStyle(style) {
+  return countThematicStyles(style) > 0;
+}
+function isValidLayerStyleForUpdate(style) {
+  if (countThematicStyles(style) > 1) return false;
+  if (style.opacity !== void 0 && (!isFiniteNumber(style.opacity) || !isInRange(style.opacity, 0, 1))) return false;
+  if (style.pointSize !== void 0 && (!isFiniteNumber(style.pointSize) || style.pointSize < 0)) return false;
+  if (style.strokeWidth !== void 0 && (!isFiniteNumber(style.strokeWidth) || style.strokeWidth < 0)) return false;
+  if (style.gradient !== void 0 && style.gradient.length !== 2) return false;
+  if (style.category !== void 0 && !style.category.field) return false;
+  const choropleth = style.choropleth;
+  if (choropleth) {
+    if (!choropleth.field || choropleth.breaks.length < 2) return false;
+    if (choropleth.colors.length !== choropleth.breaks.length - 1) return false;
+    for (let i = 0; i < choropleth.breaks.length; i++) {
+      const current = choropleth.breaks[i];
+      if (!isFiniteNumber(current)) return false;
+      if (i > 0 && current <= choropleth.breaks[i - 1]) return false;
+    }
+  }
+  return true;
+}
+function applyBasicLayerStyle(entities, style, fallbackColor, polygonOutlines) {
+  const shouldUpdateColor = style.color !== void 0 || style.opacity !== void 0;
+  const baseColor = shouldUpdateColor ? parseColor(style.color ?? fallbackColor) : void 0;
+  const alpha = style.opacity ?? baseColor?.alpha;
+  const fillColor = baseColor && alpha !== void 0 ? baseColor.withAlpha(alpha) : void 0;
+  const polygonFillColor = fillColor ? baseColor.withAlpha(alpha * POLYGON_FILL_ALPHA_RATIO) : void 0;
+  const lineMaterial = fillColor ? new Cesium3.ColorMaterialProperty(fillColor) : void 0;
+  const fillMaterial = polygonFillColor ? new Cesium3.ColorMaterialProperty(polygonFillColor) : void 0;
+  const fillColorProp = fillColor ? new Cesium3.ConstantProperty(fillColor) : void 0;
+  const strokeWidthProp = style.strokeWidth !== void 0 ? new Cesium3.ConstantProperty(style.strokeWidth) : void 0;
+  const billboardSizeProp = style.pointSize !== void 0 ? new Cesium3.ConstantProperty(style.pointSize * 2) : void 0;
+  const pointSizeProp = style.pointSize !== void 0 ? new Cesium3.ConstantProperty(style.pointSize) : void 0;
+  for (const entity of entities) {
+    if (entity.polyline) {
+      if (lineMaterial) entity.polyline.material = lineMaterial;
+      if (strokeWidthProp) entity.polyline.width = strokeWidthProp;
+    }
+    if (entity.polygon) {
+      if (fillMaterial && fillColorProp) {
+        entity.polygon.material = fillMaterial;
+        entity.polygon.outlineColor = fillColorProp;
+      }
+      syncPolygonOutlines(entity, fillColor, style.strokeWidth, polygonOutlines);
+    }
+    if (entity.billboard) {
+      if (fillColorProp) entity.billboard.color = fillColorProp;
+      if (billboardSizeProp) {
+        entity.billboard.width = billboardSizeProp;
+        entity.billboard.height = billboardSizeProp;
+      }
+    }
+    if (entity.point) {
+      if (fillColorProp) entity.point.color = fillColorProp;
+      if (pointSizeProp) entity.point.pixelSize = pointSizeProp;
+    }
+  }
+}
+function applyThematicLayerStyle(style, entities, polygonOutlines) {
+  const opacity = style.opacity ?? 0.6;
+  const choropleth = style.choropleth;
+  if (choropleth) {
+    applyChoroplethStyle(entities, choropleth.field, choropleth.breaks, choropleth.colors, opacity, polygonOutlines);
+    return;
+  }
+  const category = style.category;
+  if (category) {
+    applyCategoryStyle(entities, category.field, category.colors, opacity, polygonOutlines);
+    return;
+  }
+  if (style.randomColor) {
+    applyRandomColorStyle(entities, opacity, polygonOutlines);
+    return;
+  }
+  if (style.gradient) {
+    applyGradientStyle(entities, style.gradient, opacity, polygonOutlines);
+  }
+}
+function isValidImageryLayerStyle(style) {
+  const hasField = IMAGERY_LAYER_STYLE_KEYS.some((key) => style[key] !== void 0);
+  if (!hasField) return false;
+  for (const key of IMAGERY_LAYER_STYLE_KEYS) {
+    const value = style[key];
+    if (value === void 0) continue;
+    if (!isFiniteNumber(value)) return false;
+    if (key === "alpha" && !isInRange(value, 0, 1)) return false;
+  }
+  return true;
+}
+function applyImageryLayerStyle(layer, style) {
+  for (const key of IMAGERY_LAYER_STYLE_KEYS) {
+    const value = style[key];
+    if (value !== void 0) {
+      layer[key] = value;
+    }
+  }
+}
+function isValidPrimitiveLayerStyle(style) {
+  const hasField = [
+    style.color,
+    style.opacity,
+    style.outlineColor,
+    style.outlineWidth,
+    style.pointSize,
+    style.lineWidth
+  ].some((value) => value !== void 0);
+  if (!hasField) return false;
+  if (style.opacity !== void 0 && (!isFiniteNumber(style.opacity) || !isInRange(style.opacity, 0, 1))) return false;
+  if (style.outlineWidth !== void 0 && (!isFiniteNumber(style.outlineWidth) || !isInRange(style.outlineWidth, 0, 255))) return false;
+  if (style.pointSize !== void 0 && (!isFiniteNumber(style.pointSize) || !isInRange(style.pointSize, 0, 255))) return false;
+  if (style.lineWidth !== void 0 && (!isFiniteNumber(style.lineWidth) || !isInRange(style.lineWidth, 0, 255))) return false;
+  return true;
+}
+function applyGeoJsonPrimitiveStyle(primitive, style) {
+  const C = Cesium3;
+  if (primitive.points && C.BufferPoint && C.BufferPointMaterial) {
+    applyPrimitiveCollectionStyle(
+      primitive.points,
+      new C.BufferPoint(),
+      new C.BufferPointMaterial(),
+      style,
+      "point"
+    );
+  }
+  if (primitive.polylines && C.BufferPolyline && C.BufferPolylineMaterial) {
+    applyPrimitiveCollectionStyle(
+      primitive.polylines,
+      new C.BufferPolyline(),
+      new C.BufferPolylineMaterial(),
+      style,
+      "polyline"
+    );
+  }
+  if (primitive.polygons && C.BufferPolygon && C.BufferPolygonMaterial) {
+    applyPrimitiveCollectionStyle(
+      primitive.polygons,
+      new C.BufferPolygon(),
+      new C.BufferPolygonMaterial(),
+      style,
+      "polygon"
+    );
+  }
+}
+function applyPrimitiveCollectionStyle(collection, element, material, style, target) {
+  const color = style.color ? parseColor(style.color) : void 0;
+  const outlineColor = style.outlineColor ? parseColor(style.outlineColor) : void 0;
+  const count = collection.primitiveCount ?? 0;
+  for (let i = 0; i < count; i++) {
+    collection.get(i, element);
+    element.getMaterial(material);
+    if (color) {
+      material.color = color.withAlpha(style.opacity ?? color.alpha);
+    } else if (style.opacity !== void 0 && material.color) {
+      material.color = material.color.withAlpha(style.opacity);
+    }
+    if (outlineColor) material.outlineColor = outlineColor;
+    if (style.outlineWidth !== void 0) material.outlineWidth = style.outlineWidth;
+    if (target === "point" && style.pointSize !== void 0) material.size = style.pointSize;
+    if (target === "polyline" && style.lineWidth !== void 0) material.width = style.lineWidth;
+    element.setMaterial(material);
+  }
+}
+function applyChoroplethStyle(entities, field, breaks, colors, opacity, polygonOutlines) {
+  const fillColors = colors.map((c) => parseColor(c ?? DEFAULT_LAYER_COLOR).withAlpha(opacity));
+  const strokeColor = parseColor("#333333").withAlpha(0.6);
   for (const entity of entities) {
     const props = entity.properties;
     if (!props) continue;
@@ -967,19 +1149,7 @@ function applyChoroplethStyle(ds, field, breaks, colors, opacity) {
         break;
       }
     }
-    const fillColor = parseColor(colors[classIdx] ?? "#3B82F6").withAlpha(opacity);
-    const strokeColor = parseColor("#333333").withAlpha(0.6);
-    if (entity.polygon) {
-      entity.polygon.material = new Cesium3.ColorMaterialProperty(fillColor);
-      entity.polygon.outlineColor = new Cesium3.ConstantProperty(strokeColor);
-      entity.polygon.outlineWidth = new Cesium3.ConstantProperty(1);
-    } else if (entity.polyline) {
-      entity.polyline.material = new Cesium3.ColorMaterialProperty(fillColor);
-    } else if (entity.point) {
-      entity.point.color = new Cesium3.ConstantProperty(fillColor);
-    } else if (entity.billboard) {
-      entity.billboard.color = new Cesium3.ConstantProperty(fillColor);
-    }
+    applyColorToEntity(entity, fillColors[classIdx], strokeColor, polygonOutlines);
   }
 }
 var CATEGORY_PALETTE = [
@@ -996,48 +1166,49 @@ var CATEGORY_PALETTE = [
   "#E11D48",
   "#84CC16"
 ];
-function applyCategoryStyle(ds, field, customColors, opacity) {
+function getCategoryIndex(raw, categoryIndexes) {
+  if (raw === void 0 || raw === null) return -1;
+  if (typeof raw === "number" && Number.isFinite(raw)) return Math.trunc(raw);
+  const text = String(raw).trim();
+  if (!text) return -1;
+  const numeric = Number(text);
+  if (Number.isFinite(numeric)) return Math.trunc(numeric);
+  if (!categoryIndexes.has(text)) {
+    categoryIndexes.set(text, categoryIndexes.size);
+  }
+  return categoryIndexes.get(text);
+}
+function applyCategoryStyle(entities, field, customColors, opacity, polygonOutlines) {
   const palette = customColors?.length ? customColors : CATEGORY_PALETTE;
-  const entities = ds.entities.values;
+  const fillColors = palette.map((c) => parseColor(c).withAlpha(opacity));
+  const strokeColors = palette.map((c) => parseColor(c).withAlpha(Math.min(opacity + 0.2, 1)));
+  const noiseFill = parseColor("#6B7280").withAlpha(opacity);
+  const noiseStroke = parseColor("#6B7280").withAlpha(Math.min(opacity + 0.2, 1));
+  const categoryIndexes = /* @__PURE__ */ new Map();
   for (const entity of entities) {
     const props = entity.properties;
     if (!props) continue;
     const raw = props[field]?.getValue(Cesium3.JulianDate.now());
-    const val = raw !== void 0 && raw !== null ? Number(raw) : -1;
-    const cssColor = val < 0 ? "#6B7280" : palette[val % palette.length] ?? "#6B7280";
-    const fillColor = parseColor(cssColor).withAlpha(opacity);
-    const strokeColor = parseColor(cssColor).withAlpha(Math.min(opacity + 0.2, 1));
-    if (entity.point) {
-      entity.point.color = new Cesium3.ConstantProperty(fillColor);
-      entity.point.pixelSize = new Cesium3.ConstantProperty(10);
-      entity.point.outlineColor = new Cesium3.ConstantProperty(strokeColor);
-      entity.point.outlineWidth = new Cesium3.ConstantProperty(1);
-    } else if (entity.billboard) {
-      entity.billboard.color = new Cesium3.ConstantProperty(fillColor);
-    } else if (entity.polygon) {
-      entity.polygon.material = new Cesium3.ColorMaterialProperty(fillColor);
-      entity.polygon.outlineColor = new Cesium3.ConstantProperty(strokeColor);
-    } else if (entity.polyline) {
-      entity.polyline.material = new Cesium3.ColorMaterialProperty(fillColor);
-      entity.polyline.width = new Cesium3.ConstantProperty(3);
-    }
+    const val = getCategoryIndex(raw, categoryIndexes);
+    const idx = val < 0 ? -1 : val % palette.length;
+    const fillColor = idx < 0 ? noiseFill : fillColors[idx];
+    const strokeColor = idx < 0 ? noiseStroke : strokeColors[idx];
+    applyColorToEntity(entity, fillColor, strokeColor, polygonOutlines);
   }
 }
-function applyRandomColorStyle(ds, opacity) {
-  const entities = ds.entities.values;
+function applyRandomColorStyle(entities, opacity, polygonOutlines) {
   for (const entity of entities) {
     const hue = Math.random();
     const sat = 0.5 + Math.random() * 0.4;
     const light = 0.4 + Math.random() * 0.25;
     const fillColor = Cesium3.Color.fromHsl(hue, sat, light, opacity);
     const strokeColor = Cesium3.Color.fromHsl(hue, sat, light, Math.min(opacity + 0.3, 1));
-    applyColorToEntity(entity, fillColor, strokeColor);
+    applyColorToEntity(entity, fillColor, strokeColor, polygonOutlines);
   }
 }
-function applyGradientStyle(ds, gradient, opacity) {
+function applyGradientStyle(entities, gradient, opacity, polygonOutlines) {
   const startColor = parseColor(gradient[0]);
   const endColor = parseColor(gradient[1]);
-  const entities = ds.entities.values;
   const total = Math.max(entities.length - 1, 1);
   for (let i = 0; i < entities.length; i++) {
     const t = i / total;
@@ -1046,19 +1217,29 @@ function applyGradientStyle(ds, gradient, opacity) {
     const b = startColor.blue + (endColor.blue - startColor.blue) * t;
     const fillColor = new Cesium3.Color(r, g, b, opacity);
     const strokeColor = new Cesium3.Color(r, g, b, Math.min(opacity + 0.3, 1));
-    applyColorToEntity(entities[i], fillColor, strokeColor);
+    applyColorToEntity(entities[i], fillColor, strokeColor, polygonOutlines);
   }
 }
-function applyColorToEntity(entity, fillColor, strokeColor) {
+function applyColorToEntity(entity, fillColor, strokeColor, polygonOutlines) {
   if (entity.polygon) {
     entity.polygon.material = new Cesium3.ColorMaterialProperty(fillColor);
     entity.polygon.outlineColor = new Cesium3.ConstantProperty(strokeColor);
+    syncPolygonOutlines(entity, strokeColor, void 0, polygonOutlines);
   } else if (entity.polyline) {
     entity.polyline.material = new Cesium3.ColorMaterialProperty(fillColor);
   } else if (entity.point) {
     entity.point.color = new Cesium3.ConstantProperty(fillColor);
   } else if (entity.billboard) {
     entity.billboard.color = new Cesium3.ConstantProperty(fillColor);
+  }
+}
+function syncPolygonOutlines(entity, strokeColor, strokeWidth, polygonOutlines) {
+  const outlines = polygonOutlines?.get(entity);
+  if (!outlines) return;
+  for (const outline of outlines) {
+    if (!outline.polyline) continue;
+    if (strokeColor) outline.polyline.material = new Cesium3.ColorMaterialProperty(strokeColor);
+    if (strokeWidth !== void 0) outline.polyline.width = new Cesium3.ConstantProperty(strokeWidth);
   }
 }
 function detectGeometryType(geojson) {
@@ -2804,7 +2985,7 @@ var CesiumBridge = class {
     this._emit("layerRemoved", { id });
   }
   clearAll() {
-    for (const [id, t] of this._activeTrajectories) {
+    for (const [, t] of this._activeTrajectories) {
       t.stop();
     }
     this._activeTrajectories.clear();

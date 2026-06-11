@@ -12,6 +12,8 @@ export type {
   ZoomToExtentParams,
   LayerInfo,
   LayerStyle,
+  ImageryLayerStyle,
+  PrimitiveLayerStyle,
   ChoroplethStyle,
   CategoryStyle,
   AddGeoJsonLayerParams,

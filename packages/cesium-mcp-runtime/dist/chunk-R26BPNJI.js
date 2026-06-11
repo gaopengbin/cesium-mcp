@@ -206,7 +206,9 @@ var paramDescriptions = {
   updateLayerStyle: {
     layerId: "Layer ID",
     labelStyle: "Label style (font, fillColor, outlineColor, outlineWidth, scale, etc.)",
-    layerStyle: "Layer style (color, opacity, strokeWidth, pointSize)",
+    layerStyle: "Entity layer style (color, opacity, strokeWidth, pointSize; GeoJSON thematic styles choropleth/category/randomColor/gradient are mutually exclusive)",
+    imageryStyle: "Imagery visual style (alpha, brightness, contrast, hue, saturation, gamma); use setLayerVisibility for show/hide",
+    primitiveStyle: "GeoJSON Primitive material style (color, opacity, outlineColor, outlineWidth, pointSize, lineWidth); use setLayerVisibility for show/hide",
     tileStyle: "3D Tiles style (Cesium3DTileStyle expressions: color, show, pointSize, meta)"
   },
   setBasemap: {
@@ -676,7 +678,9 @@ var paramDescriptions2 = {
   updateLayerStyle: {
     layerId: "\u56FE\u5C42ID",
     labelStyle: "\u6807\u6CE8\u6837\u5F0F\uFF08font, fillColor, outlineColor, outlineWidth, scale \u7B49\uFF09",
-    layerStyle: "\u56FE\u5C42\u6837\u5F0F\uFF08color, opacity, strokeWidth, pointSize\uFF09",
+    layerStyle: "\u5B9E\u4F53\u56FE\u5C42\u6837\u5F0F\uFF08color, opacity, strokeWidth, pointSize\uFF1BGeoJSON \u4E3B\u9898\u6837\u5F0F choropleth/category/randomColor/gradient \u4E92\u65A5\uFF09",
+    imageryStyle: "\u5F71\u50CF\u56FE\u5C42\u89C6\u89C9\u6837\u5F0F\uFF08alpha, brightness, contrast, hue, saturation, gamma\uFF09\uFF1B\u663E\u9690\u8BF7\u4F7F\u7528 setLayerVisibility",
+    primitiveStyle: "GeoJSON Primitive \u6750\u8D28\u6837\u5F0F\uFF08color, opacity, outlineColor, outlineWidth, pointSize, lineWidth\uFF09\uFF1B\u663E\u9690\u8BF7\u4F7F\u7528 setLayerVisibility",
     tileStyle: "3D Tiles \u6837\u5F0F\uFF08Cesium3DTileStyle \u8868\u8FBE\u5F0F\uFF1Acolor, show, pointSize, meta\uFF09"
   },
   setBasemap: {
@@ -1049,6 +1053,8 @@ function zodShapeToJsonSchema(shape) {
       } else if (innerType._def?.typeName === "ZodOptional") {
         isOptional = true;
         innerType = innerType._def.innerType;
+      } else if (innerType._def?.typeName === "ZodEffects") {
+        innerType = innerType._def.schema;
       } else {
         break;
       }
@@ -1136,7 +1142,7 @@ async function handleHttpRequest(req, res) {
         }
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true, sent, total: commands.length }));
-      } catch (err) {
+      } catch {
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: false, error: "Invalid JSON" }));
       }
@@ -1308,7 +1314,7 @@ function _tryListen(httpServer, port) {
       httpServer.removeListener("listening", onListening);
       if (err.code === "EADDRINUSE") resolve(false);
       else {
-        console.error(`[cesium-mcp-runtime] HTTP server error:`, err.message);
+        console.error("[cesium-mcp-runtime] HTTP server error:", err.message);
         resolve(false);
       }
     };
@@ -1329,9 +1335,9 @@ async function startServer() {
   _setupWss(wss);
   if (await _tryListen(httpServer, WS_PORT)) {
     console.error(`[cesium-mcp-runtime] HTTP + WebSocket server on http://localhost:${WS_PORT}`);
-    console.error(`[cesium-mcp-runtime] POST /api/command \u2014 \u63A8\u9001\u5730\u56FE\u547D\u4EE4`);
-    console.error(`[cesium-mcp-runtime] POST /api/relay   \u2014 \u547D\u4EE4\u4E2D\u7EE7\uFF08request-response\uFF09`);
-    console.error(`[cesium-mcp-runtime] GET  /api/status  \u2014 \u8FDE\u63A5\u72B6\u6001`);
+    console.error("[cesium-mcp-runtime] POST /api/command \u2014 \u63A8\u9001\u5730\u56FE\u547D\u4EE4");
+    console.error("[cesium-mcp-runtime] POST /api/relay   \u2014 \u547D\u4EE4\u4E2D\u7EE7\uFF08request-response\uFF09");
+    console.error("[cesium-mcp-runtime] GET  /api/status  \u2014 \u8FDE\u63A5\u72B6\u6001");
     return;
   }
   httpServer.close();
@@ -1359,7 +1365,7 @@ async function startServer() {
 }
 function _setupWss(wss) {
   wss.on("connection", (ws, req) => {
-    const sessionId = new URL(req.url ?? "/", `http://localhost`).searchParams.get("session") ?? "default";
+    const sessionId = new URL(req.url ?? "/", "http://localhost").searchParams.get("session") ?? "default";
     const oldWs = browserClients.get(sessionId);
     if (oldWs && oldWs.readyState === WebSocket.OPEN) {
       console.error(`[ws] \u540C\u540D session=${sessionId} \u5DF2\u5B58\u5728\uFF0C\u5173\u95ED\u65E7\u8FDE\u63A5`);
@@ -1392,7 +1398,7 @@ function _setupWss(wss) {
 }
 var server = new McpServer({
   name: "cesium-mcp-runtime",
-  version: "1.139.19",
+  version: "1.142.0",
   title: "Cesium MCP Runtime",
   description: "AI-powered 3D globe control via MCP \u2014 camera, layers, entities, animation, and interaction with CesiumJS.",
   websiteUrl: "https://github.com/gaopengbin/cesium-mcp"
@@ -1952,13 +1958,84 @@ _registerTool(
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   }
 );
+var choroplethStyleSchema = z.object({
+  field: z.string().min(1).describe("Property field used for choropleth classification"),
+  breaks: z.array(z.number()).min(2).describe("Ascending class break values; colors length must be breaks length minus one"),
+  colors: z.array(z.string()).min(1).describe("CSS colors for each choropleth interval")
+}).superRefine((value, ctx) => {
+  if (value.colors.length !== value.breaks.length - 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["colors"],
+      message: "colors length must equal breaks length minus one"
+    });
+  }
+  for (let i = 1; i < value.breaks.length; i++) {
+    if (value.breaks[i] <= value.breaks[i - 1]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["breaks", i],
+        message: "breaks must be strictly ascending"
+      });
+    }
+  }
+});
+var categoryStyleSchema = z.object({
+  field: z.string().min(1).describe("Property field used for category styling"),
+  colors: z.array(z.string()).min(1).optional().describe("Optional CSS color palette")
+});
+var layerStyleSchema = z.object({
+  color: z.string().optional().describe("CSS color for entity layer features"),
+  opacity: z.number().min(0).max(1).optional().describe("Opacity in range 0-1"),
+  strokeWidth: z.number().min(0).optional().describe("Polyline or polygon outline width"),
+  pointSize: z.number().min(0).optional().describe("Point or billboard size"),
+  randomColor: z.boolean().optional().describe("Apply random colors to original GeoJSON entities"),
+  gradient: z.tuple([z.string(), z.string()]).optional().describe("Two CSS colors used as index gradient"),
+  choropleth: choroplethStyleSchema.optional().describe("GeoJSON choropleth style"),
+  category: categoryStyleSchema.optional().describe("GeoJSON category style")
+}).superRefine((value, ctx) => {
+  const enabled = [
+    value.choropleth !== void 0,
+    value.category !== void 0,
+    value.randomColor === true,
+    value.gradient !== void 0
+  ].filter(Boolean).length;
+  if (enabled > 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Only one thematic style is allowed: choropleth, category, randomColor, or gradient"
+    });
+  }
+});
+var imageryStyleSchema = z.object({
+  alpha: z.number().min(0).max(1).optional().describe("Imagery alpha in range 0-1"),
+  brightness: z.number().optional().describe("Imagery brightness multiplier"),
+  contrast: z.number().optional().describe("Imagery contrast multiplier"),
+  hue: z.number().optional().describe("Imagery hue shift in radians"),
+  saturation: z.number().optional().describe("Imagery saturation multiplier"),
+  gamma: z.number().optional().describe("Imagery gamma correction")
+}).refine((value) => Object.values(value).some((v) => v !== void 0), {
+  message: "At least one imagery style field is required"
+});
+var primitiveStyleSchema = z.object({
+  color: z.string().optional().describe("CSS fill color for GeoJSON Primitive materials"),
+  opacity: z.number().min(0).max(1).optional().describe("Fill alpha in range 0-1"),
+  outlineColor: z.string().optional().describe("CSS outline color for GeoJSON Primitive materials"),
+  outlineWidth: z.number().min(0).max(255).optional().describe("Outline width in range 0-255"),
+  pointSize: z.number().min(0).max(255).optional().describe("Point size in range 0-255"),
+  lineWidth: z.number().min(0).max(255).optional().describe("Polyline width in range 0-255")
+}).refine((value) => Object.values(value).some((v) => v !== void 0), {
+  message: "At least one primitive style field is required"
+});
 _registerTool(
   "updateLayerStyle",
   "\u4FEE\u6539\u5DF2\u6709\u56FE\u5C42\u7684\u6837\u5F0F\uFF08\u989C\u8272\u3001\u900F\u660E\u5EA6\u3001\u6807\u6CE8\u6837\u5F0F\u30013D Tiles \u6837\u5F0F\u7B49\uFF09",
   {
     layerId: z.string().describe("\u56FE\u5C42ID"),
     labelStyle: z.record(z.unknown()).optional().describe("\u6807\u6CE8\u6837\u5F0F\uFF08font, fillColor, outlineColor, outlineWidth, scale \u7B49\uFF09"),
-    layerStyle: z.record(z.unknown()).optional().describe("\u56FE\u5C42\u6837\u5F0F\uFF08color, opacity, strokeWidth, pointSize\uFF09"),
+    layerStyle: layerStyleSchema.optional().describe("Entity layer style. Thematic fields are GeoJSON-only and mutually exclusive."),
+    imageryStyle: imageryStyleSchema.optional().describe("Imagery layer visual style. Visibility is controlled by setLayerVisibility."),
+    primitiveStyle: primitiveStyleSchema.optional().describe("GeoJSON Primitive material style. Visibility is controlled by setLayerVisibility."),
     tileStyle: z.object({
       color: z.string().optional().describe(`3D Tiles \u989C\u8272\u8868\u8FBE\u5F0F\uFF0C\u5982 "color('red')" \u6216\u6761\u4EF6\u8868\u8FBE\u5F0F`),
       show: z.string().optional().describe('3D Tiles \u663E\u793A\u6761\u4EF6\u8868\u8FBE\u5F0F\uFF0C\u5982 "${Height} > 50"'),
@@ -2678,7 +2755,7 @@ server.tool(
 function _createHttpMcpServer(filterToolsets) {
   const s = new McpServer({
     name: "cesium-mcp-runtime",
-    version: "1.139.19",
+    version: "1.142.0",
     title: "Cesium MCP Runtime",
     description: "AI-powered 3D globe control via MCP \u2014 camera, layers, entities, animation, and interaction with CesiumJS.",
     websiteUrl: "https://github.com/gaopengbin/cesium-mcp"
@@ -2778,7 +2855,7 @@ async function _handleMcpRequest(req, res) {
           });
           await mcpServer.connect(transport);
           await transport.handleRequest(req, res, parsedBody);
-        } catch (err) {
+        } catch {
           if (!res.headersSent) {
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32700, message: "Parse error" }, id: null }));
@@ -2813,7 +2890,7 @@ async function main(argv = []) {
       const allToolCount = _toolDefs.size;
       console.error(`[cesium-mcp-runtime] MCP Server running (Streamable HTTP), ${allToolCount} tools available`);
       console.error(`[cesium-mcp-runtime] MCP endpoint: http://localhost:${port}/mcp`);
-      console.error(`[cesium-mcp-runtime] All toolsets enabled for HTTP mode`);
+      console.error("[cesium-mcp-runtime] All toolsets enabled for HTTP mode");
       if (_relayPort > 0) {
         console.error(`[cesium-mcp-runtime] Relay mode active \u2192 commands forwarded to port ${_relayPort}`);
       }
