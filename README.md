@@ -1,8 +1,5 @@
+<img width="2172" height="724" alt="ChatGPT Image 2026年7月5日 22_13_19" src="https://github.com/user-attachments/assets/098dcbef-e0bc-4214-8adf-b80a29e50e65" />
 <div align="center">
-  <img src="docs/public/logo.svg" alt="Cesium MCP" width="120">
-
-  <h1>Cesium MCP</h1>
-
   <p><strong>The minimum-overhead way to add AI commands to CesiumJS</strong></p>
 
   <p><a href="packages/cesium-mcp-bridge/">cesium-mcp-bridge</a> is a protocol-agnostic command dispatcher with 60+ tools, drivable from <strong>browser-only agents</strong>, <strong>function calling</strong>, or <strong>MCP</strong> — your choice.</p>
