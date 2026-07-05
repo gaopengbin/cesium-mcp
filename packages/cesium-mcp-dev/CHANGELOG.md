@@ -1,5 +1,33 @@
 # cesium-mcp-dev
 
+## 1.142.3
+
+### Patch Changes
+
+- [`4879ed8`](https://github.com/gaopengbin/cesium-mcp/commit/4879ed8053ca60abc1385f19b6129d7f3b6a059a) Thanks [@gaopengbin](https://github.com/gaopengbin)! - fix(entity): derive layerId from Cesium entity.id to avoid collisions in batchAddEntities
+
+  The layer registration path for `addMarker` / `addPolyline` / `addPolygon` /
+  `addModel` and the shared `_registerEntityLayer` (billboard / box / cylinder /
+  ellipse / rectangle / wall / corridor) previously built `layerId` from
+  `Date.now()`. When `batchAddEntities` loops these helpers synchronously within
+  the same millisecond, multiple entities collide on the same layerId. The
+  consequences: `LayerManager._cesiumRefs` (a Map) silently overwrites the
+  earlier Cesium entity reference, `layers` (an Array) accumulates duplicate
+  records with the same id, and any subsequent `removeLayer(id)` targets the
+  overwritten (last) refs — so users see the wrong entity removed, or an
+  "impossible to delete" entry that keeps its Cesium visual around.
+
+  Now each layerId is `${type}_${entity.id}` where entity.id is Cesium's own
+  UUID (unique per entity, generated at `new Entity({...})` time). The fix is
+  targeted at the five in-memory synchronous paths; the async loaders in
+  `LayerManager` (geojson / imagery / 3dtiles / czml / kml / heatmap) keep their
+  `id ?? \`type\_\${Date.now()}\`` pattern because they are naturally spaced by
+  awaited fetch/load and already accept an explicit id override.
+
+  Also wraps the batchAddEntities loop with Cesium's official batch-insert
+  optimization: `viewer.entities.suspendEvents()` / `resumeEvents()`, so
+  `collectionChanged` fires once for the whole batch instead of per entity.
+
 ## 1.142.2
 
 ### Patch Changes
