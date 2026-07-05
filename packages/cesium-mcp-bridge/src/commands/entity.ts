@@ -291,31 +291,38 @@ export function batchAddEntities(
   const entityIds: string[] = []
   const errors: string[] = []
 
-  for (let i = 0; i < entities.length; i++) {
-    const def = entities[i]!
-    const { type, ...params } = def
-    try {
-      const fn = helpers[type === 'marker' ? 'addMarker'
-        : type === 'polyline' ? 'addPolyline'
-        : type === 'polygon' ? 'addPolygon'
-        : type === 'model' ? 'addModel'
-        : type === 'billboard' ? 'addBillboard'
-        : type === 'box' ? 'addBox'
-        : type === 'cylinder' ? 'addCylinder'
-        : type === 'ellipse' ? 'addEllipse'
-        : type === 'rectangle' ? 'addRectangle'
-        : type === 'wall' ? 'addWall'
-        : type === 'corridor' ? 'addCorridor'
-        : null as never]
-      if (!fn) {
-        errors.push(`[${i}] Unknown type: ${type}`)
-        continue
+  // suspendEvents 是官方推荐的批量新增优化 —— 冻结 collectionChanged 事件派发，
+  // 避免每加一个 entity 都触发一次 UI/绑定回调；resumeEvents 时统一 flush。
+  viewer.entities.suspendEvents()
+  try {
+    for (let i = 0; i < entities.length; i++) {
+      const def = entities[i]!
+      const { type, ...params } = def
+      try {
+        const fn = helpers[type === 'marker' ? 'addMarker'
+          : type === 'polyline' ? 'addPolyline'
+          : type === 'polygon' ? 'addPolygon'
+          : type === 'model' ? 'addModel'
+          : type === 'billboard' ? 'addBillboard'
+          : type === 'box' ? 'addBox'
+          : type === 'cylinder' ? 'addCylinder'
+          : type === 'ellipse' ? 'addEllipse'
+          : type === 'rectangle' ? 'addRectangle'
+          : type === 'wall' ? 'addWall'
+          : type === 'corridor' ? 'addCorridor'
+          : null as never]
+        if (!fn) {
+          errors.push(`[${i}] Unknown type: ${type}`)
+          continue
+        }
+        const entity = fn(params)
+        entityIds.push(entity.id)
+      } catch (err) {
+        errors.push(`[${i}] ${err instanceof Error ? err.message : String(err)}`)
       }
-      const entity = fn(params)
-      entityIds.push(entity.id)
-    } catch (err) {
-      errors.push(`[${i}] ${err instanceof Error ? err.message : String(err)}`)
     }
+  } finally {
+    viewer.entities.resumeEvents()
   }
   return { entityIds, errors }
 }

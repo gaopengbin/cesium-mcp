@@ -2175,20 +2175,25 @@ var CesiumMcpBridge = (function (exports) {
   function batchAddEntities(viewer, entities, helpers) {
     const entityIds = [];
     const errors = [];
-    for (let i = 0; i < entities.length; i++) {
-      const def = entities[i];
-      const { type, ...params } = def;
-      try {
-        const fn = helpers[type === "marker" ? "addMarker" : type === "polyline" ? "addPolyline" : type === "polygon" ? "addPolygon" : type === "model" ? "addModel" : type === "billboard" ? "addBillboard" : type === "box" ? "addBox" : type === "cylinder" ? "addCylinder" : type === "ellipse" ? "addEllipse" : type === "rectangle" ? "addRectangle" : type === "wall" ? "addWall" : type === "corridor" ? "addCorridor" : null];
-        if (!fn) {
-          errors.push(`[${i}] Unknown type: ${type}`);
-          continue;
+    viewer.entities.suspendEvents();
+    try {
+      for (let i = 0; i < entities.length; i++) {
+        const def = entities[i];
+        const { type, ...params } = def;
+        try {
+          const fn = helpers[type === "marker" ? "addMarker" : type === "polyline" ? "addPolyline" : type === "polygon" ? "addPolygon" : type === "model" ? "addModel" : type === "billboard" ? "addBillboard" : type === "box" ? "addBox" : type === "cylinder" ? "addCylinder" : type === "ellipse" ? "addEllipse" : type === "rectangle" ? "addRectangle" : type === "wall" ? "addWall" : type === "corridor" ? "addCorridor" : null];
+          if (!fn) {
+            errors.push(`[${i}] Unknown type: ${type}`);
+            continue;
+          }
+          const entity = fn(params);
+          entityIds.push(entity.id);
+        } catch (err) {
+          errors.push(`[${i}] ${err instanceof Error ? err.message : String(err)}`);
         }
-        const entity = fn(params);
-        entityIds.push(entity.id);
-      } catch (err) {
-        errors.push(`[${i}] ${err instanceof Error ? err.message : String(err)}`);
       }
+    } finally {
+      viewer.entities.resumeEvents();
     }
     return { entityIds, errors };
   }
@@ -3826,7 +3831,7 @@ var CesiumMcpBridge = (function (exports) {
     }
     addMarker(params) {
       const entity = addMarker(this._viewer, params);
-      const layerId = `marker_${Date.now()}`;
+      const layerId = `marker_${entity.id}`;
       const info = {
         id: layerId,
         name: params.label ?? layerId,
@@ -3841,7 +3846,7 @@ var CesiumMcpBridge = (function (exports) {
     }
     addPolyline(params) {
       const entity = addPolyline(this._viewer, params);
-      const layerId = `polyline_${Date.now()}`;
+      const layerId = `polyline_${entity.id}`;
       const info = {
         id: layerId,
         name: params.label ?? layerId,
@@ -3856,7 +3861,7 @@ var CesiumMcpBridge = (function (exports) {
     }
     addPolygon(params) {
       const entity = addPolygon(this._viewer, params);
-      const layerId = `polygon_${Date.now()}`;
+      const layerId = `polygon_${entity.id}`;
       const info = {
         id: layerId,
         name: params.label ?? layerId,
@@ -3871,7 +3876,7 @@ var CesiumMcpBridge = (function (exports) {
     }
     addModel(params) {
       const entity = addModel(this._viewer, params);
-      const layerId = `model_${Date.now()}`;
+      const layerId = `model_${entity.id}`;
       const info = {
         id: layerId,
         name: params.label ?? layerId,
@@ -3926,7 +3931,7 @@ var CesiumMcpBridge = (function (exports) {
     }
     // ==================== Entity Types (融合官方 Entity Server) ====================
     _registerEntityLayer(entity, type, name, color) {
-      const layerId = `${type}_${Date.now()}`;
+      const layerId = `${type}_${entity.id}`;
       const info = {
         id: layerId,
         name: name ?? entity.name ?? layerId,

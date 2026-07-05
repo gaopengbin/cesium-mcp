@@ -35,7 +35,14 @@ import { computeFeatureCentroid, centroidOfCoords, batchAddEntities, queryEntiti
 
 describe('batchAddEntities', () => {
   function makeViewer() {
-    return {} as any // viewer is not used directly by batchAddEntities
+    // batchAddEntities wraps the loop with viewer.entities.suspendEvents/resumeEvents
+    // to batch collectionChanged notifications (official Cesium optimization pattern).
+    return {
+      entities: {
+        suspendEvents: () => {},
+        resumeEvents: () => {},
+      },
+    } as any
   }
 
   function makeHelpers() {
@@ -107,6 +114,41 @@ describe('batchAddEntities', () => {
     const result = batchAddEntities(makeViewer(), [], helpers)
     expect(result.entityIds).toHaveLength(0)
     expect(result.errors).toHaveLength(0)
+  })
+
+  it('should suspend/resume entity collection events around the batch', () => {
+    // Cesium official recommendation: batch add should wrap in
+    // suspendEvents/resumeEvents to avoid firing collectionChanged per entity.
+    const suspend = vi.fn()
+    const resume = vi.fn()
+    const viewer = { entities: { suspendEvents: suspend, resumeEvents: resume } } as any
+    const { helpers } = makeHelpers()
+    batchAddEntities(viewer, [
+      { type: 'marker', longitude: 0, latitude: 0 },
+      { type: 'marker', longitude: 1, latitude: 1 },
+    ] as any, helpers)
+    expect(suspend).toHaveBeenCalledTimes(1)
+    expect(resume).toHaveBeenCalledTimes(1)
+  })
+
+  it('should resume events even when a helper throws', () => {
+    const suspend = vi.fn()
+    const resume = vi.fn()
+    const viewer = { entities: { suspendEvents: suspend, resumeEvents: resume } } as any
+    const { helpers } = makeHelpers()
+    helpers.addMarker = () => { throw new Error('boom') }
+    batchAddEntities(viewer, [{ type: 'marker' }] as any, helpers)
+    expect(resume).toHaveBeenCalledTimes(1)
+  })
+
+  it('should produce distinct entityIds when many are added in the same tick', () => {
+    // Regression guard: layerId used to derive from Date.now() at the bridge
+    // level, causing collisions when batchAddEntities looped synchronously in
+    // one ms. entity.id is Cesium-assigned and unique, so IDs must all differ.
+    const { helpers } = makeHelpers()
+    const defs = Array.from({ length: 20 }, () => ({ type: 'marker' as const }))
+    const result = batchAddEntities(makeViewer(), defs as any, helpers)
+    expect(new Set(result.entityIds).size).toBe(20)
   })
 
   it('should dispatch all supported entity types', () => {

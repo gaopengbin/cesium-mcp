@@ -588,7 +588,7 @@ export class CesiumBridge {
 
   addMarker(params: AddMarkerParams): Cesium.Entity {
     const entity = addMarker(this._viewer, params)
-    const layerId = `marker_${Date.now()}`
+    const layerId = `marker_${entity.id}`
     const info: LayerInfo = {
       id: layerId,
       name: params.label ?? layerId,
@@ -604,7 +604,7 @@ export class CesiumBridge {
 
   addPolyline(params: AddPolylineParams): Cesium.Entity {
     const entity = addPolyline(this._viewer, params)
-    const layerId = `polyline_${Date.now()}`
+    const layerId = `polyline_${entity.id}`
     const info: LayerInfo = {
       id: layerId,
       name: params.label ?? layerId,
@@ -620,7 +620,7 @@ export class CesiumBridge {
 
   addPolygon(params: AddPolygonParams): Cesium.Entity {
     const entity = addPolygon(this._viewer, params)
-    const layerId = `polygon_${Date.now()}`
+    const layerId = `polygon_${entity.id}`
     const info: LayerInfo = {
       id: layerId,
       name: params.label ?? layerId,
@@ -636,7 +636,7 @@ export class CesiumBridge {
 
   addModel(params: AddModelParams): Cesium.Entity {
     const entity = addModel(this._viewer, params)
-    const layerId = `model_${Date.now()}`
+    const layerId = `model_${entity.id}`
     const info: LayerInfo = {
       id: layerId,
       name: params.label ?? layerId,
@@ -705,7 +705,7 @@ export class CesiumBridge {
   // ==================== Entity Types (融合官方 Entity Server) ====================
 
   private _registerEntityLayer(entity: Cesium.Entity, type: string, name?: string, color?: string): Cesium.Entity {
-    const layerId = `${type}_${Date.now()}`
+    const layerId = `${type}_${entity.id}`
     const info: LayerInfo = {
       id: layerId,
       name: name ?? entity.name ?? layerId,
