@@ -100,6 +100,14 @@ function flyTo(viewer, params) {
   const target = Cesium3__namespace.Cartesian3.fromDegrees(longitude, latitude, 0);
   const range = _heightToRange(height, pitch);
   return new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(fallback);
+      resolve();
+    };
+    const fallback = setTimeout(done, (duration + 1) * 1e3);
     viewer.camera.flyToBoundingSphere(new Cesium3__namespace.BoundingSphere(target, 0), {
       duration,
       offset: new Cesium3__namespace.HeadingPitchRange(
@@ -107,7 +115,8 @@ function flyTo(viewer, params) {
         Cesium3__namespace.Math.toRadians(pitch),
         range
       ),
-      complete: resolve
+      complete: done,
+      cancel: done
     });
   });
 }
@@ -141,10 +150,19 @@ function zoomToExtent(viewer, params) {
   const { bbox, duration = 1.5 } = params;
   const [west, south, east, north] = bbox;
   return new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(fallback);
+      resolve();
+    };
+    const fallback = setTimeout(done, (duration + 1) * 1e3);
     viewer.camera.flyTo({
       destination: Cesium3__namespace.Rectangle.fromDegrees(west, south, east, north),
       duration,
-      complete: resolve
+      complete: done,
+      cancel: done
     });
   });
 }

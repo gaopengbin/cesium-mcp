@@ -28,6 +28,17 @@ export function flyTo(viewer: Cesium.Viewer, params: FlyToParams): Promise<void>
   const range = _heightToRange(height, pitch)
 
   return new Promise((resolve) => {
+    let settled = false
+    const done = () => {
+      if (settled) return
+      settled = true
+      clearTimeout(fallback)
+      resolve()
+    }
+    // 兜底：Cesium 在"目标已在相机附近"或"被下一个 fly 打断"等场景下
+    // 可能既不触发 complete 也不触发 cancel，避免调用者永远 pending
+    const fallback = setTimeout(done, (duration + 1) * 1000)
+
     viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 0), {
       duration,
       offset: new Cesium.HeadingPitchRange(
@@ -35,7 +46,8 @@ export function flyTo(viewer: Cesium.Viewer, params: FlyToParams): Promise<void>
         Cesium.Math.toRadians(pitch),
         range,
       ),
-      complete: resolve,
+      complete: done,
+      cancel: done,
     })
   })
 }
@@ -76,10 +88,20 @@ export function zoomToExtent(viewer: Cesium.Viewer, params: ZoomToExtentParams):
   const [west, south, east, north] = bbox
 
   return new Promise((resolve) => {
+    let settled = false
+    const done = () => {
+      if (settled) return
+      settled = true
+      clearTimeout(fallback)
+      resolve()
+    }
+    const fallback = setTimeout(done, (duration + 1) * 1000)
+
     viewer.camera.flyTo({
       destination: Cesium.Rectangle.fromDegrees(west, south, east, north),
       duration,
-      complete: resolve,
+      complete: done,
+      cancel: done,
     })
   })
 }

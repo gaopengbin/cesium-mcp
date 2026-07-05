@@ -713,6 +713,14 @@ var CesiumMcpBridge = (function (exports) {
     const target = Cesium2.Cartesian3.fromDegrees(longitude, latitude, 0);
     const range = _heightToRange(height, pitch);
     return new Promise((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(fallback);
+        resolve();
+      };
+      const fallback = setTimeout(done, (duration + 1) * 1e3);
       viewer.camera.flyToBoundingSphere(new Cesium2.BoundingSphere(target, 0), {
         duration,
         offset: new Cesium2.HeadingPitchRange(
@@ -720,7 +728,8 @@ var CesiumMcpBridge = (function (exports) {
           Cesium2.Math.toRadians(pitch),
           range
         ),
-        complete: resolve
+        complete: done,
+        cancel: done
       });
     });
   }
@@ -754,10 +763,19 @@ var CesiumMcpBridge = (function (exports) {
     const { bbox, duration = 1.5 } = params;
     const [west, south, east, north] = bbox;
     return new Promise((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(fallback);
+        resolve();
+      };
+      const fallback = setTimeout(done, (duration + 1) * 1e3);
       viewer.camera.flyTo({
         destination: Cesium2.Rectangle.fromDegrees(west, south, east, north),
         duration,
-        complete: resolve
+        complete: done,
+        cancel: done
       });
     });
   }
