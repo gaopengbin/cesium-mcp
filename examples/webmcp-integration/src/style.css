@@ -1,0 +1,50 @@
+:root {
+  color: #f4f8fa;
+  background: #071018;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body, #cesiumContainer { width: 100%; height: 100%; margin: 0; }
+body { overflow: hidden; }
+
+.panel {
+  position: fixed;
+  z-index: 10;
+  top: 20px;
+  left: 20px;
+  width: min(360px, calc(100vw - 40px));
+  padding: 20px;
+  border: 1px solid rgba(166, 196, 214, 0.22);
+  border-radius: 18px;
+  background: rgba(7, 16, 24, 0.9);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(20px);
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: #4cc9a7;
+  font: 11px ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1 { margin: 0; font-size: 24px; letter-spacing: -0.04em; }
+.status { margin: 16px 0; color: #a8bac5; font-size: 13px; }
+.status::before { content: '●'; margin-right: 8px; color: #f2b84b; }
+.status[data-state='ready']::before { color: #4cc9a7; }
+.actions { display: flex; gap: 8px; }
+
+button {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(166, 196, 214, 0.22);
+  border-radius: 10px;
+  color: #f4f8fa;
+  background: #11212d;
+  cursor: pointer;
+}
+
+button:hover { border-color: #4cc9a7; }
+.note { margin: 16px 0 0; color: #718793; font-size: 11px; line-height: 1.55; }

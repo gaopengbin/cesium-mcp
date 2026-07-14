@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#071018">
+    <title>Cesium WebMCP Integration</title>
+  </head>
+  <body>
+    <div id="cesiumContainer"></div>
+    <aside class="panel">
+      <p class="eyebrow">Developer example</p>
+      <h1>Cesium + WebMCP</h1>
+      <p id="status" class="status" data-state="checking">Registering page tools…</p>
+      <div class="actions">
+        <button id="flyButton" type="button">Fly to Shanghai</button>
+        <button id="markerButton" type="button">Add marker</button>
+      </div>
+      <p class="note">Open Chrome DevTools → Application → WebMCP to inspect the registered tools.</p>
+    </aside>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
