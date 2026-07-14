@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
-const { version } = require('../../package.json')
+const { version } = require('../../packages/cesium-mcp-runtime/package.json')
 
 export default defineConfig({
   title: 'Cesium MCP',
