@@ -5,9 +5,12 @@
   <title>CesiumJS AI Agent - Browser Only</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
-  <link href="https://cesium.com/downloads/cesiumjs/releases/1.139/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.139/Build/Cesium/Cesium.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/cesium-mcp-bridge@1.139/dist/cesium-mcp-bridge.browser.global.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Cesium.js"></script>
+  <script
+    src="../../packages/cesium-mcp-bridge/dist/cesium-mcp-bridge.browser.global.js"
+    onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/cesium-mcp-bridge@latest/dist/cesium-mcp-bridge.browser.global.js'"
+  ></script>
   <style>
     :root {
       --bg: #09090b; --bg-card: #18181b; --bg-hover: #1f1f23;
@@ -46,6 +49,58 @@
       padding: 4px 10px; border-radius: var(--radius); font-size: 11px; cursor: pointer;
     }
     .chat-header-actions button:hover { border-color: var(--border-hover); color: var(--fg); }
+
+    /* WebMCP status */
+    .webmcp-panel { border-bottom: 1px solid var(--border); }
+    .webmcp-status {
+      width: 100%; padding: 10px 20px; border: 0; background: var(--bg-card);
+      color: var(--fg); display: grid; grid-template-columns: auto 1fr auto;
+      align-items: center; gap: 10px; text-align: left; cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .webmcp-status:hover { background: var(--bg-hover); }
+    .webmcp-status:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .webmcp-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--fg-dim);
+      box-shadow: 0 0 0 3px rgba(113, 113, 122, 0.14);
+    }
+    .webmcp-status[data-state="checking"] .webmcp-dot {
+      background: var(--accent); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .webmcp-status[data-state="ready"] .webmcp-dot {
+      background: var(--success); box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.16);
+    }
+    .webmcp-status[data-state="unavailable"] .webmcp-dot,
+    .webmcp-status[data-state="error"] .webmcp-dot {
+      background: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.16);
+    }
+    .webmcp-status-copy { min-width: 0; }
+    .webmcp-status-title { display: block; font-size: 12px; font-weight: 600; }
+    .webmcp-status-detail {
+      display: block; margin-top: 2px; color: var(--fg-dim); font-size: 11px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .webmcp-chevron { width: 14px; height: 14px; color: var(--fg-dim); transition: transform 0.2s ease; }
+    .webmcp-status[aria-expanded="true"] .webmcp-chevron { transform: rotate(180deg); }
+    .webmcp-guide { padding: 14px 20px 16px; background: #111114; }
+    .webmcp-guide p { color: var(--fg-muted); font-size: 11px; line-height: 1.6; }
+    .webmcp-steps {
+      list-style: none; display: grid; gap: 8px; margin: 12px 0;
+      counter-reset: webmcp-step;
+    }
+    .webmcp-steps li {
+      counter-increment: webmcp-step; display: grid; grid-template-columns: 20px 1fr;
+      gap: 8px; color: var(--fg-muted); font-size: 11px; line-height: 1.5;
+    }
+    .webmcp-steps li::before {
+      content: counter(webmcp-step); width: 20px; height: 20px; border-radius: 50%;
+      display: grid; place-items: center; background: var(--bg-hover); color: var(--accent);
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    }
+    .webmcp-guide code { color: var(--fg); font-family: 'JetBrains Mono', monospace; }
+    .webmcp-guide a { color: #60a5fa; text-decoration: none; font-size: 11px; }
+    .webmcp-guide a:hover { text-decoration: underline; }
 
     /* Messages */
     .chat-messages {
@@ -182,6 +237,17 @@
     .tool-item-desc {
       font-size: 11px; color: var(--fg-dim); line-height: 1.4;
     }
+    @media (max-width: 800px) {
+      body { flex-direction: column; }
+      #cesiumContainer { flex: 0 0 52vh; height: 52vh; }
+      .chat-panel { width: 100%; min-height: 0; flex: 1; border-left: 0; border-top: 1px solid var(--border); }
+      .chat-header { padding: 12px 16px; }
+      .webmcp-status, .webmcp-guide { padding-inline: 16px; }
+      .setup-dialog { width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
   </style>
 </head>
 <body>
@@ -195,6 +261,35 @@
       <button onclick="toggleTools()">Tools</button>
       <button onclick="clearChat()">Clear</button>
       <button onclick="showSetup()">Settings</button>
+    </div>
+  </div>
+  <div class="webmcp-panel">
+    <button
+      class="webmcp-status"
+      id="webMcpStatus"
+      data-state="idle"
+      type="button"
+      aria-expanded="false"
+      aria-controls="webMcpGuide"
+      onclick="toggleWebMcpGuide()"
+    >
+      <span class="webmcp-dot" aria-hidden="true"></span>
+      <span class="webmcp-status-copy" aria-live="polite">
+        <span class="webmcp-status-title" id="webMcpStatusTitle">WebMCP</span>
+        <span class="webmcp-status-detail" id="webMcpStatusDetail">Start the viewer to detect browser support</span>
+      </span>
+      <svg class="webmcp-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="m5 7.5 5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </button>
+    <div class="webmcp-guide hidden" id="webMcpGuide">
+      <p>Let a compatible browser agent control this live globe directly — no MCP runtime or WebSocket server.</p>
+      <ol class="webmcp-steps">
+        <li>Use Chrome 149+ with WebMCP enabled by the site Origin Trial or local testing flag.</li>
+        <li>Open the Model Context Tool Inspector, or DevTools → Application → WebMCP.</li>
+        <li>Try <code>flyTo</code> with Beijing coordinates, then run <code>addMarker</code>.</li>
+      </ol>
+      <a href="https://developer.chrome.com/docs/ai/webmcp" target="_blank" rel="noreferrer">Chrome WebMCP setup and inspector guide →</a>
     </div>
   </div>
   <div class="tools-panel" id="toolsPanel">
@@ -294,6 +389,7 @@ Guidelines:
 // ============================================================
 let messages = [];  // OpenAI message format
 let bridge = null;
+let webMcpRegistration = null;
 let isProcessing = false;
 
 // ============================================================
@@ -315,6 +411,21 @@ function applySetup() {
   localStorage.setItem('cesium-agent-config', JSON.stringify(CONFIG));
   document.getElementById('setupOverlay').classList.add('hidden');
   initCesium();
+}
+
+function toggleWebMcpGuide() {
+  const status = document.getElementById('webMcpStatus');
+  const guide = document.getElementById('webMcpGuide');
+  const expanded = status.getAttribute('aria-expanded') === 'true';
+  status.setAttribute('aria-expanded', String(!expanded));
+  guide.classList.toggle('hidden', expanded);
+}
+
+function setWebMcpStatus(state, title, detail) {
+  const status = document.getElementById('webMcpStatus');
+  status.dataset.state = state;
+  document.getElementById('webMcpStatusTitle').textContent = title;
+  document.getElementById('webMcpStatusDetail').textContent = detail;
 }
 
 // ============================================================
@@ -343,6 +454,49 @@ function initCesium() {
 
   bridge = new CesiumMcpBridge.CesiumBridge(viewer);
   console.log('[Agent] CesiumBridge initialized with', TOOLS.length, 'tools');
+  registerPageWebMcpTools().catch(err => {
+    setWebMcpStatus('error', 'WebMCP registration failed', err.message || 'Open the guide for troubleshooting');
+    console.warn('[WebMCP] Registration failed:', err);
+  });
+}
+
+async function registerPageWebMcpTools() {
+  if (webMcpRegistration) {
+    setWebMcpStatus('ready', 'WebMCP ready', `${webMcpRegistration.registered.length} page tools registered`);
+    return;
+  }
+  if (!document.modelContext) {
+    setWebMcpStatus('unavailable', 'WebMCP unavailable', 'Built-in chat still works — open the guide to enable WebMCP');
+    return;
+  }
+  if (typeof CesiumMcpBridge.registerWebMcpTools !== 'function') {
+    setWebMcpStatus('error', 'WebMCP adapter missing', 'Load a bridge build that includes registerWebMcpTools()');
+    console.info('[WebMCP] The loaded bridge version does not include the WebMCP adapter');
+    return;
+  }
+
+  setWebMcpStatus('checking', 'Registering WebMCP tools', 'Connecting this Cesium viewer to the browser agent');
+
+  const readOnlyTools = new Set(['getView', 'geocode', 'screenshot']);
+  const definitions = TOOLS.map(({ function: tool }) => ({
+    name: tool.name,
+    title: tool.name,
+    description: tool.description,
+    inputSchema: tool.parameters,
+    annotations: {
+      readOnlyHint: readOnlyTools.has(tool.name),
+      untrustedContentHint: tool.name === 'geocode',
+    },
+  }));
+  const executor = {
+    execute: ({ action, params }) => action === 'geocode'
+      ? clientGeocode(params)
+      : bridge.execute({ action, params }),
+  };
+
+  webMcpRegistration = await CesiumMcpBridge.registerWebMcpTools(executor, definitions);
+  setWebMcpStatus('ready', 'WebMCP ready', `${webMcpRegistration.registered.length} page tools registered`);
+  console.log('[WebMCP] Registered', webMcpRegistration.registered.length, 'page tools');
 }
 
 // ============================================================

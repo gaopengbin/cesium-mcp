@@ -1271,8 +1271,8 @@ function _getViewerHtml(token, wsPort) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cesium MCP Viewer</title>
-<script src="https://cesium.com/downloads/cesiumjs/releases/1.142/Build/Cesium/Cesium.js"></script>
-<link href="https://cesium.com/downloads/cesiumjs/releases/1.142/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
 <script src="/bridge.js" onerror="var s=document.createElement('script');s.src='https://unpkg.com/cesium-mcp-bridge@latest/dist/cesium-mcp-bridge.browser.global.js';document.head.appendChild(s)"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -1398,7 +1398,7 @@ function _setupWss(wss) {
 }
 var server = new McpServer({
   name: "cesium-mcp-runtime",
-  version: "1.142.2",
+  version: "1.142.3",
   title: "Cesium MCP Runtime",
   description: "AI-powered 3D globe control via MCP \u2014 camera, layers, entities, animation, and interaction with CesiumJS.",
   websiteUrl: "https://github.com/gaopengbin/cesium-mcp"
@@ -2755,7 +2755,7 @@ server.tool(
 function _createHttpMcpServer(filterToolsets) {
   const s = new McpServer({
     name: "cesium-mcp-runtime",
-    version: "1.142.2",
+    version: "1.142.3",
     title: "Cesium MCP Runtime",
     description: "AI-powered 3D globe control via MCP \u2014 camera, layers, entities, animation, and interaction with CesiumJS.",
     websiteUrl: "https://github.com/gaopengbin/cesium-mcp"

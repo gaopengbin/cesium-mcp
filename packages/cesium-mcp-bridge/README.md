@@ -11,7 +11,7 @@
 
 ## What is this?
 
-`cesium-mcp-bridge` is a lightweight SDK that lets AI Agents (LangChain, LangGraph, Claude, etc.) control a browser-side [CesiumJS](https://cesium.com) globe through a unified command interface. It supports both type-safe method calls and JSON command dispatch.
+`cesium-mcp-bridge` is a lightweight SDK that lets AI Agents (LangChain, LangGraph, Claude, WebMCP browser agents, etc.) control a browser-side [CesiumJS](https://cesium.com) globe through a unified command interface. It supports type-safe method calls, JSON command dispatch, and page-local WebMCP registration.
 
 ```
 AI Agent --> SSE / MCP / WebSocket --> cesium-mcp-bridge --> Cesium Viewer
@@ -23,7 +23,7 @@ AI Agent --> SSE / MCP / WebSocket --> cesium-mcp-bridge --> Cesium Viewer
 npm install cesium-mcp-bridge cesium
 ```
 
-> `cesium` is a peer dependency (compatible with `~1.139.0`).
+> `cesium` is a peer dependency (compatible with `~1.143.0`).
 
 ## Quick Start
 
@@ -43,6 +43,41 @@ await bridge.execute({
   params: { id: 'cities', name: 'Cities', data: geojson },
 })
 ```
+
+## WebMCP
+
+Register any Bridge-compatible tool definitions directly on `document.modelContext`:
+
+```typescript
+import { CesiumBridge, registerWebMcpTools } from 'cesium-mcp-bridge'
+
+const bridge = new CesiumBridge(viewer)
+const registration = await registerWebMcpTools(bridge, [
+  {
+    name: 'getView',
+    description: 'Get the current Cesium camera view',
+    inputSchema: { type: 'object', properties: {} },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: 'flyTo',
+    description: 'Fly the camera to geographic coordinates',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        longitude: { type: 'number' },
+        latitude: { type: 'number' },
+      },
+      required: ['longitude', 'latitude'],
+    },
+  },
+])
+
+// Later: unregister every tool created above.
+registration.unregister()
+```
+
+The adapter is transport-free and has no runtime dependency on the MCP SDK. Browsers without WebMCP support receive a clear error, so applications can feature-detect with `document.modelContext` before registering.
 
 ## Commands (43)
 
@@ -193,7 +228,7 @@ import type {
 
 | cesium-mcp-bridge | Cesium |
 |-------------------|--------|
-| 1.139.x | ~1.139.0 |
+| 1.143.x | ~1.143.0 |
 
 ## License
 

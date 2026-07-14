@@ -2,7 +2,7 @@
 
 ## 前置条件
 
-- **Node.js** 20 或更高版本
+- **Node.js** 22 或更高版本
 - 一个 **CesiumJS** 应用（或使用我们提供的最小示例）
 - 一个 **兼容 MCP 的 AI 客户端**（Claude Desktop、VS Code Copilot、Cursor 等）
 

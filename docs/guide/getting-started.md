@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Node.js** 20 or higher
+- **Node.js** 22 or higher
 - A **CesiumJS** application (or use our minimal example)
 - An **MCP-compatible AI client** (Claude Desktop, VS Code Copilot, Cursor, etc.)
 

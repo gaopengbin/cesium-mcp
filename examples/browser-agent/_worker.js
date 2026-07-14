@@ -1,7 +1,7 @@
 export default {
   async fetch(r, env) {
     const u = new URL(r.url);
-    if (u.pathname !== '/api/chat') return env.ASSETS.fetch(r);
+    if (u.pathname !== '/api/chat') return withWebMcpHeaders(await env.ASSETS.fetch(r), env);
     if (r.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });
     if (r.method !== 'POST') return Response.json({ error: 'Method not allowed' }, { status: 405, headers: cors() });
     const k = env.OPENAI_API_KEY;
@@ -22,6 +22,20 @@ export default {
     return new Response(d, { status: res.status, headers: { 'Content-Type': 'application/json', ...cors() } });
   },
 };
+
+function withWebMcpHeaders(response, env) {
+  const headers = new Headers(response.headers);
+  headers.set('Origin-Agent-Cluster', '?1');
+  if (env.WEBMCP_ORIGIN_TRIAL_TOKEN) {
+    headers.set('Origin-Trial', env.WEBMCP_ORIGIN_TRIAL_TOKEN);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function cors() {
   return { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
 }

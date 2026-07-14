@@ -802,4 +802,56 @@ declare class CesiumBridge {
     private _emit;
 }
 
-export { type AddBillboardParams, type AddBoxParams, type AddCorridorParams, type AddCylinderParams, type AddEllipseParams, type AddGaussianSplatParams, type AddGeoJsonLayerParams, type AddGeoJsonPrimitiveParams, type AddHeatmapParams, type AddLabelParams, type AddMarkerParams, type AddModelParams, type AddPolygonParams, type AddPolylineParams, type AddRectangleParams, type AddWallParams, type AnimationInfo, type AnimationWaypoint, type BatchAddEntitiesParams, type BatchEntityDef, type BridgeCommand, type BridgeEvent, type BridgeEventHandler, type BridgeEventType, type BridgeResult, type CategoryStyle, CesiumBridge, type ChoroplethStyle, type ClearAllResult, type ColorInput, type ControlAnimationParams, type ControlClockParams, type CreateAnimationParams, type EntityPropertiesResult, type ExportSceneResult, type FlyToParams, type GetEntityPropertiesParams, type HighlightParams, type ImageryLayerStyle, type LayerInfo, LayerManager, type LayerStyle, type Load3dTilesParams, type LoadCzmlParams, type LoadImageryServiceParams, type LoadKmlParams, type LoadTerrainParams, type LoadViewpointParams, type LookAtTransformParams, type MaterialInput, type MaterialSpec, type MeasureParams, type MeasureResult, type OrientationInput, type PlayTrajectoryParams, type PositionDegrees, type PrimitiveLayerStyle, type QueryEntitiesParams, type QueryEntityResult, type RemoveAnimationParams, type RemoveEntityParams, type SaveViewpointParams, type ScreenshotResult, type SetBasemapParams, type SetCameraOptionsParams, type SetEdgeDisplayModeParams, type SetEdgeDisplayModeResult, type SetGlobeLightingParams, type SetPostProcessParams, type SetSceneOptionsParams, type SetViewParams, type StartOrbitParams, type TrackEntityParams, type UpdateAnimationPathParams, type UpdateEntityParams, type UpdateLayerStyleParams, type ViewState, type ZoomToExtentParams };
+interface WebMcpToolAnnotations {
+    title?: string;
+    readOnlyHint?: boolean;
+    untrustedContentHint?: boolean;
+}
+interface WebMcpToolDefinition {
+    name: string;
+    title?: string;
+    description: string;
+    inputSchema?: Record<string, unknown>;
+    annotations?: WebMcpToolAnnotations;
+}
+interface WebMcpRegisteredTool {
+    name: string;
+    title?: string;
+    description: string;
+    inputSchema?: Record<string, unknown>;
+    annotations?: Pick<WebMcpToolAnnotations, 'readOnlyHint' | 'untrustedContentHint'>;
+    execute(input: Record<string, unknown>): unknown | Promise<unknown>;
+}
+interface WebMcpRegisterToolOptions {
+    signal?: AbortSignal;
+    exposedTo?: string[];
+}
+interface WebMcpModelContext {
+    registerTool(tool: WebMcpRegisteredTool, options?: WebMcpRegisterToolOptions): Promise<void>;
+}
+interface WebMcpDocument {
+    modelContext?: WebMcpModelContext;
+}
+interface WebMcpBridgeExecutor {
+    execute(command: BridgeCommand): Promise<BridgeResult>;
+}
+interface RegisterWebMcpToolsOptions {
+    modelContext?: WebMcpModelContext;
+    document?: WebMcpDocument;
+    signal?: AbortSignal;
+    exposedTo?: string[];
+}
+interface WebMcpRegistration {
+    registered: string[];
+    signal: AbortSignal;
+    unregister(): void;
+}
+/**
+ * Registers Cesium Bridge commands as document-scoped WebMCP tools.
+ *
+ * The returned handle owns a shared AbortSignal. Calling unregister() removes
+ * every tool registered by this call without affecting other page tools.
+ */
+declare function registerWebMcpTools(bridge: WebMcpBridgeExecutor, tools: WebMcpToolDefinition[], options?: RegisterWebMcpToolsOptions): Promise<WebMcpRegistration>;
+
+export { type AddBillboardParams, type AddBoxParams, type AddCorridorParams, type AddCylinderParams, type AddEllipseParams, type AddGaussianSplatParams, type AddGeoJsonLayerParams, type AddGeoJsonPrimitiveParams, type AddHeatmapParams, type AddLabelParams, type AddMarkerParams, type AddModelParams, type AddPolygonParams, type AddPolylineParams, type AddRectangleParams, type AddWallParams, type AnimationInfo, type AnimationWaypoint, type BatchAddEntitiesParams, type BatchEntityDef, type BridgeCommand, type BridgeEvent, type BridgeEventHandler, type BridgeEventType, type BridgeResult, type CategoryStyle, CesiumBridge, type ChoroplethStyle, type ClearAllResult, type ColorInput, type ControlAnimationParams, type ControlClockParams, type CreateAnimationParams, type EntityPropertiesResult, type ExportSceneResult, type FlyToParams, type GetEntityPropertiesParams, type HighlightParams, type ImageryLayerStyle, type LayerInfo, LayerManager, type LayerStyle, type Load3dTilesParams, type LoadCzmlParams, type LoadImageryServiceParams, type LoadKmlParams, type LoadTerrainParams, type LoadViewpointParams, type LookAtTransformParams, type MaterialInput, type MaterialSpec, type MeasureParams, type MeasureResult, type OrientationInput, type PlayTrajectoryParams, type PositionDegrees, type PrimitiveLayerStyle, type QueryEntitiesParams, type QueryEntityResult, type RegisterWebMcpToolsOptions, type RemoveAnimationParams, type RemoveEntityParams, type SaveViewpointParams, type ScreenshotResult, type SetBasemapParams, type SetCameraOptionsParams, type SetEdgeDisplayModeParams, type SetEdgeDisplayModeResult, type SetGlobeLightingParams, type SetPostProcessParams, type SetSceneOptionsParams, type SetViewParams, type StartOrbitParams, type TrackEntityParams, type UpdateAnimationPathParams, type UpdateEntityParams, type UpdateLayerStyleParams, type ViewState, type WebMcpBridgeExecutor, type WebMcpDocument, type WebMcpModelContext, type WebMcpRegisterToolOptions, type WebMcpRegisteredTool, type WebMcpRegistration, type WebMcpToolAnnotations, type WebMcpToolDefinition, type ZoomToExtentParams, registerWebMcpTools };

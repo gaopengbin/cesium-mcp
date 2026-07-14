@@ -7,5 +7,6 @@ pages_build_output_dir = "."
 #   2. fill in OPENAI_API_KEY
 #   3. npx wrangler pages dev .
 #
-# Production: set OPENAI_API_KEY in the Cloudflare Pages dashboard
+# Production: set OPENAI_API_KEY and, after registering the deployed origin,
+# WEBMCP_ORIGIN_TRIAL_TOKEN in the Cloudflare Pages dashboard
 # (Project Settings → Environment Variables).

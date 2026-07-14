@@ -41,7 +41,8 @@ export function playTrajectory(
   const positionProperty = new Cesium.SampledPositionProperty()
   positionProperty.setInterpolationOptions({
     interpolationDegree: 1,
-    interpolationAlgorithm: Cesium.LinearApproximation,
+    // Cesium 1.143's declaration omits runtime fields from this namespace.
+    interpolationAlgorithm: Cesium.LinearApproximation as unknown as Cesium.InterpolationAlgorithm,
   })
 
   for (let i = 0; i < totalPoints; i++) {

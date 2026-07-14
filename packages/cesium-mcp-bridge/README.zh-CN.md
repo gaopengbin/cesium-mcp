@@ -23,7 +23,7 @@ AI 智能体 --> SSE / MCP / WebSocket --> cesium-mcp-bridge --> Cesium Viewer
 npm install cesium-mcp-bridge cesium
 ```
 
-> `cesium` 是 peer 依赖（兼容 `~1.139.0`）。
+> `cesium` 是 peer 依赖（兼容 `~1.143.0`）。
 
 ## 快速开始
 
@@ -43,6 +43,41 @@ await bridge.execute({
   params: { id: 'cities', name: '城市', data: geojson },
 })
 ```
+
+## WebMCP
+
+可以把 Bridge 工具直接注册到 `document.modelContext`，供支持 WebMCP 的浏览器 Agent 调用：
+
+```typescript
+import { CesiumBridge, registerWebMcpTools } from 'cesium-mcp-bridge'
+
+const bridge = new CesiumBridge(viewer)
+const registration = await registerWebMcpTools(bridge, [
+  {
+    name: 'getView',
+    description: '读取当前 Cesium 相机视角',
+    inputSchema: { type: 'object', properties: {} },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: 'flyTo',
+    description: '飞行到指定经纬度',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        longitude: { type: 'number' },
+        latitude: { type: 'number' },
+      },
+      required: ['longitude', 'latitude'],
+    },
+  },
+])
+
+// 一次注销本次注册的全部工具
+registration.unregister()
+```
+
+适配器不依赖 MCP SDK，也不引入传输层。应用可以先检测 `document.modelContext`，不支持 WebMCP 的浏览器继续使用原有 function calling 或 Runtime 即可。
 
 ## 命令 (43)
 
@@ -193,7 +228,7 @@ import type {
 
 | cesium-mcp-bridge | Cesium |
 |-------------------|--------|
-| 1.139.x | ~1.139.0 |
+| 1.143.x | ~1.143.0 |
 
 ## 许可证
 

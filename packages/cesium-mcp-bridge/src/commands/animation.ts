@@ -42,7 +42,8 @@ export function createAnimation(
   }
   positionProperty.setInterpolationOptions({
     interpolationDegree: 2,
-    interpolationAlgorithm: Cesium.LagrangePolynomialApproximation,
+    // Cesium 1.143's declaration omits runtime fields from this namespace.
+    interpolationAlgorithm: Cesium.LagrangePolynomialApproximation as unknown as Cesium.InterpolationAlgorithm,
   })
 
   const modelUri = resolveModelUri(params.modelUri)

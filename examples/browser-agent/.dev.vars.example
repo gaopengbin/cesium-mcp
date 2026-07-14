@@ -17,3 +17,8 @@ OPENAI_API_KEY=sk-replace-me
 # Remember to also change the model in the in-browser Setup dialog
 # (e.g. deepseek-chat, openai/gpt-4o-mini, moonshot-v1-8k, ...).
 # OPENAI_BASE_URL=https://openrouter.ai/api/v1
+
+# Optional: token registered for the exact deployed origin in Chrome's WebMCP
+# Origin Trial. The token is public metadata and enables WebMCP without local
+# chrome://flags for visitors to that origin.
+# WEBMCP_ORIGIN_TRIAL_TOKEN=replace-with-your-origin-trial-token
