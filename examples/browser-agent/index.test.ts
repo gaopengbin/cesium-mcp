@@ -18,6 +18,12 @@ describe('browser-agent startup order', () => {
     expect(decoded).toContain('"feature":"WebMCP"')
   })
 
+  it('publishes a branded site icon for directories and browser tabs', () => {
+    expect(html).toContain('<link rel="icon" href="/favicon.svg" type="image/svg+xml">')
+    expect(html).toContain('<meta name="application-name" content="Cesium Agent Lab">')
+    expect(html).toContain('https://cesium-browser-agent.pages.dev/favicon.svg')
+  })
+
   it('registers WebMCP without starting Cesium during page load', () => {
     const bootstrapStart = html.indexOf('async function bootstrap()')
     const registration = html.indexOf('await registerPageWebMcpTools()', bootstrapStart)
