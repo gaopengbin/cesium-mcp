@@ -1,5 +1,17 @@
 # cesium-mcp-dev
 
+## 1.143.0
+
+### Minor Changes
+
+- [`ed91e1a`](https://github.com/gaopengbin/cesium-mcp/commit/ed91e1ac3a81eb7e7e8febe588f17929ad183c2a) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Add transport-neutral Cesium tool contracts and a separate native WebMCP
+  adapter package, then wire both into the browser-agent example without coupling
+  WebMCP to the Cesium execution bridge or backend runtime. Provide 61 browser-safe
+  contracts across 12 selectable WebMCP toolsets while keeping a 15-tool core mode.
+  Update the tested
+  CesiumJS baseline to 1.143 and refresh the MCP v1 SDK and WebSocket runtime
+  dependencies to patched versions.
+
 ## 1.142.3
 
 ### Patch Changes
