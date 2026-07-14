@@ -11,5 +11,7 @@ database_name = "cesium-browser-agent-rate-limit"
 database_id = "37b0c900-9cd5-45d7-833a-b5da098e1d16"
 
 # Workers AI and D1-backed rate limiting are configured above as bindings.
+# Optional: set AI_DAILY_NEURON_BUDGET to a value below 10000 to reserve
+# additional headroom. The worker defaults to 9000.
 # After registering the deployed origin, set WEBMCP_ORIGIN_TRIAL_TOKEN in the
 # Cloudflare Pages dashboard (Project Settings → Environment Variables).

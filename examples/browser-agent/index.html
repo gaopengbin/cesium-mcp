@@ -83,6 +83,13 @@
       font-family: 'JetBrains Mono', monospace; font-size: 9px; white-space: nowrap;
     }
     .product-badge.live { color: #86e8cd; border-color: rgba(76, 201, 167, 0.24); background: var(--accent-soft); }
+    .product-badge.ai-usage-badge[data-state="warning"],
+    .product-badge.ai-usage-badge[data-state="degraded"] {
+      color: #ffd786; border-color: rgba(242, 184, 75, 0.28); background: rgba(242, 184, 75, 0.1);
+    }
+    .product-badge.ai-usage-badge[data-state="paused"] {
+      color: #ffadb3; border-color: rgba(240, 108, 117, 0.3); background: rgba(240, 108, 117, 0.1);
+    }
 
     .chat-panel {
       position: fixed; z-index: 20; top: 18px; right: 18px; bottom: 18px;
@@ -273,6 +280,16 @@
     .managed-ai-title { display: block; color: var(--text); font-size: 11px; font-weight: 650; }
     .managed-ai-detail { display: block; margin-top: 3px; color: var(--text-muted); font-size: 9px; line-height: 1.5; }
     .managed-ai-model { color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+    .ai-usage { grid-column: 1 / -1; display: grid; gap: 7px; padding-top: 11px; border-top: 1px solid var(--border); }
+    .ai-usage-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .ai-usage-label { color: var(--text-muted); font-size: 9px; }
+    .ai-usage-value { color: var(--text); font: 9px 'JetBrains Mono', monospace; }
+    .ai-usage-track { height: 5px; overflow: hidden; border-radius: 999px; background: rgba(113, 135, 147, 0.18); }
+    .ai-usage-progress { width: 0; height: 100%; border-radius: inherit; background: var(--accent); transition: width 220ms ease, background 180ms ease; }
+    .ai-usage[data-state="warning"] .ai-usage-progress,
+    .ai-usage[data-state="degraded"] .ai-usage-progress { background: var(--warning); }
+    .ai-usage[data-state="paused"] .ai-usage-progress { background: var(--danger); }
+    .ai-usage-detail { color: var(--text-dim); font-size: 9px; line-height: 1.45; }
     .setup-field { margin-bottom: 14px; }
     .setup-field label { display: block; margin-bottom: 6px; color: var(--text-muted); font-size: 10px; font-weight: 600; }
     .setup-field input { width: 100%; height: 40px; padding: 0 11px; border: 1px solid var(--border); border-radius: 10px; outline: none; color: var(--text); background: var(--canvas); font: 10px 'JetBrains Mono', monospace; }
@@ -324,6 +341,7 @@
     <span class="product-badge live" data-i18n="webMcpLive">WebMCP live</span>
     <span class="product-badge" data-i18n="toolCountBadge">61 WebMCP tools</span>
     <span class="product-badge" data-i18n="noMcpServer">No MCP server</span>
+    <span class="product-badge ai-usage-badge" id="aiUsageBadge" data-state="normal">AI --</span>
   </div>
 </div>
 
@@ -425,6 +443,16 @@
         <span class="managed-ai-title" data-i18n="managedAiTitle">Server-managed AI</span>
         <span class="managed-ai-detail"><span data-i18n="managedAiDetail">Protected by server-side limits · no browser API key</span><br><span class="managed-ai-model">@cf/zai-org/glm-4.7-flash</span></span>
       </span>
+      <div class="ai-usage" id="aiUsage" data-state="normal">
+        <div class="ai-usage-header">
+          <span class="ai-usage-label" data-i18n="aiUsageToday">Estimated AI usage today</span>
+          <span class="ai-usage-value" id="aiUsageValue">--</span>
+        </div>
+        <div class="ai-usage-track" role="progressbar" aria-label="Estimated AI usage today" data-i18n-aria-label="aiUsageToday" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="ai-usage-progress" id="aiUsageProgress"></div>
+        </div>
+        <span class="ai-usage-detail" id="aiUsageDetail" data-i18n="aiUsageLoading">Loading daily usage…</span>
+      </div>
     </div>
     <div class="setup-field">
       <label for="setupIonToken" data-i18n="ionToken">Cesium Ion token (optional)</label>
@@ -494,6 +522,14 @@ const I18N = {
     settingsDescription: 'AI access is managed securely by the hosted demo. No model API key is stored in your browser.',
     managedAiTitle: 'Server-managed AI',
     managedAiDetail: 'Protected by server-side limits · no browser API key',
+    aiUsageToday: 'Estimated AI usage today',
+    aiUsageLoading: 'Loading daily usage…',
+    aiUsageNormal: '{percent}% of the hosted demo safety budget used',
+    aiUsageWarning: '{percent}% used · requests are being monitored closely',
+    aiUsageDegraded: '{percent}% used · shorter context and replies are active',
+    aiUsagePaused: 'Daily safety budget reached · WebMCP tools remain available',
+    aiUsageUnavailable: 'Usage estimate is temporarily unavailable',
+    aiBudgetPaused: 'The hosted AI daily budget is reached. WebMCP tools remain available.',
     ionToken: 'Cesium Ion token (optional)',
     ionTokenHelp: 'Use a URL-restricted browser token for optional Ion terrain and assets.',
     cancel: 'Cancel',
@@ -554,6 +590,14 @@ const I18N = {
     settingsDescription: 'AI 能力由在线服务安全托管，浏览器不会保存任何模型 API Key。',
     managedAiTitle: '服务端托管 AI',
     managedAiDetail: '服务端限流保护 · 浏览器不保存 API Key',
+    aiUsageToday: '今日 AI 预估用量',
+    aiUsageLoading: '正在加载今日用量…',
+    aiUsageNormal: '已使用在线演示安全额度的 {percent}%',
+    aiUsageWarning: '已使用 {percent}% · 正在加强用量监控',
+    aiUsageDegraded: '已使用 {percent}% · 已缩短上下文与回复',
+    aiUsagePaused: '今日安全额度已用完 · WebMCP 页面工具仍可使用',
+    aiUsageUnavailable: '暂时无法获取用量估算',
+    aiBudgetPaused: '在线 AI 今日额度已用完，WebMCP 页面工具仍可使用。',
     ionToken: 'Cesium Ion Token（可选）',
     ionTokenHelp: '如需使用 Ion 地形和资源，请填写已限制网站域名的浏览器 Token。',
     cancel: '取消',
@@ -690,6 +734,7 @@ function applyLocale() {
 
   initToolsList()
   renderWebMcpStatus()
+  renderAiUsage()
 }
 
 function toggleLanguage() {
@@ -745,6 +790,7 @@ let bridgeLoadPromise = null
 let cesiumInitPromise = null
 let webMcpRegistration = null;
 let isProcessing = false;
+let lastAiUsage = null
 let lastWebMcpStatus = {
   state: 'idle',
   titleKey: null,
@@ -1016,7 +1062,7 @@ async function runAgentLoop() {
     console.error('[Agent]', err);
   } finally {
     isProcessing = false;
-    document.getElementById('sendBtn').disabled = false;
+    document.getElementById('sendBtn').disabled = lastAiUsage?.state === 'paused';
     showThinking(false);
   }
 }
@@ -1029,13 +1075,67 @@ async function callLLM() {
     body: JSON.stringify({ messages: allMessages, tools: TOOLS }),
   });
   if (!res.ok) {
-    if (res.status === 429) throw new Error(t('rateLimitError'));
-    if (res.status === 502 || res.status === 503) throw new Error(t('aiUnavailable'));
     const err = await res.json().catch(() => ({}));
+    if (res.status === 429) throw new Error(t('rateLimitError'));
+    if (err.code === 'AI_BUDGET_EXHAUSTED') {
+      updateAiUsage(err.usage)
+      const error = new Error(t('aiBudgetPaused'))
+      error.code = err.code
+      throw error
+    }
+    if (res.status === 502 || res.status === 503) throw new Error(t('aiUnavailable'));
     const msg = typeof err.error === 'string' ? err.error : err.error?.message;
     throw new Error(msg || `Proxy error: ${res.status}`);
   }
-  return res.json();
+  const response = await res.json();
+  refreshAiUsage();
+  return response;
+}
+
+async function refreshAiUsage() {
+  try {
+    const response = await fetch('/api/usage', { headers: { Accept: 'application/json' } })
+    if (!response.ok) throw new Error(`Usage request failed: ${response.status}`)
+    updateAiUsage(await response.json())
+  } catch (error) {
+    console.warn('[AI usage]', error)
+    const detail = document.getElementById('aiUsageDetail')
+    if (detail) detail.textContent = t('aiUsageUnavailable')
+  }
+}
+
+function updateAiUsage(usage) {
+  if (!usage) return
+  lastAiUsage = usage
+  renderAiUsage()
+}
+
+function renderAiUsage() {
+  if (!lastAiUsage) return
+  const usage = lastAiUsage
+  const state = ['normal', 'warning', 'degraded', 'paused'].includes(usage.state)
+    ? usage.state
+    : 'normal'
+  const percent = Math.max(0, Math.min(100, Number(usage.percent) || 0))
+  const statusKey = {
+    normal: 'aiUsageNormal',
+    warning: 'aiUsageWarning',
+    degraded: 'aiUsageDegraded',
+    paused: 'aiUsagePaused',
+  }[state]
+  const usageElement = document.getElementById('aiUsage')
+  const progress = document.getElementById('aiUsageProgress')
+  const track = progress?.parentElement
+  const badge = document.getElementById('aiUsageBadge')
+
+  usageElement.dataset.state = state
+  progress.style.width = `${percent}%`
+  track.setAttribute('aria-valuenow', String(percent))
+  document.getElementById('aiUsageValue').textContent = `${percent}%`
+  document.getElementById('aiUsageDetail').textContent = t(statusKey, { percent })
+  badge.dataset.state = state
+  badge.textContent = `AI ${percent}%`
+  document.getElementById('sendBtn').disabled = state === 'paused' || isProcessing
 }
 
 // ============================================================
@@ -1151,6 +1251,7 @@ function initToolsList() {
 async function bootstrap() {
   applyLocale()
   armCesiumActivation()
+  refreshAiUsage()
   try {
     await registerPageWebMcpTools()
   } catch (error) {

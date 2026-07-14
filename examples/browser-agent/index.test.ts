@@ -72,4 +72,13 @@ describe('browser-agent startup order', () => {
       expect(translations).toMatch(new RegExp(`\\b${tool.name}:`))
     }
   })
+
+  it('shows hosted AI usage, warning states, and WebMCP fallback copy', () => {
+    expect(html).toContain('id="aiUsage"')
+    expect(html).toContain('id="aiUsageProgress"')
+    expect(html).toContain("fetch('/api/usage'")
+    expect(html).toContain("if (err.code === 'AI_BUDGET_EXHAUSTED')")
+    expect(html).toContain('WebMCP tools remain available')
+    expect(html).toContain('WebMCP 页面工具仍可使用')
+  })
 })

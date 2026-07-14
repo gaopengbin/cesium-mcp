@@ -77,20 +77,20 @@ Open `http://localhost:8788`. The included `wrangler.toml` handles the rest.
 ## Deploy to Cloudflare Pages
 
 1. Create a Cloudflare Pages project pointing to the `examples/browser-agent` directory.
-2. Create the `rate_limits` table shown below in the configured D1 database.
+2. Apply `schema.sql` to the configured D1 database.
 3. Deploy with Wrangler so the `AI` and `RATE_LIMIT_DB` bindings in `wrangler.toml` are applied.
 4. Register the final HTTPS origin in the Chrome WebMCP Origin Trial.
 5. Set the returned public token as `WEBMCP_ORIGIN_TRIAL_TOKEN` in the Pages project settings.
 
-```sql
-CREATE TABLE IF NOT EXISTS rate_limits (
-  client_key TEXT PRIMARY KEY,
-  window INTEGER NOT NULL,
-  request_count INTEGER NOT NULL
-) STRICT;
+```bash
+npx wrangler d1 execute cesium-browser-agent-rate-limit --remote --file schema.sql
 ```
 
-The advanced-mode `_worker.js` handles `/api/chat`, invokes the fixed `@cf/zai-org/glm-4.7-flash` model, validates request size and shape, restricts browser origins, and applies a per-client D1-backed rate limit. Client addresses are SHA-256 hashed before storage. It also serves static assets with `Origin-Agent-Cluster: ?1` and, when configured, the `Origin-Trial` header. Forks must register their own exact origin; do not reuse a token issued for another domain.
+The advanced-mode `_worker.js` handles `/api/chat`, invokes the fixed `@cf/zai-org/glm-4.7-flash` model, validates request size and shape, restricts browser origins, and applies a per-client D1-backed rate limit. Client addresses are SHA-256 hashed before storage. `/api/usage` exposes only aggregate daily estimates; no client identifiers are returned.
+
+The worker reserves part of Cloudflare's daily free allocation with a 9,000-neuron safety budget. At 70% it shows a warning, at 85% it reduces history and completion size, and at 100% it pauses the hosted AI while leaving all WebMCP page tools available. Set `AI_DAILY_NEURON_BUDGET` to a smaller positive value when a fork needs a tighter cap. Estimates use the current GLM-4.7-Flash input/output rates and should be compared with the Cloudflare dashboard for billing decisions.
+
+Static assets are served with `Origin-Agent-Cluster: ?1` and, when configured, the `Origin-Trial` header. Forks must register their own exact origin; do not reuse a token issued for another domain.
 
 ## How It Works
 
