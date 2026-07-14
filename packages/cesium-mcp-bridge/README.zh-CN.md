@@ -46,38 +46,7 @@ await bridge.execute({
 
 ## WebMCP
 
-可以把 Bridge 工具直接注册到 `document.modelContext`，供支持 WebMCP 的浏览器 Agent 调用：
-
-```typescript
-import { CesiumBridge, registerWebMcpTools } from 'cesium-mcp-bridge'
-
-const bridge = new CesiumBridge(viewer)
-const registration = await registerWebMcpTools(bridge, [
-  {
-    name: 'getView',
-    description: '读取当前 Cesium 相机视角',
-    inputSchema: { type: 'object', properties: {} },
-    annotations: { readOnlyHint: true },
-  },
-  {
-    name: 'flyTo',
-    description: '飞行到指定经纬度',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        longitude: { type: 'number' },
-        latitude: { type: 'number' },
-      },
-      required: ['longitude', 'latitude'],
-    },
-  },
-])
-
-// 一次注销本次注册的全部工具
-registration.unregister()
-```
-
-适配器不依赖 MCP SDK，也不引入传输层。应用可以先检测 `document.modelContext`，不支持 WebMCP 的浏览器继续使用原有 function calling 或 Runtime 即可。
+WebMCP 接入已拆分到独立的 [`cesium-mcp-webmcp`](../cesium-mcp-webmcp) 包。本包只保留 Cesium 执行能力，不包含浏览器协议或传输适配器。
 
 ## 命令 (43)
 

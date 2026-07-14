@@ -27,8 +27,8 @@ features:
     details: Claude Desktop、VS Code Copilot、Cursor、Windsurf，或任何符合标准的 MCP 客户端。无厂商锁定。
   - icon:
       src: /icons/packages.svg
-    title: 三个包，一个生态
-    details: Bridge（浏览器 SDK）、Runtime（MCP 服务器）和 Dev（编码助手） — 通过 npm 独立安装。
+    title: 可组合的包，一个生态
+    details: 共享契约、纯 Cesium 执行核心、独立协议适配层与 IDE 工具 — 只安装需要的层。
   - icon:
       src: /icons/realtime.svg
     title: 实时 WebSocket 管线
@@ -154,7 +154,9 @@ features:
 
 | 包名 | 描述 | 版本 |
 |------|------|------|
+| [`cesium-mcp-contracts`](https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-contracts) | 与传输无关的工具契约与 JSON Schema | 源码 |
 | [`cesium-mcp-bridge`](https://www.npmjs.com/package/cesium-mcp-bridge) | 浏览器 SDK — 嵌入你的 CesiumJS 应用 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-bridge) |
+| [`cesium-mcp-webmcp`](https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-webmcp) | 原生浏览器 WebMCP 适配层 | 源码 |
 | [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | MCP 服务器 — 58 个工具（12 个工具集）和 2 个资源 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [`cesium-mcp-dev`](https://www.npmjs.com/package/cesium-mcp-dev) | IDE MCP 服务器 — Cesium API 文档与代码生成 | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-dev) |
 

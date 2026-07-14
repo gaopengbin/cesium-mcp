@@ -1,17 +1,5 @@
 export { CesiumBridge } from './bridge'
 export { LayerManager } from './commands/layer'
-export { registerWebMcpTools } from './webmcp'
-export type {
-  RegisterWebMcpToolsOptions,
-  WebMcpBridgeExecutor,
-  WebMcpDocument,
-  WebMcpModelContext,
-  WebMcpRegisteredTool,
-  WebMcpRegistration,
-  WebMcpRegisterToolOptions,
-  WebMcpToolAnnotations,
-  WebMcpToolDefinition,
-} from './webmcp'
 export type {
   BridgeCommand,
   BridgeResult,

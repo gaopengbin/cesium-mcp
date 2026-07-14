@@ -2,7 +2,7 @@
 <div align="center">
   <p><strong>The minimum-overhead way to add AI commands to CesiumJS</strong></p>
 
-  <p><a href="packages/cesium-mcp-bridge/">cesium-mcp-bridge</a> is a protocol-agnostic command dispatcher with 60+ tools, drivable from <strong>browser-only agents</strong>, <strong>WebMCP browser agents</strong>, <strong>function calling</strong>, or <strong>MCP</strong> — your choice.</p>
+  <p><a href="packages/cesium-mcp-bridge/">cesium-mcp-bridge</a> is the protocol-agnostic Cesium command executor. Separate adapters expose it to <strong>browser-only agents</strong>, <strong>WebMCP browser agents</strong>, <strong>function calling</strong>, or <strong>MCP</strong> — your choice.</p>
 
   <p>Four integration paths: <a href="examples/browser-agent/">Browser Agent</a> (simplest, zero backend) · WebMCP (page-local browser tools) · function calling (embed in your web app) · <a href="packages/cesium-mcp-runtime/">MCP runtime</a> (Claude Desktop / Cursor / Dify)</p>
 
@@ -39,7 +39,9 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 
 | Module | Role | Status | Links |
 |--------|------|--------|-------|
-| **cesium-mcp-bridge** | Protocol-agnostic command dispatcher (60+ tools) with WebMCP registration | Mainline, actively iterated | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) · [source](packages/cesium-mcp-bridge/) |
+| **cesium-mcp-contracts** | Transport-neutral names, descriptions, and JSON Schemas for browser tools | New shared layer | [source](packages/cesium-mcp-contracts/) |
+| **cesium-mcp-bridge** | Protocol- and transport-free Cesium command executor (60+ commands) | Mainline, actively iterated | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) · [source](packages/cesium-mcp-bridge/) |
+| **cesium-mcp-webmcp** | Native `document.modelContext` adapter for Cesium tool contracts | New browser adapter | [source](packages/cesium-mcp-webmcp/) |
 | **examples/browser-agent** | Browser-only AI agent with automatic WebMCP exposure | Recommended | [example](examples/browser-agent/) · [live demo](https://cesium-browser-agent.pages.dev/) |
 | **cesium-mcp-runtime** | MCP server (stdio + HTTP) | Stable, slow updates | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) · [source](packages/cesium-mcp-runtime/) |
 | **cesium-mcp-dev** | CesiumJS API knowledge base for coding assistants | Maintained | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) · [source](packages/cesium-mcp-dev/) |
@@ -57,13 +59,19 @@ flowchart LR
     MCP["Claude / Cursor / Dify\nvia MCP runtime"]
   end
 
+  CONTRACTS["cesium-mcp-contracts\ntool definitions"]
+  WEBMCP["cesium-mcp-webmcp\nnative adapter"]
+
   subgraph core ["cesium-mcp-bridge (browser)"]
     B["60+ tools\nprotocol-agnostic dispatcher"]
     C["CesiumJS Viewer"]
   end
 
+  CONTRACTS -.-> BA
+  CONTRACTS -.-> WEBMCP
   BA -- "in-page call" --> B
-  WM -- "document.modelContext" --> B
+  WM -- "document.modelContext" --> WEBMCP
+  WEBMCP --> B
   FC -- "in-page call" --> B
   MCP -- "WebSocket / JSON-RPC" --> B
   B --> C
@@ -72,7 +80,7 @@ flowchart LR
   style core fill:#1e293b,stroke:#12B76A,color:#e2e8f0
 ```
 
-The bridge is the only required piece. Pick whichever driver matches your scenario — they all hit the same 60+ tools. On WebMCP-capable browsers, `registerWebMcpTools()` exposes Bridge commands directly through `document.modelContext` without adding an MCP transport or backend server.
+The bridge remains the execution core, while contracts and protocol adapters stay separate. Pick whichever driver matches your scenario — they all reach the same Cesium command layer. On WebMCP-capable browsers, `cesium-mcp-webmcp` can expose 61 browser-safe commands in 12 selectable toolsets through `document.modelContext` without adding an MCP transport or backend server.
 
 ## Quick Start
 
@@ -85,16 +93,37 @@ Fork the [examples/browser-agent](examples/browser-agent/) folder to deploy your
 
 ### Path 1 — Expose Cesium tools through WebMCP (Chrome 149+ experimental)
 
-The browser-agent example automatically registers its 15 page tools when `document.modelContext` is available:
+The browser-agent example automatically registers all 61 browser-safe page tools when `document.modelContext` is available. Its built-in chat keeps a smaller 15-tool context:
 
 ```bash
 npm run build -w packages/cesium-mcp-bridge
+npm run build -w packages/cesium-mcp-webmcp
 npx serve . -l 4173
 ```
 
 Open `http://localhost:4173/examples/browser-agent/`, click **Start**, then inspect or execute the tools in DevTools → Application → WebMCP. Enable `#enable-webmcp-testing` and `#devtools-webmcp-support` in `chrome://flags` for local testing.
 
-For custom integrations, import `registerWebMcpTools` from `cesium-mcp-bridge`; see the [Bridge WebMCP API and example](packages/cesium-mcp-bridge/README.md#webmcp).
+Application developers install the adapter separately. End users only open the integrated website; they do not install npm packages or run an MCP server.
+
+```bash
+npm install cesium cesium-mcp-bridge cesium-mcp-webmcp
+```
+
+```js
+import { CesiumBridge } from 'cesium-mcp-bridge'
+import { registerCesiumWebMcp } from 'cesium-mcp-webmcp'
+
+const bridge = new CesiumBridge(viewer)
+const registration = await registerCesiumWebMcp(bridge, {
+  toolsets: 'all',
+  excludeTools: ['geocode'], // add your own browser geocoder to expose this tool
+})
+
+// Later, if the page is unmounted:
+registration.unregister()
+```
+
+See the [WebMCP adapter API](packages/cesium-mcp-webmcp/README.md) for custom integrations.
 
 ### Path 2 — Embed in your own web app (function calling)
 

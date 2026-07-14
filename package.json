@@ -14,7 +14,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest",
     "lint": "eslint packages/*/src/**/*.ts",
-    "clean": "rimraf packages/*/dist",
+    "clean": "node -e \"const fs=require('node:fs'); for (const dir of fs.globSync('packages/*/dist')) fs.rmSync(dir,{ recursive:true, force:true })\"",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",

@@ -4073,64 +4073,8 @@ var CesiumMcpBridge = (function (exports) {
     }
   };
 
-  // src/webmcp.ts
-  function resolveModelContext(options) {
-    if (options.modelContext) return options.modelContext;
-    const documentRef = options.document ?? (typeof document === "undefined" ? void 0 : document);
-    if (!documentRef?.modelContext) {
-      throw new Error("WebMCP is not available: document.modelContext is undefined");
-    }
-    return documentRef.modelContext;
-  }
-  function assertUniqueToolNames(tools) {
-    const names = /* @__PURE__ */ new Set();
-    for (const tool of tools) {
-      if (names.has(tool.name)) throw new Error(`Duplicate WebMCP tool name: ${tool.name}`);
-      names.add(tool.name);
-    }
-  }
-  async function registerWebMcpTools(bridge, tools, options = {}) {
-    assertUniqueToolNames(tools);
-    const modelContext = resolveModelContext(options);
-    const controller = new AbortController();
-    const unregister = () => controller.abort();
-    if (options.signal) {
-      if (options.signal.aborted) controller.abort();
-      else options.signal.addEventListener("abort", unregister, { once: true });
-    }
-    const registered = [];
-    try {
-      for (const tool of tools) {
-        const annotations = tool.annotations ? {
-          ...annotationsValue(tool.annotations.readOnlyHint, "readOnlyHint"),
-          ...annotationsValue(tool.annotations.untrustedContentHint, "untrustedContentHint")
-        } : void 0;
-        await modelContext.registerTool({
-          name: tool.name,
-          title: tool.title ?? tool.annotations?.title,
-          description: tool.description,
-          inputSchema: tool.inputSchema,
-          annotations: annotations && Object.keys(annotations).length > 0 ? annotations : void 0,
-          execute: (input) => bridge.execute({ action: tool.name, params: input })
-        }, {
-          signal: controller.signal,
-          ...options.exposedTo ? { exposedTo: options.exposedTo } : {}
-        });
-        registered.push(tool.name);
-      }
-    } catch (error) {
-      unregister();
-      throw error;
-    }
-    return { registered, signal: controller.signal, unregister };
-  }
-  function annotationsValue(value, key) {
-    return value === void 0 ? {} : { [key]: value };
-  }
-
   exports.CesiumBridge = CesiumBridge;
   exports.LayerManager = LayerManager;
-  exports.registerWebMcpTools = registerWebMcpTools;
 
   return exports;
 

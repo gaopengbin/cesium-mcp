@@ -1,0 +1,48 @@
+{
+  "name": "cesium-mcp-webmcp",
+  "version": "0.0.0",
+  "description": "Native WebMCP adapter for Cesium MCP browser tools",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./browser": "./dist/cesium-mcp-webmcp.browser.global.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "cesium-mcp-contracts": "^0.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  },
+  "keywords": [
+    "cesium",
+    "webmcp",
+    "browser-agent",
+    "model-context-protocol",
+    "geospatial"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gaopengbin/cesium-mcp.git",
+    "directory": "packages/cesium-mcp-webmcp"
+  },
+  "homepage": "https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-webmcp",
+  "license": "MIT"
+}

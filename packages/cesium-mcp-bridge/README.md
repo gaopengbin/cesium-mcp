@@ -11,7 +11,7 @@
 
 ## What is this?
 
-`cesium-mcp-bridge` is a lightweight SDK that lets AI Agents (LangChain, LangGraph, Claude, WebMCP browser agents, etc.) control a browser-side [CesiumJS](https://cesium.com) globe through a unified command interface. It supports type-safe method calls, JSON command dispatch, and page-local WebMCP registration.
+`cesium-mcp-bridge` is a lightweight SDK that lets AI Agents control a browser-side [CesiumJS](https://cesium.com) globe through a unified command interface. It supports type-safe method calls and JSON command dispatch without coupling the execution layer to a protocol or transport.
 
 ```
 AI Agent --> SSE / MCP / WebSocket --> cesium-mcp-bridge --> Cesium Viewer
@@ -46,38 +46,7 @@ await bridge.execute({
 
 ## WebMCP
 
-Register any Bridge-compatible tool definitions directly on `document.modelContext`:
-
-```typescript
-import { CesiumBridge, registerWebMcpTools } from 'cesium-mcp-bridge'
-
-const bridge = new CesiumBridge(viewer)
-const registration = await registerWebMcpTools(bridge, [
-  {
-    name: 'getView',
-    description: 'Get the current Cesium camera view',
-    inputSchema: { type: 'object', properties: {} },
-    annotations: { readOnlyHint: true },
-  },
-  {
-    name: 'flyTo',
-    description: 'Fly the camera to geographic coordinates',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        longitude: { type: 'number' },
-        latitude: { type: 'number' },
-      },
-      required: ['longitude', 'latitude'],
-    },
-  },
-])
-
-// Later: unregister every tool created above.
-registration.unregister()
-```
-
-The adapter is transport-free and has no runtime dependency on the MCP SDK. Browsers without WebMCP support receive a clear error, so applications can feature-detect with `document.modelContext` before registering.
+WebMCP integration lives in the separate [`cesium-mcp-webmcp`](../cesium-mcp-webmcp) package. This package remains the Cesium execution layer and exposes no browser protocol or transport adapter.
 
 ## Commands (43)
 

@@ -27,8 +27,8 @@ features:
     details: Claude Desktop, VS Code Copilot, Cursor, Windsurf, or any standards-compliant MCP client. No vendor lock-in.
   - icon:
       src: /icons/packages.svg
-    title: Three Packages, One Ecosystem
-    details: Bridge (browser SDK), Runtime (MCP server), and Dev (coding assistant) — each independently installable via npm.
+    title: Composable Packages, One Ecosystem
+    details: Shared contracts, a pure Cesium executor, separate protocol adapters, and IDE tooling — install only the layers you need.
   - icon:
       src: /icons/realtime.svg
     title: Real-Time WebSocket Pipeline
@@ -154,7 +154,9 @@ features:
 
 | Package | Description | Version |
 |---------|-------------|---------|
+| [`cesium-mcp-contracts`](https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-contracts) | Transport-neutral tool contracts and JSON Schemas | Source |
 | [`cesium-mcp-bridge`](https://www.npmjs.com/package/cesium-mcp-bridge) | Browser SDK — embed in your CesiumJS application | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-bridge) |
+| [`cesium-mcp-webmcp`](https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-webmcp) | Native browser WebMCP adapter | Source |
 | [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | MCP Server — 58 tools (12 toolsets) and 2 resources for AI agents | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [`cesium-mcp-dev`](https://www.npmjs.com/package/cesium-mcp-dev) | IDE MCP Server — Cesium API docs and code generation | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-dev) |
 

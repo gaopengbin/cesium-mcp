@@ -5,7 +5,7 @@
 
   <p><strong>给 CesiumJS 加 AI 命令的最小代价</strong></p>
 
-  <p><a href="packages/cesium-mcp-bridge/">cesium-mcp-bridge</a> 是协议无关的命令分发核心，60+ 工具一次实现，可同时通过 <strong>纯浏览器 Agent</strong>、<strong>WebMCP 浏览器 Agent</strong>、<strong>function calling</strong>、<strong>MCP</strong> 四种方式驱动。</p>
+  <p><a href="packages/cesium-mcp-bridge/">cesium-mcp-bridge</a> 是协议无关的 Cesium 命令执行核心；独立适配层可将它接入 <strong>纯浏览器 Agent</strong>、<strong>WebMCP 浏览器 Agent</strong>、<strong>function calling</strong> 或 <strong>MCP</strong>。</p>
 
   <p>四种接入方式任选其一：<a href="examples/browser-agent/">浏览器 Agent</a>（最简单，零后端）· WebMCP（页面内浏览器工具）· function calling（自托管 Web 应用嵌入）· <a href="packages/cesium-mcp-runtime/">MCP runtime</a>（接 Claude Desktop / Cursor / Dify）</p>
 
@@ -42,7 +42,9 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 
 | 模块 | 角色 | 状态 | 链接 |
 |------|------|------|------|
-| **cesium-mcp-bridge** | 协议无关的命令分发核心（60+ 工具），支持 WebMCP 注册 | 主线，持续迭代 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) · [源码](packages/cesium-mcp-bridge/) |
+| **cesium-mcp-contracts** | 与传输无关的浏览器工具名称、说明和 JSON Schema | 新增共享层 | [源码](packages/cesium-mcp-contracts/) |
+| **cesium-mcp-bridge** | 与协议、传输无关的 Cesium 命令执行核心（60+ 命令） | 主线，持续迭代 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) · [源码](packages/cesium-mcp-bridge/) |
+| **cesium-mcp-webmcp** | 基于原生 `document.modelContext` 的 Cesium 工具适配层 | 新增浏览器适配层 | [源码](packages/cesium-mcp-webmcp/) |
 | **examples/browser-agent** | 纯浏览器 AI Agent，自动暴露 WebMCP 工具 | 推荐入口 | [示例](examples/browser-agent/) · [在线 demo](https://cesium-browser-agent.pages.dev/) |
 | **cesium-mcp-runtime** | MCP 服务器（stdio + HTTP） | 稳定，按需更新 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) · [源码](packages/cesium-mcp-runtime/) |
 | **cesium-mcp-dev** | 给代码助手用的 CesiumJS API 知识库 | 维护中 | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) · [源码](packages/cesium-mcp-dev/) |
@@ -60,13 +62,19 @@ flowchart LR
     MCP["Claude / Cursor / Dify\n通过 MCP runtime"]
   end
 
+  CONTRACTS["cesium-mcp-contracts\n工具定义"]
+  WEBMCP["cesium-mcp-webmcp\n原生适配层"]
+
   subgraph core ["cesium-mcp-bridge（浏览器内）"]
     B["60+ 工具\n协议无关的命令分发器"]
     C["CesiumJS Viewer"]
   end
 
+  CONTRACTS -.-> BA
+  CONTRACTS -.-> WEBMCP
   BA -- "页内调用" --> B
-  WM -- "document.modelContext" --> B
+  WM -- "document.modelContext" --> WEBMCP
+  WEBMCP --> B
   FC -- "页内调用" --> B
   MCP -- "WebSocket / JSON-RPC" --> B
   B --> C
@@ -75,7 +83,7 @@ flowchart LR
   style core fill:#1e293b,stroke:#12B76A,color:#e2e8f0
 ```
 
-bridge 是唯一必需的部分。四种驱动方调用的是同一套 60+ 工具，按场景选一种即可。在支持 WebMCP 的浏览器中，`registerWebMcpTools()` 可通过 `document.modelContext` 直接暴露 Bridge 命令，无需增加 MCP 传输层或后端服务器。
+bridge 保持为执行核心，工具契约和协议适配层分别独立。四种驱动方最终都调用同一个 Cesium 命令层，按场景选一种即可。在支持 WebMCP 的浏览器中，`cesium-mcp-webmcp` 可通过 `document.modelContext` 按 12 个工具集暴露 61 个浏览器安全命令，无需增加 MCP 传输层或后端服务器。
 
 ## 快速开始
 
@@ -88,16 +96,37 @@ Fork [examples/browser-agent](examples/browser-agent/) 部署你自己的。
 
 ### 路径 1 — 通过 WebMCP 暴露 Cesium 工具（Chrome 149+ 实验功能）
 
-browser-agent 示例会在检测到 `document.modelContext` 时，自动注册页面内的 15 个工具：
+browser-agent 示例会在检测到 `document.modelContext` 时，自动注册全部 61 个浏览器安全页面工具；内置聊天仍使用较轻量的 15 工具上下文：
 
 ```bash
 npm run build -w packages/cesium-mcp-bridge
+npm run build -w packages/cesium-mcp-webmcp
 npx serve . -l 4173
 ```
 
 打开 `http://localhost:4173/examples/browser-agent/`，点击 **Start**，然后在 DevTools → Application → WebMCP 中查看或执行工具。本地测试需在 `chrome://flags` 中启用 `#enable-webmcp-testing` 和 `#devtools-webmcp-support`。
 
-自定义集成可从 `cesium-mcp-bridge` 导入 `registerWebMcpTools`；完整 API 和示例见 [Bridge WebMCP 文档](packages/cesium-mcp-bridge/README.zh-CN.md#webmcp)。
+应用开发者需要单独安装适配包；普通用户只需打开已经接入的网站，不需要安装 npm 包，也不需要启动 MCP 服务。
+
+```bash
+npm install cesium cesium-mcp-bridge cesium-mcp-webmcp
+```
+
+```js
+import { CesiumBridge } from 'cesium-mcp-bridge'
+import { registerCesiumWebMcp } from 'cesium-mcp-webmcp'
+
+const bridge = new CesiumBridge(viewer)
+const registration = await registerCesiumWebMcp(bridge, {
+  toolsets: 'all',
+  excludeTools: ['geocode'], // 如需该工具，请接入自己的浏览器地理编码处理器
+})
+
+// 页面卸载时可注销：
+registration.unregister()
+```
+
+自定义集成见 [WebMCP 适配包 API](packages/cesium-mcp-webmcp/README.md)。
 
 ### 路径 2 — 嵌进你的 Web 应用（function calling）
 

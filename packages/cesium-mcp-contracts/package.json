@@ -1,0 +1,45 @@
+{
+  "name": "cesium-mcp-contracts",
+  "version": "0.0.0",
+  "description": "Transport-neutral Cesium MCP tool contracts and JSON Schemas",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  },
+  "keywords": [
+    "cesium",
+    "mcp",
+    "webmcp",
+    "json-schema",
+    "tool-contracts",
+    "geospatial"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gaopengbin/cesium-mcp.git",
+    "directory": "packages/cesium-mcp-contracts"
+  },
+  "homepage": "https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-contracts",
+  "license": "MIT"
+}

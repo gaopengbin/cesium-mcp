@@ -1,17 +1,32 @@
-import type { BridgeCommand, BridgeResult } from './types'
+import { selectCesiumToolContracts } from 'cesium-mcp-contracts'
+import type {
+  CesiumToolContract,
+  CesiumToolsetSelection,
+} from 'cesium-mcp-contracts'
 
-export interface WebMcpToolAnnotations {
-  title?: string
-  readOnlyHint?: boolean
-  untrustedContentHint?: boolean
+export {
+  cesiumBrowserToolContracts,
+  cesiumBrowserToolsetNames,
+  cesiumBrowserToolsets,
+  cesiumCoreToolContracts,
+  selectCesiumToolContracts,
+} from 'cesium-mcp-contracts'
+export type {
+  CesiumBrowserToolset,
+  CesiumBrowserToolsetName,
+  CesiumToolAnnotations,
+  CesiumToolContract,
+  CesiumToolsetSelection,
+  JsonSchema,
+} from 'cesium-mcp-contracts'
+
+export interface CesiumWebMcpCommand {
+  action: string
+  params: Record<string, unknown>
 }
 
-export interface WebMcpToolDefinition {
-  name: string
-  title?: string
-  description: string
-  inputSchema?: Record<string, unknown>
-  annotations?: WebMcpToolAnnotations
+export interface CesiumWebMcpExecutor {
+  execute(command: CesiumWebMcpCommand): unknown | Promise<unknown>
 }
 
 export interface WebMcpRegisteredTool {
@@ -19,7 +34,11 @@ export interface WebMcpRegisteredTool {
   title?: string
   description: string
   inputSchema?: Record<string, unknown>
-  annotations?: Pick<WebMcpToolAnnotations, 'readOnlyHint' | 'untrustedContentHint'>
+  outputSchema?: Record<string, unknown>
+  annotations?: {
+    readOnlyHint?: boolean
+    untrustedContentHint?: boolean
+  }
   execute(input: Record<string, unknown>): unknown | Promise<unknown>
 }
 
@@ -36,15 +55,17 @@ export interface WebMcpDocument {
   modelContext?: WebMcpModelContext
 }
 
-export interface WebMcpBridgeExecutor {
-  execute(command: BridgeCommand): Promise<BridgeResult>
-}
-
 export interface RegisterWebMcpToolsOptions {
   modelContext?: WebMcpModelContext
   document?: WebMcpDocument
   signal?: AbortSignal
   exposedTo?: string[]
+}
+
+export interface RegisterCesiumWebMcpOptions extends RegisterWebMcpToolsOptions {
+  tools?: readonly CesiumToolContract[]
+  toolsets?: CesiumToolsetSelection
+  excludeTools?: readonly string[]
 }
 
 export interface WebMcpRegistration {
@@ -64,7 +85,7 @@ function resolveModelContext(options: RegisterWebMcpToolsOptions): WebMcpModelCo
   return documentRef.modelContext
 }
 
-function assertUniqueToolNames(tools: WebMcpToolDefinition[]): void {
+function assertUniqueToolNames(tools: readonly CesiumToolContract[]): void {
   const names = new Set<string>()
   for (const tool of tools) {
     if (names.has(tool.name)) throw new Error(`Duplicate WebMCP tool name: ${tool.name}`)
@@ -72,15 +93,9 @@ function assertUniqueToolNames(tools: WebMcpToolDefinition[]): void {
   }
 }
 
-/**
- * Registers Cesium Bridge commands as document-scoped WebMCP tools.
- *
- * The returned handle owns a shared AbortSignal. Calling unregister() removes
- * every tool registered by this call without affecting other page tools.
- */
 export async function registerWebMcpTools(
-  bridge: WebMcpBridgeExecutor,
-  tools: WebMcpToolDefinition[],
+  executor: CesiumWebMcpExecutor,
+  tools: readonly CesiumToolContract[],
   options: RegisterWebMcpToolsOptions = {},
 ): Promise<WebMcpRegistration> {
   assertUniqueToolNames(tools)
@@ -98,8 +113,8 @@ export async function registerWebMcpTools(
     for (const tool of tools) {
       const annotations = tool.annotations
         ? {
-            ...(annotationsValue(tool.annotations.readOnlyHint, 'readOnlyHint')),
-            ...(annotationsValue(tool.annotations.untrustedContentHint, 'untrustedContentHint')),
+            ...(annotationValue(tool.annotations.readOnlyHint, 'readOnlyHint')),
+            ...(annotationValue(tool.annotations.untrustedContentHint, 'untrustedContentHint')),
           }
         : undefined
 
@@ -108,8 +123,9 @@ export async function registerWebMcpTools(
         title: tool.title ?? tool.annotations?.title,
         description: tool.description,
         inputSchema: tool.inputSchema,
+        outputSchema: tool.outputSchema,
         annotations: annotations && Object.keys(annotations).length > 0 ? annotations : undefined,
-        execute: input => bridge.execute({ action: tool.name, params: input }),
+        execute: input => executor.execute({ action: tool.name, params: input }),
       }, {
         signal: controller.signal,
         ...(options.exposedTo ? { exposedTo: options.exposedTo } : {}),
@@ -124,9 +140,28 @@ export async function registerWebMcpTools(
   return { registered, signal: controller.signal, unregister }
 }
 
-function annotationsValue<K extends keyof Pick<WebMcpToolAnnotations, 'readOnlyHint' | 'untrustedContentHint'>>(
+export function registerCesiumWebMcp(
+  executor: CesiumWebMcpExecutor,
+  options: RegisterCesiumWebMcpOptions = {},
+): Promise<WebMcpRegistration> {
+  const {
+    tools,
+    toolsets = 'core',
+    excludeTools = [],
+    ...registrationOptions
+  } = options
+  const selectedTools = tools ?? selectCesiumToolContracts(toolsets)
+  const excludedNames = new Set(excludeTools)
+  return registerWebMcpTools(
+    executor,
+    selectedTools.filter(tool => !excludedNames.has(tool.name)),
+    registrationOptions,
+  )
+}
+
+function annotationValue<K extends 'readOnlyHint' | 'untrustedContentHint'>(
   value: boolean | undefined,
   key: K,
-): Partial<Pick<WebMcpToolAnnotations, K>> {
-  return value === undefined ? {} : { [key]: value } as Pick<WebMcpToolAnnotations, K>
+): Partial<Record<K, boolean>> {
+  return value === undefined ? {} : { [key]: value } as Record<K, boolean>
 }
