@@ -2,251 +2,299 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="origin-trial" content="AjyKQKflzhkSF12wj9hoZ/Gu0bb+EHLwE4meIVze1LV3elLGJrlBqeFl7GkmJ4EQhuNaaUcUNEMMv4W6YhXHVwkAAABeeyJvcmlnaW4iOiJodHRwczovL2Nlc2l1bS1icm93c2VyLWFnZW50LnBhZ2VzLmRldjo0NDMiLCJmZWF0dXJlIjoiV2ViTUNQIiwiZXhwaXJ5IjoxNzk0ODczNjAwfQ==">
+  <script src="/packages/cesium-mcp-webmcp/dist/cesium-mcp-webmcp.browser.global.js"></script>
   <title>CesiumJS AI Agent - Browser Only</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
-  <link href="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Cesium.js"></script>
-  <script
-    src="../../packages/cesium-mcp-bridge/dist/cesium-mcp-bridge.browser.global.js"
-    onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/cesium-mcp-bridge@latest/dist/cesium-mcp-bridge.browser.global.js'"
-  ></script>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" as="style" href="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Widgets/widgets.css" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  </noscript>
   <style>
     :root {
-      --bg: #09090b; --bg-card: #18181b; --bg-hover: #1f1f23;
-      --border: #27272a; --border-hover: #3f3f46;
-      --fg: #fafafa; --fg-muted: #a1a1aa; --fg-dim: #71717a;
-      --accent: #3b82f6; --accent-hover: #2563eb;
-      --success: #22c55e; --danger: #ef4444;
-      --radius: 8px;
+      --canvas: #071018;
+      --panel: rgba(11, 22, 31, 0.96);
+      --panel-solid: #0b161f;
+      --surface: #11212d;
+      --surface-hover: #162a38;
+      --border: rgba(166, 196, 214, 0.16);
+      --border-strong: rgba(166, 196, 214, 0.28);
+      --text: #f4f8fa;
+      --text-muted: #a8bac5;
+      --text-dim: #718793;
+      --accent: #4cc9a7;
+      --accent-hover: #67d8b9;
+      --accent-soft: rgba(76, 201, 167, 0.12);
+      --warning: #f2b84b;
+      --danger: #f06c75;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+      --radius-sm: 10px;
+      --radius-md: 16px;
+      --radius-lg: 22px;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; }
     body {
-      display: flex; height: 100vh;
       font-family: 'Inter', system-ui, sans-serif;
-      background: var(--bg); color: var(--fg); overflow: hidden;
+      background: var(--canvas); color: var(--text); overflow: hidden;
+    }
+    button, input { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, a:focus-visible, input:focus-visible {
+      outline: 2px solid var(--accent); outline-offset: 2px;
     }
 
-    /* Cesium */
-    #cesiumContainer { flex: 1; height: 100%; }
+    #cesiumContainer { position: fixed; inset: 0; }
+    #cesiumContainer::after {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(90deg, rgba(4, 10, 15, 0.22), transparent 38%, rgba(4, 10, 15, 0.1));
+    }
     .cesium-viewer-bottom, .cesium-viewer-animationContainer,
     .cesium-viewer-timelineContainer, .cesium-viewer-fullscreenContainer { display: none !important; }
 
-    /* Chat Panel */
+    .product-bar {
+      position: fixed; z-index: 20; top: 18px; left: 20px;
+      display: flex; align-items: center; gap: 12px;
+      padding: 9px 12px 9px 10px; border: 1px solid var(--border);
+      border-radius: 14px; background: rgba(7, 16, 24, 0.82);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.24); backdrop-filter: blur(18px);
+    }
+    .brand-mark {
+      width: 34px; height: 34px; display: grid; place-items: center;
+      border-radius: 10px; color: #062018; background: var(--accent);
+    }
+    .brand-mark svg { width: 21px; height: 21px; }
+    .brand-copy { display: grid; gap: 1px; }
+    .brand-name { font-size: 13px; line-height: 1.2; font-weight: 650; letter-spacing: -0.01em; }
+    .brand-tagline { color: var(--text-dim); font-size: 10px; }
+    .product-badges { display: flex; gap: 6px; margin-left: 4px; }
+    .product-badge {
+      padding: 4px 7px; border: 1px solid var(--border); border-radius: 999px;
+      color: var(--text-muted); background: rgba(255,255,255,0.025);
+      font-family: 'JetBrains Mono', monospace; font-size: 9px; white-space: nowrap;
+    }
+    .product-badge.live { color: #86e8cd; border-color: rgba(76, 201, 167, 0.24); background: var(--accent-soft); }
+
     .chat-panel {
-      width: 420px; display: flex; flex-direction: column;
-      background: var(--bg); border-left: 1px solid var(--border);
+      position: fixed; z-index: 20; top: 18px; right: 18px; bottom: 18px;
+      width: min(440px, calc(100vw - 36px)); min-height: 0;
+      display: flex; flex-direction: column; overflow: hidden;
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); box-shadow: var(--shadow); backdrop-filter: blur(24px);
     }
     .chat-header {
-      padding: 16px 20px; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between;
+      min-height: 74px; padding: 16px 18px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
     }
-    .chat-header h1 { font-size: 14px; font-weight: 600; }
-    .chat-header h1 span { color: var(--fg-dim); font-weight: 400; margin-left: 6px; font-size: 12px; }
-    .chat-header-actions { display: flex; gap: 8px; }
-    .chat-header-actions button {
-      background: none; border: 1px solid var(--border); color: var(--fg-muted);
-      padding: 4px 10px; border-radius: var(--radius); font-size: 11px; cursor: pointer;
+    .chat-title { display: grid; gap: 4px; min-width: 0; }
+    .chat-kicker {
+      color: var(--accent); font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; font-weight: 500; letter-spacing: 0.11em; text-transform: uppercase;
     }
-    .chat-header-actions button:hover { border-color: var(--border-hover); color: var(--fg); }
+    .chat-title h1 { font-size: 17px; line-height: 1.2; font-weight: 650; letter-spacing: -0.025em; }
+    .chat-header-actions { display: flex; gap: 7px; }
+    .icon-button {
+      width: 34px; height: 34px; display: grid; place-items: center;
+      border: 1px solid var(--border); border-radius: 10px; cursor: pointer;
+      color: var(--text-muted); background: rgba(255,255,255,0.025);
+      transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+    }
+    .icon-button svg { width: 16px; height: 16px; }
+    .icon-button:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface); }
+    .language-button {
+      width: auto; min-width: 38px; padding: 0 9px;
+      color: var(--accent); font: 10px 'JetBrains Mono', monospace; font-weight: 600;
+    }
 
-    /* WebMCP status */
-    .webmcp-panel { border-bottom: 1px solid var(--border); }
+    .webmcp-panel { padding: 12px 14px 0; }
     .webmcp-status {
-      width: 100%; padding: 10px 20px; border: 0; background: var(--bg-card);
-      color: var(--fg); display: grid; grid-template-columns: auto 1fr auto;
-      align-items: center; gap: 10px; text-align: left; cursor: pointer;
-      transition: background 0.2s ease;
+      width: 100%; padding: 11px 12px; border: 1px solid var(--border);
+      border-radius: 13px; background: rgba(255,255,255,0.025); color: var(--text);
+      display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px;
+      text-align: left; cursor: pointer;
+      transition: background 180ms ease, border-color 180ms ease;
     }
-    .webmcp-status:hover { background: var(--bg-hover); }
-    .webmcp-status:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .webmcp-status:hover { background: var(--surface); border-color: var(--border-strong); }
     .webmcp-dot {
-      width: 8px; height: 8px; border-radius: 50%; background: var(--fg-dim);
-      box-shadow: 0 0 0 3px rgba(113, 113, 122, 0.14);
+      width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim);
+      box-shadow: 0 0 0 4px rgba(113, 135, 147, 0.12);
     }
     .webmcp-status[data-state="checking"] .webmcp-dot {
-      background: var(--accent); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
-      animation: pulse 1.2s ease-in-out infinite;
+      background: #68a9ff; box-shadow: 0 0 0 4px rgba(104, 169, 255, 0.13); animation: pulse 1.2s ease-in-out infinite;
     }
     .webmcp-status[data-state="ready"] .webmcp-dot {
-      background: var(--success); box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.16);
+      background: var(--accent); box-shadow: 0 0 0 4px rgba(76, 201, 167, 0.13);
     }
     .webmcp-status[data-state="unavailable"] .webmcp-dot,
     .webmcp-status[data-state="error"] .webmcp-dot {
-      background: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.16);
+      background: var(--warning); box-shadow: 0 0 0 4px rgba(242, 184, 75, 0.13);
     }
     .webmcp-status-copy { min-width: 0; }
-    .webmcp-status-title { display: block; font-size: 12px; font-weight: 600; }
+    .webmcp-status-title { display: block; font-size: 11px; font-weight: 650; }
     .webmcp-status-detail {
-      display: block; margin-top: 2px; color: var(--fg-dim); font-size: 11px;
+      display: block; margin-top: 2px; color: var(--text-dim); font-size: 10px;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .webmcp-chevron { width: 14px; height: 14px; color: var(--fg-dim); transition: transform 0.2s ease; }
+    .webmcp-chevron { width: 14px; height: 14px; color: var(--text-dim); transition: transform 180ms ease; }
     .webmcp-status[aria-expanded="true"] .webmcp-chevron { transform: rotate(180deg); }
-    .webmcp-guide { padding: 14px 20px 16px; background: #111114; }
-    .webmcp-guide p { color: var(--fg-muted); font-size: 11px; line-height: 1.6; }
-    .webmcp-steps {
-      list-style: none; display: grid; gap: 8px; margin: 12px 0;
-      counter-reset: webmcp-step;
+    .webmcp-guide {
+      margin-top: 8px; padding: 13px; border: 1px solid var(--border);
+      border-radius: 13px; background: rgba(5, 13, 19, 0.58);
     }
+    .webmcp-guide p { color: var(--text-muted); font-size: 10px; line-height: 1.55; }
+    .webmcp-steps { list-style: none; display: grid; gap: 7px; margin: 11px 0; counter-reset: webmcp-step; }
     .webmcp-steps li {
-      counter-increment: webmcp-step; display: grid; grid-template-columns: 20px 1fr;
-      gap: 8px; color: var(--fg-muted); font-size: 11px; line-height: 1.5;
+      counter-increment: webmcp-step; display: grid; grid-template-columns: 19px 1fr;
+      gap: 8px; color: var(--text-muted); font-size: 10px; line-height: 1.45;
     }
     .webmcp-steps li::before {
-      content: counter(webmcp-step); width: 20px; height: 20px; border-radius: 50%;
-      display: grid; place-items: center; background: var(--bg-hover); color: var(--accent);
-      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      content: counter(webmcp-step); width: 19px; height: 19px; border-radius: 6px;
+      display: grid; place-items: center; color: var(--accent); background: var(--accent-soft);
+      font-family: 'JetBrains Mono', monospace; font-size: 9px;
     }
-    .webmcp-guide code { color: var(--fg); font-family: 'JetBrains Mono', monospace; }
-    .webmcp-guide a { color: #60a5fa; text-decoration: none; font-size: 11px; }
+    .webmcp-guide code { color: var(--text); font-family: 'JetBrains Mono', monospace; }
+    .webmcp-guide a { color: var(--accent); text-decoration: none; font-size: 10px; }
     .webmcp-guide a:hover { text-decoration: underline; }
 
-    /* Messages */
+    .tools-panel { max-height: 0; overflow: hidden; transition: max-height 220ms ease; }
+    .tools-panel.open { flex: 1; min-height: 0; max-height: none; }
+    .tools-panel.open + .chat-messages { display: none; }
+    .tools-list {
+      height: calc(100% - 20px); margin: 10px 14px; padding: 6px; overflow-y: auto;
+      border: 1px solid var(--border); border-radius: 13px; background: rgba(5, 13, 19, 0.58);
+      scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
+    }
+    .tool-group + .tool-group { margin-top: 8px; }
+    .tool-group-header {
+      position: sticky; top: -6px; z-index: 1; min-height: 32px; padding: 8px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      color: var(--text-muted); background: rgba(5, 13, 19, 0.96);
+      border-bottom: 1px solid var(--border); backdrop-filter: blur(10px);
+      font: 9px 'JetBrains Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .tool-group-count {
+      min-width: 20px; padding: 2px 6px; border-radius: 999px; text-align: center;
+      color: var(--accent); background: var(--accent-soft); letter-spacing: 0;
+    }
+    .tool-item { padding: 7px 8px; border-radius: 8px; display: grid; gap: 3px; }
+    .tool-item:hover { background: var(--surface); }
+    .tool-item-name { color: var(--accent); font: 10px 'JetBrains Mono', monospace; }
+    .tool-item-desc { color: var(--text-dim); font-size: 10px; line-height: 1.35; }
+
     .chat-messages {
-      flex: 1; overflow-y: auto; padding: 16px 20px;
+      flex: 1; min-height: 0; overflow-y: auto; padding: 18px;
       display: flex; flex-direction: column; gap: 12px;
-      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+      scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
     }
-    .chat-messages::-webkit-scrollbar { width: 4px; }
-    .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .chat-messages::-webkit-scrollbar, .tools-list::-webkit-scrollbar { width: 5px; }
+    .chat-messages::-webkit-scrollbar-thumb, .tools-list::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
+    .empty-state { margin: auto 0; padding: 22px 4px 8px; }
+    .empty-eyebrow { color: var(--accent); font: 10px 'JetBrains Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+    .empty-state h2 { margin-top: 10px; max-width: 320px; font-size: 25px; line-height: 1.15; letter-spacing: -0.04em; font-weight: 650; }
+    .empty-state p { margin-top: 10px; max-width: 340px; color: var(--text-muted); font-size: 12px; line-height: 1.65; }
+    .quick-prompts { display: grid; gap: 7px; margin-top: 18px; }
+    .quick-prompt {
+      width: 100%; padding: 10px 11px; border: 1px solid var(--border); border-radius: 11px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      color: var(--text-muted); background: rgba(255,255,255,0.02); cursor: pointer; text-align: left;
+      font-size: 11px; transition: color 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+    .quick-prompt svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--text-dim); }
+    .quick-prompt:hover { color: var(--text); background: var(--surface); border-color: var(--border-strong); }
+    .quick-prompt:hover svg { color: var(--accent); }
 
-    .msg { max-width: 90%; padding: 10px 14px; border-radius: var(--radius); font-size: 13px; line-height: 1.6; flex-shrink: 0; }
-    .msg-user {
-      align-self: flex-end; background: var(--accent); color: white;
-      border-bottom-right-radius: 2px;
-    }
-    .msg-ai {
-      align-self: flex-start; background: var(--bg-card); border: 1px solid var(--border);
-      border-bottom-left-radius: 2px;
-    }
-    .msg-system {
-      align-self: center; color: var(--fg-dim); font-size: 11px;
-      background: none; padding: 4px 0;
-    }
+    .msg { max-width: 91%; padding: 10px 12px; border-radius: 13px; font-size: 12px; line-height: 1.55; flex-shrink: 0; }
+    .msg-user { align-self: flex-end; color: #062018; background: var(--accent); border-bottom-right-radius: 4px; }
+    .msg-ai { align-self: flex-start; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+    .msg-system { align-self: center; color: var(--text-dim); background: none; padding: 4px 0; font-size: 10px; }
 
-    /* Tool Call */
-    .tool-call {
-      align-self: flex-start; width: 100%;
-      border: 1px solid var(--border); border-radius: var(--radius);
-      font-size: 12px; overflow: hidden; flex-shrink: 0;
-    }
-    .tool-call-header {
-      padding: 8px 12px; background: var(--bg-card);
-      display: flex; align-items: center; gap: 8px;
-      cursor: pointer; user-select: none;
-    }
-    .tool-call-header:hover { background: var(--bg-hover); }
-    .tool-call-icon {
-      width: 6px; height: 6px; border-radius: 50%;
-    }
-    .tool-call-icon.running { background: var(--accent); animation: pulse 1s infinite; }
-    .tool-call-icon.done { background: var(--success); }
+    .tool-call { align-self: flex-start; width: 100%; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; font-size: 11px; flex-shrink: 0; }
+    .tool-call-header { padding: 9px 11px; display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; background: rgba(255,255,255,0.025); }
+    .tool-call-header:hover { background: var(--surface); }
+    .tool-call-icon { width: 6px; height: 6px; border-radius: 50%; }
+    .tool-call-icon.running { background: #68a9ff; animation: pulse 1s infinite; }
+    .tool-call-icon.done { background: var(--accent); }
     .tool-call-icon.error { background: var(--danger); }
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-    .tool-call-name { font-family: 'JetBrains Mono', monospace; color: var(--fg-muted); }
-    .tool-call-detail {
-      display: none; padding: 8px 12px; border-top: 1px solid var(--border);
-      font-family: 'JetBrains Mono', monospace; font-size: 11px;
-      color: var(--fg-dim); white-space: pre-wrap; word-break: break-all;
-      max-height: 200px; overflow-y: auto;
-    }
+    .tool-call-name { color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+    .tool-call-detail { display: none; max-height: 180px; overflow-y: auto; padding: 9px 11px; border-top: 1px solid var(--border); color: var(--text-dim); font: 10px/1.5 'JetBrains Mono', monospace; white-space: pre-wrap; word-break: break-all; }
     .tool-call.expanded .tool-call-detail { display: block; }
 
-    /* Thinking indicator */
-    .thinking {
-      align-self: flex-start; display: flex; gap: 4px; padding: 12px 14px;
-    }
-    .thinking span {
-      width: 6px; height: 6px; border-radius: 50%; background: var(--fg-dim);
-      animation: bounce 1.4s ease-in-out infinite;
-    }
+    .thinking { align-self: flex-start; display: flex; gap: 4px; padding: 11px 12px; }
+    .thinking span { width: 5px; height: 5px; border-radius: 50%; background: var(--text-dim); animation: bounce 1.4s ease-in-out infinite; }
     .thinking span:nth-child(2) { animation-delay: 0.2s; }
     .thinking span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-8px); } }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-7px); } }
 
-    /* Input */
-    .chat-input-area {
-      padding: 16px 20px; border-top: 1px solid var(--border);
-      display: flex; gap: 8px;
-    }
+    .composer { padding: 12px 14px 14px; border-top: 1px solid var(--border); background: rgba(5, 13, 19, 0.34); }
+    .composer-label { display: flex; justify-content: space-between; margin: 0 2px 7px; color: var(--text-dim); font-size: 9px; }
+    .composer-label span:last-child { font-family: 'JetBrains Mono', monospace; }
+    .chat-input-area { display: flex; gap: 8px; }
     .chat-input {
-      flex: 1; background: var(--bg-card); border: 1px solid var(--border);
-      color: var(--fg); padding: 10px 14px; border-radius: var(--radius);
-      font-family: inherit; font-size: 13px; outline: none; resize: none;
+      flex: 1; min-width: 0; height: 42px; padding: 0 13px;
+      border: 1px solid var(--border); border-radius: 12px; outline: none;
+      color: var(--text); background: var(--surface); font-size: 12px;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
     }
-    .chat-input:focus { border-color: var(--accent); }
-    .chat-input::placeholder { color: var(--fg-dim); }
+    .chat-input:focus { border-color: rgba(76, 201, 167, 0.58); box-shadow: 0 0 0 3px rgba(76, 201, 167, 0.08); }
+    .chat-input::placeholder { color: var(--text-dim); }
     .chat-send {
-      background: var(--accent); border: none; color: white;
-      padding: 10px 16px; border-radius: var(--radius); cursor: pointer;
-      font-size: 13px; font-weight: 500; white-space: nowrap;
+      width: 42px; height: 42px; display: grid; place-items: center; flex: 0 0 auto;
+      border: 0; border-radius: 12px; cursor: pointer; color: #062018; background: var(--accent);
+      transition: background 180ms ease, opacity 180ms ease;
     }
+    .chat-send svg { width: 17px; height: 17px; }
     .chat-send:hover { background: var(--accent-hover); }
-    .chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+    .chat-send:disabled { opacity: 0.45; cursor: not-allowed; }
 
-    /* Setup dialog */
-    .setup-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    .setup-overlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: rgba(2, 7, 11, 0.74); backdrop-filter: blur(12px); }
+    .setup-dialog { width: min(460px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; padding: 24px; border: 1px solid var(--border-strong); border-radius: 20px; background: var(--panel-solid); box-shadow: var(--shadow); }
+    .setup-dialog h2 { font-size: 20px; letter-spacing: -0.03em; }
+    .setup-dialog > p { margin: 7px 0 20px; color: var(--text-muted); font-size: 11px; line-height: 1.6; }
+    .managed-ai {
+      display: grid; grid-template-columns: 34px 1fr; gap: 11px; margin-bottom: 18px; padding: 12px;
+      border: 1px solid rgba(76, 201, 167, 0.24); border-radius: 12px; background: var(--accent-soft);
     }
-    .setup-dialog {
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 12px; padding: 32px; width: 420px;
+    .managed-ai-icon {
+      width: 34px; height: 34px; display: grid; place-items: center;
+      border-radius: 10px; color: var(--accent); background: rgba(76, 201, 167, 0.1);
     }
-    .setup-dialog h2 { font-size: 16px; margin-bottom: 4px; }
-    .setup-dialog p { font-size: 12px; color: var(--fg-muted); margin-bottom: 20px; line-height: 1.6; }
-    .setup-field { margin-bottom: 16px; }
-    .setup-field label { display: block; font-size: 12px; color: var(--fg-muted); margin-bottom: 6px; }
-    .setup-field input {
-      width: 100%; background: var(--bg); border: 1px solid var(--border);
-      color: var(--fg); padding: 10px 12px; border-radius: var(--radius);
-      font-family: 'JetBrains Mono', monospace; font-size: 12px; outline: none;
-    }
+    .managed-ai-icon svg { width: 18px; height: 18px; }
+    .managed-ai-copy { min-width: 0; }
+    .managed-ai-title { display: block; color: var(--text); font-size: 11px; font-weight: 650; }
+    .managed-ai-detail { display: block; margin-top: 3px; color: var(--text-muted); font-size: 9px; line-height: 1.5; }
+    .managed-ai-model { color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+    .setup-field { margin-bottom: 14px; }
+    .setup-field label { display: block; margin-bottom: 6px; color: var(--text-muted); font-size: 10px; font-weight: 600; }
+    .setup-field input { width: 100%; height: 40px; padding: 0 11px; border: 1px solid var(--border); border-radius: 10px; outline: none; color: var(--text); background: var(--canvas); font: 10px 'JetBrains Mono', monospace; }
     .setup-field input:focus { border-color: var(--accent); }
-    .setup-field small { display: block; margin-top: 4px; font-size: 11px; color: var(--fg-dim); }
-    .setup-submit {
-      width: 100%; background: var(--accent); border: none; color: white;
-      padding: 10px; border-radius: var(--radius); font-size: 13px;
-      font-weight: 500; cursor: pointer;
-    }
-    .setup-submit:hover { background: var(--accent-hover); }
+    .setup-field small { display: block; margin-top: 5px; color: var(--text-dim); font-size: 9px; line-height: 1.45; }
+    .setup-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+    .setup-action { min-height: 38px; padding: 0 14px; border-radius: 10px; cursor: pointer; font-size: 11px; font-weight: 600; }
+    .setup-cancel { color: var(--text-muted); border: 1px solid var(--border); background: transparent; }
+    .setup-submit { color: #062018; border: 0; background: var(--accent); }
     .hidden { display: none !important; }
 
-    /* Tools Panel */
-    .tools-panel {
-      max-height: 0; overflow: hidden;
-      transition: max-height 0.25s ease;
-      border-bottom: 1px solid var(--border);
+    @media (max-width: 900px) {
+      .product-bar { top: 12px; left: 12px; right: 12px; width: fit-content; max-width: calc(100vw - 24px); }
+      .product-badges { display: none; }
+      .chat-panel { top: 46vh; left: 8px; right: 8px; bottom: 8px; width: auto; border-radius: 18px; }
+      .chat-header { min-height: 62px; padding: 12px 14px; }
+      .webmcp-panel { padding-inline: 12px; }
+      .chat-messages { padding: 14px; }
+      .empty-state { padding-top: 8px; }
+      .empty-state h2 { font-size: 21px; }
     }
-    .tools-panel.open { max-height: 320px; }
-    .tools-list {
-      padding: 4px 12px; overflow-y: auto; max-height: 310px;
-      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
-    }
-    .tools-list::-webkit-scrollbar { width: 4px; }
-    .tools-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-    .tool-item {
-      padding: 6px 8px; border-radius: 4px; display: flex; gap: 8px; align-items: baseline;
-    }
-    .tool-item:hover { background: var(--bg-hover); }
-    .tool-item-name {
-      font-family: 'JetBrains Mono', monospace; font-size: 11px;
-      color: var(--accent); white-space: nowrap; min-width: 110px;
-    }
-    .tool-item-desc {
-      font-size: 11px; color: var(--fg-dim); line-height: 1.4;
-    }
-    @media (max-width: 800px) {
-      body { flex-direction: column; }
-      #cesiumContainer { flex: 0 0 52vh; height: 52vh; }
-      .chat-panel { width: 100%; min-height: 0; flex: 1; border-left: 0; border-top: 1px solid var(--border); }
-      .chat-header { padding: 12px 16px; }
-      .webmcp-status, .webmcp-guide { padding-inline: 16px; }
-      .setup-dialog { width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; }
+    @media (max-width: 480px) {
+      .brand-tagline { display: none; }
+      .chat-header-actions .clear-button { display: none; }
+      .empty-state p { font-size: 11px; }
+      .quick-prompts { grid-template-columns: 1fr; }
     }
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
     }
   </style>
 </head>
@@ -254,13 +302,41 @@
 
 <div id="cesiumContainer"></div>
 
+<div class="product-bar" aria-label="Product information" data-i18n-aria-label="productInformation">
+  <div class="brand-mark" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="7.5" stroke="currentColor" stroke-width="1.7" />
+      <path d="M4.9 9.5h14.2M4.9 14.5h14.2M12 4.5c2.1 2 3.2 4.5 3.2 7.5S14.1 17.5 12 19.5c-2.1-2-3.2-4.5-3.2-7.5S9.9 6.5 12 4.5Z" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" />
+    </svg>
+  </div>
+  <div class="brand-copy">
+    <span class="brand-name">Cesium Agent Lab</span>
+    <span class="brand-tagline" data-i18n="brandTagline">A live globe with tools for AI agents</span>
+  </div>
+  <div class="product-badges" aria-label="Demo capabilities" data-i18n-aria-label="demoCapabilities">
+    <span class="product-badge live" data-i18n="webMcpLive">WebMCP live</span>
+    <span class="product-badge" data-i18n="toolCountBadge">61 WebMCP tools</span>
+    <span class="product-badge" data-i18n="noMcpServer">No MCP server</span>
+  </div>
+</div>
+
 <div class="chat-panel">
   <div class="chat-header">
-    <h1>CesiumJS Agent <span>browser-only</span></h1>
+    <div class="chat-title">
+      <span class="chat-kicker" data-i18n="interactiveDemo">Interactive demo</span>
+      <h1 data-i18n="askTheGlobe">Ask the globe</h1>
+    </div>
     <div class="chat-header-actions">
-      <button onclick="toggleTools()">Tools</button>
-      <button onclick="clearChat()">Clear</button>
-      <button onclick="showSetup()">Settings</button>
+      <button class="icon-button language-button" id="languageButton" type="button" aria-label="Switch to Chinese" title="中文" onclick="toggleLanguage()">中</button>
+      <button class="icon-button" id="toolsButton" type="button" aria-label="Show available tools" aria-expanded="false" title="Tools" data-i18n-aria-label="showTools" data-i18n-title="tools" onclick="toggleTools()">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" /></svg>
+      </button>
+      <button class="icon-button clear-button" type="button" aria-label="Clear conversation" title="Clear" data-i18n-aria-label="clearConversation" data-i18n-title="clear" onclick="clearChat()">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7h14M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </button>
+      <button class="icon-button" type="button" aria-label="Open connection settings" title="Settings" data-i18n-aria-label="openSettings" data-i18n-title="settings" onclick="showSetup()">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6" /><path d="M19 13.4v-2.8l-2-.7a6.8 6.8 0 0 0-.6-1.4l.9-1.9-2-2-1.9.9a6.8 6.8 0 0 0-1.4-.6l-.7-2H8.6l-.7 2a6.8 6.8 0 0 0-1.4.6l-1.9-.9-2 2 .9 1.9a6.8 6.8 0 0 0-.6 1.4l-2 .7v2.8l2 .7c.1.5.3 1 .6 1.4l-.9 1.9 2 2 1.9-.9c.4.3.9.5 1.4.6l.7 2h2.8l.7-2c.5-.1 1-.3 1.4-.6l1.9.9 2-2-.9-1.9c.3-.4.5-.9.6-1.4l1.9-.7Z" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round" /></svg>
+      </button>
     </div>
   </div>
   <div class="webmcp-panel">
@@ -276,62 +352,82 @@
       <span class="webmcp-dot" aria-hidden="true"></span>
       <span class="webmcp-status-copy" aria-live="polite">
         <span class="webmcp-status-title" id="webMcpStatusTitle">WebMCP</span>
-        <span class="webmcp-status-detail" id="webMcpStatusDetail">Start the viewer to detect browser support</span>
+        <span class="webmcp-status-detail" id="webMcpStatusDetail" data-i18n="detectingWebMcp">Detecting browser support and page tools</span>
       </span>
       <svg class="webmcp-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
         <path d="m5 7.5 5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
     </button>
     <div class="webmcp-guide hidden" id="webMcpGuide">
-      <p>Let a compatible browser agent control this live globe directly — no MCP runtime or WebSocket server.</p>
+      <p data-i18n="webMcpGuideIntro">A compatible browser agent can control this live globe directly—without an MCP runtime or WebSocket server.</p>
       <ol class="webmcp-steps">
-        <li>Use Chrome 149+ with WebMCP enabled by the site Origin Trial or local testing flag.</li>
-        <li>Open the Model Context Tool Inspector, or DevTools → Application → WebMCP.</li>
-        <li>Try <code>flyTo</code> with Beijing coordinates, then run <code>addMarker</code>.</li>
+        <li data-i18n="webMcpStepOne">Open this HTTPS demo in Chrome 149–156; the site is enrolled in the WebMCP Origin Trial.</li>
+        <li data-i18n="webMcpStepTwo">Use a compatible browser agent or DevTools → Application → WebMCP.</li>
+        <li data-i18n="webMcpStepThree">Inspect tools such as flyTo, addMarker, and measure.</li>
       </ol>
-      <a href="https://developer.chrome.com/docs/ai/webmcp" target="_blank" rel="noreferrer">Chrome WebMCP setup and inspector guide →</a>
+      <a href="https://developer.chrome.com/docs/ai/webmcp" target="_blank" rel="noreferrer" data-i18n="readWebMcpGuide">Read the Chrome WebMCP guide →</a>
     </div>
   </div>
   <div class="tools-panel" id="toolsPanel">
     <div class="tools-list" id="toolsList"></div>
   </div>
   <div class="chat-messages" id="messages">
-    <div class="msg msg-system">Natural language control of CesiumJS -- no MCP needed.</div>
+    <div class="empty-state" id="emptyState">
+      <span class="empty-eyebrow" data-i18n="naturalLanguageLiveScene">Natural language → live scene</span>
+      <h2 data-i18n="heroTitle">Describe a place. Watch the globe respond.</h2>
+      <p data-i18n="heroDescription">The built-in agent turns your request into typed Cesium commands. Or let a WebMCP browser agent discover the same page tools.</p>
+      <div class="quick-prompts" aria-label="Example prompts" data-i18n-aria-label="examplePrompts">
+        <button class="quick-prompt" type="button" data-prompt-key="promptTokyoRequest" onclick="runPrompt(this.dataset.prompt)">
+          <span data-i18n="promptTokyoLabel">Fly to Tokyo and add a marker</span>
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m7 5 5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        </button>
+        <button class="quick-prompt" type="button" data-prompt-key="promptEverestRequest" onclick="runPrompt(this.dataset.prompt)">
+          <span data-i18n="promptEverestLabel">Explore Everest in satellite view</span>
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m7 5 5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        </button>
+        <button class="quick-prompt" type="button" data-prompt-key="promptMeasureRequest" onclick="runPrompt(this.dataset.prompt)">
+          <span data-i18n="promptMeasureLabel">Measure Beijing to Shanghai</span>
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m7 5 5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        </button>
+      </div>
+    </div>
   </div>
   <div class="thinking hidden" id="thinking"><span></span><span></span><span></span></div>
-  <div class="chat-input-area">
-    <input class="chat-input" id="chatInput" placeholder="Try: fly to Tokyo..." 
-           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}" />
-    <button class="chat-send" id="sendBtn" onclick="sendMessage()">Send</button>
+  <div class="composer">
+    <div class="composer-label"><span data-i18n="composerLabel">Ask about a place or scene</span><span data-i18n="enterToRun">Enter to run</span></div>
+    <div class="chat-input-area">
+      <input class="chat-input" id="chatInput" aria-label="Prompt" data-i18n-aria-label="promptAria" data-i18n-placeholder="promptPlaceholder" placeholder="Fly to Tokyo, draw a route…"
+             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}" />
+      <button class="chat-send" id="sendBtn" aria-label="Send prompt" data-i18n-aria-label="sendPrompt" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 14-7-4.5 14-3-5.5L5 12Zm6.5 1.5L19 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </button>
+    </div>
   </div>
 </div>
 
 <!-- Setup Dialog -->
-<div class="setup-overlay" id="setupOverlay">
+<div class="setup-overlay hidden" id="setupOverlay" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
   <div class="setup-dialog">
-    <h2>Setup</h2>
-    <p>Just want to try it? Click <strong>Start</strong> — defaults work out of the box. Open this dialog later from the <em>Settings</em> button to change the model, endpoint, or API key.</p>
-    <div class="setup-field">
-      <label>API Endpoint</label>
-      <input id="setupEndpoint" value="/api/chat" placeholder="/api/chat or https://your-proxy.com/api/chat" />
-      <small>Default /api/chat works with Cloudflare Pages deployment</small>
+    <h2 id="setupTitle" data-i18n="demoSettings">Demo settings</h2>
+    <p data-i18n="settingsDescription">AI access is managed securely by the hosted demo. No API key is stored in your browser.</p>
+    <div class="managed-ai" role="status">
+      <span class="managed-ai-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 3 5 6v5c0 4.5 2.7 8.2 7 10 4.3-1.8 7-5.5 7-10V6l-7-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" /><path d="m9.2 12 1.8 1.8 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </span>
+      <span class="managed-ai-copy">
+        <span class="managed-ai-title" data-i18n="managedAiTitle">Server-managed AI</span>
+        <span class="managed-ai-detail"><span data-i18n="managedAiDetail">Protected by server-side limits · no browser API key</span><br><span class="managed-ai-model">@cf/zai-org/glm-4.7-flash</span></span>
+      </span>
     </div>
     <div class="setup-field">
-      <label>OpenAI API Key (optional, for direct calls)</label>
-      <input id="setupApiKey" type="password" placeholder="sk-..." />
-      <small>If provided, calls OpenAI directly (CORS required). Leave empty to use proxy.</small>
-    </div>
-    <div class="setup-field">
-      <label>Model</label>
-      <input id="setupModel" placeholder="deepseek/deepseek-chat-v3-0324" />
-      <small>Default deepseek/deepseek-chat-v3-0324 via proxy. For direct call use openai/gpt-4o-mini</small>
-    </div>
-    <div class="setup-field">
-      <label>Cesium Ion Token (optional)</label>
+      <label for="setupIonToken" data-i18n="ionToken">Cesium Ion token (optional)</label>
       <input id="setupIonToken" placeholder="eyJ..." />
-      <small>For terrain/imagery access. Default demo token used if empty.</small>
+      <small data-i18n="ionTokenHelp">Add your token for Cesium World Terrain and Ion assets.</small>
     </div>
-    <button class="setup-submit" onclick="applySetup()">Start</button>
+    <div class="setup-actions">
+      <button class="setup-action setup-cancel" type="button" data-i18n="cancel" onclick="closeSetup()">Cancel</button>
+      <button class="setup-action setup-submit" type="button" data-i18n="saveSettings" onclick="applySetup()">Save settings</button>
+    </div>
   </div>
 </div>
 
@@ -339,41 +435,276 @@
 // ============================================================
 // Configuration
 // ============================================================
-let CONFIG = {
-  endpoint: '/api/chat',
-  apiKey: '',
-  ionToken: '',
-  model: 'deepseek/deepseek-chat-v3-0324',
-};
+let CONFIG = { ionToken: '' };
 
-// Try restore from localStorage
+// Restore only the optional Cesium Ion token. This also purges legacy API keys.
 try {
   const saved = JSON.parse(localStorage.getItem('cesium-agent-config'));
-  if (saved) Object.assign(CONFIG, saved);
+  if (saved?.ionToken) CONFIG.ionToken = saved.ionToken;
+  localStorage.setItem('cesium-agent-config', JSON.stringify(CONFIG));
 } catch {}
+
+const I18N = {
+  en: {
+    pageTitle: 'Cesium Agent Lab — WebMCP Demo',
+    productInformation: 'Product information',
+    brandTagline: 'A live globe with tools for AI agents',
+    demoCapabilities: 'Demo capabilities',
+    webMcpLive: 'WebMCP live',
+    toolCountBadge: '61 WebMCP tools',
+    noMcpServer: 'No MCP server',
+    interactiveDemo: 'Interactive demo',
+    askTheGlobe: 'Ask the globe',
+    switchToChinese: 'Switch to Chinese',
+    showTools: 'Show available tools',
+    tools: 'Tools',
+    clearConversation: 'Clear conversation',
+    clear: 'Clear',
+    openSettings: 'Open connection settings',
+    settings: 'Settings',
+    detectingWebMcp: 'Detecting browser support and page tools',
+    webMcpGuideIntro: 'A compatible browser agent can control this live globe directly—without an MCP runtime or WebSocket server.',
+    webMcpStepOne: 'Open this HTTPS demo in Chrome 149–156; the site is enrolled in the WebMCP Origin Trial.',
+    webMcpStepTwo: 'Use a compatible browser agent or DevTools → Application → WebMCP.',
+    webMcpStepThree: 'Inspect tools such as flyTo, addMarker, and measure.',
+    readWebMcpGuide: 'Read the Chrome WebMCP guide →',
+    naturalLanguageLiveScene: 'Natural language → live scene',
+    heroTitle: 'Describe a place. Watch the globe respond.',
+    heroDescription: 'The built-in agent turns your request into typed Cesium commands. Or let a WebMCP browser agent discover the same page tools.',
+    examplePrompts: 'Example prompts',
+    promptTokyoLabel: 'Fly to Tokyo and add a marker',
+    promptTokyoRequest: 'Fly to Tokyo and add a marker labeled Tokyo',
+    promptEverestLabel: 'Explore Everest in satellite view',
+    promptEverestRequest: 'Show a satellite basemap and fly to Mount Everest',
+    promptMeasureLabel: 'Measure Beijing to Shanghai',
+    promptMeasureRequest: 'Measure the distance from Beijing to Shanghai and show it on the map',
+    composerLabel: 'Ask about a place or scene',
+    enterToRun: 'Enter to run',
+    promptAria: 'Prompt',
+    promptPlaceholder: 'Fly to Tokyo, draw a route…',
+    sendPrompt: 'Send prompt',
+    demoSettings: 'Demo settings',
+    settingsDescription: 'AI access is managed securely by the hosted demo. No model API key is stored in your browser.',
+    managedAiTitle: 'Server-managed AI',
+    managedAiDetail: 'Protected by server-side limits · no browser API key',
+    ionToken: 'Cesium Ion token (optional)',
+    ionTokenHelp: 'Use a URL-restricted browser token for optional Ion terrain and assets.',
+    cancel: 'Cancel',
+    saveSettings: 'Save settings',
+    webMcpRegistrationFailed: 'WebMCP registration failed',
+    openGuideTroubleshooting: 'Open the guide for troubleshooting',
+    webMcpReady: 'WebMCP ready',
+    pageToolsRegistered: '{count} page tools registered',
+    webMcpUnavailable: 'WebMCP unavailable',
+    builtInChatWorks: 'Built-in chat still works — open the guide to enable WebMCP',
+    registeringWebMcp: 'Registering WebMCP tools',
+    connectingBrowserAgent: 'Connecting this Cesium viewer to the browser agent',
+    errorPrefix: 'Error',
+    rateLimitError: 'Too many requests. Please try again in a minute.',
+    aiUnavailable: 'The hosted AI is temporarily unavailable.',
+    argsLabel: 'Args',
+    resultLabel: 'Result',
+  },
+  'zh-CN': {
+    pageTitle: 'Cesium Agent Lab — WebMCP 在线体验',
+    productInformation: '产品信息',
+    brandTagline: '面向 AI 智能体的实时三维地球工具',
+    demoCapabilities: '演示能力',
+    webMcpLive: 'WebMCP 已启用',
+    toolCountBadge: '61 个 WebMCP 工具',
+    noMcpServer: '无需 MCP 服务',
+    interactiveDemo: '交互式体验',
+    askTheGlobe: '向地球提问',
+    switchToEnglish: '切换为英文',
+    showTools: '查看可用工具',
+    tools: '工具',
+    clearConversation: '清空对话',
+    clear: '清空',
+    openSettings: '打开连接设置',
+    settings: '设置',
+    detectingWebMcp: '正在检测浏览器支持和页面工具',
+    webMcpGuideIntro: '兼容的浏览器智能体可以直接控制这个三维地球，无需 MCP Runtime 或 WebSocket 服务。',
+    webMcpStepOne: '使用 Chrome 149–156 打开此 HTTPS 演示；网站已加入 WebMCP Origin Trial。',
+    webMcpStepTwo: '使用兼容的浏览器智能体，或打开开发者工具 → Application → WebMCP。',
+    webMcpStepThree: '查看 flyTo、addMarker 和 measure 等页面工具。',
+    readWebMcpGuide: '阅读 Chrome WebMCP 指南 →',
+    naturalLanguageLiveScene: '自然语言 → 实时场景',
+    heroTitle: '描述一个地点，让地球即时响应。',
+    heroDescription: '内置智能体会把你的请求转换成类型明确的 Cesium 指令；WebMCP 浏览器智能体也能直接发现并调用同一组页面工具。',
+    examplePrompts: '示例指令',
+    promptTokyoLabel: '飞到东京并添加标记',
+    promptTokyoRequest: '飞到东京，并添加一个标签为“东京”的标记',
+    promptEverestLabel: '用卫星底图探索珠穆朗玛峰',
+    promptEverestRequest: '切换为卫星底图，并飞到珠穆朗玛峰',
+    promptMeasureLabel: '测量北京到上海的距离',
+    promptMeasureRequest: '测量北京到上海的距离，并在地图上显示结果',
+    composerLabel: '询问地点或场景',
+    enterToRun: '按 Enter 运行',
+    promptAria: '指令',
+    promptPlaceholder: '飞到东京、绘制一条路线……',
+    sendPrompt: '发送指令',
+    demoSettings: '演示设置',
+    settingsDescription: 'AI 能力由在线服务安全托管，浏览器不会保存任何模型 API Key。',
+    managedAiTitle: '服务端托管 AI',
+    managedAiDetail: '服务端限流保护 · 浏览器不保存 API Key',
+    ionToken: 'Cesium Ion Token（可选）',
+    ionTokenHelp: '如需使用 Ion 地形和资源，请填写已限制网站域名的浏览器 Token。',
+    cancel: '取消',
+    saveSettings: '保存设置',
+    webMcpRegistrationFailed: 'WebMCP 注册失败',
+    openGuideTroubleshooting: '请展开指南查看排查方法',
+    webMcpReady: 'WebMCP 已就绪',
+    pageToolsRegistered: '已注册 {count} 个页面工具',
+    webMcpUnavailable: 'WebMCP 当前不可用',
+    builtInChatWorks: '内置对话仍可使用 — 展开指南了解如何启用 WebMCP',
+    registeringWebMcp: '正在注册 WebMCP 工具',
+    connectingBrowserAgent: '正在将 Cesium Viewer 连接到浏览器智能体',
+    errorPrefix: '错误',
+    rateLimitError: '请求过于频繁，请一分钟后再试。',
+    aiUnavailable: '在线 AI 服务暂时不可用。',
+    argsLabel: '参数',
+    resultLabel: '结果',
+  },
+}
+
+const TOOL_DESCRIPTIONS_ZH = {
+  flyTo: '以动画方式飞行到指定经纬度和高度',
+  setView: '立即将相机设置到指定地理位置',
+  getView: '获取当前相机的经纬度、高度和姿态',
+  addMarker: '在指定坐标添加点标记，并返回实体 ID',
+  addPolyline: '在地图上绘制路线或折线，并返回实体 ID',
+  addPolygon: '在地图上绘制多边形区域，并返回实体 ID',
+  addLabel: '为 GeoJSON 要素添加属性文字标注',
+  addGeoJsonLayer: '添加带样式的 GeoJSON 点、线或面图层',
+  setBasemap: '切换地图底图样式',
+  removeEntity: '通过实体 ID 删除单个实体',
+  clearAll: '清除全部图层、实体、动画和轨迹',
+  geocode: '将地址或地名转换为地理坐标',
+  highlight: '高亮图层中的指定要素',
+  measure: '测量坐标之间的距离或面积',
+  screenshot: '截取当前地图视图',
+  zoomToExtent: '将相机缩放到指定的地理范围',
+  saveViewpoint: '用名称保存当前相机视点',
+  loadViewpoint: '恢复之前保存的相机视点',
+  listViewpoints: '列出当前页面保存的全部视点',
+  exportScene: '将当前视图、图层和实体状态导出为 JSON',
+  addModel: '在地理坐标处添加 glTF 或 GLB 三维模型',
+  updateEntity: '更新实体的位置、样式、标签或可见性',
+  batchAddEntities: '一次添加多个受支持的实体',
+  queryEntities: '按名称、类型或地理范围查询实体',
+  getEntityProperties: '读取指定实体的属性和图形元数据',
+  addGeoJsonPrimitive: '使用 Cesium Primitive 渲染大型 GeoJSON 数据',
+  listLayers: '列出当前页面管理的全部图层',
+  getLayerSchema: '查看图层字段、实体数量和元数据',
+  removeLayer: '从页面中删除指定图层',
+  setLayerVisibility: '显示或隐藏指定图层',
+  updateLayerStyle: '更新矢量、影像、Primitive 或三维瓦片样式',
+  lookAtTransform: '以指定姿态和距离观察地理目标',
+  startOrbit: '让相机围绕当前目标持续旋转',
+  stopOrbit: '停止相机旋转',
+  setCameraOptions: '配置相机交互方式和缩放范围',
+  addBillboard: '在地理坐标处添加图片广告牌',
+  addBox: '添加三维盒状实体',
+  addCorridor: '沿地理中心线添加指定宽度的廊道',
+  addCylinder: '添加圆柱体或圆锥体实体',
+  addEllipse: '添加椭圆或圆形实体',
+  addRectangle: '添加地理矩形实体',
+  addWall: '沿一组地理坐标添加墙体',
+  createAnimation: '创建沿带时间航点运动的动态实体',
+  controlAnimation: '播放或暂停 Cesium 时钟动画',
+  removeAnimation: '删除指定动态实体',
+  listAnimations: '列出当前页面中的动态实体',
+  updateAnimationPath: '更新动态实体的路径样式',
+  trackEntity: '让相机跟踪实体或停止跟踪',
+  controlClock: '配置仿真时间、速度和循环范围',
+  setGlobeLighting: '配置地球和大气光照效果',
+  setSceneOptions: '配置雾、大气、阴影、天体和场景背景',
+  setPostProcess: '配置泛光、环境光遮蔽和 FXAA 后处理',
+  load3dTiles: '从 URL 或 Cesium ion 加载三维瓦片',
+  load3dGaussianSplat: '从 URL 加载三维高斯泼溅数据',
+  loadTerrain: '切换 Cesium 地形服务',
+  loadImageryService: '加载 WMS、WMTS、XYZ、ArcGIS 或 ion 影像',
+  loadCzml: '从内联数据或 URL 加载 CZML',
+  loadKml: '从内联数据或 URL 加载 KML/KMZ',
+  setEdgeDisplayMode: '设置三维瓦片的表面与边线显示模式',
+  playTrajectory: '沿地理坐标路径播放移动轨迹',
+  addHeatmap: '根据 GeoJSON 点要素添加热力图',
+}
+
+const TOOLSET_LABELS_ZH = {
+  view: '视图与视点',
+  entity: '基础实体',
+  layer: '图层管理',
+  camera: '高级相机',
+  'entity-ext': '扩展实体',
+  animation: '动画与时钟',
+  scene: '场景效果',
+  tiles: '三维数据与服务',
+  interaction: '交互与测量',
+  trajectory: '轨迹',
+  heatmap: '热力图',
+  geolocation: '地理编码',
+}
+
+const savedLocale = localStorage.getItem('cesium-agent-locale')
+let currentLocale = ['en', 'zh-CN'].includes(savedLocale)
+  ? savedLocale
+  : (navigator.language.toLowerCase().startsWith('zh') ? 'zh-CN' : 'en')
+
+function t(key, variables = {}) {
+  const value = I18N[currentLocale]?.[key] || I18N.en[key] || key
+  return Object.entries(variables).reduce(
+    (text, [name, replacement]) => text.replaceAll(`{${name}}`, String(replacement)),
+    value,
+  )
+}
+
+function applyLocale() {
+  document.documentElement.lang = currentLocale
+  document.title = t('pageTitle')
+  document.querySelectorAll('[data-i18n]').forEach(element => {
+    element.textContent = t(element.dataset.i18n)
+  })
+  const translatedAttributes = ['aria-label', 'title', 'placeholder']
+  translatedAttributes.forEach(attribute => {
+    document.querySelectorAll(`[data-i18n-${attribute}]`).forEach(element => {
+      element.setAttribute(attribute, t(element.dataset[`i18n${attribute.split('-').map(part => part[0].toUpperCase() + part.slice(1)).join('')}`]))
+    })
+  })
+  document.querySelectorAll('[data-prompt-key]').forEach(element => {
+    element.dataset.prompt = t(element.dataset.promptKey)
+  })
+
+  const languageButton = document.getElementById('languageButton')
+  const isEnglish = currentLocale === 'en'
+  languageButton.textContent = isEnglish ? '中' : 'EN'
+  languageButton.setAttribute('aria-label', t(isEnglish ? 'switchToChinese' : 'switchToEnglish'))
+  languageButton.title = isEnglish ? '中文' : 'English'
+
+  initToolsList()
+  renderWebMcpStatus()
+}
+
+function toggleLanguage() {
+  currentLocale = currentLocale === 'en' ? 'zh-CN' : 'en'
+  localStorage.setItem('cesium-agent-locale', currentLocale)
+  applyLocale()
+}
 
 // ============================================================
 // Tool Definitions (OpenAI function calling format)
 // ============================================================
-const TOOLS = [
-  {type:"function",function:{name:"flyTo",description:"Fly the camera to a geographic location (animated transition)",parameters:{type:"object",properties:{longitude:{type:"number",description:"Longitude (-180 to 180)"},latitude:{type:"number",description:"Latitude (-90 to 90)"},height:{type:"number",description:"Camera height in meters (default 50000)"},heading:{type:"number",description:"Heading in degrees, 0 = north"},pitch:{type:"number",description:"Pitch in degrees, -90 = straight down"},duration:{type:"number",description:"Flight duration in seconds"}},required:["longitude","latitude"]}}},
-  {type:"function",function:{name:"setView",description:"Instantly set camera to a geographic position (no animation)",parameters:{type:"object",properties:{longitude:{type:"number",description:"Longitude (-180 to 180)"},latitude:{type:"number",description:"Latitude (-90 to 90)"},height:{type:"number",description:"Height in meters (default 50000)"},heading:{type:"number",description:"Heading in degrees"},pitch:{type:"number",description:"Pitch in degrees"},roll:{type:"number",description:"Roll in degrees"}},required:["longitude","latitude"]}}},
-  {type:"function",function:{name:"getView",description:"Get current camera position (longitude, latitude, height, angles)",parameters:{type:"object",properties:{}}}},
-  {type:"function",function:{name:"addMarker",description:"Add a point marker at coordinates, returns entityId for later reference",parameters:{type:"object",properties:{longitude:{type:"number",description:"Longitude"},latitude:{type:"number",description:"Latitude"},label:{type:"string",description:"Marker label text"},color:{type:"string",description:"CSS color (default #3B82F6)"},size:{type:"number",description:"Point size in pixels"},id:{type:"string",description:"Custom entity ID"}},required:["longitude","latitude"]}}},
-  {type:"function",function:{name:"addPolyline",description:"Draw a polyline (path/route) on the map, returns entityId",parameters:{type:"object",properties:{coordinates:{type:"array",items:{type:"array",items:{type:"number"}},description:"Array of [lon, lat, height?] coordinate pairs"},color:{type:"string",description:"Line color (CSS format)"},width:{type:"number",description:"Line width in pixels"},clampToGround:{type:"boolean",description:"Clamp to terrain surface"},label:{type:"string",description:"Polyline label text"}},required:["coordinates"]}}},
-  {type:"function",function:{name:"addPolygon",description:"Draw a polygon area on the map, returns entityId",parameters:{type:"object",properties:{coordinates:{type:"array",items:{type:"array",items:{type:"number"}},description:"Outer ring coordinates [[lon, lat, height?], ...]"},color:{type:"string",description:"Fill color (CSS format)"},outlineColor:{type:"string",description:"Outline color"},opacity:{type:"number",description:"Fill opacity (0-1)"},extrudedHeight:{type:"number",description:"Extrude height in meters for 3D effect"},clampToGround:{type:"boolean",description:"Clamp to terrain"},label:{type:"string",description:"Polygon label text"}},required:["coordinates"]}}},
-  {type:"function",function:{name:"addLabel",description:"Add text labels for GeoJSON features (display property values)",parameters:{type:"object",properties:{data:{type:"object",description:"GeoJSON FeatureCollection object"},field:{type:"string",description:"Property field name to use as label text"},style:{type:"object",description:"Label style (font, fillColor, scale, etc.)"}},required:["data","field"]}}},
-  {type:"function",function:{name:"addGeoJsonLayer",description:"Add a GeoJSON data layer to the map (Point/Line/Polygon with styling)",parameters:{type:"object",properties:{id:{type:"string",description:"Layer ID"},name:{type:"string",description:"Layer display name"},data:{type:"object",description:"GeoJSON FeatureCollection object"},style:{type:"object",description:"Style config (color, opacity, pointSize, choropleth, category)"}},required:["data"]}}},
-  {type:"function",function:{name:"setBasemap",description:"Switch basemap style",parameters:{type:"object",properties:{basemap:{type:"string",enum:["dark","satellite","standard","osm","arcgis","light"],description:"Basemap type: dark, satellite, standard, osm, arcgis, light"}},required:["basemap"]}}},
-  {type:"function",function:{name:"removeEntity",description:"Remove a single entity by its entityId",parameters:{type:"object",properties:{entityId:{type:"string",description:"Entity ID to remove"}},required:["entityId"]}}},
-  {type:"function",function:{name:"clearAll",description:"Clear all layers, entities, animations, and trajectories (reset scene)",parameters:{type:"object",properties:{}}}},
-  {type:"function",function:{name:"geocode",description:"Convert address/place name to geographic coordinates (uses OSM Nominatim, no API key needed)",parameters:{type:"object",properties:{address:{type:"string",description:"Address or place name, e.g. 'Eiffel Tower', 'Tokyo'"},countryCode:{type:"string",description:"ISO country code to limit search (e.g. 'US', 'JP')"}},required:["address"]}}},
-  {type:"function",function:{name:"highlight",description:"Highlight features of a layer",parameters:{type:"object",properties:{layerId:{type:"string",description:"Layer ID to highlight"},featureIndex:{type:"number",description:"Feature index (omit to highlight all)"},color:{type:"string",description:"Highlight color (CSS format, default #FFFF00)"}},required:["layerId"]}}},
-  {type:"function",function:{name:"measure",description:"Measure distance or area between coordinates",parameters:{type:"object",properties:{mode:{type:"string",enum:["distance","area"],description:"Measurement mode"},positions:{type:"array",items:{type:"array",items:{type:"number"},minItems:2,maxItems:3},minItems:2,description:"Coordinate array [[lon,lat,alt?], ...]"},showOnMap:{type:"boolean",description:"Show measurement result on map"},id:{type:"string",description:"Custom measurement entity ID"}},required:["mode","positions"]}}},
-  {type:"function",function:{name:"screenshot",description:"Capture current map view (returns base64 PNG)",parameters:{type:"object",properties:{}}}},
-];
-
-const SYSTEM_PROMPT = `You are a CesiumJS 3D globe assistant. You help users explore and visualize geographic data by controlling a live CesiumJS viewer in the browser.
+const TOOL_CONTRACTS = CesiumMcpWebMcp.cesiumCoreToolContracts
+const TOOLS = TOOL_CONTRACTS.map(tool => ({
+  type: 'function',
+  function: {
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.inputSchema,
+  },
+}))
+const SYSTEM_PROMPTS = {
+  en: `You are a CesiumJS 3D globe assistant. You help users explore and visualize geographic data by controlling a live CesiumJS viewer in the browser.
 
 When the user asks you to do something on the map, use the provided tools to execute it. You can chain multiple tool calls in one response.
 
@@ -382,31 +713,52 @@ Guidelines:
 - When adding markers or shapes, pick reasonable default colors if not specified
 - For place names, use the geocode tool first to get coordinates, then use flyTo or addMarker
 - After executing actions, briefly confirm what you did
-- If the user asks about capabilities, explain what tools are available`;
+- If the user asks about capabilities, explain what tools are available
+- Reply in English`,
+  'zh-CN': `你是一个 CesiumJS 三维地球助手，通过控制浏览器中的实时 CesiumJS Viewer，帮助用户探索地点并可视化地理数据。
+
+当用户要求操作地图时，使用提供的工具完成任务。一次回复可以连续调用多个工具。
+
+规则：
+- 文字回复保持简洁
+- 用户未指定颜色时，为标记和图形选择合理的默认颜色
+- 遇到地名时，先使用 geocode 获取坐标，再调用 flyTo 或 addMarker
+- 完成操作后，简短确认执行结果
+- 用户询问能力时，说明当前可用的工具
+- 使用简体中文回复`,
+}
 
 // ============================================================
 // State
 // ============================================================
 let messages = [];  // OpenAI message format
 let bridge = null;
+let cesiumLoadPromise = null
+let bridgeLoadPromise = null
+let cesiumInitPromise = null
 let webMcpRegistration = null;
 let isProcessing = false;
+let lastWebMcpStatus = {
+  state: 'idle',
+  titleKey: null,
+  detailKey: 'detectingWebMcp',
+  variables: {},
+}
 
 // ============================================================
 // Setup
 // ============================================================
 function showSetup() {
-  document.getElementById('setupEndpoint').value = CONFIG.endpoint;
-  document.getElementById('setupApiKey').value = CONFIG.apiKey;
-  document.getElementById('setupModel').value = CONFIG.model;
   document.getElementById('setupIonToken').value = CONFIG.ionToken;
   document.getElementById('setupOverlay').classList.remove('hidden');
+  document.getElementById('setupIonToken').focus();
+}
+
+function closeSetup() {
+  document.getElementById('setupOverlay').classList.add('hidden');
 }
 
 function applySetup() {
-  CONFIG.endpoint = document.getElementById('setupEndpoint').value.trim() || '/api/chat';
-  CONFIG.apiKey = document.getElementById('setupApiKey').value.trim();
-  CONFIG.model = document.getElementById('setupModel').value.trim() || 'deepseek/deepseek-chat-v3-0324';
   CONFIG.ionToken = document.getElementById('setupIonToken').value.trim();
   localStorage.setItem('cesium-agent-config', JSON.stringify(CONFIG));
   document.getElementById('setupOverlay').classList.add('hidden');
@@ -421,21 +773,107 @@ function toggleWebMcpGuide() {
   guide.classList.toggle('hidden', expanded);
 }
 
-function setWebMcpStatus(state, title, detail) {
+function renderWebMcpStatus() {
+  if (!lastWebMcpStatus) return
+  const { state, titleKey, detailKey, variables } = lastWebMcpStatus
   const status = document.getElementById('webMcpStatus');
   status.dataset.state = state;
-  document.getElementById('webMcpStatusTitle').textContent = title;
-  document.getElementById('webMcpStatusDetail').textContent = detail;
+  document.getElementById('webMcpStatusTitle').textContent = titleKey ? t(titleKey, variables) : 'WebMCP'
+  document.getElementById('webMcpStatusDetail').textContent = I18N.en[detailKey]
+    ? t(detailKey, variables)
+    : detailKey
+}
+
+function setWebMcpStatus(state, titleKey, detailKey, variables = {}) {
+  lastWebMcpStatus = { state, titleKey, detailKey, variables }
+  renderWebMcpStatus()
 }
 
 // ============================================================
 // Cesium Init
 // ============================================================
+const CESIUM_SCRIPT_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Cesium.js'
+const BRIDGE_SCRIPT_URL = '/packages/cesium-mcp-bridge/dist/cesium-mcp-bridge.browser.global.js'
+const BRIDGE_FALLBACK_URL = 'https://cdn.jsdelivr.net/npm/cesium-mcp-bridge@latest/dist/cesium-mcp-bridge.browser.global.js'
+
+function loadCesiumRuntime() {
+  if (window.Cesium) return Promise.resolve(window.Cesium)
+  if (cesiumLoadPromise) return cesiumLoadPromise
+
+  cesiumLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script')
+    script.src = CESIUM_SCRIPT_URL
+    script.async = true
+    script.onload = () => resolve(window.Cesium)
+    script.onerror = () => reject(new Error('Failed to load CesiumJS'))
+    document.head.appendChild(script)
+  })
+  return cesiumLoadPromise
+}
+
+function loadBridgeRuntime() {
+  if (window.CesiumMcpBridge?.CesiumBridge) return Promise.resolve(window.CesiumMcpBridge)
+  if (bridgeLoadPromise) return bridgeLoadPromise
+
+  bridgeLoadPromise = new Promise((resolve, reject) => {
+    const loadScript = (src, fallback = false) => {
+      const script = document.createElement('script')
+      script.src = src
+      script.async = true
+      script.onload = () => {
+        if (window.CesiumMcpBridge?.CesiumBridge) {
+          resolve(window.CesiumMcpBridge)
+          return
+        }
+        reject(new Error('Cesium MCP Bridge did not initialize'))
+      }
+      script.onerror = () => {
+        script.remove()
+        if (!fallback) {
+          loadScript(BRIDGE_FALLBACK_URL, true)
+          return
+        }
+        reject(new Error('Failed to load Cesium MCP Bridge'))
+      }
+      document.head.appendChild(script)
+    }
+
+    loadScript(BRIDGE_SCRIPT_URL)
+  }).catch(error => {
+    bridgeLoadPromise = null
+    throw error
+  })
+  return bridgeLoadPromise
+}
+
 function initCesium() {
+  if (bridge) return Promise.resolve(bridge)
+  if (cesiumInitPromise) return cesiumInitPromise
+
+  cesiumInitPromise = initializeCesium().catch(error => {
+    cesiumInitPromise = null
+    throw error
+  })
+  return cesiumInitPromise
+}
+
+function armCesiumActivation() {
+  const events = ['pointerdown', 'keydown']
+  const activate = () => {
+    events.forEach(event => window.removeEventListener(event, activate))
+    initCesium().catch(error => {
+      console.error('[Agent] Cesium initialization failed:', error)
+    })
+  }
+  events.forEach(event => window.addEventListener(event, activate, { once: true, passive: true }))
+}
+
+async function initializeCesium() {
+  await loadCesiumRuntime()
+  await loadBridgeRuntime()
   if (CONFIG.ionToken) {
     Cesium.Ion.defaultAccessToken = CONFIG.ionToken;
   }
-  if (bridge) return; // already initialized
 
   const viewer = new Cesium.Viewer('cesiumContainer', {
     terrain: Cesium.Terrain.fromWorldTerrain(),
@@ -454,48 +892,30 @@ function initCesium() {
 
   bridge = new CesiumMcpBridge.CesiumBridge(viewer);
   console.log('[Agent] CesiumBridge initialized with', TOOLS.length, 'tools');
-  registerPageWebMcpTools().catch(err => {
-    setWebMcpStatus('error', 'WebMCP registration failed', err.message || 'Open the guide for troubleshooting');
-    console.warn('[WebMCP] Registration failed:', err);
-  });
+  return bridge
 }
 
 async function registerPageWebMcpTools() {
   if (webMcpRegistration) {
-    setWebMcpStatus('ready', 'WebMCP ready', `${webMcpRegistration.registered.length} page tools registered`);
+    setWebMcpStatus('ready', 'webMcpReady', 'pageToolsRegistered', { count: webMcpRegistration.registered.length });
     return;
   }
   if (!document.modelContext) {
-    setWebMcpStatus('unavailable', 'WebMCP unavailable', 'Built-in chat still works — open the guide to enable WebMCP');
+    setWebMcpStatus('unavailable', 'webMcpUnavailable', 'builtInChatWorks');
     return;
   }
-  if (typeof CesiumMcpBridge.registerWebMcpTools !== 'function') {
-    setWebMcpStatus('error', 'WebMCP adapter missing', 'Load a bridge build that includes registerWebMcpTools()');
-    console.info('[WebMCP] The loaded bridge version does not include the WebMCP adapter');
-    return;
-  }
+  setWebMcpStatus('checking', 'registeringWebMcp', 'connectingBrowserAgent');
 
-  setWebMcpStatus('checking', 'Registering WebMCP tools', 'Connecting this Cesium viewer to the browser agent');
-
-  const readOnlyTools = new Set(['getView', 'geocode', 'screenshot']);
-  const definitions = TOOLS.map(({ function: tool }) => ({
-    name: tool.name,
-    title: tool.name,
-    description: tool.description,
-    inputSchema: tool.parameters,
-    annotations: {
-      readOnlyHint: readOnlyTools.has(tool.name),
-      untrustedContentHint: tool.name === 'geocode',
-    },
-  }));
   const executor = {
-    execute: ({ action, params }) => action === 'geocode'
-      ? clientGeocode(params)
-      : bridge.execute({ action, params }),
+    async execute({ action, params }) {
+      if (action === 'geocode') return clientGeocode(params)
+      await initCesium()
+      return bridge.execute({ action, params })
+    },
   };
 
-  webMcpRegistration = await CesiumMcpBridge.registerWebMcpTools(executor, definitions);
-  setWebMcpStatus('ready', 'WebMCP ready', `${webMcpRegistration.registered.length} page tools registered`);
+  webMcpRegistration = await CesiumMcpWebMcp.registerCesiumWebMcp(executor, { toolsets: 'all' })
+  setWebMcpStatus('ready', 'webMcpReady', 'pageToolsRegistered', { count: webMcpRegistration.registered.length });
   console.log('[WebMCP] Registered', webMcpRegistration.registered.length, 'page tools');
 }
 
@@ -512,6 +932,11 @@ async function sendMessage() {
   messages.push({ role: 'user', content: text });
 
   await runAgentLoop();
+}
+
+function runPrompt(text) {
+  document.getElementById('chatInput').value = text;
+  sendMessage();
 }
 
 async function runAgentLoop() {
@@ -539,9 +964,13 @@ async function runAgentLoop() {
           try {
             const params = JSON.parse(tc.function.arguments);
             // geocode runs client-side (Nominatim API), not via bridge
-            const result = tc.function.name === 'geocode'
-              ? await clientGeocode(params)
-              : await bridge.execute({ action: tc.function.name, params });
+            let result
+            if (tc.function.name === 'geocode') {
+              result = await clientGeocode(params)
+            } else {
+              await initCesium()
+              result = await bridge.execute({ action: tc.function.name, params })
+            }
             updateToolCall(toolEl, 'done', result);
             // Truncate large results (e.g. screenshot base64) to avoid context overflow
             const resultStr = JSON.stringify(result);
@@ -576,7 +1005,7 @@ async function runAgentLoop() {
     }
   } catch (err) {
     showThinking(false);
-    appendMessage('system', 'Error: ' + err.message);
+    appendMessage('system', `${t('errorPrefix')}: ${err.message}`);
     console.error('[Agent]', err);
   } finally {
     isProcessing = false;
@@ -586,24 +1015,15 @@ async function runAgentLoop() {
 }
 
 async function callLLM() {
-  const allMessages = [{ role: 'system', content: SYSTEM_PROMPT }, ...messages];
-  const body = { model: CONFIG.model, messages: allMessages, tools: TOOLS };
-
-  // If API key provided and endpoint looks like a full URL, call directly;
-  // otherwise go through the proxy endpoint (which holds the key server-side)
-  const isDirectUrl = CONFIG.endpoint.startsWith('http');
-  const url = isDirectUrl ? CONFIG.endpoint : CONFIG.endpoint;
-  const headers = { 'Content-Type': 'application/json' };
-  if (CONFIG.apiKey && isDirectUrl) {
-    headers['Authorization'] = `Bearer ${CONFIG.apiKey}`;
-  }
-
-  const res = await fetch(url, {
+  const allMessages = [{ role: 'system', content: SYSTEM_PROMPTS[currentLocale] }, ...messages];
+  const res = await fetch('/api/chat', {
     method: 'POST',
-    headers,
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: allMessages, tools: TOOLS }),
   });
   if (!res.ok) {
+    if (res.status === 429) throw new Error(t('rateLimitError'));
+    if (res.status === 502 || res.status === 503) throw new Error(t('aiUnavailable'));
     const err = await res.json().catch(() => ({}));
     const msg = typeof err.error === 'string' ? err.error : err.error?.message;
     throw new Error(msg || `Proxy error: ${res.status}`);
@@ -616,6 +1036,7 @@ async function callLLM() {
 // ============================================================
 function appendMessage(role, text) {
   const container = document.getElementById('messages');
+  document.getElementById('emptyState')?.classList.add('hidden');
   const el = document.createElement('div');
   el.className = `msg msg-${role}`;
   el.textContent = text;
@@ -625,6 +1046,7 @@ function appendMessage(role, text) {
 
 function appendToolCall(name, argsStr) {
   const container = document.getElementById('messages');
+  document.getElementById('emptyState')?.classList.add('hidden');
   const el = document.createElement('div');
   el.className = 'tool-call';
   el.innerHTML = `
@@ -633,7 +1055,7 @@ function appendToolCall(name, argsStr) {
       <span class="tool-call-name">${name}()</span>
     </div>
     <div class="tool-call-detail">
-      <div class="tc-args">Args: ${formatJson(argsStr)}</div>
+      <div class="tc-args">${t('argsLabel')}: ${formatJson(argsStr)}</div>
       <div class="tc-result"></div>
     </div>
   `;
@@ -647,7 +1069,7 @@ function updateToolCall(el, status, result) {
   icon.className = `tool-call-icon ${status}`;
   const resultEl = el.querySelector('.tc-result');
   const resultStr = JSON.stringify(result, null, 2);
-  resultEl.textContent = 'Result: ' + (resultStr.length > 500 ? resultStr.slice(0, 500) + '...' : resultStr);
+  resultEl.textContent = `${t('resultLabel')}: ${resultStr.length > 500 ? resultStr.slice(0, 500) + '...' : resultStr}`;
 }
 
 function formatJson(str) {
@@ -669,7 +1091,9 @@ function showThinking(show) {
 function clearChat() {
   messages = [];
   const container = document.getElementById('messages');
-  container.innerHTML = '<div class="msg msg-system">Chat cleared. Start a new conversation.</div>';
+  container.querySelectorAll('.msg, .tool-call').forEach(element => element.remove());
+  document.getElementById('emptyState')?.classList.remove('hidden');
+  showThinking(false);
 }
 
 async function clientGeocode({ address, countryCode }) {
@@ -695,27 +1119,41 @@ async function clientGeocode({ address, countryCode }) {
 }
 
 function toggleTools() {
-  document.getElementById('toolsPanel').classList.toggle('open');
+  const isOpen = document.getElementById('toolsPanel').classList.toggle('open');
+  document.getElementById('toolsButton').setAttribute('aria-expanded', String(isOpen));
 }
 
 function initToolsList() {
   const list = document.getElementById('toolsList');
-  list.innerHTML = TOOLS.map(t => {
-    const f = t.function;
-    return `<div class="tool-item"><span class="tool-item-name">${f.name}</span><span class="tool-item-desc">${f.description}</span></div>`;
-  }).join('');
+  list.innerHTML = CesiumMcpWebMcp.cesiumBrowserToolsetNames.map(toolsetName => {
+    const toolset = CesiumMcpWebMcp.cesiumBrowserToolsets[toolsetName]
+    const label = currentLocale === 'zh-CN' ? TOOLSET_LABELS_ZH[toolsetName] : toolsetName
+    const tools = toolset.tools.map(tool => {
+      const description = currentLocale === 'zh-CN'
+        ? TOOL_DESCRIPTIONS_ZH[tool.name]
+        : tool.description.replace(/ Returns \{.*$/, '')
+      return `<div class="tool-item"><span class="tool-item-name">${tool.name}</span><span class="tool-item-desc">${description}</span></div>`
+    }).join('')
+    return `<section class="tool-group"><div class="tool-group-header"><span>${label}</span><span class="tool-group-count">${toolset.tools.length}</span></div>${tools}</section>`
+  }).join('')
 }
 
 // ============================================================
 // Init
 // ============================================================
-initToolsList();
-if (CONFIG.ionToken || CONFIG.endpoint !== '/api/chat' || CONFIG.apiKey) {
-  document.getElementById('setupOverlay').classList.add('hidden');
-  initCesium();
-} else {
-  // Show setup on first visit
+async function bootstrap() {
+  applyLocale()
+  armCesiumActivation()
+  try {
+    await registerPageWebMcpTools()
+  } catch (error) {
+    setWebMcpStatus('error', 'webMcpRegistrationFailed', error.message || 'openGuideTroubleshooting')
+    console.warn('[WebMCP] Registration failed:', error)
+  }
+
 }
+
+bootstrap()
 </script>
 </body>
 </html>

@@ -1,12 +1,15 @@
 name = "cesium-browser-agent"
-compatibility_date = "2024-09-23"
+compatibility_date = "2026-04-20"
 pages_build_output_dir = "."
 
-# Local dev:
-#   1. cp .dev.vars.example .dev.vars
-#   2. fill in OPENAI_API_KEY
-#   3. npx wrangler pages dev .
-#
-# Production: set OPENAI_API_KEY and, after registering the deployed origin,
-# WEBMCP_ORIGIN_TRIAL_TOKEN in the Cloudflare Pages dashboard
-# (Project Settings → Environment Variables).
+[ai]
+binding = "AI"
+
+[[d1_databases]]
+binding = "RATE_LIMIT_DB"
+database_name = "cesium-browser-agent-rate-limit"
+database_id = "37b0c900-9cd5-45d7-833a-b5da098e1d16"
+
+# Workers AI and D1-backed rate limiting are configured above as bindings.
+# After registering the deployed origin, set WEBMCP_ORIGIN_TRIAL_TOKEN in the
+# Cloudflare Pages dashboard (Project Settings → Environment Variables).

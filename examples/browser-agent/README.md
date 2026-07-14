@@ -1,15 +1,15 @@
 # CesiumJS AI Agent — Browser Only Demo
 
-A minimal demo showing how to control CesiumJS with natural language without a backend MCP server. The browser-side agent loop uses OpenAI's function calling to map user intent to CesiumJS operations via [cesium-mcp-bridge](../../packages/cesium-mcp-bridge). On browsers with WebMCP support, the same tools are also registered on `document.modelContext` for browser agents.
+A minimal demo showing how to control CesiumJS with natural language without a backend MCP server. The browser-side agent loop uses OpenAI's function calling to map user intent to CesiumJS operations via [cesium-mcp-bridge](../../packages/cesium-mcp-bridge). On browsers with WebMCP support, [cesium-mcp-webmcp](../../packages/cesium-mcp-webmcp) registers the shared contracts from [cesium-mcp-contracts](../../packages/cesium-mcp-contracts) on `document.modelContext`.
 
 **[Live Demo](https://cesium-browser-agent.pages.dev/)** — open it, click Start, type "fly to Tokyo". Self-host steps below.
 
 ## Architecture
 
 ```
-User Input → Chat UI → fetch('/api/chat') → Cloudflare Pages Function (API key proxy)
+User Input → Chat UI → fetch('/api/chat') → Cloudflare Pages Worker
                                                   ↓
-                                             OpenAI gpt-4o-mini (with 15 CesiumJS tool schemas)
+                                   Workers AI GLM-4.7-Flash (with CesiumJS tool schemas)
                                                   ↓ tool_calls / text
                                              Response → Browser
                                                   ↓
@@ -18,13 +18,17 @@ User Input → Chat UI → fetch('/api/chat') → Cloudflare Pages Function (API
                                   (loop until no more tool_calls)
 ```
 
-**Key insight**: The Pages Function is a stateless API key proxy (< 70 lines). All agent logic — tool definitions, message history, tool call execution — runs entirely in the browser. No backend MCP transport is required.
+**Key insight**: The Pages Worker invokes Cloudflare Workers AI through a server-side binding, so visitors do not provide or receive a model API key. All agent logic — tool definitions, message history, and tool-call execution — runs in the browser. No backend MCP transport is required.
 
 The reusable core is `cesium-mcp-bridge`'s command dispatcher (`bridge.execute()`), which maps structured commands to CesiumJS API calls regardless of where they come from.
 
 ## WebMCP (Chrome 149+ Origin Trial)
 
-When `document.modelContext` is available, the demo automatically registers all 15 tools through `registerWebMcpTools()`. This lets a WebMCP-capable browser agent control the same live Cesium viewer while the built-in chat remains available.
+When `document.modelContext` is available, the demo uses `registerCesiumWebMcp(..., { toolsets: 'all' })` to register all 61 browser-safe contracts across 12 toolsets. Registration happens before CesiumJS and the bridge runtime load, so WebMCP scanners and browser agents can discover the tools without waiting for 3D rendering. The adapter is Cesium-free; tools initialize the live viewer lazily when an operation needs it, while the built-in chat remains available with a smaller 15-tool context.
+
+The registered surface includes structured result schemas, bounded geographic coordinates, typed GeoJSON FeatureCollections, and explicit label and layer style objects from `cesium-mcp-contracts`, so the built-in agent and WebMCP surface do not maintain separate schemas.
+
+Tool registration runs before CesiumJS and WebGL initialization. This keeps the tools discoverable to remote scanners and headless agents even when rendering the globe is slow or unavailable; tool execution waits for the viewer when it needs map state.
 
 The status bar directly below the header reports whether WebMCP is waiting for the viewer, unavailable, registering, or ready. Expand it for a three-step Chrome testing guide. The built-in chat remains the progressive fallback when WebMCP is unavailable.
 
@@ -32,12 +36,16 @@ To test it:
 
 1. Enable `chrome://flags/#enable-webmcp-testing` for local development. Enable `chrome://flags/#devtools-webmcp-support` to use the DevTools Application panel.
 2. Serve this example over HTTPS or localhost.
-3. Start the viewer and confirm the status reads **WebMCP ready — 15 page tools registered**.
+3. Open the page and confirm the status reads **WebMCP ready — 61 page tools registered**.
 4. Inspect and execute the tools with the Model Context Tool Inspector or DevTools → Application → WebMCP.
 
 Unsupported browsers simply skip registration and continue using the built-in function-calling agent.
 
-## Available Tools (15)
+## Tool Surfaces
+
+The WebMCP surface exposes 61 tools in the `view`, `entity`, `layer`, `camera`, `entity-ext`, `animation`, `scene`, `tiles`, `interaction`, `trajectory`, `heatmap`, and `geolocation` toolsets. `setIonToken` is intentionally application-owned and is not exposed to page agents.
+
+The built-in chat keeps the following 15 tools to reduce model context and tool-selection noise:
 
 | Category | Tools |
 |----------|-------|
@@ -52,14 +60,13 @@ Unsupported browsers simply skip registration and continue using the built-in fu
 ### Prerequisites
 
 - Node.js 22+
-- An [OpenAI API key](https://platform.openai.com/api-keys)
+- A Cloudflare account with Workers AI access
 - (Optional) A [Cesium Ion token](https://ion.cesium.com/tokens)
 
 ### Option A: Cloudflare Wrangler (recommended)
 
 ```bash
 cd examples/browser-agent
-cp .dev.vars.example .dev.vars   # then edit .dev.vars and put in your key
 npx wrangler pages dev .
 ```
 
@@ -67,48 +74,36 @@ Open `http://localhost:8788`. The included `wrangler.toml` handles the rest.
 
 > First run will download `wrangler` (~30s). Subsequent runs are instant.
 
-### Option B: Direct API key in browser
-
-1. Serve the directory with any static server:
-   ```bash
-   cd examples/browser-agent
-   npx serve .
-   ```
-2. In the Setup dialog, enter your OpenAI API key directly.
-   
-   > Note: This calls OpenAI's API from the browser. Works for local dev but not recommended for production (key exposure + CORS).
-
 ## Deploy to Cloudflare Pages
 
 1. Create a Cloudflare Pages project pointing to the `examples/browser-agent` directory.
-2. Set the environment variable `OPENAI_API_KEY` in the Pages project settings.
-3. Register the final HTTPS origin in the Chrome WebMCP Origin Trial.
-4. Set the returned public token as `WEBMCP_ORIGIN_TRIAL_TOKEN` in the Pages project settings.
-5. Deploy.
+2. Create the `rate_limits` table shown below in the configured D1 database.
+3. Deploy with Wrangler so the `AI` and `RATE_LIMIT_DB` bindings in `wrangler.toml` are applied.
+4. Register the final HTTPS origin in the Chrome WebMCP Origin Trial.
+5. Set the returned public token as `WEBMCP_ORIGIN_TRIAL_TOKEN` in the Pages project settings.
 
-The `functions/api/chat.js` file is automatically detected as a Pages Function. The root middleware adds `Origin-Agent-Cluster: ?1` and, when configured, the `Origin-Trial` header. Forks must register their own exact origin; do not reuse a token issued for another domain.
-
-## Telemetry
-
-The Pages Function emits one structured `console.log` per request with **no PII and no message content** — only `{ event, model, msgCount, toolCount, lastRole, ts }`. Tail it with:
-
-```bash
-npx wrangler pages deployment tail
+```sql
+CREATE TABLE IF NOT EXISTS rate_limits (
+  client_key TEXT PRIMARY KEY,
+  window INTEGER NOT NULL,
+  request_count INTEGER NOT NULL
+) STRICT;
 ```
 
-Remove the `console.log(...)` block in `functions/api/chat.js` if you don't want it.
+The advanced-mode `_worker.js` handles `/api/chat`, invokes the fixed `@cf/zai-org/glm-4.7-flash` model, validates request size and shape, restricts browser origins, and applies a per-client D1-backed rate limit. Client addresses are SHA-256 hashed before storage. It also serves static assets with `Origin-Agent-Cluster: ?1` and, when configured, the `Origin-Trial` header. Forks must register their own exact origin; do not reuse a token issued for another domain.
 
 ## How It Works
 
-1. **Browser loads** CesiumJS + cesium-mcp-bridge (IIFE bundle)
-2. **User types** a message (e.g., "fly to the Eiffel Tower and add a red marker")
-3. **Browser sends** message history to `/api/chat` (Pages Function)
-4. **Pages Function** proxies to OpenAI with the 15 tool schemas
-5. **OpenAI returns** tool calls (e.g., `geocode("Eiffel Tower")` → `flyTo(48.86, 2.29)` → `addMarker(...)`)
-6. **Browser executes** each tool call via `bridge.execute()` on the live CesiumJS viewer
-7. **Browser sends** tool results back to OpenAI for the next step
-8. **Loop continues** until OpenAI returns a text response (no more tool calls)
-9. **AI's text** is displayed in the chat
+1. **Browser registers** WebMCP tools without loading the 3D runtime
+2. **First user interaction or map tool call** loads CesiumJS + cesium-mcp-bridge (IIFE bundle)
+3. **User types** a message (e.g., "fly to the Eiffel Tower and add a red marker")
+4. **Browser sends** message history to `/api/chat` (Pages Worker)
+5. **Pages Worker** invokes Workers AI with the tool schemas
+6. **Workers AI returns** tool calls (e.g., `geocode("Eiffel Tower")` → `flyTo(48.86, 2.29)` → `addMarker(...)`)
+7. **Browser executes** each tool call via `bridge.execute()` on the live CesiumJS viewer
+8. **Browser sends** tool results back to Workers AI for the next step
+9. **Loop continues** until OpenAI returns a text response (no more tool calls)
+10. **AI's text** is displayed in the chat
 
 ## Why Not a Backend MCP Server?
 
