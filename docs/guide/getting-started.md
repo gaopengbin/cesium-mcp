@@ -1,5 +1,7 @@
 # Getting Started
 
+This guide configures the Node.js MCP runtime for desktop clients and workflow platforms. To expose tools directly inside a compatible browser without running an MCP service, follow the [WebMCP browser integration guide](/guide/webmcp).
+
 ## Prerequisites
 
 - **Node.js** 22 or higher
@@ -180,7 +182,8 @@ This example includes a CesiumJS Viewer with the bridge pre-configured, ready fo
 
 ## Next Steps
 
-- [Architecture](/guide/architecture) — understand the three-package design
+- [Architecture](/guide/architecture) — understand the shared execution and adapter layers
+- [WebMCP Browser Integration](/guide/webmcp) — expose page-local tools without an MCP server
 - [Bridge API](/api/bridge) — all 58 commands
 - [Runtime API](/api/runtime) — MCP tools and resources
 - [Dev API](/api/dev) — IDE coding assistance tools

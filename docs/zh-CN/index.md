@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Cesium MCP
   text: AI 驱动的三维地球控制
-  tagline: 连接任何 MCP 兼容的 AI 智能体到 CesiumJS。相机、图层、实体、空间分析 — 全部通过自然语言完成。
+  tagline: 通过同一套命令层，把浏览器智能体、应用内 AI 助手和 MCP 客户端连接到 CesiumJS。
   image:
     src: /logo.svg
     alt: Cesium MCP
@@ -13,18 +13,18 @@ hero:
       text: 快速开始
       link: /zh-CN/guide/getting-started
     - theme: alt
-      text: API 参考
-      link: /zh-CN/api/bridge
+      text: 体验 WebMCP
+      link: /zh-CN/guide/webmcp
 
 features:
   - icon:
       src: /icons/tools.svg
-    title: 58 个 MCP 工具
-    details: 相机控制、GeoJSON 图层、3D Tiles、地形、影像、实体管理、轨迹动画、热力图、地理编码等 — 12 个工具集，支持动态发现。
+    title: 61 个浏览器安全工具
+    details: 相机控制、GeoJSON 图层、3D Tiles、地形、影像、实体、轨迹、热力图、地理编码等 — 分为 12 个可选工具集。
   - icon:
       src: /icons/clients.svg
-    title: 全面兼容 MCP 协议
-    details: Claude Desktop、VS Code Copilot、Cursor、Windsurf，或任何符合标准的 MCP 客户端。无厂商锁定。
+    title: 同时支持 WebMCP 与 MCP
+    details: 可直接向兼容浏览器暴露页面工具，也可通过 Runtime 连接 Claude Desktop、VS Code、Cursor、Dify 等 MCP 客户端。
   - icon:
       src: /icons/packages.svg
     title: 可组合的包，一个生态
@@ -50,6 +50,8 @@ features:
 <video src="https://raw.githubusercontent.com/gaopengbin/cesium-mcp/main/examples/video/demo.mp4" controls width="100%" style="border-radius: 8px; margin: 1rem 0;"></video>
 
 ## 架构
+
+下图展示 MCP runtime 接入路径。WebMCP 是独立的浏览器原生适配层，兼容的浏览器智能体可以直接连接同一个 Bridge，不需要 Node.js runtime 或 WebSocket 传输层。[查看四种接入模式](/zh-CN/guide/which-mode)。
 
 <div class="architecture-diagram">
   <div class="arch-node agent">
@@ -154,9 +156,9 @@ features:
 
 | 包名 | 描述 | 版本 |
 |------|------|------|
-| [`cesium-mcp-contracts`](https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-contracts) | 与传输无关的工具契约与 JSON Schema | 源码 |
+| [`cesium-mcp-contracts`](https://www.npmjs.com/package/cesium-mcp-contracts) | 与传输无关的工具契约与 JSON Schema | [![npm](https://img.shields.io/npm/v/cesium-mcp-contracts?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-contracts) |
 | [`cesium-mcp-bridge`](https://www.npmjs.com/package/cesium-mcp-bridge) | 浏览器 SDK — 嵌入你的 CesiumJS 应用 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [`cesium-mcp-webmcp`](https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-webmcp) | 原生浏览器 WebMCP 适配层 | 源码 |
+| [`cesium-mcp-webmcp`](https://www.npmjs.com/package/cesium-mcp-webmcp) | 原生浏览器 WebMCP 适配层 | [![npm](https://img.shields.io/npm/v/cesium-mcp-webmcp?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-webmcp) |
 | [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | MCP 服务器 — 58 个工具（12 个工具集）和 2 个资源 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [`cesium-mcp-dev`](https://www.npmjs.com/package/cesium-mcp-dev) | IDE MCP 服务器 — Cesium API 文档与代码生成 | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-dev) |
 

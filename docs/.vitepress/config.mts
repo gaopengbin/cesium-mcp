@@ -24,6 +24,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: '指南', link: '/zh-CN/guide/getting-started' },
+          { text: 'WebMCP', link: '/zh-CN/guide/webmcp' },
           { text: 'API 参考', link: '/zh-CN/api/bridge' },
           { text: '示例', link: '/zh-CN/examples/' },
         ],
@@ -34,6 +35,7 @@ export default defineConfig({
               items: [
                 { text: '快速开始', link: '/zh-CN/guide/getting-started' },
                 { text: '我应该用哪种模式？', link: '/zh-CN/guide/which-mode' },
+                { text: 'WebMCP 浏览器接入', link: '/zh-CN/guide/webmcp' },
                 { text: '架构概览', link: '/zh-CN/guide/architecture' },
                 { text: '常见问题', link: '/zh-CN/guide/faq' },
               ],
@@ -106,6 +108,7 @@ export default defineConfig({
     logo: '/logo.svg',
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
+      { text: 'WebMCP', link: '/guide/webmcp' },
       { text: 'API Reference', link: '/api/bridge' },
       { text: 'Examples', link: '/examples/' },
       {
@@ -182,6 +185,7 @@ export default defineConfig({
           items: [
             { text: 'Getting Started', link: '/guide/getting-started' },
             { text: 'Which Mode Should I Use?', link: '/guide/which-mode' },
+            { text: 'WebMCP Browser Integration', link: '/guide/webmcp' },
             { text: 'Architecture', link: '/guide/architecture' },
             { text: 'FAQ', link: '/guide/faq' },
           ],

@@ -1,5 +1,7 @@
 # 快速开始
 
+本指南介绍如何为桌面客户端和工作流平台配置 Node.js MCP runtime。如果你希望在兼容浏览器中直接暴露页面工具，而不启动 MCP 服务，请阅读 [WebMCP 浏览器接入](/zh-CN/guide/webmcp)。
+
 ## 前置条件
 
 - **Node.js** 22 或更高版本
@@ -178,7 +180,8 @@ cd cesium-mcp/examples/minimal
 
 ## 下一步
 
-- [架构概览](/zh-CN/guide/architecture) — 了解三包架构设计
+- [架构概览](/zh-CN/guide/architecture) — 了解共享执行层与独立适配层
+- [WebMCP 浏览器接入](/zh-CN/guide/webmcp) — 无需 MCP 服务，直接暴露页面工具
 - [Bridge API](/zh-CN/api/bridge) — 全部 58 个命令
 - [Runtime API](/zh-CN/api/runtime) — MCP 工具和资源
 - [Dev API](/zh-CN/api/dev) — IDE 编码辅助工具

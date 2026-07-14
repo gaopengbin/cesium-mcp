@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Cesium MCP
   text: AI-Powered 3D Globe Control
-  tagline: Connect any MCP-compatible AI agent to CesiumJS. Camera, layers, entities, spatial analysis — all through natural language.
+  tagline: Connect browser agents, embedded AI assistants, and MCP clients to CesiumJS through one shared command layer.
   image:
     src: /logo.svg
     alt: Cesium MCP
@@ -13,18 +13,18 @@ hero:
       text: Get Started
       link: /guide/getting-started
     - theme: alt
-      text: API Reference
-      link: /api/bridge
+      text: Try WebMCP
+      link: /guide/webmcp
 
 features:
   - icon:
       src: /icons/tools.svg
-    title: 58 MCP Tools
-    details: Camera control, GeoJSON layers, 3D Tiles, terrain, imagery, entity management, trajectory animation, heatmaps, geocoding, and more — organized into 12 toolsets with dynamic discovery.
+    title: 61 Browser-Safe Tools
+    details: Camera control, GeoJSON layers, 3D Tiles, terrain, imagery, entities, trajectories, heatmaps, geocoding, and more — organized into 12 selectable toolsets.
   - icon:
       src: /icons/clients.svg
-    title: Universal MCP Compatibility
-    details: Claude Desktop, VS Code Copilot, Cursor, Windsurf, or any standards-compliant MCP client. No vendor lock-in.
+    title: WebMCP and MCP
+    details: Expose page-local tools directly to compatible browsers, or connect Claude Desktop, VS Code, Cursor, Dify, and other MCP clients through the runtime.
   - icon:
       src: /icons/packages.svg
     title: Composable Packages, One Ecosystem
@@ -50,6 +50,8 @@ features:
 <video src="https://raw.githubusercontent.com/gaopengbin/cesium-mcp/main/examples/video/demo.mp4" controls width="100%" style="border-radius: 8px; margin: 1rem 0;"></video>
 
 ## Architecture
+
+The diagram below shows the MCP runtime path. WebMCP is a separate browser-native adapter that connects a compatible browser agent directly to the same bridge, without the Node.js runtime or WebSocket transport. [Compare the integration modes](/guide/which-mode).
 
 <div class="architecture-diagram">
   <div class="arch-node agent">
@@ -154,9 +156,9 @@ features:
 
 | Package | Description | Version |
 |---------|-------------|---------|
-| [`cesium-mcp-contracts`](https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-contracts) | Transport-neutral tool contracts and JSON Schemas | Source |
+| [`cesium-mcp-contracts`](https://www.npmjs.com/package/cesium-mcp-contracts) | Transport-neutral tool contracts and JSON Schemas | [![npm](https://img.shields.io/npm/v/cesium-mcp-contracts?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-contracts) |
 | [`cesium-mcp-bridge`](https://www.npmjs.com/package/cesium-mcp-bridge) | Browser SDK — embed in your CesiumJS application | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [`cesium-mcp-webmcp`](https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-webmcp) | Native browser WebMCP adapter | Source |
+| [`cesium-mcp-webmcp`](https://www.npmjs.com/package/cesium-mcp-webmcp) | Native browser WebMCP adapter | [![npm](https://img.shields.io/npm/v/cesium-mcp-webmcp?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-webmcp) |
 | [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | MCP Server — 58 tools (12 toolsets) and 2 resources for AI agents | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [`cesium-mcp-dev`](https://www.npmjs.com/package/cesium-mcp-dev) | IDE MCP Server — Cesium API docs and code generation | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-dev) |
 

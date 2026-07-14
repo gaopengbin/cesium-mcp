@@ -1,88 +1,69 @@
 # Which Mode Should I Use?
 
-cesium-mcp gives you **three ways to wire AI into CesiumJS**, all sharing the same `cesium-mcp-bridge` core (60+ tools). This page picks one for you in 30 seconds.
+cesium-mcp offers **four integration paths** that share the same Cesium command layer. Choose based on where the agent runs and who owns the model connection.
 
 ## Decision tree
 
-```
+```text
 What are you trying to do?
 │
-├─ Just want to try it / personal demo / no backend
-│   └─→ Path 0: Browser Agent (recommended)
+├─ Let a compatible browser agent use tools from the current page
+│   └─→ Path 1: WebMCP
 │
-├─ Embedding an AI assistant into an existing web app
-│   ├─ Want full control over prompts, model, tool-call logs
-│   │   └─→ Path 1: function calling (recommended)
-│   └─ Want to reuse existing MCP client tooling
-│       └─→ Path 2: MCP runtime + HTTP transport
+├─ Try AI + Cesium quickly with a ready-made chat UI
+│   └─→ Path 2: Hosted Browser Agent demo
 │
-└─ Calling Cesium from Claude Desktop / Cursor / Dify
-    └─→ Path 2: MCP runtime (stdio transport)
+├─ Embed your own AI assistant into an existing web app
+│   └─→ Path 3: Bridge + function calling
+│
+└─ Call Cesium from Claude Desktop, Cursor, VS Code, Dify, or n8n
+    └─→ Path 4: MCP runtime
 ```
 
 ## Side-by-side
 
-| Aspect | Path 0: Browser Agent | Path 1: function calling | Path 2: MCP runtime |
-|---|---|---|---|
-| **Backend** | Static host only | None | Node.js process |
-| **AI model** | Any OpenAI-compatible API | Any OpenAI / Anthropic / local | Decided by MCP client |
-| **API key exposure** | Browser, needs proxy | Browser, needs proxy | Managed by MCP client |
-| **First-deploy cost** | Lowest (fork + paste key) | Medium (write agent loop) | Medium-high (install client + stdio config) |
-| **Visibility into AI calls** | Full | Full | Depends on MCP client |
-| **Typical use** | Personal projects, POC, teaching demos | Existing product gaining AI | Productivity tools with Claude / Cursor |
-| **Example** | [examples/browser-agent](../../examples/browser-agent/) | The agent loop in examples/browser-agent | [packages/cesium-mcp-runtime](../../packages/cesium-mcp-runtime/) |
+| Aspect | WebMCP | Hosted Browser Agent | Function calling | MCP runtime |
+|---|---|---|---|---|
+| **Agent runs in** | Compatible browser | Web application | Your web application | Desktop client or workflow platform |
+| **MCP service required** | No | No | No | Yes |
+| **Model required by package** | No | Demo provides one | Yes, application-owned | MCP client-owned |
+| **Tool surface** | 15 core or 61 browser-safe tools | 15 chat tools + 61 WebMCP tools | Application-selected | Runtime toolsets |
+| **Best for** | Agent-ready websites | Evaluation and demonstrations | Product AI assistants | MCP ecosystem integration |
+| **Start here** | [WebMCP guide](/guide/webmcp) | [Live demo](https://cesium-browser-agent.pages.dev/) | [Browser Agent source](https://github.com/gaopengbin/cesium-mcp/tree/main/examples/browser-agent) | [Getting Started](/guide/getting-started) |
 
-## Why not just MCP?
+## Path 1: WebMCP
 
-MCP solves "how does an AI client discover and call external capabilities". But when **Cesium itself runs in the browser**, the model can hit the bridge through plain function calling — one less IPC layer, one less protocol wrapper, easier to debug.
+Install `cesium-mcp-webmcp` in the page and register the tools on `document.modelContext`. A compatible browser agent discovers and executes them without a backend MCP server.
 
-The bridge is designed protocol-agnostic on purpose: wrap it in MCP, or just import it. Whatever fits.
+Choose this when:
 
-## Path details
+- You want your website itself to expose Cesium capabilities to browser agents.
+- You do not want to run `cesium-mcp-runtime` for each user.
+- Your application will remain useful in browsers without WebMCP support.
 
-### Path 0: Browser Agent
+WebMCP does not provide an AI model or chat interface. See the [WebMCP browser integration guide](/guide/webmcp).
 
-See [examples/browser-agent](../../examples/browser-agent/) or try the [live demo](https://cesium-browser-agent.pages.dev/).
+## Path 2: Hosted Browser Agent
 
-Good for:
-- Solo developers wanting a quick taste of "AI + Cesium"
-- Teaching, demos, blog companion projects
-- Zero server — deploys to Cloudflare Pages / Vercel / GitHub Pages
+Try the [Cesium Agent Lab](https://cesium-browser-agent.pages.dev/) to experience natural-language map control without installing a local MCP service. Its built-in AI chat and WebMCP registration are independent features.
 
-### Path 1: function calling embed
+Choose this for product evaluation, teaching, demonstrations, and a reference deployment.
 
-Use the bridge as a regular browser SDK:
+## Path 3: Bridge + function calling
 
-```js
-import { CesiumBridge } from 'cesium-mcp-bridge';
+Use `cesium-mcp-bridge` as the execution layer and connect it to the model provider and agent loop owned by your application.
 
-const bridge = new CesiumBridge(viewer);
-const tools = bridge.getToolsSchema('openai'); // tool schemas
+Choose this when you need full control over prompts, model selection, authentication, tool selection, logs, and usage limits. Keep model API keys behind your own server-side `/api/chat` endpoint instead of exposing them in the browser.
 
-const response = await yourLLM.chat({ messages, tools });
-
-for (const call of response.tool_calls ?? []) {
-  await bridge.execute(call.name, call.params);
-}
-```
-
-Good for:
-- Existing Cesium product adding an AI assistant
-- Teams that want custom prompt engineering or tool selection
-- Using non-OpenAI models (DeepSeek, Zhipu, Qwen, etc.)
-
-### Path 2: MCP runtime
+## Path 4: MCP runtime
 
 ```bash
-npx cesium-mcp-runtime           # stdio
-npx cesium-mcp-runtime --transport http --port 3000  # HTTP
+npx cesium-mcp-runtime
+npx cesium-mcp-runtime --transport http --port 3211
 ```
 
-Good for:
-- Claude Desktop / Cursor / VS Code with MCP support
-- Workflow platforms like Dify / n8n
-- Exposing Cesium to third-party AI apps
+Choose this for Claude Desktop, Cursor, VS Code, Dify, n8n, or any external MCP client. This path runs a Node.js MCP service and connects to the browser bridge over WebSocket.
 
 ## Still unsure?
 
-Pick **Path 0**. Zero cost, runs in 10 minutes — once it's running you'll know what you actually want.
+Try the [hosted demo](https://cesium-browser-agent.pages.dev/) first. If your goal is to make your own website discoverable to browser agents, continue with [WebMCP](/guide/webmcp). If an external MCP client must control the globe, use the [MCP runtime](/guide/getting-started).

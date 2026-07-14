@@ -2,7 +2,7 @@
 
 ## Overview
 
-Cesium MCP consists of three independent packages that form a complete pipeline from AI agent to 3D globe:
+Cesium MCP uses shared contracts and a protocol-neutral browser executor with separate adapters for WebMCP, MCP clients, and IDE assistance. The diagram below shows the MCP runtime path:
 
 <div class="architecture-diagram">
   <div class="arch-node agent">
@@ -93,18 +93,28 @@ Cesium MCP consists of three independent packages that form a complete pipeline 
 
 ## Package Roles
 
+### cesium-mcp-contracts (Shared)
+
+The contracts package owns transport-neutral tool names, descriptions, JSON Schemas, result shapes, and toolset membership. Both the WebMCP adapter and browser-agent integrations consume these definitions so they do not maintain separate schemas.
+
 ### cesium-mcp-bridge (Browser)
 
 The bridge runs **inside the browser** alongside your CesiumJS application. It:
 
-- Connects to the runtime via WebSocket
-- Receives JSON-RPC commands
+- Executes commands received from WebMCP, function calling, or the MCP runtime
+- Can connect to the runtime via WebSocket when that integration path is used
 - Executes CesiumJS API calls (camera, layers, entities, etc.)
-- Returns results back through the WebSocket
+- Returns structured results to the calling adapter
 
 **Two calling styles:**
 - **Type-safe methods**: `bridge.flyTo({ longitude: 2.29, latitude: 48.86, height: 1000 })`
 - **JSON command dispatch**: `bridge.execute({ action: 'flyTo', params: { ... } })`
+
+### cesium-mcp-webmcp (Browser Adapter)
+
+The WebMCP package registers the shared contracts on the native `document.modelContext` API. It exposes 15 core tools by default or all 61 browser-safe tools across 12 toolsets. It does not include an AI model, chat UI, MCP server, WebSocket transport, or polyfill.
+
+This adapter is intentionally separate from `cesium-mcp-runtime`; see the [WebMCP integration guide](/guide/webmcp).
 
 ### cesium-mcp-runtime (Node.js)
 
@@ -199,7 +209,7 @@ Routing priority: tool param `sessionId` > URL `?session=xxx` > `DEFAULT_SESSION
 
 ## Version Strategy
 
-All three packages share the same version number using [changesets](https://github.com/changesets/changesets) with **fixed** versioning mode.
+The established `cesium-mcp-bridge`, `cesium-mcp-runtime`, and `cesium-mcp-dev` packages share a version number using [changesets](https://github.com/changesets/changesets) with **fixed** versioning mode. The newer `cesium-mcp-contracts` and `cesium-mcp-webmcp` packages use independent semantic versions.
 
 **Major.minor** tracks CesiumJS:
 - `cesium-mcp-*@1.139.x` targets `cesium@~1.139.0`
