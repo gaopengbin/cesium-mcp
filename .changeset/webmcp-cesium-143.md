@@ -2,8 +2,6 @@
 'cesium-mcp-bridge': minor
 'cesium-mcp-runtime': minor
 'cesium-mcp-dev': minor
-'cesium-mcp-contracts': minor
-'cesium-mcp-webmcp': minor
 ---
 
 Add transport-neutral Cesium tool contracts and a separate native WebMCP
