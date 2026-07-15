@@ -11,6 +11,7 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="shortcut icon" href="/favicon.svg">
   <script src="/packages/cesium-mcp-webmcp/dist/cesium-mcp-webmcp.browser.global.js"></script>
+  <script src="/tool-router.js"></script>
   <title>CesiumJS AI Agent - Browser Only</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" onload="this.onload=null;this.rel='stylesheet'">
@@ -243,6 +244,21 @@
     @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-7px); } }
 
     .composer { padding: 12px 14px 14px; border-top: 1px solid var(--border); background: rgba(5, 13, 19, 0.34); }
+    .tool-mode-control {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 9px;
+      color: var(--text-dim); font-size: 9px;
+    }
+    .tool-mode-control label { flex: 0 0 auto; }
+    .tool-mode-select {
+      min-width: 0; max-width: 185px; height: 28px; padding: 0 24px 0 8px;
+      border: 1px solid var(--border); border-radius: 8px; outline: none;
+      color: var(--text-muted); background: var(--surface); font: 9px 'JetBrains Mono', monospace;
+    }
+    .tool-mode-select:focus { border-color: rgba(76, 201, 167, 0.58); }
+    .active-tool-summary {
+      min-width: 0; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      color: var(--accent); font: 9px 'JetBrains Mono', monospace;
+    }
     .composer-label { display: flex; justify-content: space-between; margin: 0 2px 7px; color: var(--text-dim); font-size: 9px; }
     .composer-label span:last-child { font-family: 'JetBrains Mono', monospace; }
     .chat-input-area { display: flex; gap: 8px; }
@@ -419,6 +435,16 @@
   </div>
   <div class="thinking hidden" id="thinking"><span></span><span></span><span></span></div>
   <div class="composer">
+    <div class="tool-mode-control">
+      <label for="toolModeSelect" data-i18n="toolModeLabel">AI tools</label>
+      <select class="tool-mode-select" id="toolModeSelect" onchange="setToolMode(this.value)">
+        <option value="auto">Auto routing</option>
+        <option value="core">Core 15</option>
+        <option value="all">All 61</option>
+        <optgroup id="manualToolsetOptions" label="Manual toolset"></optgroup>
+      </select>
+      <span class="active-tool-summary" id="activeToolSummary" aria-live="polite">15 tools</span>
+    </div>
     <div class="composer-label"><span data-i18n="composerLabel">Ask about a place or scene</span><span data-i18n="enterToRun">Enter to run</span></div>
     <div class="chat-input-area">
       <input class="chat-input" id="chatInput" aria-label="Prompt" data-i18n-aria-label="promptAria" data-i18n-placeholder="promptPlaceholder" placeholder="Fly to Tokyo, draw a route…"
@@ -470,12 +496,15 @@
 // ============================================================
 // Configuration
 // ============================================================
-let CONFIG = { ionToken: '' };
+let CONFIG = { ionToken: '', toolMode: 'auto' };
 
 // Restore only the optional Cesium Ion token. This also purges legacy API keys.
 try {
   const saved = JSON.parse(localStorage.getItem('cesium-agent-config'));
   if (saved?.ionToken) CONFIG.ionToken = saved.ionToken;
+  if (['auto', 'core', 'all'].includes(saved?.toolMode) || saved?.toolMode?.startsWith('toolset:')) {
+    CONFIG.toolMode = saved.toolMode
+  }
   localStorage.setItem('cesium-agent-config', JSON.stringify(CONFIG));
 } catch {}
 
@@ -514,6 +543,14 @@ const I18N = {
     promptMeasureLabel: 'Measure Beijing to Shanghai',
     promptMeasureRequest: 'Measure the distance from Beijing to Shanghai and show it on the map',
     composerLabel: 'Ask about a place or scene',
+    toolModeLabel: 'AI tools',
+    toolModeAuto: 'Auto routing',
+    toolModeCore: 'Core 15',
+    toolModeAll: 'All 61 · advanced',
+    toolModeManual: 'Manual toolset',
+    toolSelectionSummary: '{count} tools · {scope}',
+    toolScopeCore: 'core',
+    toolScopeAll: 'all',
     enterToRun: 'Enter to run',
     promptAria: 'Prompt',
     promptPlaceholder: 'Fly to Tokyo, draw a route…',
@@ -582,6 +619,14 @@ const I18N = {
     promptMeasureLabel: '测量北京到上海的距离',
     promptMeasureRequest: '测量北京到上海的距离，并在地图上显示结果',
     composerLabel: '询问地点或场景',
+    toolModeLabel: 'AI 工具',
+    toolModeAuto: '自动调度',
+    toolModeCore: '核心 15 个',
+    toolModeAll: '全部 61 个 · 高级',
+    toolModeManual: '手动选择工具集',
+    toolSelectionSummary: '{count} 个工具 · {scope}',
+    toolScopeCore: '核心',
+    toolScopeAll: '全部',
     enterToRun: '按 Enter 运行',
     promptAria: '指令',
     promptPlaceholder: '飞到东京、绘制一条路线……',
@@ -733,6 +778,7 @@ function applyLocale() {
   languageButton.title = isEnglish ? '中文' : 'English'
 
   initToolsList()
+  renderToolModeControl()
   renderWebMcpStatus()
   renderAiUsage()
 }
@@ -747,14 +793,32 @@ function toggleLanguage() {
 // Tool Definitions (OpenAI function calling format)
 // ============================================================
 const TOOL_CONTRACTS = CesiumMcpWebMcp.cesiumCoreToolContracts
-const TOOLS = TOOL_CONTRACTS.map(tool => ({
+const TOOL_API = {
+  cesiumBrowserToolContracts: CesiumMcpWebMcp.cesiumBrowserToolContracts,
+  cesiumBrowserToolsets: CesiumMcpWebMcp.cesiumBrowserToolsets,
+  cesiumCoreToolContracts: CesiumMcpWebMcp.cesiumCoreToolContracts,
+}
+
+function toFunctionTools(contracts) {
+  return contracts.map(tool => ({
   type: 'function',
   function: {
     name: tool.name,
     description: tool.description,
     parameters: tool.inputSchema,
   },
-}))
+  }))
+}
+
+const TOOLS = toFunctionTools(TOOL_CONTRACTS)
+
+function resolveChatToolSelection(prompt) {
+  const selection = CesiumToolRouter.resolveToolSelection(prompt, CONFIG.toolMode, TOOL_API)
+  return {
+    ...selection,
+    tools: toFunctionTools(selection.tools),
+  }
+}
 const SYSTEM_PROMPTS = {
   en: `You are a CesiumJS 3D globe assistant. You help users explore and visualize geographic data by controlling a live CesiumJS viewer in the browser.
 
@@ -789,6 +853,7 @@ let cesiumLoadPromise = null
 let bridgeLoadPromise = null
 let cesiumInitPromise = null
 let webMcpRegistration = null;
+let activeToolSelection = resolveChatToolSelection('')
 let isProcessing = false;
 let lastAiUsage = null
 let lastWebMcpStatus = {
@@ -981,6 +1046,8 @@ async function sendMessage() {
   if (!text || isProcessing) return;
 
   input.value = '';
+  activeToolSelection = resolveChatToolSelection(text)
+  renderActiveToolSummary()
   appendMessage('user', text);
   messages.push({ role: 'user', content: text });
 
@@ -1068,11 +1135,15 @@ async function runAgentLoop() {
 }
 
 async function callLLM() {
-  const allMessages = [{ role: 'system', content: SYSTEM_PROMPTS[currentLocale] }, ...messages];
+  const scope = activeToolSelection.toolsetNames.join(', ')
+  const routingPrompt = currentLocale === 'zh-CN'
+    ? `本轮已启用工具范围：${scope}。只根据当前提供的工具判断可执行能力。`
+    : `Active tool scope for this turn: ${scope}. Judge executable capabilities only from the tools provided.`
+  const allMessages = [{ role: 'system', content: `${SYSTEM_PROMPTS[currentLocale]}\n\n${routingPrompt}` }, ...messages];
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: allMessages, tools: TOOLS }),
+    body: JSON.stringify({ messages: allMessages, tools: activeToolSelection.tools }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -1228,6 +1299,54 @@ async function clientGeocode({ address, countryCode }) {
 function toggleTools() {
   const isOpen = document.getElementById('toolsPanel').classList.toggle('open');
   document.getElementById('toolsButton').setAttribute('aria-expanded', String(isOpen));
+}
+
+function toolsetLabel(toolsetName) {
+  if (toolsetName === 'core') return t('toolScopeCore')
+  return currentLocale === 'zh-CN'
+    ? TOOLSET_LABELS_ZH[toolsetName] || toolsetName
+    : toolsetName
+}
+
+function renderActiveToolSummary() {
+  const summary = document.getElementById('activeToolSummary')
+  if (!summary || !activeToolSelection) return
+  const scope = activeToolSelection.mode === 'all'
+    ? t('toolScopeAll')
+    : activeToolSelection.toolsetNames.map(toolsetLabel).join(' + ')
+  summary.textContent = t('toolSelectionSummary', {
+    count: activeToolSelection.tools.length,
+    scope,
+  })
+  summary.title = summary.textContent
+}
+
+function renderToolModeControl() {
+  const select = document.getElementById('toolModeSelect')
+  const manualOptions = document.getElementById('manualToolsetOptions')
+  if (!select || !manualOptions) return
+
+  select.querySelector('[value="auto"]').textContent = t('toolModeAuto')
+  select.querySelector('[value="core"]').textContent = t('toolModeCore')
+  select.querySelector('[value="all"]').textContent = t('toolModeAll')
+  manualOptions.label = t('toolModeManual')
+  manualOptions.innerHTML = CesiumMcpWebMcp.cesiumBrowserToolsetNames.map(toolsetName => (
+    `<option value="toolset:${toolsetName}">${toolsetLabel(toolsetName)} · ${CesiumMcpWebMcp.cesiumBrowserToolsets[toolsetName].tools.length}</option>`
+  )).join('')
+
+  if (![...select.options].some(option => option.value === CONFIG.toolMode)) {
+    CONFIG.toolMode = 'auto'
+  }
+  select.value = CONFIG.toolMode
+  renderActiveToolSummary()
+}
+
+function setToolMode(mode) {
+  CONFIG.toolMode = mode
+  localStorage.setItem('cesium-agent-config', JSON.stringify(CONFIG))
+  const lastUserMessage = [...messages].reverse().find(message => message.role === 'user')
+  activeToolSelection = resolveChatToolSelection(lastUserMessage?.content || '')
+  renderActiveToolSummary()
 }
 
 function initToolsList() {

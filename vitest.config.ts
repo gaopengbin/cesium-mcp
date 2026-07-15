@@ -6,6 +6,7 @@ export default defineConfig({
       'packages/*/src/**/*.test.ts',
       'examples/browser-agent/_worker.test.ts',
       'examples/browser-agent/index.test.ts',
+      'examples/browser-agent/tool-router.test.ts',
       'examples/browser-agent/functions/**/*.test.ts',
     ],
   },

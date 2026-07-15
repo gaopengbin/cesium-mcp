@@ -164,6 +164,24 @@ describe('browser-agent hosted AI worker', () => {
     expect(env.AI.run).not.toHaveBeenCalled()
   })
 
+  it('accepts the complete browser-safe tool surface', async () => {
+    const env = createEnv()
+    const tools = Array.from({ length: 61 }, (_, index) => ({
+      type: 'function',
+      function: { name: `tool_${index}` },
+    }))
+    const response = await handleChatRequest(createRequest({
+      messages: [{ role: 'user', content: 'Load a tileset' }],
+      tools,
+    }), env)
+
+    expect(response.status).toBe(200)
+    expect(env.AI.run).toHaveBeenCalledWith(
+      '@cf/zai-org/glm-4.7-flash',
+      expect.objectContaining({ tools }),
+    )
+  })
+
   it('fails closed when required Cloudflare bindings are missing', async () => {
     const response = await handleChatRequest(createRequest({
       messages: [{ role: 'user', content: 'Hello' }],

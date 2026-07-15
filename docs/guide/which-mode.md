@@ -27,7 +27,7 @@ What are you trying to do?
 | **Agent runs in** | Compatible browser | Web application | Your web application | Desktop client or workflow platform |
 | **MCP service required** | No | No | No | Yes |
 | **Model required by package** | No | Demo provides one | Yes, application-owned | MCP client-owned |
-| **Tool surface** | 15 core or 61 browser-safe tools | 15 chat tools + 61 WebMCP tools | Application-selected | Runtime toolsets |
+| **Tool surface** | 15 core or 61 browser-safe tools | Auto-routed bundles up to 20, or all 61 + 61 WebMCP tools | Application-selected | Runtime toolsets |
 | **Best for** | Agent-ready websites | Evaluation and demonstrations | Product AI assistants | MCP ecosystem integration |
 | **Start here** | [WebMCP guide](/guide/webmcp) | [Live demo](https://cesium-browser-agent.pages.dev/) | [Browser Agent source](https://github.com/gaopengbin/cesium-mcp/tree/main/examples/browser-agent) | [Getting Started](/guide/getting-started) |
 

@@ -24,7 +24,7 @@ The reusable core is `cesium-mcp-bridge`'s command dispatcher (`bridge.execute()
 
 ## WebMCP (Chrome 149+ Origin Trial)
 
-When `document.modelContext` is available, the demo uses `registerCesiumWebMcp(..., { toolsets: 'all' })` to register all 61 browser-safe contracts across 12 toolsets. Registration happens before CesiumJS and the bridge runtime load, so WebMCP scanners and browser agents can discover the tools without waiting for 3D rendering. The adapter is Cesium-free; tools initialize the live viewer lazily when an operation needs it, while the built-in chat remains available with a smaller 15-tool context.
+When `document.modelContext` is available, the demo uses `registerCesiumWebMcp(..., { toolsets: 'all' })` to register all 61 browser-safe contracts across 12 toolsets. Registration happens before CesiumJS and the bridge runtime load, so WebMCP scanners and browser agents can discover the tools without waiting for 3D rendering. The adapter is Cesium-free; tools initialize the live viewer lazily when an operation needs it. The built-in chat independently routes each request to a relevant toolset bundle.
 
 The registered surface includes structured result schemas, bounded geographic coordinates, typed GeoJSON FeatureCollections, and explicit label and layer style objects from `cesium-mcp-contracts`, so the built-in agent and WebMCP surface do not maintain separate schemas.
 
@@ -45,15 +45,16 @@ Unsupported browsers simply skip registration and continue using the built-in fu
 
 The WebMCP surface exposes 61 tools in the `view`, `entity`, `layer`, `camera`, `entity-ext`, `animation`, `scene`, `tiles`, `interaction`, `trajectory`, `heatmap`, and `geolocation` toolsets. `setIonToken` is intentionally application-owned and is not exposed to page agents.
 
-The built-in chat keeps the following 15 tools to reduce model context and tool-selection noise:
+The built-in chat defaults to automatic routing. It matches English and Chinese intent to a task bundle, for example:
 
-| Category | Tools |
-|----------|-------|
-| Camera | `flyTo`, `setView`, `getView` |
-| Entities | `addMarker`, `addPolyline`, `addPolygon`, `addLabel` |
-| Layers | `addGeoJsonLayer`, `setBasemap` |
-| Cleanup | `removeEntity`, `clearAll` |
-| Utility | `geocode`, `highlight`, `measure`, `screenshot` |
+| Request | Routed toolsets | Tools sent |
+|---------|-----------------|------------|
+| Load 3D Tiles, terrain, imagery, CZML, or KML | `tiles`, `view`, `interaction`, `geolocation` | 19 |
+| Add or style GeoJSON layers | `layer`, `view`, `geolocation` | 18 |
+| Create time-dynamic entities | `animation`, `entity`, `geolocation` | 19 |
+| Add markers, models, or shapes | `entity`, `view`, `geolocation` | 19 |
+
+The selector above the prompt also offers the 15-tool core set, each individual toolset, and an advanced all-61 mode. WebMCP registration always remains all 61 regardless of this chat selection.
 
 ## Run Locally
 

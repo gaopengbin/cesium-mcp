@@ -81,4 +81,14 @@ describe('browser-agent startup order', () => {
     expect(html).toContain('WebMCP tools remain available')
     expect(html).toContain('WebMCP 页面工具仍可使用')
   })
+
+  it('routes built-in chat tools while preserving explicit core and full modes', () => {
+    expect(html).toContain('<script src="/tool-router.js"></script>')
+    expect(html).toContain('id="toolModeSelect"')
+    expect(html).toContain("value=\"auto\"")
+    expect(html).toContain("value=\"core\"")
+    expect(html).toContain("value=\"all\"")
+    expect(html).toContain('CesiumToolRouter.resolveToolSelection')
+    expect(html).toContain('tools: activeToolSelection.tools')
+  })
 })

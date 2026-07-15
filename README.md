@@ -87,14 +87,14 @@ The bridge remains the execution core, while contracts and protocol adapters sta
 
 ### Path 0 — Try in 30 seconds (browser agent, recommended)
 
-Open the [live demo](https://cesium-browser-agent.pages.dev/), paste an OpenAI-compatible API key, and ask:
+Open the [live demo](https://cesium-browser-agent.pages.dev/) and ask—the hosted model is ready without a browser API key:
 > *"Fly to the Eiffel Tower and drop a red marker"*
 
 Fork the [examples/browser-agent](examples/browser-agent/) folder to deploy your own.
 
 ### Path 1 — Expose Cesium tools through WebMCP (Chrome 149+ experimental)
 
-The browser-agent example automatically registers all 61 browser-safe page tools when `document.modelContext` is available. Its built-in chat keeps a smaller 15-tool context:
+The browser-agent example automatically registers all 61 browser-safe page tools when `document.modelContext` is available. Its built-in chat uses automatic toolset routing to keep each normal request at 20 tools or fewer, while still offering explicit core, single-toolset, and all-61 modes:
 
 ```bash
 npm run build -w packages/cesium-mcp-bridge

@@ -1,7 +1,7 @@
 const CHAT_MODEL = '@cf/zai-org/glm-4.7-flash'
-const MAX_BODY_BYTES = 128 * 1024
+const MAX_BODY_BYTES = 256 * 1024
 const MAX_MESSAGES = 40
-const MAX_TOOLS = 20
+const MAX_TOOLS = 64
 const REQUESTS_PER_MINUTE = 30
 const DAILY_FREE_NEURONS = 10_000
 const DEFAULT_DAILY_BUDGET = 9_000
