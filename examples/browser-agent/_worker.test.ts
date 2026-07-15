@@ -75,7 +75,7 @@ describe('browser-agent hosted AI worker', () => {
     expect(env.AI.run).toHaveBeenCalledWith(
       '@cf/zai-org/glm-4.7-flash',
       expect.objectContaining({
-        max_completion_tokens: 1024,
+        max_completion_tokens: 4096,
         messages: [{ role: 'user', content: 'Fly to Tokyo' }],
       }),
     )
@@ -116,7 +116,7 @@ describe('browser-agent hosted AI worker', () => {
     expect(env.AI.run).toHaveBeenCalledWith(
       '@cf/zai-org/glm-4.7-flash',
       expect.objectContaining({
-        max_completion_tokens: 512,
+        max_completion_tokens: 2048,
         messages: expect.arrayContaining([{ role: 'system', content: 'System' }]),
       }),
     )
