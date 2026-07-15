@@ -10,6 +10,7 @@ import {
 
 const context: Record<string, any> = {}
 context.globalThis = context
+context.URL = URL
 runInNewContext(
   readFileSync(new URL('./tool-router.js', import.meta.url), 'utf8'),
   context,
@@ -51,5 +52,20 @@ describe('browser-agent tool router', () => {
     expect(router.resolveToolSelection('', 'core', contracts).tools).toHaveLength(15)
     expect(router.resolveToolSelection('', 'toolset:tiles', contracts).tools).toHaveLength(7)
     expect(router.resolveToolSelection('', 'all', contracts).tools).toHaveLength(61)
+  })
+
+  it('rewrites only allowlisted HTTP assets through the same-origin proxy', () => {
+    const proxies = { 'http://jojo1986.cn:8888': 'jojo' }
+
+    expect(router.rewriteAssetUrl(
+      'http://jojo1986.cn:8888/data/三维场景/tileset.json?version=1',
+      'https://cesium-browser-agent.pages.dev',
+      proxies,
+    )).toBe('https://cesium-browser-agent.pages.dev/api/assets/jojo/data/%E4%B8%89%E7%BB%B4%E5%9C%BA%E6%99%AF/tileset.json?version=1')
+    expect(router.rewriteAssetUrl(
+      'https://example.com/tileset.json',
+      'https://cesium-browser-agent.pages.dev',
+      proxies,
+    )).toBe('https://example.com/tileset.json')
   })
 })

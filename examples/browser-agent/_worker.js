@@ -12,10 +12,25 @@ const DEGRADED_COMPLETION_TOKENS = 512
 const DEGRADED_HISTORY_MESSAGES = 12
 const INPUT_NEURONS_PER_TOKEN = 0.0055
 const OUTPUT_NEURONS_PER_TOKEN = 0.0364
+const ASSET_PROXY_PREFIX = '/api/assets/'
+const ASSET_PROXY_SOURCES = Object.freeze({
+  jojo: new URL('http://jojo1986.cn:8888'),
+})
+const PROXY_REQUEST_HEADERS = ['Accept', 'If-Modified-Since', 'If-None-Match', 'Range']
+const PROXY_RESPONSE_HEADERS = [
+  'Accept-Ranges',
+  'Content-Range',
+  'Content-Type',
+  'ETag',
+  'Last-Modified',
+]
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
+    if (url.pathname.startsWith(ASSET_PROXY_PREFIX)) {
+      return handleAssetProxy(request, url)
+    }
     if (url.pathname === '/api/chat') {
       return handleChatRequest(request, env)
     }
@@ -25,6 +40,109 @@ export default {
 
     return withWebMcpHeaders(await env.ASSETS.fetch(request), env)
   },
+}
+
+export async function handleAssetProxy(request, url = new URL(request.url)) {
+  const origin = request.headers.get('Origin')
+  if (origin && !isAllowedOrigin(origin)) {
+    return assetProxyError('Origin not allowed', 403)
+  }
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: assetProxyHeaders() })
+  }
+  if (!['GET', 'HEAD'].includes(request.method)) {
+    return assetProxyError('Method not allowed', 405)
+  }
+
+  const route = url.pathname.slice(ASSET_PROXY_PREFIX.length)
+  const separator = route.indexOf('/')
+  const sourceKey = separator > 0 ? route.slice(0, separator) : route
+  const encodedPath = separator > 0 ? route.slice(separator + 1) : ''
+  const upstreamBase = ASSET_PROXY_SOURCES[sourceKey]
+
+  if (!upstreamBase) return assetProxyError('Asset source not allowed', 403)
+  if (!encodedPath || hasUnsafeProxyPath(encodedPath)) {
+    return assetProxyError('Invalid asset path', 400)
+  }
+
+  const upstreamUrl = new URL(`/${encodedPath}`, upstreamBase)
+  upstreamUrl.search = url.search
+  if (upstreamUrl.origin !== upstreamBase.origin) {
+    return assetProxyError('Invalid asset origin', 400)
+  }
+
+  const headers = new Headers()
+  for (const name of PROXY_REQUEST_HEADERS) {
+    const value = request.headers.get(name)
+    if (value) headers.set(name, value)
+  }
+
+  let upstreamResponse
+  try {
+    upstreamResponse = await fetch(upstreamUrl, {
+      method: request.method,
+      headers,
+      redirect: 'manual',
+      cf: {
+        cacheEverything: true,
+        cacheTtl: 3600,
+      },
+    })
+  } catch (error) {
+    console.error('[Asset proxy]', error?.message || error)
+    return assetProxyError('Asset source unavailable', 502)
+  }
+
+  if (upstreamResponse.status >= 300 && upstreamResponse.status < 400) {
+    return assetProxyError('Asset source redirect blocked', 502)
+  }
+
+  const responseHeaders = assetProxyHeaders()
+  for (const name of PROXY_RESPONSE_HEADERS) {
+    const value = upstreamResponse.headers.get(name)
+    if (value) responseHeaders.set(name, value)
+  }
+  responseHeaders.set(
+    'Cache-Control',
+    upstreamResponse.headers.get('Cache-Control') || 'public, max-age=3600',
+  )
+
+  return new Response(upstreamResponse.body, {
+    status: upstreamResponse.status,
+    statusText: upstreamResponse.statusText,
+    headers: responseHeaders,
+  })
+}
+
+function hasUnsafeProxyPath(path) {
+  let decoded = path
+  try {
+    for (let index = 0; index < 3; index += 1) {
+      const next = decodeURIComponent(decoded)
+      if (next === decoded) break
+      decoded = next
+    }
+  } catch {
+    return true
+  }
+
+  return decoded.includes('\0')
+    || decoded.replaceAll('\\', '/').split('/').some(segment => segment === '..')
+}
+
+function assetProxyError(error, status) {
+  return Response.json({ error }, { status, headers: assetProxyHeaders() })
+}
+
+function assetProxyHeaders() {
+  return new Headers({
+    'Access-Control-Allow-Headers': 'Accept, If-Modified-Since, If-None-Match, Range',
+    'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+    'Access-Control-Allow-Origin': '*',
+    'Cache-Control': 'no-store',
+    'Cross-Origin-Resource-Policy': 'cross-origin',
+    'X-Content-Type-Options': 'nosniff',
+  })
 }
 
 export async function handleChatRequest(request, env) {

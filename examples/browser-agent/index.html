@@ -582,6 +582,7 @@ const I18N = {
     errorPrefix: 'Error',
     rateLimitError: 'Too many requests. Please try again in a minute.',
     aiUnavailable: 'The hosted AI is temporarily unavailable.',
+    insecureAssetUrl: 'This HTTPS demo cannot load that HTTP asset. Use HTTPS or configure an approved asset proxy.',
     argsLabel: 'Args',
     resultLabel: 'Result',
   },
@@ -658,6 +659,7 @@ const I18N = {
     errorPrefix: '错误',
     rateLimitError: '请求过于频繁，请一分钟后再试。',
     aiUnavailable: '在线 AI 服务暂时不可用。',
+    insecureAssetUrl: '当前 HTTPS 演示不能直接加载该 HTTP 资源，请改用 HTTPS 或配置允许的资源代理。',
     argsLabel: '参数',
     resultLabel: '结果',
   },
@@ -797,6 +799,35 @@ const TOOL_API = {
   cesiumBrowserToolContracts: CesiumMcpWebMcp.cesiumBrowserToolContracts,
   cesiumBrowserToolsets: CesiumMcpWebMcp.cesiumBrowserToolsets,
   cesiumCoreToolContracts: CesiumMcpWebMcp.cesiumCoreToolContracts,
+}
+const ASSET_PROXY_ORIGINS = Object.freeze({
+  'http://jojo1986.cn:8888': 'jojo',
+})
+const PROXY_ASSET_ACTIONS = new Set(['load3dTiles', 'load3dGaussianSplat'])
+
+function prepareCommandParams(action, params) {
+  if (!PROXY_ASSET_ACTIONS.has(action) || !params?.url) return params
+
+  let originalUrl
+  try {
+    originalUrl = new URL(params.url, location.origin)
+  } catch {
+    return params
+  }
+
+  const rewrittenUrl = CesiumToolRouter.rewriteAssetUrl(
+    originalUrl.href,
+    location.origin,
+    ASSET_PROXY_ORIGINS,
+  )
+  if (location.protocol === 'https:' && originalUrl.protocol === 'http:' && rewrittenUrl === originalUrl.href) {
+    throw new Error(t('insecureAssetUrl'))
+  }
+
+  if (rewrittenUrl !== originalUrl.href) {
+    console.log('[Asset proxy]', originalUrl.href, '→', rewrittenUrl)
+  }
+  return { ...params, url: rewrittenUrl }
 }
 
 function toFunctionTools(contracts) {
@@ -1028,7 +1059,7 @@ async function registerPageWebMcpTools() {
     async execute({ action, params }) {
       if (action === 'geocode') return clientGeocode(params)
       await initCesium()
-      return bridge.execute({ action, params })
+      return bridge.execute({ action, params: prepareCommandParams(action, params) })
     },
   };
 
@@ -1089,7 +1120,10 @@ async function runAgentLoop() {
               result = await clientGeocode(params)
             } else {
               await initCesium()
-              result = await bridge.execute({ action: tc.function.name, params })
+              result = await bridge.execute({
+                action: tc.function.name,
+                params: prepareCommandParams(tc.function.name, params),
+              })
             }
             updateToolCall(toolEl, 'done', result);
             // Truncate large results (e.g. screenshot base64) to avoid context overflow

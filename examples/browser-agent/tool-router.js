@@ -125,9 +125,28 @@
     }
   }
 
+  function rewriteAssetUrl(value, pageOrigin, proxyOrigins) {
+    if (typeof value !== 'string' || value.length === 0) return value
+
+    let assetUrl
+    try {
+      assetUrl = new URL(value, pageOrigin)
+    } catch {
+      return value
+    }
+
+    const sourceKey = proxyOrigins[assetUrl.origin]
+    if (!sourceKey) return assetUrl.href
+
+    const proxyUrl = new URL(`/api/assets/${sourceKey}${assetUrl.pathname}`, pageOrigin)
+    proxyUrl.search = assetUrl.search
+    return proxyUrl.href
+  }
+
   global.CesiumToolRouter = Object.freeze({
     MAX_AUTO_TOOLS,
     resolveToolSelection,
+    rewriteAssetUrl,
     routeToolsets,
   })
 })(globalThis)

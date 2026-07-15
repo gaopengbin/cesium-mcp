@@ -15,6 +15,8 @@ The demo has two independent AI paths:
 
 The hosted chat is a convenience for the demo, not a requirement for using `cesium-mcp-webmcp` in your own application.
 
+The HTTPS demo also contains a narrow, path-preserving proxy for its explicitly approved HTTP test dataset. This is application infrastructure rather than part of the WebMCP package. Other HTTP URLs are rejected with a clear mixed-content message; production applications should prefer HTTPS data sources or maintain their own server-side allowlist.
+
 ## Install in an existing Cesium app
 
 ```bash

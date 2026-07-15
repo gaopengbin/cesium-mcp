@@ -91,4 +91,11 @@ describe('browser-agent startup order', () => {
     expect(html).toContain('CesiumToolRouter.resolveToolSelection')
     expect(html).toContain('tools: activeToolSelection.tools')
   })
+
+  it('rewrites the allowlisted HTTP tiles origin for both execution paths', () => {
+    expect(html).toContain("'http://jojo1986.cn:8888': 'jojo'")
+    expect(html).toContain('function prepareCommandParams(action, params)')
+    expect(html).toContain('CesiumToolRouter.rewriteAssetUrl')
+    expect(html.match(/prepareCommandParams\(/g)).toHaveLength(3)
+  })
 })

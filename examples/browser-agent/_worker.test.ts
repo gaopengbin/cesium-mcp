@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import worker, { handleChatRequest, handleUsageRequest } from './_worker.js'
+import worker, { handleAssetProxy, handleChatRequest, handleUsageRequest } from './_worker.js'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 function createEnv(options: {
   rateLimitSuccess?: boolean
@@ -180,6 +184,46 @@ describe('browser-agent hosted AI worker', () => {
       '@cf/zai-org/glm-4.7-flash',
       expect.objectContaining({ tools }),
     )
+  })
+
+  it('streams allowlisted assets through the HTTPS worker origin', async () => {
+    const upstreamFetch = vi.fn().mockResolvedValue(new Response('tileset', {
+      headers: {
+        'Content-Type': 'application/json',
+        ETag: 'tiles-v1',
+      },
+    }))
+    vi.stubGlobal('fetch', upstreamFetch)
+    const request = new Request(
+      'https://cesium-browser-agent.pages.dev/api/assets/jojo/data/model/tileset.json?version=1',
+      { headers: { Range: 'bytes=0-1023' } },
+    )
+    const response = await handleAssetProxy(request, new URL(request.url))
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('tileset')
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
+    expect(response.headers.get('ETag')).toBe('tiles-v1')
+    expect(upstreamFetch).toHaveBeenCalledWith(
+      new URL('http://jojo1986.cn:8888/data/model/tileset.json?version=1'),
+      expect.objectContaining({
+        method: 'GET',
+        redirect: 'manual',
+        headers: expect.any(Headers),
+      }),
+    )
+    expect(upstreamFetch.mock.calls[0][1].headers.get('Range')).toBe('bytes=0-1023')
+  })
+
+  it('rejects unknown proxy origins and encoded path traversal', async () => {
+    const upstreamFetch = vi.fn()
+    vi.stubGlobal('fetch', upstreamFetch)
+    const unknown = new Request('https://cesium-browser-agent.pages.dev/api/assets/unknown/data.json')
+    const traversal = new Request('https://cesium-browser-agent.pages.dev/api/assets/jojo/%252e%252e/secret')
+
+    expect((await handleAssetProxy(unknown, new URL(unknown.url))).status).toBe(403)
+    expect((await handleAssetProxy(traversal, new URL(traversal.url))).status).toBe(400)
+    expect(upstreamFetch).not.toHaveBeenCalled()
   })
 
   it('fails closed when required Cloudflare bindings are missing', async () => {

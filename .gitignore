@@ -4,6 +4,7 @@ dist/
 !packages/cesium-mcp-bridge/dist/
 *.tgz
 .turbo/
+.wrangler/
 coverage/
 .env
 .DS_Store

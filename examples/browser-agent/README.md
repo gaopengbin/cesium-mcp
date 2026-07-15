@@ -56,6 +56,19 @@ The built-in chat defaults to automatic routing. It matches English and Chinese 
 
 The selector above the prompt also offers the 15-tool core set, each individual toolset, and an advanced all-61 mode. WebMCP registration always remains all 61 regardless of this chat selection.
 
+## HTTPS asset proxy
+
+The hosted page is HTTPS, so browsers block HTTP tilesets as mixed content. The Pages Worker exposes a path-preserving proxy for explicitly approved sources:
+
+```text
+http://jojo1986.cn:8888/data/.../tileset.json
+→ https://cesium-browser-agent.pages.dev/api/assets/jojo/data/.../tileset.json
+```
+
+Both the built-in chat and WebMCP execution path apply this rewrite automatically for `load3dTiles` and `load3dGaussianSplat`. Relative child tile URLs continue through the same proxy path. The Worker allows only `GET`, `HEAD`, and `OPTIONS`, forwards range and cache validators, blocks redirects and path traversal, and never accepts an arbitrary target URL.
+
+Add new sources only by extending the matching allowlists in `_worker.js` and `index.html`. A public `?url=` proxy would create an SSRF and bandwidth-abuse risk.
+
 ## Run Locally
 
 ### Prerequisites
