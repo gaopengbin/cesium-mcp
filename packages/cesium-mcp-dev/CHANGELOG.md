@@ -1,5 +1,7 @@
 # cesium-mcp-dev
 
+## 1.143.1
+
 ## 1.143.0
 
 ### Minor Changes
