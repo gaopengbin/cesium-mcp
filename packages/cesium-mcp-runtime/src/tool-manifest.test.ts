@@ -33,6 +33,7 @@ describe('runtime tool manifest', () => {
     for (const contract of cesiumBrowserToolContracts) {
       const metadata = getCesiumRuntimeToolMetadata(contract.name, 'en')!
       expect(metadata.description).toBe(contract.description)
+      expect(metadata.inputSchema).toBe(contract.inputSchema)
       expect(metadata.annotations).toEqual({
         title: contract.title,
         readOnlyHint: contract.annotations.readOnlyHint,
@@ -82,7 +83,11 @@ describe('runtime tool manifest', () => {
       .map(match => match[1]!)
 
     expect(new Set(registeredNames).size).toBe(registeredNames.length)
-    expect(registeredNames.toSorted()).toEqual(cesiumRuntimeCommandToolNames.toSorted())
+    expect([...registeredNames].sort()).toEqual([...cesiumRuntimeCommandToolNames].sort())
+  })
+
+  it('builds shared runtime validation from canonical JSON Schema', () => {
+    expect(runtimeSource).toContain('zodObjectFromJsonSchema(metadata.inputSchema)')
   })
 
   it('matches the concrete MCP discovery registrations', () => {

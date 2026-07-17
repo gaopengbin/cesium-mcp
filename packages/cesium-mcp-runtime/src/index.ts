@@ -25,6 +25,7 @@ import {
   cesiumRuntimeToolsets,
   getCesiumRuntimeToolMetadata,
 } from './tool-manifest.js'
+import { zodObjectFromJsonSchema } from './json-schema-to-zod.js'
 
 // ==================== WebSocket Bridge ====================
 
@@ -631,27 +632,26 @@ function _applyToolDef(s: McpServer, args: unknown[]) {
 /** Register tool only if it belongs to an enabled toolset */
 const _registerTool = ((...args: unknown[]) => {
   const name = args[0] as string
+  const sessionIdSchema = z.string().optional().describe(
+    _localeKey === 'zh-CN'
+      ? '目标浏览器 session ID（多浏览器路由，可选）'
+      : 'Target browser session ID for multi-browser routing (optional)',
+  )
   // Shared command metadata is canonical in cesium-mcp-contracts.
   const metadata = getCesiumRuntimeToolMetadata(name, _localeKey)
   if (metadata) {
     args[1] = metadata.description
     args[3] = metadata.annotations
-  }
-  const paramOverrides = metadata?.parameterDescriptions
-  if (paramOverrides && typeof args[2] === 'object' && args[2] !== null) {
-    const schema = args[2] as Record<string, z.ZodTypeAny>
-    for (const [key, desc] of Object.entries(paramOverrides)) {
-      if (schema[key]) schema[key] = schema[key].describe(desc)
+    const generated = zodObjectFromJsonSchema(metadata.inputSchema)
+    const localizedShape: z.ZodRawShape = {}
+    for (const [key, desc] of Object.entries(metadata.parameterDescriptions)) {
+      if (generated.shape[key]) localizedShape[key] = generated.shape[key].describe(desc)
     }
-  }
-  // Auto-inject optional sessionId for multi-browser routing
-  if (typeof args[2] === 'object' && args[2] !== null) {
+    args[2] = generated.extend({ ...localizedShape, sessionId: sessionIdSchema })
+  } else if (typeof args[2] === 'object' && args[2] !== null) {
+    // Runtime-only tools still use their local Zod raw shape.
     const schema = args[2] as Record<string, z.ZodTypeAny>
-    schema.sessionId = z.string().optional().describe(
-      _localeKey === 'zh-CN'
-        ? '目标浏览器 session ID（多浏览器路由，可选）'
-        : 'Target browser session ID for multi-browser routing (optional)',
-    )
+    schema.sessionId = sessionIdSchema
   }
   _toolDefs.set(name, args)
   if (_enabledTools.has(name)) {
@@ -904,7 +904,7 @@ _registerTool(
   },
   { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Zoom to Extent' },
   async (params) => {
-    const result = await sendToBrowser('zoomToExtent', { bbox: [params.west, params.south, params.east, params.north], duration: params.duration })
+    const result = await sendToBrowser('zoomToExtent', params)
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
   },
 )

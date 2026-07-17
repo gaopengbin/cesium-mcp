@@ -735,7 +735,7 @@ var CesiumMcpBridge = (function (exports) {
     });
   }
   function setView(viewer, params) {
-    const { longitude, latitude, height = 5e4, heading = 0, pitch = -45 } = params;
+    const { longitude, latitude, height = 5e4, heading = 0, pitch = -45, roll } = params;
     validateCoordinate(longitude, latitude, height);
     const target = Cesium2.Cartesian3.fromDegrees(longitude, latitude, 0);
     const range = _heightToRange(height, pitch);
@@ -748,6 +748,15 @@ var CesiumMcpBridge = (function (exports) {
       )
     );
     viewer.camera.lookAtTransform(Cesium2.Matrix4.IDENTITY);
+    if (roll !== void 0) {
+      viewer.camera.setView({
+        orientation: {
+          heading: viewer.camera.heading,
+          pitch: viewer.camera.pitch,
+          roll: Cesium2.Math.toRadians(roll)
+        }
+      });
+    }
   }
   function getView(viewer) {
     const carto = viewer.camera.positionCartographic;
@@ -3083,7 +3092,8 @@ var CesiumMcpBridge = (function (exports) {
         height: params.height,
         extrudedHeight: params.extrudedHeight,
         outline: params.outline ?? false,
-        outlineColor: params.outlineColor ? parseColor(params.outlineColor) : void 0
+        outlineColor: params.outlineColor ? parseColor(params.outlineColor) : void 0,
+        fill: params.fill ?? true
       }
     });
   }

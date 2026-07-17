@@ -17,7 +17,7 @@ vi.mock('cesium', () => ({
   default: {},
 }))
 
-import { saveViewpoint, loadViewpoint, listViewpoints } from './view.js'
+import { saveViewpoint, loadViewpoint, listViewpoints, setView } from './view.js'
 
 function makeViewer(pos = { lon: 116.4, lat: 39.9, height: 5000, heading: 0, pitch: -45, roll: 0 }) {
   const lonRad = pos.lon * (Math.PI / 180)
@@ -28,6 +28,7 @@ function makeViewer(pos = { lon: 116.4, lat: 39.9, height: 5000, heading: 0, pit
 
   let flyToCalled = false
   let setViewCalled = false
+  let setViewOptions: any
 
   return {
     camera: {
@@ -37,14 +38,24 @@ function makeViewer(pos = { lon: 116.4, lat: 39.9, height: 5000, heading: 0, pit
       roll: rollRad,
       flyTo: (opts: any) => { flyToCalled = true; opts.complete?.() },
       flyToBoundingSphere: (_bs: any, opts: any) => { flyToCalled = true; opts.complete?.() },
-      setView: () => { setViewCalled = true },
+      setView: (options: any) => { setViewCalled = true; setViewOptions = options },
       lookAt: () => { setViewCalled = true },
       lookAtTransform: () => {},
     },
     get _flyToCalled() { return flyToCalled },
     get _setViewCalled() { return setViewCalled },
+    get _setViewOptions() { return setViewOptions },
   } as any
 }
+
+describe('setView', () => {
+  it('applies an explicit roll after releasing the lookAt transform', () => {
+    const viewer = makeViewer()
+    setView(viewer, { longitude: 116.4, latitude: 39.9, roll: 30 })
+
+    expect(viewer._setViewOptions.orientation.roll).toBeCloseTo(Math.PI / 6)
+  })
+})
 
 // Clear the module-level _viewpoints Map between tests
 // We do this by saving/loading and checking behavior

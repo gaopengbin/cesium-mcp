@@ -69,6 +69,7 @@ export function addCorridor(viewer: Cesium.Viewer, params: AddCorridorParams): C
       extrudedHeight: params.extrudedHeight,
       outline: params.outline ?? false,
       outlineColor: params.outlineColor ? parseColor(params.outlineColor) : undefined,
+      fill: params.fill ?? true,
     },
   })
 }

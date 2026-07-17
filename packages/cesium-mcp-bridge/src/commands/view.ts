@@ -53,7 +53,7 @@ export function flyTo(viewer: Cesium.Viewer, params: FlyToParams): Promise<void>
 }
 
 export function setView(viewer: Cesium.Viewer, params: SetViewParams): void {
-  const { longitude, latitude, height = 50000, heading = 0, pitch = -45 } = params
+  const { longitude, latitude, height = 50000, heading = 0, pitch = -45, roll } = params
   validateCoordinate(longitude, latitude, height)
 
   const target = Cesium.Cartesian3.fromDegrees(longitude, latitude, 0)
@@ -69,6 +69,15 @@ export function setView(viewer: Cesium.Viewer, params: SetViewParams): void {
   )
   // lookAt 会锁定相机，解除锁定以恢复自由操控
   viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
+  if (roll !== undefined) {
+    viewer.camera.setView({
+      orientation: {
+        heading: viewer.camera.heading,
+        pitch: viewer.camera.pitch,
+        roll: Cesium.Math.toRadians(roll),
+      },
+    })
+  }
 }
 
 export function getView(viewer: Cesium.Viewer): ViewState {

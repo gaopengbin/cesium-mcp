@@ -28,7 +28,7 @@ for (const tool of tools) {
 console.log(cesiumBrowserToolsets.animation.description)
 ```
 
-`cesiumBrowserToolsetDefinitions`, `cesiumSharedToolNames`, and each contract's metadata are canonical for protocol adapters. Runtime-only credential tools and MCP discovery meta-tools remain outside this shared browser-safe inventory. `normalizeCesiumToolLocale()` maps an environment or application locale to the supported `en` or `zh-CN` catalogs.
+`cesiumBrowserToolsetDefinitions`, `cesiumSharedToolNames`, and each contract's metadata and JSON Schema are canonical for protocol adapters. The MCP runtime converts the same input schemas to Zod at registration time; WebMCP publishes them directly. Runtime-only credential tools and MCP discovery meta-tools remain outside this shared browser-safe inventory. `normalizeCesiumToolLocale()` maps an environment or application locale to the supported `en` or `zh-CN` catalogs.
 
 Selections can be `core` (15 lightweight contracts), `all` (61 browser-safe contracts), one toolset name, or an array of toolset names. The 12 domain toolsets mirror the runtime capability groups. Sixty contracts execute directly through the Bridge; `geocode` is an application-provided browser service. `setIonToken` is intentionally excluded because page agents must not receive application credentials.
 

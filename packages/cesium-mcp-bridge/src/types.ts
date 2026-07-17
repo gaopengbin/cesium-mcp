@@ -507,6 +507,7 @@ export interface AddCorridorParams {
   extrudedHeight?: number
   outline?: boolean
   outlineColor?: ColorInput
+  fill?: boolean
 }
 
 export interface AddCylinderParams {

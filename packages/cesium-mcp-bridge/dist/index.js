@@ -96,7 +96,7 @@ function flyTo(viewer, params) {
   });
 }
 function setView(viewer, params) {
-  const { longitude, latitude, height = 5e4, heading = 0, pitch = -45 } = params;
+  const { longitude, latitude, height = 5e4, heading = 0, pitch = -45, roll } = params;
   validateCoordinate(longitude, latitude, height);
   const target = Cesium3.Cartesian3.fromDegrees(longitude, latitude, 0);
   const range = _heightToRange(height, pitch);
@@ -109,6 +109,15 @@ function setView(viewer, params) {
     )
   );
   viewer.camera.lookAtTransform(Cesium3.Matrix4.IDENTITY);
+  if (roll !== void 0) {
+    viewer.camera.setView({
+      orientation: {
+        heading: viewer.camera.heading,
+        pitch: viewer.camera.pitch,
+        roll: Cesium3.Math.toRadians(roll)
+      }
+    });
+  }
 }
 function getView(viewer) {
   const carto = viewer.camera.positionCartographic;
@@ -2425,7 +2434,8 @@ function addCorridor(viewer, params) {
       height: params.height,
       extrudedHeight: params.extrudedHeight,
       outline: params.outline ?? false,
-      outlineColor: params.outlineColor ? parseColor(params.outlineColor) : void 0
+      outlineColor: params.outlineColor ? parseColor(params.outlineColor) : void 0,
+      fill: params.fill ?? true
     }
   });
 }

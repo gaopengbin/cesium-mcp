@@ -7,6 +7,7 @@ import {
 import type {
   CesiumBrowserToolsetName,
   CesiumToolLocale,
+  JsonSchema,
 } from 'cesium-mcp-contracts'
 
 export const cesiumRuntimeOnlyToolNames = ['setIonToken'] as const
@@ -14,6 +15,7 @@ export const cesiumRuntimeMetaToolNames = ['list_toolsets', 'enable_toolset'] as
 
 export interface CesiumRuntimeToolMetadata {
   description: string
+  inputSchema: JsonSchema
   parameterDescriptions: Readonly<Record<string, string>>
   annotations: {
     title: string
@@ -38,6 +40,7 @@ export function getCesiumRuntimeToolMetadata(
   const localized = contract.localizations[locale]
   return {
     description: localized.description,
+    inputSchema: contract.inputSchema,
     parameterDescriptions: localized.parameters,
     annotations: {
       title: contract.title,

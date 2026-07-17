@@ -230,6 +230,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     layerId: '图层ID',
     featureIndex: '要素索引（不传则高亮全部）',
     color: '高亮颜色（CSS 格式）',
+    clear: '清除已有高亮并恢复原始样式',
   },
   measure: {
     mode: '测量模式：distance=距离, area=面积',

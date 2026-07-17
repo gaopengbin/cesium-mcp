@@ -230,6 +230,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     layerId: 'Layer ID',
     featureIndex: 'Feature index (highlights all if omitted)',
     color: 'Highlight color (CSS format)',
+    clear: 'Clear existing highlights and restore original styles',
   },
   measure: {
     mode: 'Measurement mode: distance or area',

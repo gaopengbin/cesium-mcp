@@ -459,6 +459,7 @@ interface AddCorridorParams {
     extrudedHeight?: number;
     outline?: boolean;
     outlineColor?: ColorInput;
+    fill?: boolean;
 }
 interface AddCylinderParams {
     longitude: number;
