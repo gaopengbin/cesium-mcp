@@ -1,6 +1,6 @@
 {
   "name": "cesium-mcp-contracts",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Transport-neutral Cesium MCP tool contracts and JSON Schemas",
   "type": "module",
   "main": "./dist/index.cjs",

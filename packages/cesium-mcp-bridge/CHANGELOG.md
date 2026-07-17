@@ -1,5 +1,11 @@
 # cesium-mcp-bridge
 
+## 1.143.3
+
+### Patch Changes
+
+- [`2c9bfd9`](https://github.com/gaopengbin/cesium-mcp/commit/2c9bfd958503cb6d6eedaecc694bc4ac497a80ea) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Use the shared JSON Schemas as the executable source for Runtime validation and defaults, align contract fields with Bridge support and CesiumJS 1.143 behavior, and expose the corrected schemas through WebMCP.
+
 ## 1.143.2
 
 ## 1.143.1
