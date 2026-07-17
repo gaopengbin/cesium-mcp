@@ -7,12 +7,12 @@
     "source": "github",
     "subfolder": "packages/cesium-mcp-runtime"
   },
-  "version": "1.143.2",
+  "version": "1.143.3",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "cesium-mcp-runtime",
-      "version": "1.143.2",
+      "version": "1.143.3",
       "transport": {
         "type": "stdio"
       }
