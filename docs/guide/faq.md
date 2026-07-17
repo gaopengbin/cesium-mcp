@@ -36,7 +36,7 @@ The runtime can't find a connected browser session.
 
 ### Only some tools are available
 
-By default, only core toolsets are enabled. To enable all 58 tools:
+By default, only core toolsets are enabled. To enable all 62 command tools:
 
 ```bash
 CESIUM_TOOLSETS=all npx cesium-mcp-runtime
@@ -85,7 +85,7 @@ Or use the hosted endpoint at `https://mcp.gpb.cc`.
 
 ### Which CesiumJS versions are supported?
 
-cesium-mcp v1.139.x targets CesiumJS ~1.139.0. The bridge uses stable CesiumJS APIs and generally works with CesiumJS 1.100+, but newer features (like 3D Tiles styling) may require recent versions.
+cesium-mcp v1.143.x is built and tested against CesiumJS ~1.143.0. The Bridge peer dependency is the authoritative compatibility range. New official CesiumJS releases are reviewed before that range and affected tool contracts are updated.
 
 ### Which AI clients work?
 

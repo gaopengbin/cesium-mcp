@@ -1,6 +1,6 @@
 # cesium-mcp-runtime
 
-> MCP Server (stdio) — 58 tools (12 toolsets) + 2 resources, with dynamic discovery.
+> MCP Server (stdio) — 62 command tools (12 toolsets) + 2 resources, with dynamic discovery.
 
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 

@@ -37,10 +37,14 @@ if (contractByName.size !== allContracts.length) {
   throw new Error('Duplicate Cesium browser tool contract name')
 }
 
-const toolsetDefinitions: Record<CesiumBrowserToolsetName, {
+export interface CesiumBrowserToolsetDefinition {
   description: string
   names: readonly string[]
-}> = {
+}
+
+export const cesiumBrowserToolsetDefinitions: Readonly<
+  Record<CesiumBrowserToolsetName, CesiumBrowserToolsetDefinition>
+> = {
   view: {
     description: 'Camera navigation, viewpoint bookmarks, and scene export',
     names: ['flyTo', 'setView', 'getView', 'zoomToExtent', 'saveViewpoint', 'loadViewpoint', 'listViewpoints', 'exportScene'],
@@ -104,13 +108,16 @@ export const cesiumBrowserToolsets: Readonly<Record<CesiumBrowserToolsetName, Ce
     name,
     {
       name,
-      description: toolsetDefinitions[name].description,
-      tools: contractsForNames(toolsetDefinitions[name].names),
+      description: cesiumBrowserToolsetDefinitions[name].description,
+      tools: contractsForNames(cesiumBrowserToolsetDefinitions[name].names),
     },
   ])) as unknown as Readonly<Record<CesiumBrowserToolsetName, CesiumBrowserToolset>>
 
 export const cesiumBrowserToolContracts: readonly CesiumToolContract[] =
   cesiumBrowserToolsetNames.flatMap(name => cesiumBrowserToolsets[name].tools)
+
+export const cesiumSharedToolNames: readonly string[] =
+  cesiumBrowserToolContracts.map(tool => tool.name)
 
 export function selectCesiumToolContracts(
   selection: CesiumToolsetSelection = 'core',

@@ -954,6 +954,22 @@ var paramDescriptions2 = {
   }
 };
 
+// src/tool-manifest.ts
+import {
+  cesiumBrowserToolsetDefinitions,
+  cesiumBrowserToolsetNames,
+  cesiumSharedToolNames
+} from "cesium-mcp-contracts";
+var cesiumRuntimeOnlyToolNames = ["setIonToken"];
+var cesiumRuntimeToolsets = Object.fromEntries(cesiumBrowserToolsetNames.map((name) => [
+  name,
+  name === "scene" ? [...cesiumBrowserToolsetDefinitions[name].names, ...cesiumRuntimeOnlyToolNames] : [...cesiumBrowserToolsetDefinitions[name].names]
+]));
+var cesiumRuntimeCommandToolNames = [
+  ...cesiumSharedToolNames,
+  ...cesiumRuntimeOnlyToolNames
+];
+
 // src/index.ts
 var WS_PORT = parseInt(process.env.CESIUM_WS_PORT ?? "9100");
 var MAX_PORT_RETRIES = 10;
@@ -1398,7 +1414,7 @@ function _setupWss(wss) {
 }
 var server = new McpServer({
   name: "cesium-mcp-runtime",
-  version: "1.142.3",
+  version: "1.143.0",
   title: "Cesium MCP Runtime",
   description: "AI-powered 3D globe control via MCP \u2014 camera, layers, entities, animation, and interaction with CesiumJS.",
   websiteUrl: "https://github.com/gaopengbin/cesium-mcp"
@@ -1431,20 +1447,7 @@ server.resource(
     }
   }
 );
-var TOOLSETS = {
-  view: ["flyTo", "setView", "getView", "zoomToExtent", "saveViewpoint", "loadViewpoint", "listViewpoints", "exportScene"],
-  entity: ["addMarker", "addLabel", "addModel", "addPolygon", "addPolyline", "updateEntity", "removeEntity", "batchAddEntities", "queryEntities", "getEntityProperties"],
-  layer: ["addGeoJsonLayer", "addGeoJsonPrimitive", "listLayers", "getLayerSchema", "removeLayer", "clearAll", "setLayerVisibility", "updateLayerStyle", "setBasemap"],
-  camera: ["lookAtTransform", "startOrbit", "stopOrbit", "setCameraOptions"],
-  "entity-ext": ["addBillboard", "addBox", "addCorridor", "addCylinder", "addEllipse", "addRectangle", "addWall"],
-  animation: ["createAnimation", "controlAnimation", "removeAnimation", "listAnimations", "updateAnimationPath", "trackEntity", "controlClock", "setGlobeLighting"],
-  scene: ["setSceneOptions", "setPostProcess", "setIonToken"],
-  tiles: ["load3dTiles", "load3dGaussianSplat", "loadTerrain", "loadImageryService", "loadCzml", "loadKml", "setEdgeDisplayMode"],
-  interaction: ["screenshot", "highlight", "measure"],
-  trajectory: ["playTrajectory"],
-  heatmap: ["addHeatmap"],
-  geolocation: ["geocode"]
-};
+var TOOLSETS = cesiumRuntimeToolsets;
 var TOOLSET_DESCRIPTIONS = {
   view: "Camera view controls (flyTo, setView, getView, zoomToExtent), viewpoint bookmarks (save, load, list), and scene export",
   entity: "Core entity operations (marker, label, model, polygon, polyline, update, remove) plus batch add, query, and property inspection",
@@ -2755,7 +2758,7 @@ server.tool(
 function _createHttpMcpServer(filterToolsets) {
   const s = new McpServer({
     name: "cesium-mcp-runtime",
-    version: "1.142.3",
+    version: "1.143.0",
     title: "Cesium MCP Runtime",
     description: "AI-powered 3D globe control via MCP \u2014 camera, layers, entities, animation, and interaction with CesiumJS.",
     websiteUrl: "https://github.com/gaopengbin/cesium-mcp"

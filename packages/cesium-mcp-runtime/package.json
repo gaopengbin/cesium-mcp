@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "cesium-mcp-contracts": "^0.1.0",
     "ws": "^8.21.0",
     "zod": "^3.22.0"
   },

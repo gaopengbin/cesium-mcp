@@ -161,7 +161,7 @@ The dev server is a standalone **IDE assistant** that doesn't require a running 
 
 ## Toolsets & Dynamic Discovery
 
-58 tools are organized into **12 toolsets** to manage LLM tool selection complexity:
+62 Runtime command tools are organized into **12 toolsets** to manage LLM tool selection complexity:
 
 | Toolset | Tools | Default |
 |---------|-------|---------|
@@ -212,6 +212,6 @@ Routing priority: tool param `sessionId` > URL `?session=xxx` > `DEFAULT_SESSION
 The established `cesium-mcp-bridge`, `cesium-mcp-runtime`, and `cesium-mcp-dev` packages share a version number using [changesets](https://github.com/changesets/changesets) with **fixed** versioning mode. The newer `cesium-mcp-contracts` and `cesium-mcp-webmcp` packages use independent semantic versions.
 
 **Major.minor** tracks CesiumJS:
-- `cesium-mcp-*@1.139.x` targets `cesium@~1.139.0`
+- `cesium-mcp-*@1.143.x` targets the verified `cesium@~1.143.0` baseline
 
 **Patch** versions iterate independently for MCP feature updates.

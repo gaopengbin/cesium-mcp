@@ -10,7 +10,7 @@
 npm install cesium-mcp-bridge
 ```
 
-**Peer dependency**: `cesium@~1.139.0`
+**Peer dependency**: `cesium@~1.143.0`
 
 ## Initialization
 

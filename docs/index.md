@@ -40,7 +40,7 @@ features:
   - icon:
       src: /icons/version.svg
     title: Version-Locked to CesiumJS
-    details: Major.minor tracks CesiumJS releases (1.139.x targets Cesium ~1.139.0). Patch versions iterate independently for MCP features.
+    details: Major.minor tracks the verified CesiumJS baseline (1.143.x targets Cesium ~1.143.0). Patch versions iterate independently for MCP features.
 ---
 
 <div class="home-content">
@@ -159,7 +159,7 @@ The diagram below shows the MCP runtime path. WebMCP is a separate browser-nativ
 | [`cesium-mcp-contracts`](https://www.npmjs.com/package/cesium-mcp-contracts) | Transport-neutral tool contracts and JSON Schemas | [![npm](https://img.shields.io/npm/v/cesium-mcp-contracts?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-contracts) |
 | [`cesium-mcp-bridge`](https://www.npmjs.com/package/cesium-mcp-bridge) | Browser SDK — embed in your CesiumJS application | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-bridge) |
 | [`cesium-mcp-webmcp`](https://www.npmjs.com/package/cesium-mcp-webmcp) | Native browser WebMCP adapter | [![npm](https://img.shields.io/npm/v/cesium-mcp-webmcp?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-webmcp) |
-| [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | MCP Server — 58 tools (12 toolsets) and 2 resources for AI agents | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | MCP Server — 62 command tools (12 toolsets) and 2 resources for AI agents | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [`cesium-mcp-dev`](https://www.npmjs.com/package/cesium-mcp-dev) | IDE MCP Server — Cesium API docs and code generation | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 </div>

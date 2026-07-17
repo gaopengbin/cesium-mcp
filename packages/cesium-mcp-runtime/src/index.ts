@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { toolDescriptions as _enToolDesc, paramDescriptions as _enParamDesc } from './locales/en.js'
 import { toolDescriptions as _zhToolDesc, paramDescriptions as _zhParamDesc } from './locales/zh-CN.js'
+import { cesiumRuntimeToolsets } from './tool-manifest.js'
 
 // ==================== WebSocket Bridge ====================
 
@@ -572,20 +573,7 @@ server.resource(
 
 // ==================== Toolsets (工具分组管理) ====================
 
-const TOOLSETS: Record<string, string[]> = {
-  view: ['flyTo', 'setView', 'getView', 'zoomToExtent', 'saveViewpoint', 'loadViewpoint', 'listViewpoints', 'exportScene'],
-  entity: ['addMarker', 'addLabel', 'addModel', 'addPolygon', 'addPolyline', 'updateEntity', 'removeEntity', 'batchAddEntities', 'queryEntities', 'getEntityProperties'],
-  layer: ['addGeoJsonLayer', 'addGeoJsonPrimitive', 'listLayers', 'getLayerSchema', 'removeLayer', 'clearAll', 'setLayerVisibility', 'updateLayerStyle', 'setBasemap'],
-  camera: ['lookAtTransform', 'startOrbit', 'stopOrbit', 'setCameraOptions'],
-  'entity-ext': ['addBillboard', 'addBox', 'addCorridor', 'addCylinder', 'addEllipse', 'addRectangle', 'addWall'],
-  animation: ['createAnimation', 'controlAnimation', 'removeAnimation', 'listAnimations', 'updateAnimationPath', 'trackEntity', 'controlClock', 'setGlobeLighting'],
-  scene: ['setSceneOptions', 'setPostProcess', 'setIonToken'],
-  tiles: ['load3dTiles', 'load3dGaussianSplat', 'loadTerrain', 'loadImageryService', 'loadCzml', 'loadKml', 'setEdgeDisplayMode'],
-  interaction: ['screenshot', 'highlight', 'measure'],
-  trajectory: ['playTrajectory'],
-  heatmap: ['addHeatmap'],
-  geolocation: ['geocode'],
-}
+const TOOLSETS: Readonly<Record<string, readonly string[]>> = cesiumRuntimeToolsets
 
 const TOOLSET_DESCRIPTIONS: Record<string, string> = {
   view: 'Camera view controls (flyTo, setView, getView, zoomToExtent), viewpoint bookmarks (save, load, list), and scene export',

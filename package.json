@@ -20,7 +20,7 @@
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "changeset": "changeset",
-    "version": "changeset version",
+    "version": "changeset version && node scripts/sync-version.mjs",
     "release": "npm run build && changeset publish",
     "postinstall": "patch-package"
   },

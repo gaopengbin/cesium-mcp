@@ -53,7 +53,7 @@ Environment variable alternative:
 MCP_TRANSPORT=http MCP_HTTP_PORT=3000 npx cesium-mcp-runtime
 ```
 
-In HTTP mode, all 58 tools are enabled by default (no dynamic toolset discovery needed).
+In HTTP mode, all 62 Cesium command tools are enabled by default (no dynamic toolset discovery needed).
 
 ## MCP Client Configuration
 
@@ -148,7 +148,7 @@ Tools are organized into **12 toolsets**. By default, 4 core toolsets are enable
 |-------------------------|--------|
 | *(not set)* | Default 4 toolsets (~31 tools + 2 meta-tools) |
 | `view,entity,camera,animation` | Only specified toolsets + 2 meta-tools |
-| `all` | All 58 tools, no meta-tools |
+| `all` | All 62 command tools, no meta-tools |
 
 ### Dynamic Discovery (meta-tools)
 
@@ -326,7 +326,7 @@ curl -X POST http://localhost:9100/push \
 
 | cesium-mcp-runtime | cesium-mcp-bridge | Cesium |
 |--------------------|-------------------|--------|
-| 1.139.x | 1.139.x | ~1.139.0 |
+| 1.143.x | 1.143.x | ~1.143.0 |
 
 ## License
 

@@ -6,13 +6,16 @@ import type {
 
 export {
   cesiumBrowserToolContracts,
+  cesiumBrowserToolsetDefinitions,
   cesiumBrowserToolsetNames,
   cesiumBrowserToolsets,
   cesiumCoreToolContracts,
+  cesiumSharedToolNames,
   selectCesiumToolContracts,
 } from 'cesium-mcp-contracts'
 export type {
   CesiumBrowserToolset,
+  CesiumBrowserToolsetDefinition,
   CesiumBrowserToolsetName,
   CesiumToolAnnotations,
   CesiumToolContract,

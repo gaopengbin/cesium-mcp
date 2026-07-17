@@ -1,6 +1,6 @@
 # cesium-mcp-runtime
 
-> MCP 服务器（stdio）— 58 个工具（12 个工具集）+ 2 个资源，支持动态发现。
+> MCP 服务器（stdio）— 62 个命令工具（12 个工具集）+ 2 个资源，支持动态发现。
 
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 

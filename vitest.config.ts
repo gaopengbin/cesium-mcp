@@ -1,6 +1,13 @@
+import { fileURLToPath } from 'node:url'
+
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      'cesium-mcp-contracts': fileURLToPath(new URL('./packages/cesium-mcp-contracts/src/index.ts', import.meta.url)),
+    },
+  },
   test: {
     include: [
       'packages/*/src/**/*.test.ts',

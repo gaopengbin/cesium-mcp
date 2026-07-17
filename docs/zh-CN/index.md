@@ -40,7 +40,7 @@ features:
   - icon:
       src: /icons/version.svg
     title: 版本锁定 CesiumJS
-    details: 主版本号.次版本号跟踪 CesiumJS 发布（1.139.x 对应 Cesium ~1.139.0）。修订版本独立迭代。
+    details: 主版本号.次版本号跟踪已验证的 CesiumJS 基线（1.143.x 对应 Cesium ~1.143.0）。修订版本独立迭代。
 ---
 
 <div class="home-content">
@@ -159,7 +159,7 @@ features:
 | [`cesium-mcp-contracts`](https://www.npmjs.com/package/cesium-mcp-contracts) | 与传输无关的工具契约与 JSON Schema | [![npm](https://img.shields.io/npm/v/cesium-mcp-contracts?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-contracts) |
 | [`cesium-mcp-bridge`](https://www.npmjs.com/package/cesium-mcp-bridge) | 浏览器 SDK — 嵌入你的 CesiumJS 应用 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-bridge) |
 | [`cesium-mcp-webmcp`](https://www.npmjs.com/package/cesium-mcp-webmcp) | 原生浏览器 WebMCP 适配层 | [![npm](https://img.shields.io/npm/v/cesium-mcp-webmcp?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-webmcp) |
-| [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | MCP 服务器 — 58 个工具（12 个工具集）和 2 个资源 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | MCP 服务器 — 62 个命令工具（12 个工具集）和 2 个资源 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [`cesium-mcp-dev`](https://www.npmjs.com/package/cesium-mcp-dev) | IDE MCP 服务器 — Cesium API 文档与代码生成 | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 </div>

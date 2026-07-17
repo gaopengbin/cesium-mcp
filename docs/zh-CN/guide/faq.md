@@ -36,7 +36,7 @@ Runtime 找不到已连接的浏览器会话。
 
 ### 只有部分工具可用
 
-默认只启用核心工具集。要启用全部 58 个工具：
+默认只启用核心工具集。要启用全部 62 个命令工具：
 
 ```bash
 CESIUM_TOOLSETS=all npx cesium-mcp-runtime
@@ -85,7 +85,7 @@ npx cesium-mcp-runtime --mode http --port 3000
 
 ### 支持哪些 CesiumJS 版本？
 
-cesium-mcp v1.139.x 目标为 CesiumJS ~1.139.0。Bridge 使用稳定的 CesiumJS API，通常兼容 CesiumJS 1.100+，但较新功能（如 3D Tiles 样式）可能需要较新版本。
+cesium-mcp v1.143.x 基于 CesiumJS ~1.143.0 构建和测试。Bridge 的 peer 依赖是权威兼容范围；CesiumJS 官方发布新版本后，会先核对 Bridge API 和相关工具契约，再更新该范围。
 
 ### 哪些 AI 客户端可以使用？
 

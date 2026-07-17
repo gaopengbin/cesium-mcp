@@ -115,7 +115,7 @@ The assistant calls `cesium_entity_builder` with `type: "polygon", color: "#0066
 
 | cesium-mcp-dev | Cesium |
 |----------------|--------|
-| 1.139.x | ~1.139.0 |
+| 1.143.x | ~1.143.0 |
 
 ## License
 

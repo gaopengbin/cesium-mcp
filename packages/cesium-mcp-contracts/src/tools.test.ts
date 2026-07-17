@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   cesiumBrowserToolContracts,
+  cesiumBrowserToolsetDefinitions,
   cesiumBrowserToolsets,
+  cesiumSharedToolNames,
   selectCesiumToolContracts,
 } from './toolsets.js'
 import { cesiumCoreToolContracts } from './tools.js'
@@ -27,6 +29,15 @@ describe('cesiumCoreToolContracts', () => {
       'stopOrbit',
       'setCameraOptions',
     ])
+  })
+
+  it('publishes one canonical shared inventory and toolset definition', () => {
+    expect(cesiumSharedToolNames).toEqual(cesiumBrowserToolContracts.map(tool => tool.name))
+    expect(new Set(cesiumSharedToolNames).size).toBe(cesiumSharedToolNames.length)
+
+    for (const [name, definition] of Object.entries(cesiumBrowserToolsetDefinitions)) {
+      expect(definition.names).toEqual(cesiumBrowserToolsets[name as keyof typeof cesiumBrowserToolsets].tools.map(tool => tool.name))
+    }
   })
 
   it('selects core, all, one, or several deduplicated toolsets', () => {
