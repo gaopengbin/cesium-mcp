@@ -1,5 +1,14 @@
 # cesium-mcp-runtime
 
+## 1.143.2
+
+### Patch Changes
+
+- [`e1f3eaf`](https://github.com/gaopengbin/cesium-mcp/commit/e1f3eaffc009284ea67da6de2cba39f0aa419b67) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Publish canonical tool titles, MCP behavior annotations, and complete English and Chinese descriptions and parameter hints from the shared contracts package. Runtime tool and toolset registration now consumes that metadata while keeping Runtime-only credential tools separate.
+
+- Updated dependencies [[`e1f3eaf`](https://github.com/gaopengbin/cesium-mcp/commit/e1f3eaffc009284ea67da6de2cba39f0aa419b67)]:
+  - cesium-mcp-contracts@0.3.0
+
 ## 1.143.1
 
 ### Patch Changes
