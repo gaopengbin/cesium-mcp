@@ -64,9 +64,9 @@ cesium-mcp-runtime
 }
 ```
 
-## MCP 工具（58 + 2 元工具）
+## MCP 工具（62 个命令工具 + 2 个发现元工具）
 
-工具按 **12 个工具集** 组织。默认启用 4 个核心工具集（约 31 个工具）。设置 `CESIUM_TOOLSETS=all` 启用全部，或由 AI 在运行时动态发现和激活。
+工具按 **12 个工具集** 组织。默认启用 4 个核心工具集（30 个工具）。设置 `CESIUM_TOOLSETS=all` 启用全部，或由 AI 在运行时动态发现和激活。共享标题、行为标注和多语言描述统一来自 `cesium-mcp-contracts`。
 
 ### 工具集
 
@@ -74,15 +74,15 @@ cesium-mcp-runtime
 |--------|--------|----------|------|
 | `view` | 8 | 是 | 相机视角控制 + 视点书签 + 场景导出 |
 | `entity` | 10 | 是 | 核心实体操作 + 批量、查询与属性查看 |
-| `layer` | 8 | 是 | 图层管理（GeoJSON、Schema、样式、底图） |
+| `layer` | 9 | 是 | 图层管理（GeoJSON、Schema、样式、底图） |
 | `interaction` | 3 | 是 | 截图、高亮与测量 |
 | `camera` | 4 | — | 高级相机控制（环绕、注视） |
 | `entity-ext` | 7 | — | 扩展实体类型（盒体、柱体、墙等） |
 | `animation` | 8 | — | 动画系统（路径点、时钟、追踪、光照） |
-| `tiles` | 5 | — | 3D Tiles、地形、影像服务、CZML 与 KML |
+| `tiles` | 7 | — | 3D Tiles、高斯泼溅、地形、影像服务、CZML 与 KML |
 | `trajectory` | 1 | — | 轨迹回放 |
 | `heatmap` | 1 | — | 热力图可视化 |
-| `scene` | 2 | — | 场景选项与后处理效果 |
+| `scene` | 3 | — | 场景选项、后处理效果与 Runtime 专属 Ion 凭据 |
 | `geolocation` | 1 | — | 地理编码 — 将地址/地名转换为坐标（Nominatim/OSM） |
 
 ### 动态发现

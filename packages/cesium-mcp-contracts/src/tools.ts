@@ -1,4 +1,5 @@
 import type { CesiumToolContract, JsonSchema } from './types'
+import { resolveCesiumToolMetadata } from './metadata'
 
 const longitudeSchema: JsonSchema = {
   type: 'number',
@@ -214,13 +215,13 @@ function contract(
   outputSchema: JsonSchema,
   annotations?: CesiumToolContract['annotations'],
 ): CesiumToolContract {
+  const fullDescription = `${description} ${resultDescription}`
   return {
     name,
-    title: name,
-    description: `${description} ${resultDescription}`,
+    description: fullDescription,
     inputSchema,
     outputSchema,
-    annotations,
+    ...resolveCesiumToolMetadata(name, fullDescription, annotations),
   }
 }
 

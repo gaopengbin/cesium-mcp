@@ -120,7 +120,7 @@ This adapter is intentionally separate from `cesium-mcp-runtime`; see the [WebMC
 
 The runtime is a **Node.js MCP server** that acts as a translator between the AI agent and the browser. It:
 
-- Exposes **58 MCP tools** (organized into **12 toolsets**) + 2 resources via stdio
+- Exposes **62 MCP command tools** (organized into **12 toolsets**) + 2 resources via stdio
 - Runs a WebSocket + HTTP server (default port 9100)
 - Translates MCP tool calls into bridge commands
 - Supports multi-session routing for multiple browser tabs

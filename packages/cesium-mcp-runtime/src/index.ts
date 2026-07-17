@@ -19,9 +19,12 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { readFileSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { toolDescriptions as _enToolDesc, paramDescriptions as _enParamDesc } from './locales/en.js'
-import { toolDescriptions as _zhToolDesc, paramDescriptions as _zhParamDesc } from './locales/zh-CN.js'
-import { cesiumRuntimeToolsets } from './tool-manifest.js'
+import { normalizeCesiumToolLocale } from 'cesium-mcp-contracts'
+import {
+  cesiumRuntimeToolsetDescriptions,
+  cesiumRuntimeToolsets,
+  getCesiumRuntimeToolMetadata,
+} from './tool-manifest.js'
 
 // ==================== WebSocket Bridge ====================
 
@@ -575,20 +578,7 @@ server.resource(
 
 const TOOLSETS: Readonly<Record<string, readonly string[]>> = cesiumRuntimeToolsets
 
-const TOOLSET_DESCRIPTIONS: Record<string, string> = {
-  view: 'Camera view controls (flyTo, setView, getView, zoomToExtent), viewpoint bookmarks (save, load, list), and scene export',
-  entity: 'Core entity operations (marker, label, model, polygon, polyline, update, remove) plus batch add, query, and property inspection',
-  layer: 'Layer management (GeoJSON, list, remove, clear all, visibility, style, basemap)',
-  camera: 'Advanced camera controls (lookAt, orbit, camera options)',
-  'entity-ext': 'Extended entity types (billboard, box, corridor, cylinder, ellipse, rectangle, wall)',
-  animation: 'Animation system (create/control animations, track entities, clock, lighting)',
-  scene: 'Scene environment and post-processing (fog, atmosphere, shadows, bloom, SSAO, FXAA)',
-  tiles: '3D Tiles, terrain, imagery services, CZML and KML/KMZ data sources',
-  interaction: 'User interaction (screenshot, highlight, measure)',
-  trajectory: 'Trajectory playback',
-  heatmap: 'Heatmap visualization',
-  geolocation: 'Geocoding — convert address/place name to coordinates (Nominatim/OSM)',
-}
+const TOOLSET_DESCRIPTIONS: Readonly<Record<string, string>> = cesiumRuntimeToolsetDescriptions
 
 const DEFAULT_TOOLSETS = ['view', 'entity', 'layer', 'interaction']
 
@@ -619,9 +609,7 @@ for (const [setName, tools] of Object.entries(TOOLSETS)) {
 const _toolDefs = new Map<string, unknown[]>()
 
 // i18n: select locale based on CESIUM_LOCALE env var (default: en)
-const _localeKey = process.env.CESIUM_LOCALE?.trim().toLowerCase()
-const _toolDesc = _localeKey === 'zh-cn' ? _zhToolDesc : _enToolDesc
-const _paramDesc = _localeKey === 'zh-cn' ? _zhParamDesc : _enParamDesc
+const _localeKey = normalizeCesiumToolLocale(process.env.CESIUM_LOCALE)
 
 /** Apply a stored tool definition to a McpServer, injecting _meta.toolset via registerTool API */
 function _applyToolDef(s: McpServer, args: unknown[]) {
@@ -643,9 +631,13 @@ function _applyToolDef(s: McpServer, args: unknown[]) {
 /** Register tool only if it belongs to an enabled toolset */
 const _registerTool = ((...args: unknown[]) => {
   const name = args[0] as string
-  // Apply locale overrides for tool description + param descriptions
-  if (_toolDesc[name]) args[1] = _toolDesc[name]
-  const paramOverrides = _paramDesc[name]
+  // Shared command metadata is canonical in cesium-mcp-contracts.
+  const metadata = getCesiumRuntimeToolMetadata(name, _localeKey)
+  if (metadata) {
+    args[1] = metadata.description
+    args[3] = metadata.annotations
+  }
+  const paramOverrides = metadata?.parameterDescriptions
   if (paramOverrides && typeof args[2] === 'object' && args[2] !== null) {
     const schema = args[2] as Record<string, z.ZodTypeAny>
     for (const [key, desc] of Object.entries(paramOverrides)) {
@@ -656,7 +648,7 @@ const _registerTool = ((...args: unknown[]) => {
   if (typeof args[2] === 'object' && args[2] !== null) {
     const schema = args[2] as Record<string, z.ZodTypeAny>
     schema.sessionId = z.string().optional().describe(
-      _localeKey === 'zh-cn'
+      _localeKey === 'zh-CN'
         ? '目标浏览器 session ID（多浏览器路由，可选）'
         : 'Target browser session ID for multi-browser routing (optional)',
     )
@@ -2055,7 +2047,7 @@ if (!_allMode) {
 
 server.tool(
   'listSessions',
-  _localeKey === 'zh-cn'
+  _localeKey === 'zh-CN'
     ? '列出当前所有已连接的浏览器 session（ID 和连接状态），用于多浏览器路由'
     : 'List all connected browser sessions (ID and connection state) for multi-browser routing',
   {},
@@ -2130,7 +2122,7 @@ function _createHttpMcpServer(filterToolsets?: Set<string>): McpServer {
   // Register listSessions for HTTP mode
   s.tool(
     'listSessions',
-    _localeKey === 'zh-cn'
+    _localeKey === 'zh-CN'
       ? '列出当前所有已连接的浏览器 session（ID 和连接状态），用于多浏览器路由'
       : 'List all connected browser sessions (ID and connection state) for multi-browser routing',
     {},

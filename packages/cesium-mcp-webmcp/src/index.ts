@@ -123,7 +123,7 @@ export async function registerWebMcpTools(
 
       await modelContext.registerTool({
         name: tool.name,
-        title: tool.title ?? tool.annotations?.title,
+        title: tool.title,
         description: tool.description,
         inputSchema: tool.inputSchema,
         outputSchema: tool.outputSchema,

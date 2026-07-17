@@ -1,4 +1,5 @@
 import type { CesiumToolContract, JsonSchema } from './types'
+import { resolveCesiumToolMetadata } from './metadata'
 
 const stringSchema: JsonSchema = { type: 'string', minLength: 1, maxLength: 500 }
 const idSchema: JsonSchema = { type: 'string', minLength: 1, maxLength: 200 }
@@ -92,13 +93,13 @@ function tool(
   required: string[] = [],
   annotations?: CesiumToolContract['annotations'],
 ): CesiumToolContract {
+  const fullDescription = `${description} Returns { success: boolean, data?: unknown, message?: string, error?: string }.`
   return {
     name,
-    title: name,
-    description: `${description} Returns { success: boolean, data?: unknown, message?: string, error?: string }.`,
+    description: fullDescription,
     inputSchema: objectSchema(properties, required),
     outputSchema: bridgeResultSchema,
-    annotations,
+    ...resolveCesiumToolMetadata(name, fullDescription, annotations),
   }
 }
 

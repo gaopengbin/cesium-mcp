@@ -184,6 +184,6 @@ This example includes a CesiumJS Viewer with the bridge pre-configured, ready fo
 
 - [Architecture](/guide/architecture) — understand the shared execution and adapter layers
 - [WebMCP Browser Integration](/guide/webmcp) — expose page-local tools without an MCP server
-- [Bridge API](/api/bridge) — all 58 commands
+- [Bridge API](/api/bridge) — all 60 browser commands
 - [Runtime API](/api/runtime) — MCP tools and resources
 - [Dev API](/api/dev) — IDE coding assistance tools

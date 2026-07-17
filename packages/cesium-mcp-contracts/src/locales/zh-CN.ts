@@ -1,6 +1,6 @@
 /**
  * 中文 locale — 工具描述 & 参数描述
- * 设置 CESIUM_LOCALE=zh-CN 启用
+ * Cesium 工具契约共享中文元数据
  */
 
 export const toolDescriptions: Record<string, string> = {
@@ -65,10 +65,12 @@ export const toolDescriptions: Record<string, string> = {
 
   // — tiles
   load3dTiles: '加载 3D Tiles 数据集（如建筑白膜、城市模型）',
+  load3dGaussianSplat: '加载 3D 高斯泼溅（Gaussian Splat）数据集',
   loadTerrain: '加载或切换地形（平坦/ArcGIS/CesiumIon/自定义 URL）',
   loadImageryService: '加载影像服务图层（WMS/WMTS/XYZ/ArcGIS MapServer）',
   loadCzml: '加载 CZML 时序数据源（CesiumJS 原生格式，支持时变位置/样式/动画）。data 和 url 二选一',
   loadKml: '加载 KML/KMZ 数据源（Google Earth 格式）。data 和 url 二选一',
+  setEdgeDisplayMode: '设置一个或全部 3D Tiles 图层的边缘显示模式',
 
   // — interaction
   screenshot: '截取当前地图视图（返回 base64 PNG）',
@@ -112,6 +114,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     roll: '翻滚角（度）',
   },
   zoomToExtent: {
+    bbox: '地理范围 [西, 南, 东, 北]（度）',
     west: '西边界经度（度）',
     south: '南边界纬度（度）',
     east: '东边界经度（度）',
@@ -294,6 +297,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     height: '离地高度（米）',
     extrudedHeight: '拉伸高度（米）',
     outline: '显示轮廓线',
+    fill: '显示填充',
     outlineColor: '轮廓线颜色',
   },
   addCylinder: {
@@ -437,8 +441,16 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     id: '图层ID',
     name: '图层名称',
     url: 'tileset.json 的 URL',
+    ionAssetId: 'Cesium Ion 3D Tiles 资产 ID',
     maximumScreenSpaceError: '最大屏幕空间误差（值越小越精细）',
     heightOffset: '高度偏移（米）',
+  },
+  load3dGaussianSplat: {
+    id: '图层ID',
+    name: '图层名称',
+    url: '高斯泼溅 tileset.json 的 URL',
+    maximumScreenSpaceError: '最大屏幕空间误差（值越小越精细）',
+    show: '是否显示',
   },
   loadTerrain: {
     provider: '地形提供者类型',
@@ -449,6 +461,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     id: '图层ID',
     name: '图层名称',
     url: '影像服务 URL',
+    ionAssetId: 'Cesium Ion 影像资产 ID',
     serviceType: '服务类型',
     layerName: 'WMS/WMTS 图层名',
     opacity: '透明度（0~1）',
@@ -471,6 +484,10 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     clampToGround: '将实体贴地显示',
     flyTo: '加载后自动飞行到数据范围（默认 true）',
   },
+  setEdgeDisplayMode: {
+    tilesetId: '目标图层ID（不传则应用于全部 3D Tiles 图层）',
+    mode: '边缘模式：surfaces_only、surfaces_and_edges 或 edges_only',
+  },
   playTrajectory: {
     id: '轨迹图层ID',
     name: '轨迹名称',
@@ -480,8 +497,15 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     label: '移动体标签',
   },
   addHeatmap: {
+    id: '图层ID',
+    name: '图层名称',
     data: 'GeoJSON Point FeatureCollection',
     radius: '热力影响半径（像素）',
+    gradient: '热力图颜色渐变',
+    blur: '热力模糊系数',
+    maxOpacity: '热力图最大透明度',
+    minOpacity: '热力图最小透明度',
+    resolution: '热力图纹理分辨率（像素）',
   },
   geocode: {
     address: '地址、地标或地名，例如 "故宫"、"Eiffel Tower"、"东京塔"',

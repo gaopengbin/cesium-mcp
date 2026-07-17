@@ -9,961 +9,42 @@ import { AsyncLocalStorage } from "async_hooks";
 import { readFileSync, existsSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-
-// src/locales/en.ts
-var toolDescriptions = {
-  // — view
-  flyTo: "Fly to a specific longitude/latitude position (with animation transition)",
-  setView: "Instantly switch to specified longitude/latitude view (no animation)",
-  getView: "Get current camera view info (longitude, latitude, height, angles)",
-  zoomToExtent: "Zoom to specified geographic extent",
-  saveViewpoint: "Save current view as bookmark (name \u2192 view state), restore via loadViewpoint",
-  loadViewpoint: "Restore a saved viewpoint bookmark (with fly animation), returns saved view state",
-  listViewpoints: "List all saved viewpoint bookmarks",
-  // — entity
-  addMarker: "Add a marker point at specified coordinates, returns layerId for later operations",
-  addLabel: "Add text labels to GeoJSON features (display attribute values)",
-  addModel: "Place a 3D model (glTF/GLB) at specified coordinates, returns entityId",
-  addPolygon: "Add a polygon area on the map (area/boundary), returns entityId",
-  addPolyline: "Add a polyline on the map (path/line segment), returns entityId",
-  updateEntity: "Update properties of an existing entity (position, color, label, scale, visibility)",
-  removeEntity: "Remove a single entity by entityId",
-  batchAddEntities: "Batch add multiple entities (create multiple markers/polylines/polygons/models in one call), returns all entityIds",
-  queryEntities: "Query existing entities \u2014 filter by name, type, spatial extent, returns entityId/name/type/position list",
-  // — layer
-  addGeoJsonLayer: "Add GeoJSON layer to map (supports Point/Line/Polygon, configurable color/choropleth/category rendering). data and url are mutually exclusive",
-  addGeoJsonPrimitive: "High-performance GeoJSON loading for massive datasets (100k+ features). Bypasses Entity system, renders directly via Primitives. data and url are mutually exclusive",
-  listLayers: "Get current layer list (with ID, name, type, visibility)",
-  getLayerSchema: "Get layer field schema \u2014 returns field names, types, sample values. Works with GeoJSON/CZML/KML/3D Tiles layers",
-  removeLayer: "Remove a layer from map by layer ID",
-  setLayerVisibility: "Set layer visibility",
-  updateLayerStyle: "Update layer style (color, opacity, label style, 3D Tiles style, etc.)",
-  setBasemap: "Switch basemap style (dark/satellite/standard/osm/arcgis/light/tianditu/amap)",
-  // — camera
-  lookAtTransform: "Look at a specific position from a given heading/pitch/range (orbit-style camera)",
-  startOrbit: "Start orbiting the camera around the current view center",
-  stopOrbit: "Stop the camera orbit animation",
-  setCameraOptions: "Configure camera controller options (enable/disable rotation, zoom, tilt, etc.)",
-  // — entity-ext
-  addBillboard: "Add a billboard (image icon) at a position on the globe",
-  addBox: "Add a 3D box entity at a position",
-  addCorridor: "Add a corridor (path with width) entity",
-  addCylinder: "Add a cylinder or cone entity at a position",
-  addEllipse: "Add an ellipse (oval) entity at a position",
-  addRectangle: "Add a rectangle entity defined by geographic bounds",
-  addWall: "Add a wall entity along a series of positions",
-  // — animation
-  createAnimation: "Create a time-based animation with waypoints (moving entity along a path)",
-  controlAnimation: "Play or pause the current animation",
-  removeAnimation: "Remove an animation entity",
-  listAnimations: "List all active animations",
-  updateAnimationPath: "Update the visual properties of an animation path",
-  trackEntity: "Track (follow) an entity with the camera, or stop tracking",
-  controlClock: "Configure the Cesium clock (time range, speed, animation state)",
-  setGlobeLighting: "Enable/disable globe lighting and atmospheric effects",
-  // — scene
-  setSceneOptions: "Configure scene environment (fog, atmosphere, shadows, sun, moon, background color, depth testing)",
-  setPostProcess: "Configure post-processing effects (bloom glow, ambient occlusion SSAO, anti-aliasing FXAA)",
-  // — tiles
-  load3dTiles: "Load 3D Tiles dataset (e.g. building white models, city models)",
-  loadTerrain: "Load or switch terrain (flat/ArcGIS/CesiumIon/custom URL)",
-  loadImageryService: "Load imagery service layer (WMS/WMTS/XYZ/ArcGIS MapServer)",
-  loadCzml: "Load CZML time-dynamic data source (CesiumJS native format, supports time-varying position/style/animation). data and url are mutually exclusive",
-  loadKml: "Load KML/KMZ data source (Google Earth format). data and url are mutually exclusive",
-  // — interaction
-  screenshot: "Capture current map view (returns base64 PNG)",
-  highlight: "Highlight features in a layer",
-  measure: "Measure distance or area (coordinate-based calculation, optionally displayed on map)",
-  // — clear
-  clearAll: "Clear all layers, entities, animations, and trajectories from the map (reset scene)",
-  // — entity inspection
-  getEntityProperties: "Get detailed properties of a specific entity \u2014 type, position, custom properties, and graphic properties",
-  // — scene export
-  exportScene: "Export current scene snapshot \u2014 includes camera view, layer list, entity list, and timestamp",
-  // — trajectory
-  playTrajectory: "Play a moving trajectory animation",
-  // — heatmap
-  addHeatmap: "Add heatmap layer (generate heat visualization from GeoJSON point data)",
-  // — geolocation
-  geocode: "Convert address, landmark, or place name to geographic coordinates (longitude/latitude). Uses OpenStreetMap Nominatim free service, no API key required."
-};
-var paramDescriptions = {
-  flyTo: {
-    longitude: "Longitude (-180 to 180)",
-    latitude: "Latitude (-90 to 90)",
-    height: "Camera height (meters), default 50000",
-    heading: "Heading angle (degrees), 0 = North",
-    pitch: "Pitch angle (degrees), -90 = straight down",
-    duration: "Flight animation duration (seconds)"
-  },
-  setView: {
-    longitude: "Longitude (-180 to 180)",
-    latitude: "Latitude (-90 to 90)",
-    height: "Height (meters)",
-    heading: "Heading angle (degrees)",
-    pitch: "Pitch angle (degrees)",
-    roll: "Roll angle (degrees)"
-  },
-  zoomToExtent: {
-    west: "West boundary longitude (degrees)",
-    south: "South boundary latitude (degrees)",
-    east: "East boundary longitude (degrees)",
-    north: "North boundary latitude (degrees)",
-    duration: "Animation duration (seconds)"
-  },
-  saveViewpoint: {
-    name: "Bookmark name (unique identifier, overwrites if duplicate)"
-  },
-  loadViewpoint: {
-    name: "Bookmark name",
-    duration: "Fly animation duration (seconds), 0 = instant"
-  },
-  addMarker: {
-    longitude: "Longitude (-180 to 180)",
-    latitude: "Latitude (-90 to 90)",
-    label: "Label text",
-    color: "Marker color (CSS format)",
-    size: "Point size (pixels)",
-    id: "Custom layer ID (auto-generated if omitted)"
-  },
-  addLabel: {
-    data: "GeoJSON FeatureCollection object",
-    field: 'Attribute field name for label text (e.g. "name", "population")',
-    style: "Label style (font, fillColor, outlineColor, scale, etc.)"
-  },
-  addModel: {
-    longitude: "Longitude (-180 to 180)",
-    latitude: "Latitude (-90 to 90)",
-    height: "Placement height (meters)",
-    url: "glTF/GLB model file URL",
-    scale: "Model scale factor",
-    heading: "Heading angle (degrees), 0=North",
-    pitch: "Pitch angle (degrees)",
-    roll: "Roll angle (degrees)",
-    label: "Model label text"
-  },
-  addPolygon: {
-    coordinates: "Polygon outer ring coordinates [[lon, lat, height?], ...]",
-    color: "Fill color (CSS format)",
-    outlineColor: "Outline color",
-    opacity: "Fill opacity (0-1)",
-    extrudedHeight: "Extruded height (meters), for 3D effect",
-    clampToGround: "Whether to clamp to ground",
-    label: "Polygon label text"
-  },
-  addPolyline: {
-    coordinates: "Polyline coordinates array [[lon, lat, height?], ...]",
-    color: "Line color (CSS format)",
-    width: "Line width (pixels)",
-    clampToGround: "Whether to clamp to ground",
-    label: "Polyline label text"
-  },
-  updateEntity: {
-    entityId: "Entity ID (returned by addMarker/addPolyline etc.)",
-    position: "New position coordinates",
-    label: "New label text",
-    color: "New color (CSS format)",
-    scale: "New scale factor",
-    show: "Whether to show"
-  },
-  removeEntity: {
-    entityId: "Entity ID to remove"
-  },
-  batchAddEntities: {
-    entities: "Array of entity definitions, each containing a type field and parameters for that type"
-  },
-  queryEntities: {
-    name: "Name fuzzy match (case-insensitive)",
-    type: "Filter by entity type",
-    bbox: "Spatial extent filter [west, south, east, north] (degrees)"
-  },
-  addGeoJsonLayer: {
-    id: "Layer ID (auto-generated if omitted)",
-    name: "Layer display name",
-    data: "GeoJSON FeatureCollection object (mutually exclusive with url)",
-    url: "GeoJSON file URL (mutually exclusive with data, fetched in browser)",
-    style: "Style config (color, opacity, pointSize, choropleth, category)"
-  },
-  addGeoJsonPrimitive: {
-    id: "Layer ID (auto-generated if omitted)",
-    name: "Layer display name",
-    data: "GeoJSON object (mutually exclusive with url)",
-    url: "GeoJSON file URL (mutually exclusive with data)",
-    allowPicking: "Allow picking (default true, disable for better performance)",
-    show: "Whether to show (default true)"
-  },
-  listLayers: {},
-  getLayerSchema: {
-    layerId: "Layer ID (get via listLayers)"
-  },
-  removeLayer: {
-    id: "Layer ID to remove (get via listLayers)"
-  },
-  setLayerVisibility: {
-    id: "Layer ID",
-    visible: "Whether visible"
-  },
-  updateLayerStyle: {
-    layerId: "Layer ID",
-    labelStyle: "Label style (font, fillColor, outlineColor, outlineWidth, scale, etc.)",
-    layerStyle: "Entity layer style (color, opacity, strokeWidth, pointSize; GeoJSON thematic styles choropleth/category/randomColor/gradient are mutually exclusive)",
-    imageryStyle: "Imagery visual style (alpha, brightness, contrast, hue, saturation, gamma); use setLayerVisibility for show/hide",
-    primitiveStyle: "GeoJSON Primitive material style (color, opacity, outlineColor, outlineWidth, pointSize, lineWidth); use setLayerVisibility for show/hide",
-    tileStyle: "3D Tiles style (Cesium3DTileStyle expressions: color, show, pointSize, meta)"
-  },
-  setBasemap: {
-    basemap: "Basemap type: dark=dark theme, satellite=satellite imagery, standard=standard, osm=OpenStreetMap, arcgis=ArcGIS streets, light=light theme, tianditu_vec=Tianditu vector, tianditu_img=Tianditu imagery, amap=Amap roads, amap_satellite=Amap satellite",
-    token: "Token for providers requiring authentication (e.g. Tianditu)",
-    url: "Custom URL template with {x},{y},{z} placeholders. When provided, basemap param is ignored."
-  },
-  highlight: {
-    layerId: "Layer ID",
-    featureIndex: "Feature index (highlights all if omitted)",
-    color: "Highlight color (CSS format)"
-  },
-  measure: {
-    mode: "Measurement mode: distance or area",
-    positions: "Coordinate array [[lon, lat, alt?], ...]",
-    showOnMap: "Whether to display measurement result on map",
-    id: "Custom measurement entity ID"
-  },
-  getEntityProperties: {
-    entityId: "Entity ID (obtainable via queryEntities)"
-  },
-  lookAtTransform: {
-    longitude: "Target longitude (degrees)",
-    latitude: "Target latitude (degrees)",
-    height: "Target height (meters)",
-    heading: "Camera heading (degrees), 0=North",
-    pitch: "Camera pitch (degrees), -90=straight down",
-    range: "Distance from target (meters)"
-  },
-  startOrbit: {
-    speed: "Rotation speed (radians per tick)",
-    clockwise: "Orbit direction"
-  },
-  setCameraOptions: {
-    enableRotate: "Enable camera rotation",
-    enableTranslate: "Enable camera translation",
-    enableZoom: "Enable camera zoom",
-    enableTilt: "Enable camera tilt",
-    enableLook: "Enable camera look",
-    minimumZoomDistance: "Minimum zoom distance (meters)",
-    maximumZoomDistance: "Maximum zoom distance (meters)",
-    enableInputs: "Enable/disable all camera inputs"
-  },
-  addBillboard: {
-    longitude: "Longitude (degrees)",
-    latitude: "Latitude (degrees)",
-    height: "Height (meters)",
-    name: "Billboard name",
-    image: "Image URL for the billboard",
-    scale: "Scale factor",
-    color: "Tint color",
-    pixelOffset: "Pixel offset from position",
-    horizontalOrigin: "Horizontal origin",
-    verticalOrigin: "Vertical origin",
-    heightReference: "Height reference"
-  },
-  addBox: {
-    longitude: "Longitude (degrees)",
-    latitude: "Latitude (degrees)",
-    height: "Height (meters)",
-    name: "Box name",
-    dimensions: "Box dimensions",
-    material: "Material (color string, RGBA object, or material spec)",
-    outline: "Show outline",
-    outlineColor: "Outline color",
-    fill: "Show fill",
-    orientation: "Orientation (heading/pitch/roll in degrees)",
-    heightReference: "Height reference"
-  },
-  addCorridor: {
-    name: "Corridor name",
-    positions: "Array of positions along the corridor",
-    width: "Corridor width in meters",
-    material: "Material",
-    cornerType: "Corner type",
-    height: "Height above ground (meters)",
-    extrudedHeight: "Extruded height (meters)",
-    outline: "Show outline",
-    outlineColor: "Outline color"
-  },
-  addCylinder: {
-    longitude: "Longitude (degrees)",
-    latitude: "Latitude (degrees)",
-    height: "Height (meters)",
-    name: "Cylinder name",
-    length: "Cylinder length/height in meters",
-    topRadius: "Top radius in meters",
-    bottomRadius: "Bottom radius in meters",
-    material: "Material",
-    outline: "Show outline",
-    outlineColor: "Outline color",
-    fill: "Show fill",
-    orientation: "Orientation (heading/pitch/roll in degrees)",
-    numberOfVerticalLines: "Number of vertical lines",
-    slices: "Number of slices"
-  },
-  addEllipse: {
-    longitude: "Center longitude (degrees)",
-    latitude: "Center latitude (degrees)",
-    height: "Height (meters)",
-    name: "Ellipse name",
-    semiMajorAxis: "Semi-major axis in meters",
-    semiMinorAxis: "Semi-minor axis in meters",
-    material: "Material",
-    extrudedHeight: "Extruded height (meters)",
-    rotation: "Rotation (radians)",
-    outline: "Show outline",
-    outlineColor: "Outline color",
-    fill: "Show fill",
-    stRotation: "Texture rotation (radians)",
-    numberOfVerticalLines: "Number of vertical lines"
-  },
-  addRectangle: {
-    name: "Rectangle name",
-    west: "West longitude (degrees)",
-    south: "South latitude (degrees)",
-    east: "East longitude (degrees)",
-    north: "North latitude (degrees)",
-    material: "Material",
-    height: "Height (meters)",
-    extrudedHeight: "Extruded height (meters)",
-    rotation: "Rotation (radians)",
-    outline: "Show outline",
-    outlineColor: "Outline color",
-    fill: "Show fill",
-    stRotation: "Texture rotation (radians)"
-  },
-  addWall: {
-    name: "Wall name",
-    positions: "Array of positions along the wall",
-    minimumHeights: "Minimum heights at each position",
-    maximumHeights: "Maximum heights at each position",
-    material: "Material",
-    outline: "Show outline",
-    outlineColor: "Outline color",
-    fill: "Show fill"
-  },
-  createAnimation: {
-    name: "Animation name",
-    waypoints: "Array of waypoints with positions and timestamps",
-    modelUri: "glTF/GLB model URL, or preset: cesium_man, cesium_air, ground_vehicle, cesium_drone",
-    showPath: "Show trail path",
-    pathWidth: "Path width (pixels)",
-    pathColor: "Path color (CSS)",
-    pathLeadTime: "Path lead time (seconds)",
-    pathTrailTime: "Path trail time (seconds)",
-    multiplier: "Clock speed multiplier",
-    shouldAnimate: "Auto-start animation"
-  },
-  controlAnimation: {
-    action: "Play or pause"
-  },
-  removeAnimation: {
-    entityId: "Entity ID of the animation to remove"
-  },
-  updateAnimationPath: {
-    entityId: "Entity ID of the animation",
-    width: "New path width (pixels)",
-    color: "New path color (CSS)",
-    leadTime: "New lead time (seconds)",
-    trailTime: "New trail time (seconds)",
-    show: "Show/hide path"
-  },
-  trackEntity: {
-    entityId: "Entity ID to track (omit to stop tracking)",
-    heading: "Camera heading (degrees)",
-    pitch: "Camera pitch (degrees)",
-    range: "Camera distance from entity (meters)"
-  },
-  controlClock: {
-    action: "Clock action",
-    startTime: "ISO 8601 start time (for configure)",
-    stopTime: "ISO 8601 stop time (for configure)",
-    currentTime: "ISO 8601 current time (for configure)",
-    time: "ISO 8601 time to jump to (for setTime)",
-    multiplier: "Clock speed multiplier (for configure/setMultiplier)",
-    shouldAnimate: "Whether clock should animate (for configure)",
-    clockRange: "Clock range mode (for configure)"
-  },
-  setGlobeLighting: {
-    enableLighting: "Enable globe lighting",
-    dynamicAtmosphereLighting: "Enable dynamic atmosphere lighting",
-    dynamicAtmosphereLightingFromSun: "Use sun position for atmosphere lighting"
-  },
-  setSceneOptions: {
-    fogEnabled: "Enable/disable fog",
-    fogDensity: "Fog density (0.0~1.0, default ~0.0002)",
-    fogMinimumBrightness: "Minimum fog brightness (0.0~1.0)",
-    skyAtmosphereShow: "Show sky atmosphere",
-    skyAtmosphereHueShift: "Sky hue shift (-1.0~1.0)",
-    skyAtmosphereSaturationShift: "Sky saturation shift (-1.0~1.0)",
-    skyAtmosphereBrightnessShift: "Sky brightness shift (-1.0~1.0)",
-    groundAtmosphereShow: "Show ground atmosphere",
-    shadowsEnabled: "Enable shadows",
-    shadowsSoftShadows: "Use soft shadows",
-    shadowsDarkness: "Shadow darkness (0.0=no shadow, 1.0=fully dark)",
-    sunShow: "Show the sun",
-    sunGlowFactor: "Sun glow factor (default 1.0)",
-    moonShow: "Show the moon",
-    depthTestAgainstTerrain: "Enable depth test against terrain (entities behind terrain are hidden)",
-    backgroundColor: 'Scene background color (CSS format, e.g. "#000000")'
-  },
-  setPostProcess: {
-    bloom: "Enable bloom glow effect",
-    bloomContrast: "Bloom contrast (default 128)",
-    bloomBrightness: "Bloom brightness (default -0.3)",
-    bloomDelta: "Bloom delta (default 1.0)",
-    bloomSigma: "Bloom sigma (default 3.78)",
-    bloomStepSize: "Bloom step size (default 5.0)",
-    bloomGlowOnly: "Show only the glow (no base scene)",
-    ambientOcclusion: "Enable ambient occlusion (SSAO)",
-    aoIntensity: "AO intensity (default 3.0)",
-    aoBias: "AO bias (default 0.1)",
-    aoLengthCap: "AO length cap (default 0.26)",
-    aoStepSize: "AO step size (default 1.95)",
-    fxaa: "Enable FXAA anti-aliasing"
-  },
-  load3dTiles: {
-    id: "Layer ID",
-    name: "Layer name",
-    url: "tileset.json URL",
-    maximumScreenSpaceError: "Maximum screen space error (lower = more detailed)",
-    heightOffset: "Height offset (meters)"
-  },
-  loadTerrain: {
-    provider: "Terrain provider type",
-    url: "Custom terrain service URL",
-    cesiumIonAssetId: "Cesium Ion asset ID (required when provider=cesiumion)"
-  },
-  loadImageryService: {
-    id: "Layer ID",
-    name: "Layer name",
-    url: "Imagery service URL",
-    serviceType: "Service type",
-    layerName: "WMS/WMTS layer name",
-    opacity: "Opacity (0-1)"
-  },
-  loadCzml: {
-    id: "Layer ID (auto-generated if omitted)",
-    name: "Data source display name",
-    data: "CZML packet array (mutually exclusive with url)",
-    url: "CZML file URL (mutually exclusive with data, browser-side fetch)",
-    sourceUri: "Base URI for resolving relative references in CZML",
-    clampToGround: "Clamp entities to ground surface",
-    flyTo: "Fly to data extent after loading (default true)"
-  },
-  loadKml: {
-    id: "Layer ID (auto-generated if omitted)",
-    name: "Data source display name",
-    url: "KML/KMZ file URL (mutually exclusive with data, browser-side fetch)",
-    data: "KML XML string (mutually exclusive with url)",
-    sourceUri: "Base URI for resolving relative references in KML",
-    clampToGround: "Clamp entities to ground surface",
-    flyTo: "Fly to data extent after loading (default true)"
-  },
-  playTrajectory: {
-    id: "Trajectory layer ID",
-    name: "Trajectory name",
-    coordinates: "Trajectory coordinates array [[lon, lat, alt?], ...]",
-    durationSeconds: "Animation duration (seconds)",
-    trailSeconds: "Trail length (seconds)",
-    label: "Moving object label"
-  },
-  addHeatmap: {
-    data: "GeoJSON Point FeatureCollection",
-    radius: "Heat influence radius (pixels)"
-  },
-  geocode: {
-    address: 'Address, landmark, or place name, e.g. "\u6545\u5BAB", "Eiffel Tower", "\u6771\u4EAC\u30BF\u30EF\u30FC"',
-    countryCode: 'Two-letter ISO country code to restrict search scope (e.g. "CN", "US", "JP")'
-  }
-};
-
-// src/locales/zh-CN.ts
-var toolDescriptions2 = {
-  // — view
-  flyTo: "\u98DE\u884C\u5230\u6307\u5B9A\u7ECF\u7EAC\u5EA6\u4F4D\u7F6E\uFF08\u5E26\u52A8\u753B\u8FC7\u6E21\uFF09",
-  setView: "\u77AC\u95F4\u5207\u6362\u5230\u6307\u5B9A\u7ECF\u7EAC\u5EA6\u89C6\u89D2\uFF08\u65E0\u52A8\u753B\uFF09",
-  getView: "\u83B7\u53D6\u5F53\u524D\u76F8\u673A\u89C6\u89D2\u4FE1\u606F\uFF08\u7ECF\u7EAC\u5EA6\u3001\u9AD8\u5EA6\u3001\u89D2\u5EA6\uFF09",
-  zoomToExtent: "\u7F29\u653E\u5230\u6307\u5B9A\u5730\u7406\u8303\u56F4",
-  saveViewpoint: "\u4FDD\u5B58\u5F53\u524D\u89C6\u89D2\u4E3A\u4E66\u7B7E\uFF08\u540D\u79F0 \u2192 \u89C6\u89D2\u72B6\u6001\uFF09\uFF0C\u53EF\u901A\u8FC7 loadViewpoint \u6062\u590D",
-  loadViewpoint: "\u6062\u590D\u5DF2\u4FDD\u5B58\u7684\u89C6\u89D2\u4E66\u7B7E\uFF08\u5E26\u98DE\u884C\u52A8\u753B\uFF09\uFF0C\u8FD4\u56DE\u4FDD\u5B58\u7684\u89C6\u89D2\u72B6\u6001",
-  listViewpoints: "\u5217\u51FA\u6240\u6709\u5DF2\u4FDD\u5B58\u7684\u89C6\u89D2\u4E66\u7B7E",
-  // — entity
-  addMarker: "\u5728\u6307\u5B9A\u7ECF\u7EAC\u5EA6\u6DFB\u52A0\u6807\u6CE8\u70B9\uFF0C\u8FD4\u56DE layerId \u4F9B\u540E\u7EED\u64CD\u4F5C",
-  addLabel: "\u4E3A GeoJSON \u8981\u7D20\u6DFB\u52A0\u6587\u672C\u6807\u6CE8\uFF08\u663E\u793A\u5C5E\u6027\u503C\uFF09",
-  addModel: "\u5728\u6307\u5B9A\u7ECF\u7EAC\u5EA6\u653E\u7F6E 3D \u6A21\u578B\uFF08glTF/GLB\uFF09\uFF0C\u8FD4\u56DE entityId",
-  addPolygon: "\u5728\u5730\u56FE\u4E0A\u6DFB\u52A0\u591A\u8FB9\u5F62\u533A\u57DF\uFF08\u9762\u79EF\u3001\u8FB9\u754C\uFF09\uFF0C\u8FD4\u56DE entityId",
-  addPolyline: "\u5728\u5730\u56FE\u4E0A\u6DFB\u52A0\u6298\u7EBF\uFF08\u8DEF\u5F84\u3001\u7EBF\u6BB5\uFF09\uFF0C\u8FD4\u56DE entityId",
-  updateEntity: "\u66F4\u65B0\u5DF2\u6709\u5B9E\u4F53\u7684\u5C5E\u6027\uFF08\u4F4D\u7F6E\u3001\u989C\u8272\u3001\u6807\u7B7E\u3001\u7F29\u653E\u3001\u53EF\u89C1\u6027\uFF09",
-  removeEntity: "\u79FB\u9664\u5355\u4E2A\u5B9E\u4F53\uFF08\u901A\u8FC7 entityId\uFF09",
-  batchAddEntities: "\u6279\u91CF\u6DFB\u52A0\u591A\u4E2A\u5B9E\u4F53\uFF08\u4E00\u6B21\u8C03\u7528\u521B\u5EFA\u591A\u4E2A marker/polyline/polygon/model \u7B49\uFF09\uFF0C\u8FD4\u56DE\u6240\u6709 entityId",
-  queryEntities: "\u67E5\u8BE2\u5DF2\u6709\u5B9E\u4F53 \u2014 \u6309\u540D\u79F0\u3001\u7C7B\u578B\u3001\u7A7A\u95F4\u8303\u56F4\u8FC7\u6EE4\uFF0C\u8FD4\u56DE entityId/name/type/position \u5217\u8868",
-  // — layer
-  addGeoJsonLayer: "\u6DFB\u52A0 GeoJSON \u56FE\u5C42\u5230\u5730\u56FE\uFF08\u652F\u6301 Point/Line/Polygon\uFF0C\u53EF\u914D\u7F6E\u989C\u8272/\u5206\u7EA7/\u5206\u7C7B\u6E32\u67D3\uFF09\u3002data \u548C url \u4E8C\u9009\u4E00",
-  addGeoJsonPrimitive: "\u9AD8\u6027\u80FD\u52A0\u8F7D\u5927\u89C4\u6A21 GeoJSON \u6570\u636E\uFF0810\u4E07+ \u8981\u7D20\uFF09\u3002\u7ED5\u8FC7 Entity \u7CFB\u7EDF\uFF0C\u76F4\u63A5\u4F7F\u7528 Primitive \u6E32\u67D3\uFF0C\u9002\u5408\u6D77\u91CF\u6570\u636E\u53EF\u89C6\u5316\u3002data \u548C url \u4E8C\u9009\u4E00",
-  listLayers: "\u83B7\u53D6\u5F53\u524D\u6240\u6709\u56FE\u5C42\u5217\u8868\uFF08\u542B ID\u3001\u540D\u79F0\u3001\u7C7B\u578B\u3001\u53EF\u89C1\u6027\uFF09",
-  getLayerSchema: "\u83B7\u53D6\u56FE\u5C42\u7684\u5C5E\u6027\u5B57\u6BB5\u7ED3\u6784 \u2014 \u8FD4\u56DE\u5B57\u6BB5\u540D\u3001\u7C7B\u578B\u3001\u793A\u4F8B\u503C\uFF0C\u9002\u7528\u4E8E GeoJSON/CZML/KML/3D Tiles \u56FE\u5C42",
-  removeLayer: "\u4ECE\u5730\u56FE\u4E0A\u79FB\u9664\u6307\u5B9A\u56FE\u5C42\uFF08\u6309\u56FE\u5C42ID\uFF09",
-  setLayerVisibility: "\u8BBE\u7F6E\u56FE\u5C42\u53EF\u89C1\u6027",
-  updateLayerStyle: "\u4FEE\u6539\u5DF2\u6709\u56FE\u5C42\u7684\u6837\u5F0F\uFF08\u989C\u8272\u3001\u900F\u660E\u5EA6\u3001\u6807\u6CE8\u6837\u5F0F\u30013D Tiles \u6837\u5F0F\u7B49\uFF09",
-  setBasemap: "\u5207\u6362\u5E95\u56FE\u98CE\u683C\uFF08\u6697\u8272/\u536B\u661F/\u6807\u51C6/OSM/ArcGIS/\u6D45\u8272/\u5929\u5730\u56FE/\u9AD8\u5FB7\u7B49\uFF09",
-  // — camera
-  lookAtTransform: "\u4ECE\u6307\u5B9A\u822A\u5411/\u4FEF\u4EF0/\u8DDD\u79BB\u89C2\u5BDF\u7279\u5B9A\u4F4D\u7F6E\uFF08\u73AF\u7ED5\u5F0F\u76F8\u673A\uFF09",
-  startOrbit: "\u5F00\u59CB\u56F4\u7ED5\u5F53\u524D\u89C6\u56FE\u4E2D\u5FC3\u65CB\u8F6C\u76F8\u673A",
-  stopOrbit: "\u505C\u6B62\u76F8\u673A\u73AF\u7ED5\u52A8\u753B",
-  setCameraOptions: "\u914D\u7F6E\u76F8\u673A\u63A7\u5236\u5668\u9009\u9879\uFF08\u542F\u7528/\u7981\u7528\u65CB\u8F6C\u3001\u7F29\u653E\u3001\u503E\u659C\u7B49\uFF09",
-  // — entity-ext
-  addBillboard: "\u5728\u5730\u7403\u4E0A\u6307\u5B9A\u4F4D\u7F6E\u6DFB\u52A0\u5E7F\u544A\u724C\uFF08\u56FE\u7247\u56FE\u6807\uFF09",
-  addBox: "\u5728\u6307\u5B9A\u4F4D\u7F6E\u6DFB\u52A0 3D \u76D2\u5B50\u5B9E\u4F53",
-  addCorridor: "\u6DFB\u52A0\u8D70\u5ECA\uFF08\u5E26\u5BBD\u5EA6\u7684\u8DEF\u5F84\uFF09\u5B9E\u4F53",
-  addCylinder: "\u5728\u6307\u5B9A\u4F4D\u7F6E\u6DFB\u52A0\u5706\u67F1\u4F53\u6216\u5706\u9525\u4F53\u5B9E\u4F53",
-  addEllipse: "\u5728\u6307\u5B9A\u4F4D\u7F6E\u6DFB\u52A0\u692D\u5706\u5F62\u5B9E\u4F53",
-  addRectangle: "\u6DFB\u52A0\u7531\u5730\u7406\u8FB9\u754C\u5B9A\u4E49\u7684\u77E9\u5F62\u5B9E\u4F53",
-  addWall: "\u6CBF\u4E00\u7CFB\u5217\u4F4D\u7F6E\u6DFB\u52A0\u5899\u4F53\u5B9E\u4F53",
-  // — animation
-  createAnimation: "\u521B\u5EFA\u57FA\u4E8E\u65F6\u95F4\u7684\u822A\u70B9\u52A8\u753B\uFF08\u5B9E\u4F53\u6CBF\u8DEF\u5F84\u79FB\u52A8\uFF09",
-  controlAnimation: "\u64AD\u653E\u6216\u6682\u505C\u5F53\u524D\u52A8\u753B",
-  removeAnimation: "\u79FB\u9664\u52A8\u753B\u5B9E\u4F53",
-  listAnimations: "\u5217\u51FA\u6240\u6709\u6D3B\u52A8\u52A8\u753B",
-  updateAnimationPath: "\u66F4\u65B0\u52A8\u753B\u8DEF\u5F84\u7684\u89C6\u89C9\u5C5E\u6027",
-  trackEntity: "\u7528\u76F8\u673A\u8DDF\u8E2A\uFF08\u8DDF\u968F\uFF09\u5B9E\u4F53\uFF0C\u6216\u505C\u6B62\u8DDF\u8E2A",
-  controlClock: "\u914D\u7F6E Cesium \u65F6\u949F\uFF08\u65F6\u95F4\u8303\u56F4\u3001\u901F\u5EA6\u3001\u52A8\u753B\u72B6\u6001\uFF09",
-  setGlobeLighting: "\u542F\u7528/\u7981\u7528\u5730\u7403\u5149\u7167\u548C\u5927\u6C14\u6548\u679C",
-  // — scene
-  setSceneOptions: "\u914D\u7F6E\u573A\u666F\u73AF\u5883\uFF08\u96FE\u3001\u5927\u6C14\u3001\u9634\u5F71\u3001\u592A\u9633\u3001\u6708\u4EAE\u3001\u80CC\u666F\u8272\u3001\u6DF1\u5EA6\u6D4B\u8BD5\uFF09",
-  setPostProcess: "\u914D\u7F6E\u540E\u5904\u7406\u7279\u6548\uFF08\u6CDB\u5149\u3001\u73AF\u5883\u5149\u906E\u853D SSAO\u3001\u6297\u952F\u9F7F FXAA\uFF09",
-  // — tiles
-  load3dTiles: "\u52A0\u8F7D 3D Tiles \u6570\u636E\u96C6\uFF08\u5982\u5EFA\u7B51\u767D\u819C\u3001\u57CE\u5E02\u6A21\u578B\uFF09",
-  loadTerrain: "\u52A0\u8F7D\u6216\u5207\u6362\u5730\u5F62\uFF08\u5E73\u5766/ArcGIS/CesiumIon/\u81EA\u5B9A\u4E49 URL\uFF09",
-  loadImageryService: "\u52A0\u8F7D\u5F71\u50CF\u670D\u52A1\u56FE\u5C42\uFF08WMS/WMTS/XYZ/ArcGIS MapServer\uFF09",
-  loadCzml: "\u52A0\u8F7D CZML \u65F6\u5E8F\u6570\u636E\u6E90\uFF08CesiumJS \u539F\u751F\u683C\u5F0F\uFF0C\u652F\u6301\u65F6\u53D8\u4F4D\u7F6E/\u6837\u5F0F/\u52A8\u753B\uFF09\u3002data \u548C url \u4E8C\u9009\u4E00",
-  loadKml: "\u52A0\u8F7D KML/KMZ \u6570\u636E\u6E90\uFF08Google Earth \u683C\u5F0F\uFF09\u3002data \u548C url \u4E8C\u9009\u4E00",
-  // — interaction
-  screenshot: "\u622A\u53D6\u5F53\u524D\u5730\u56FE\u89C6\u56FE\uFF08\u8FD4\u56DE base64 PNG\uFF09",
-  highlight: "\u9AD8\u4EAE\u6307\u5B9A\u56FE\u5C42\u7684\u8981\u7D20",
-  measure: "\u6D4B\u91CF\u8DDD\u79BB\u6216\u9762\u79EF\uFF08\u57FA\u4E8E\u5750\u6807\u8BA1\u7B97\uFF0C\u53EF\u5728\u5730\u56FE\u4E0A\u663E\u793A\uFF09",
-  // — clear
-  clearAll: "\u6E05\u9664\u5730\u56FE\u4E0A\u7684\u6240\u6709\u56FE\u5C42\u3001\u5B9E\u4F53\u3001\u52A8\u753B\u548C\u8F68\u8FF9\uFF08\u4E00\u952E\u91CD\u7F6E\u573A\u666F\uFF09",
-  // — entity inspection
-  getEntityProperties: "\u83B7\u53D6\u6307\u5B9A\u5B9E\u4F53\u7684\u8BE6\u7EC6\u5C5E\u6027 \u2014 \u5305\u62EC\u7C7B\u578B\u3001\u4F4D\u7F6E\u3001\u81EA\u5B9A\u4E49\u5C5E\u6027\u548C\u56FE\u5F62\u5C5E\u6027",
-  // — scene export
-  exportScene: "\u5BFC\u51FA\u5F53\u524D\u573A\u666F\u5FEB\u7167 \u2014 \u5305\u542B\u89C6\u89D2\u3001\u56FE\u5C42\u5217\u8868\u3001\u5B9E\u4F53\u5217\u8868\u548C\u65F6\u95F4\u6233",
-  // — trajectory
-  playTrajectory: "\u64AD\u653E\u79FB\u52A8\u8F68\u8FF9\u52A8\u753B",
-  // — heatmap
-  addHeatmap: "\u6DFB\u52A0\u70ED\u529B\u56FE\u56FE\u5C42\uFF08\u57FA\u4E8E GeoJSON \u70B9\u6570\u636E\u751F\u6210\u70ED\u529B\u53EF\u89C6\u5316\uFF09",
-  // — geolocation
-  geocode: "\u5C06\u5730\u5740\u3001\u5730\u6807\u6216\u5730\u540D\u8F6C\u6362\u4E3A\u5730\u7406\u5750\u6807\uFF08\u7ECF\u7EAC\u5EA6\uFF09\u3002\u4F7F\u7528 OpenStreetMap Nominatim \u514D\u8D39\u670D\u52A1\uFF0C\u65E0\u9700 API Key\u3002"
-};
-var paramDescriptions2 = {
-  flyTo: {
-    longitude: "\u7ECF\u5EA6\uFF08-180 ~ 180\uFF09",
-    latitude: "\u7EAC\u5EA6\uFF08-90 ~ 90\uFF09",
-    height: "\u76F8\u673A\u9AD8\u5EA6\uFF08\u7C73\uFF09\uFF0C\u9ED8\u8BA4 50000",
-    heading: "\u822A\u5411\u89D2\uFF08\u5EA6\uFF09\uFF0C0 \u4E3A\u6B63\u5317",
-    pitch: "\u4FEF\u4EF0\u89D2\uFF08\u5EA6\uFF09\uFF0C-90 \u4E3A\u6B63\u4E0B\u65B9",
-    duration: "\u98DE\u884C\u52A8\u753B\u65F6\u957F\uFF08\u79D2\uFF09"
-  },
-  setView: {
-    longitude: "\u7ECF\u5EA6\uFF08-180 ~ 180\uFF09",
-    latitude: "\u7EAC\u5EA6\uFF08-90 ~ 90\uFF09",
-    height: "\u9AD8\u5EA6\uFF08\u7C73\uFF09",
-    heading: "\u822A\u5411\u89D2\uFF08\u5EA6\uFF09",
-    pitch: "\u4FEF\u4EF0\u89D2\uFF08\u5EA6\uFF09",
-    roll: "\u7FFB\u6EDA\u89D2\uFF08\u5EA6\uFF09"
-  },
-  zoomToExtent: {
-    west: "\u897F\u8FB9\u754C\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
-    south: "\u5357\u8FB9\u754C\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
-    east: "\u4E1C\u8FB9\u754C\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
-    north: "\u5317\u8FB9\u754C\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
-    duration: "\u52A8\u753B\u65F6\u957F\uFF08\u79D2\uFF09"
-  },
-  saveViewpoint: {
-    name: "\u4E66\u7B7E\u540D\u79F0\uFF08\u552F\u4E00\u6807\u8BC6\uFF0C\u91CD\u590D\u5219\u8986\u76D6\uFF09"
-  },
-  loadViewpoint: {
-    name: "\u4E66\u7B7E\u540D\u79F0",
-    duration: "\u98DE\u884C\u52A8\u753B\u65F6\u957F\uFF08\u79D2\uFF09\uFF0C0 \u8868\u793A\u77AC\u79FB"
-  },
-  addMarker: {
-    longitude: "\u7ECF\u5EA6\uFF08-180 ~ 180\uFF09",
-    latitude: "\u7EAC\u5EA6\uFF08-90 ~ 90\uFF09",
-    label: "\u6807\u6CE8\u6587\u672C",
-    color: "\u6807\u6CE8\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09",
-    size: "\u70B9\u5927\u5C0F\uFF08\u50CF\u7D20\uFF09",
-    id: "\u81EA\u5B9A\u4E49\u56FE\u5C42ID\uFF08\u4E0D\u4F20\u5219\u81EA\u52A8\u751F\u6210\uFF09"
-  },
-  addLabel: {
-    data: "GeoJSON FeatureCollection \u5BF9\u8C61",
-    field: '\u7528\u4F5C\u6807\u6CE8\u6587\u672C\u7684\u5C5E\u6027\u5B57\u6BB5\u540D\uFF08\u5982 "name"\u3001"population"\uFF09',
-    style: "\u6807\u6CE8\u6837\u5F0F\uFF08font, fillColor, outlineColor, scale \u7B49\uFF09"
-  },
-  addModel: {
-    longitude: "\u7ECF\u5EA6\uFF08-180 ~ 180\uFF09",
-    latitude: "\u7EAC\u5EA6\uFF08-90 ~ 90\uFF09",
-    height: "\u653E\u7F6E\u9AD8\u5EA6\uFF08\u7C73\uFF09",
-    url: "glTF/GLB \u6A21\u578B\u6587\u4EF6 URL",
-    scale: "\u6A21\u578B\u7F29\u653E\u6BD4\u4F8B",
-    heading: "\u822A\u5411\u89D2\uFF08\u5EA6\uFF09\uFF0C0=\u6B63\u5317",
-    pitch: "\u4FEF\u4EF0\u89D2\uFF08\u5EA6\uFF09",
-    roll: "\u7FFB\u6EDA\u89D2\uFF08\u5EA6\uFF09",
-    label: "\u6A21\u578B\u6807\u6CE8\u6587\u672C"
-  },
-  addPolygon: {
-    coordinates: "\u591A\u8FB9\u5F62\u5916\u73AF\u5750\u6807 [[lon, lat, height?], ...]",
-    color: "\u586B\u5145\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09",
-    outlineColor: "\u63CF\u8FB9\u989C\u8272",
-    opacity: "\u586B\u5145\u900F\u660E\u5EA6\uFF080~1\uFF09",
-    extrudedHeight: "\u62C9\u4F38\u9AD8\u5EA6\uFF08\u7C73\uFF09\uFF0C\u53EF\u7528\u4E8E\u521B\u5EFA\u7ACB\u4F53\u6548\u679C",
-    clampToGround: "\u662F\u5426\u8D34\u5730",
-    label: "\u591A\u8FB9\u5F62\u6807\u6CE8\u6587\u672C"
-  },
-  addPolyline: {
-    coordinates: "\u6298\u7EBF\u5750\u6807\u6570\u7EC4 [[lon, lat, height?], ...]",
-    color: "\u7EBF\u6761\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09",
-    width: "\u7EBF\u6761\u5BBD\u5EA6\uFF08\u50CF\u7D20\uFF09",
-    clampToGround: "\u662F\u5426\u8D34\u5730",
-    label: "\u6298\u7EBF\u6807\u6CE8\u6587\u672C"
-  },
-  updateEntity: {
-    entityId: "\u5B9E\u4F53ID\uFF08addMarker/addPolyline \u7B49\u8FD4\u56DE\u7684 entityId\uFF09",
-    position: "\u65B0\u4F4D\u7F6E\u5750\u6807",
-    label: "\u65B0\u6807\u6CE8\u6587\u672C",
-    color: "\u65B0\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09",
-    scale: "\u65B0\u7F29\u653E\u6BD4\u4F8B",
-    show: "\u662F\u5426\u663E\u793A"
-  },
-  removeEntity: {
-    entityId: "\u8981\u79FB\u9664\u7684\u5B9E\u4F53ID"
-  },
-  batchAddEntities: {
-    entities: "\u5B9E\u4F53\u5B9A\u4E49\u6570\u7EC4\uFF0C\u6BCF\u4E2A\u5143\u7D20\u5305\u542B type \u5B57\u6BB5\u548C\u8BE5\u7C7B\u578B\u6240\u9700\u7684\u53C2\u6570"
-  },
-  queryEntities: {
-    name: "\u540D\u79F0\u6A21\u7CCA\u5339\u914D\uFF08\u4E0D\u533A\u5206\u5927\u5C0F\u5199\uFF09",
-    type: "\u6309\u5B9E\u4F53\u7C7B\u578B\u8FC7\u6EE4",
-    bbox: "\u7A7A\u95F4\u8303\u56F4\u8FC7\u6EE4 [west, south, east, north]\uFF08\u5EA6\uFF09"
-  },
-  addGeoJsonLayer: {
-    id: "\u56FE\u5C42ID\uFF08\u4E0D\u4F20\u5219\u81EA\u52A8\u751F\u6210\uFF09",
-    name: "\u56FE\u5C42\u663E\u793A\u540D\u79F0",
-    data: "GeoJSON FeatureCollection \u5BF9\u8C61\uFF08\u4E0E url \u4E8C\u9009\u4E00\uFF09",
-    url: "GeoJSON \u6587\u4EF6 URL\uFF08\u4E0E data \u4E8C\u9009\u4E00\uFF0C\u6D4F\u89C8\u5668\u7AEF fetch \u52A0\u8F7D\uFF09",
-    style: "\u6837\u5F0F\u914D\u7F6E\uFF08color, opacity, pointSize, choropleth, category\uFF09"
-  },
-  addGeoJsonPrimitive: {
-    id: "\u56FE\u5C42ID\uFF08\u4E0D\u4F20\u5219\u81EA\u52A8\u751F\u6210\uFF09",
-    name: "\u56FE\u5C42\u663E\u793A\u540D\u79F0",
-    data: "GeoJSON \u5BF9\u8C61\uFF08\u4E0E url \u4E8C\u9009\u4E00\uFF09",
-    url: "GeoJSON \u6587\u4EF6 URL\uFF08\u4E0E data \u4E8C\u9009\u4E00\uFF09",
-    allowPicking: "\u662F\u5426\u5141\u8BB8\u62FE\u53D6\uFF08\u9ED8\u8BA4 true\uFF0C\u5173\u95ED\u53EF\u63D0\u5347\u6027\u80FD\uFF09",
-    show: "\u662F\u5426\u663E\u793A\uFF08\u9ED8\u8BA4 true\uFF09"
-  },
-  listLayers: {},
-  getLayerSchema: {
-    layerId: "\u56FE\u5C42ID\uFF08\u53EF\u901A\u8FC7 listLayers \u83B7\u53D6\uFF09"
-  },
-  removeLayer: {
-    id: "\u8981\u79FB\u9664\u7684\u56FE\u5C42ID\uFF08\u53EF\u901A\u8FC7 listLayers \u83B7\u53D6\uFF09"
-  },
-  setLayerVisibility: {
-    id: "\u56FE\u5C42ID",
-    visible: "\u662F\u5426\u53EF\u89C1"
-  },
-  updateLayerStyle: {
-    layerId: "\u56FE\u5C42ID",
-    labelStyle: "\u6807\u6CE8\u6837\u5F0F\uFF08font, fillColor, outlineColor, outlineWidth, scale \u7B49\uFF09",
-    layerStyle: "\u5B9E\u4F53\u56FE\u5C42\u6837\u5F0F\uFF08color, opacity, strokeWidth, pointSize\uFF1BGeoJSON \u4E3B\u9898\u6837\u5F0F choropleth/category/randomColor/gradient \u4E92\u65A5\uFF09",
-    imageryStyle: "\u5F71\u50CF\u56FE\u5C42\u89C6\u89C9\u6837\u5F0F\uFF08alpha, brightness, contrast, hue, saturation, gamma\uFF09\uFF1B\u663E\u9690\u8BF7\u4F7F\u7528 setLayerVisibility",
-    primitiveStyle: "GeoJSON Primitive \u6750\u8D28\u6837\u5F0F\uFF08color, opacity, outlineColor, outlineWidth, pointSize, lineWidth\uFF09\uFF1B\u663E\u9690\u8BF7\u4F7F\u7528 setLayerVisibility",
-    tileStyle: "3D Tiles \u6837\u5F0F\uFF08Cesium3DTileStyle \u8868\u8FBE\u5F0F\uFF1Acolor, show, pointSize, meta\uFF09"
-  },
-  setBasemap: {
-    basemap: "\u5E95\u56FE\u7C7B\u578B\uFF1Adark=\u6697\u8272, satellite=\u536B\u661F\u5F71\u50CF, standard=\u6807\u51C6, osm=OpenStreetMap, arcgis=ArcGIS\u8857\u9053, light=\u6D45\u8272, tianditu_vec=\u5929\u5730\u56FE\u77E2\u91CF, tianditu_img=\u5929\u5730\u56FE\u5F71\u50CF, amap=\u9AD8\u5FB7\u5730\u56FE, amap_satellite=\u9AD8\u5FB7\u536B\u661F",
-    token: "\u5E95\u56FE\u670D\u52A1\u4EE4\u724C\uFF08\u5929\u5730\u56FE\u7B49\u9700\u8981\u8BA4\u8BC1\u7684\u670D\u52A1\u5FC5\u586B\uFF09",
-    url: "\u81EA\u5B9A\u4E49URL\u6A21\u677F\uFF08{x},{y},{z}\u5360\u4F4D\u7B26\uFF09\uFF0C\u63D0\u4F9B\u65F6\u5FFD\u7565basemap\u53C2\u6570"
-  },
-  highlight: {
-    layerId: "\u56FE\u5C42ID",
-    featureIndex: "\u8981\u7D20\u7D22\u5F15\uFF08\u4E0D\u4F20\u5219\u9AD8\u4EAE\u5168\u90E8\uFF09",
-    color: "\u9AD8\u4EAE\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09"
-  },
-  measure: {
-    mode: "\u6D4B\u91CF\u6A21\u5F0F\uFF1Adistance=\u8DDD\u79BB, area=\u9762\u79EF",
-    positions: "\u5750\u6807\u6570\u7EC4 [[\u7ECF\u5EA6, \u7EAC\u5EA6, \u9AD8\u5EA6?], ...]",
-    showOnMap: "\u662F\u5426\u5728\u5730\u56FE\u4E0A\u663E\u793A\u6D4B\u91CF\u7ED3\u679C",
-    id: "\u81EA\u5B9A\u4E49\u6D4B\u91CF\u5B9E\u4F53ID"
-  },
-  getEntityProperties: {
-    entityId: "\u5B9E\u4F53ID\uFF08\u53EF\u901A\u8FC7 queryEntities \u83B7\u53D6\uFF09"
-  },
-  lookAtTransform: {
-    longitude: "\u76EE\u6807\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
-    latitude: "\u76EE\u6807\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
-    height: "\u76EE\u6807\u9AD8\u5EA6\uFF08\u7C73\uFF09",
-    heading: "\u76F8\u673A\u822A\u5411\u89D2\uFF08\u5EA6\uFF09\uFF0C0=\u6B63\u5317",
-    pitch: "\u76F8\u673A\u4FEF\u4EF0\u89D2\uFF08\u5EA6\uFF09\uFF0C-90=\u6B63\u4E0B\u65B9",
-    range: "\u8DDD\u76EE\u6807\u8DDD\u79BB\uFF08\u7C73\uFF09"
-  },
-  startOrbit: {
-    speed: "\u65CB\u8F6C\u901F\u5EA6\uFF08\u5F27\u5EA6/\u5E27\uFF09",
-    clockwise: "\u65CB\u8F6C\u65B9\u5411"
-  },
-  setCameraOptions: {
-    enableRotate: "\u542F\u7528\u76F8\u673A\u65CB\u8F6C",
-    enableTranslate: "\u542F\u7528\u76F8\u673A\u5E73\u79FB",
-    enableZoom: "\u542F\u7528\u76F8\u673A\u7F29\u653E",
-    enableTilt: "\u542F\u7528\u76F8\u673A\u503E\u659C",
-    enableLook: "\u542F\u7528\u76F8\u673A\u73AF\u89C6",
-    minimumZoomDistance: "\u6700\u5C0F\u7F29\u653E\u8DDD\u79BB\uFF08\u7C73\uFF09",
-    maximumZoomDistance: "\u6700\u5927\u7F29\u653E\u8DDD\u79BB\uFF08\u7C73\uFF09",
-    enableInputs: "\u542F\u7528/\u7981\u7528\u6240\u6709\u76F8\u673A\u8F93\u5165"
-  },
-  addBillboard: {
-    longitude: "\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
-    latitude: "\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
-    height: "\u9AD8\u5EA6\uFF08\u7C73\uFF09",
-    name: "\u5E7F\u544A\u724C\u540D\u79F0",
-    image: "\u5E7F\u544A\u724C\u56FE\u7247 URL",
-    scale: "\u7F29\u653E\u6BD4\u4F8B",
-    color: "\u7740\u8272\u989C\u8272",
-    pixelOffset: "\u4F4D\u7F6E\u50CF\u7D20\u504F\u79FB",
-    horizontalOrigin: "\u6C34\u5E73\u539F\u70B9",
-    verticalOrigin: "\u5782\u76F4\u539F\u70B9",
-    heightReference: "\u9AD8\u5EA6\u53C2\u8003"
-  },
-  addBox: {
-    longitude: "\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
-    latitude: "\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
-    height: "\u9AD8\u5EA6\uFF08\u7C73\uFF09",
-    name: "\u76D2\u5B50\u540D\u79F0",
-    dimensions: "\u76D2\u5B50\u5C3A\u5BF8",
-    material: "\u6750\u8D28\uFF08\u989C\u8272\u5B57\u7B26\u4E32\u3001RGBA \u5BF9\u8C61\u6216\u6750\u8D28\u89C4\u683C\uFF09",
-    outline: "\u663E\u793A\u8F6E\u5ED3\u7EBF",
-    outlineColor: "\u8F6E\u5ED3\u7EBF\u989C\u8272",
-    fill: "\u663E\u793A\u586B\u5145",
-    orientation: "\u671D\u5411\uFF08\u822A\u5411/\u4FEF\u4EF0/\u7FFB\u6EDA\u89D2\u5EA6\uFF09",
-    heightReference: "\u9AD8\u5EA6\u53C2\u8003"
-  },
-  addCorridor: {
-    name: "\u8D70\u5ECA\u540D\u79F0",
-    positions: "\u8D70\u5ECA\u6CBF\u7EBF\u4F4D\u7F6E\u6570\u7EC4",
-    width: "\u8D70\u5ECA\u5BBD\u5EA6\uFF08\u7C73\uFF09",
-    material: "\u6750\u8D28",
-    cornerType: "\u62D0\u89D2\u7C7B\u578B",
-    height: "\u79BB\u5730\u9AD8\u5EA6\uFF08\u7C73\uFF09",
-    extrudedHeight: "\u62C9\u4F38\u9AD8\u5EA6\uFF08\u7C73\uFF09",
-    outline: "\u663E\u793A\u8F6E\u5ED3\u7EBF",
-    outlineColor: "\u8F6E\u5ED3\u7EBF\u989C\u8272"
-  },
-  addCylinder: {
-    longitude: "\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
-    latitude: "\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
-    height: "\u9AD8\u5EA6\uFF08\u7C73\uFF09",
-    name: "\u5706\u67F1\u4F53\u540D\u79F0",
-    length: "\u5706\u67F1\u4F53\u957F\u5EA6/\u9AD8\u5EA6\uFF08\u7C73\uFF09",
-    topRadius: "\u9876\u90E8\u534A\u5F84\uFF08\u7C73\uFF09",
-    bottomRadius: "\u5E95\u90E8\u534A\u5F84\uFF08\u7C73\uFF09",
-    material: "\u6750\u8D28",
-    outline: "\u663E\u793A\u8F6E\u5ED3\u7EBF",
-    outlineColor: "\u8F6E\u5ED3\u7EBF\u989C\u8272",
-    fill: "\u663E\u793A\u586B\u5145",
-    orientation: "\u671D\u5411\uFF08\u822A\u5411/\u4FEF\u4EF0/\u7FFB\u6EDA\u89D2\u5EA6\uFF09",
-    numberOfVerticalLines: "\u5782\u76F4\u7EBF\u6761\u6570",
-    slices: "\u5206\u7247\u6570"
-  },
-  addEllipse: {
-    longitude: "\u4E2D\u5FC3\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
-    latitude: "\u4E2D\u5FC3\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
-    height: "\u9AD8\u5EA6\uFF08\u7C73\uFF09",
-    name: "\u692D\u5706\u540D\u79F0",
-    semiMajorAxis: "\u534A\u957F\u8F74\uFF08\u7C73\uFF09",
-    semiMinorAxis: "\u534A\u77ED\u8F74\uFF08\u7C73\uFF09",
-    material: "\u6750\u8D28",
-    extrudedHeight: "\u62C9\u4F38\u9AD8\u5EA6\uFF08\u7C73\uFF09",
-    rotation: "\u65CB\u8F6C\u89D2\uFF08\u5F27\u5EA6\uFF09",
-    outline: "\u663E\u793A\u8F6E\u5ED3\u7EBF",
-    outlineColor: "\u8F6E\u5ED3\u7EBF\u989C\u8272",
-    fill: "\u663E\u793A\u586B\u5145",
-    stRotation: "\u7EB9\u7406\u65CB\u8F6C\u89D2\uFF08\u5F27\u5EA6\uFF09",
-    numberOfVerticalLines: "\u5782\u76F4\u7EBF\u6761\u6570"
-  },
-  addRectangle: {
-    name: "\u77E9\u5F62\u540D\u79F0",
-    west: "\u897F\u8FB9\u754C\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
-    south: "\u5357\u8FB9\u754C\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
-    east: "\u4E1C\u8FB9\u754C\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
-    north: "\u5317\u8FB9\u754C\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
-    material: "\u6750\u8D28",
-    height: "\u9AD8\u5EA6\uFF08\u7C73\uFF09",
-    extrudedHeight: "\u62C9\u4F38\u9AD8\u5EA6\uFF08\u7C73\uFF09",
-    rotation: "\u65CB\u8F6C\u89D2\uFF08\u5F27\u5EA6\uFF09",
-    outline: "\u663E\u793A\u8F6E\u5ED3\u7EBF",
-    outlineColor: "\u8F6E\u5ED3\u7EBF\u989C\u8272",
-    fill: "\u663E\u793A\u586B\u5145",
-    stRotation: "\u7EB9\u7406\u65CB\u8F6C\u89D2\uFF08\u5F27\u5EA6\uFF09"
-  },
-  addWall: {
-    name: "\u5899\u4F53\u540D\u79F0",
-    positions: "\u5899\u4F53\u6CBF\u7EBF\u4F4D\u7F6E\u6570\u7EC4",
-    minimumHeights: "\u5404\u4F4D\u7F6E\u6700\u5C0F\u9AD8\u5EA6",
-    maximumHeights: "\u5404\u4F4D\u7F6E\u6700\u5927\u9AD8\u5EA6",
-    material: "\u6750\u8D28",
-    outline: "\u663E\u793A\u8F6E\u5ED3\u7EBF",
-    outlineColor: "\u8F6E\u5ED3\u7EBF\u989C\u8272",
-    fill: "\u663E\u793A\u586B\u5145"
-  },
-  createAnimation: {
-    name: "\u52A8\u753B\u540D\u79F0",
-    waypoints: "\u5E26\u4F4D\u7F6E\u548C\u65F6\u95F4\u6233\u7684\u822A\u70B9\u6570\u7EC4",
-    modelUri: "glTF/GLB \u6A21\u578B URL\uFF0C\u6216\u9884\u8BBE\uFF1Acesium_man, cesium_air, ground_vehicle, cesium_drone",
-    showPath: "\u663E\u793A\u8F68\u8FF9\u8DEF\u5F84",
-    pathWidth: "\u8DEF\u5F84\u5BBD\u5EA6\uFF08\u50CF\u7D20\uFF09",
-    pathColor: "\u8DEF\u5F84\u989C\u8272\uFF08CSS\uFF09",
-    pathLeadTime: "\u8DEF\u5F84\u524D\u5BFC\u65F6\u95F4\uFF08\u79D2\uFF09",
-    pathTrailTime: "\u8DEF\u5F84\u5C3E\u8FF9\u65F6\u95F4\uFF08\u79D2\uFF09",
-    multiplier: "\u65F6\u949F\u901F\u7387\u500D\u6570",
-    shouldAnimate: "\u81EA\u52A8\u5F00\u59CB\u52A8\u753B"
-  },
-  controlAnimation: {
-    action: "\u64AD\u653E\u6216\u6682\u505C"
-  },
-  removeAnimation: {
-    entityId: "\u8981\u79FB\u9664\u7684\u52A8\u753B\u5B9E\u4F53 ID"
-  },
-  updateAnimationPath: {
-    entityId: "\u52A8\u753B\u5B9E\u4F53 ID",
-    width: "\u65B0\u8DEF\u5F84\u5BBD\u5EA6\uFF08\u50CF\u7D20\uFF09",
-    color: "\u65B0\u8DEF\u5F84\u989C\u8272\uFF08CSS\uFF09",
-    leadTime: "\u65B0\u524D\u5BFC\u65F6\u95F4\uFF08\u79D2\uFF09",
-    trailTime: "\u65B0\u5C3E\u8FF9\u65F6\u95F4\uFF08\u79D2\uFF09",
-    show: "\u663E\u793A/\u9690\u85CF\u8DEF\u5F84"
-  },
-  trackEntity: {
-    entityId: "\u8981\u8DDF\u8E2A\u7684\u5B9E\u4F53 ID\uFF08\u7701\u7565\u5219\u505C\u6B62\u8DDF\u8E2A\uFF09",
-    heading: "\u76F8\u673A\u822A\u5411\u89D2\uFF08\u5EA6\uFF09",
-    pitch: "\u76F8\u673A\u4FEF\u4EF0\u89D2\uFF08\u5EA6\uFF09",
-    range: "\u76F8\u673A\u8DDD\u5B9E\u4F53\u8DDD\u79BB\uFF08\u7C73\uFF09"
-  },
-  controlClock: {
-    action: "\u65F6\u949F\u64CD\u4F5C",
-    startTime: "ISO 8601 \u5F00\u59CB\u65F6\u95F4\uFF08\u7528\u4E8E configure\uFF09",
-    stopTime: "ISO 8601 \u7ED3\u675F\u65F6\u95F4\uFF08\u7528\u4E8E configure\uFF09",
-    currentTime: "ISO 8601 \u5F53\u524D\u65F6\u95F4\uFF08\u7528\u4E8E configure\uFF09",
-    time: "ISO 8601 \u8DF3\u8F6C\u65F6\u95F4\uFF08\u7528\u4E8E setTime\uFF09",
-    multiplier: "\u65F6\u949F\u901F\u7387\u500D\u6570\uFF08\u7528\u4E8E configure/setMultiplier\uFF09",
-    shouldAnimate: "\u662F\u5426\u64AD\u653E\u52A8\u753B\uFF08\u7528\u4E8E configure\uFF09",
-    clockRange: "\u65F6\u949F\u8303\u56F4\u6A21\u5F0F\uFF08\u7528\u4E8E configure\uFF09"
-  },
-  setGlobeLighting: {
-    enableLighting: "\u542F\u7528\u5730\u7403\u5149\u7167",
-    dynamicAtmosphereLighting: "\u542F\u7528\u52A8\u6001\u5927\u6C14\u5149\u7167",
-    dynamicAtmosphereLightingFromSun: "\u4F7F\u7528\u592A\u9633\u4F4D\u7F6E\u8FDB\u884C\u5927\u6C14\u5149\u7167"
-  },
-  setSceneOptions: {
-    fogEnabled: "\u542F\u7528/\u7981\u7528\u96FE\u6548",
-    fogDensity: "\u96FE\u7684\u5BC6\u5EA6\uFF080.0~1.0\uFF0C\u9ED8\u8BA4\u7EA6 0.0002\uFF09",
-    fogMinimumBrightness: "\u96FE\u7684\u6700\u4F4E\u4EAE\u5EA6\uFF080.0~1.0\uFF09",
-    skyAtmosphereShow: "\u663E\u793A\u5929\u7A7A\u5927\u6C14",
-    skyAtmosphereHueShift: "\u5929\u7A7A\u8272\u8C03\u504F\u79FB\uFF08-1.0~1.0\uFF09",
-    skyAtmosphereSaturationShift: "\u5929\u7A7A\u9971\u548C\u5EA6\u504F\u79FB\uFF08-1.0~1.0\uFF09",
-    skyAtmosphereBrightnessShift: "\u5929\u7A7A\u4EAE\u5EA6\u504F\u79FB\uFF08-1.0~1.0\uFF09",
-    groundAtmosphereShow: "\u663E\u793A\u5730\u9762\u5927\u6C14",
-    shadowsEnabled: "\u542F\u7528\u9634\u5F71",
-    shadowsSoftShadows: "\u4F7F\u7528\u8F6F\u9634\u5F71",
-    shadowsDarkness: "\u9634\u5F71\u6697\u5EA6\uFF080.0=\u65E0\u9634\u5F71\uFF0C1.0=\u5168\u6697\uFF09",
-    sunShow: "\u663E\u793A\u592A\u9633",
-    sunGlowFactor: "\u592A\u9633\u5149\u6655\u7CFB\u6570\uFF08\u9ED8\u8BA4 1.0\uFF09",
-    moonShow: "\u663E\u793A\u6708\u4EAE",
-    depthTestAgainstTerrain: "\u542F\u7528\u5730\u5F62\u6DF1\u5EA6\u6D4B\u8BD5\uFF08\u5730\u5F62\u540E\u65B9\u5B9E\u4F53\u5C06\u88AB\u9690\u85CF\uFF09",
-    backgroundColor: '\u573A\u666F\u80CC\u666F\u8272\uFF08CSS \u683C\u5F0F\uFF0C\u5982 "#000000"\uFF09'
-  },
-  setPostProcess: {
-    bloom: "\u542F\u7528\u6CDB\u5149\u7279\u6548",
-    bloomContrast: "\u6CDB\u5149\u5BF9\u6BD4\u5EA6\uFF08\u9ED8\u8BA4 128\uFF09",
-    bloomBrightness: "\u6CDB\u5149\u4EAE\u5EA6\uFF08\u9ED8\u8BA4 -0.3\uFF09",
-    bloomDelta: "\u6CDB\u5149 delta\uFF08\u9ED8\u8BA4 1.0\uFF09",
-    bloomSigma: "\u6CDB\u5149 sigma\uFF08\u9ED8\u8BA4 3.78\uFF09",
-    bloomStepSize: "\u6CDB\u5149\u6B65\u957F\uFF08\u9ED8\u8BA4 5.0\uFF09",
-    bloomGlowOnly: "\u4EC5\u663E\u793A\u53D1\u5149\u6548\u679C\uFF08\u4E0D\u663E\u793A\u57FA\u7840\u573A\u666F\uFF09",
-    ambientOcclusion: "\u542F\u7528\u73AF\u5883\u5149\u906E\u853D\uFF08SSAO\uFF09",
-    aoIntensity: "AO \u5F3A\u5EA6\uFF08\u9ED8\u8BA4 3.0\uFF09",
-    aoBias: "AO \u504F\u5DEE\uFF08\u9ED8\u8BA4 0.1\uFF09",
-    aoLengthCap: "AO \u957F\u5EA6\u4E0A\u9650\uFF08\u9ED8\u8BA4 0.26\uFF09",
-    aoStepSize: "AO \u6B65\u957F\uFF08\u9ED8\u8BA4 1.95\uFF09",
-    fxaa: "\u542F\u7528 FXAA \u6297\u952F\u9F7F"
-  },
-  load3dTiles: {
-    id: "\u56FE\u5C42ID",
-    name: "\u56FE\u5C42\u540D\u79F0",
-    url: "tileset.json \u7684 URL",
-    maximumScreenSpaceError: "\u6700\u5927\u5C4F\u5E55\u7A7A\u95F4\u8BEF\u5DEE\uFF08\u503C\u8D8A\u5C0F\u8D8A\u7CBE\u7EC6\uFF09",
-    heightOffset: "\u9AD8\u5EA6\u504F\u79FB\uFF08\u7C73\uFF09"
-  },
-  loadTerrain: {
-    provider: "\u5730\u5F62\u63D0\u4F9B\u8005\u7C7B\u578B",
-    url: "\u81EA\u5B9A\u4E49\u5730\u5F62\u670D\u52A1 URL",
-    cesiumIonAssetId: "Cesium Ion \u8D44\u4EA7ID\uFF08provider=cesiumion \u65F6\u9700\u8981\uFF09"
-  },
-  loadImageryService: {
-    id: "\u56FE\u5C42ID",
-    name: "\u56FE\u5C42\u540D\u79F0",
-    url: "\u5F71\u50CF\u670D\u52A1 URL",
-    serviceType: "\u670D\u52A1\u7C7B\u578B",
-    layerName: "WMS/WMTS \u56FE\u5C42\u540D",
-    opacity: "\u900F\u660E\u5EA6\uFF080~1\uFF09"
-  },
-  loadCzml: {
-    id: "\u56FE\u5C42ID\uFF08\u4E0D\u4F20\u5219\u81EA\u52A8\u751F\u6210\uFF09",
-    name: "\u6570\u636E\u6E90\u663E\u793A\u540D\u79F0",
-    data: "CZML \u6570\u636E\u5305\u6570\u7EC4\uFF08\u4E0E url \u4E8C\u9009\u4E00\uFF09",
-    url: "CZML \u6587\u4EF6 URL\uFF08\u4E0E data \u4E8C\u9009\u4E00\uFF0C\u6D4F\u89C8\u5668\u7AEF fetch \u52A0\u8F7D\uFF09",
-    sourceUri: "CZML \u4E2D\u76F8\u5BF9\u5F15\u7528\u7684\u57FA\u7840 URI",
-    clampToGround: "\u5C06\u5B9E\u4F53\u8D34\u5730\u663E\u793A",
-    flyTo: "\u52A0\u8F7D\u540E\u81EA\u52A8\u98DE\u884C\u5230\u6570\u636E\u8303\u56F4\uFF08\u9ED8\u8BA4 true\uFF09"
-  },
-  loadKml: {
-    id: "\u56FE\u5C42ID\uFF08\u4E0D\u4F20\u5219\u81EA\u52A8\u751F\u6210\uFF09",
-    name: "\u6570\u636E\u6E90\u663E\u793A\u540D\u79F0",
-    url: "KML/KMZ \u6587\u4EF6 URL\uFF08\u4E0E data \u4E8C\u9009\u4E00\uFF0C\u6D4F\u89C8\u5668\u7AEF fetch \u52A0\u8F7D\uFF09",
-    data: "KML XML \u5B57\u7B26\u4E32\uFF08\u4E0E url \u4E8C\u9009\u4E00\uFF09",
-    sourceUri: "KML \u4E2D\u76F8\u5BF9\u5F15\u7528\u7684\u57FA\u7840 URI",
-    clampToGround: "\u5C06\u5B9E\u4F53\u8D34\u5730\u663E\u793A",
-    flyTo: "\u52A0\u8F7D\u540E\u81EA\u52A8\u98DE\u884C\u5230\u6570\u636E\u8303\u56F4\uFF08\u9ED8\u8BA4 true\uFF09"
-  },
-  playTrajectory: {
-    id: "\u8F68\u8FF9\u56FE\u5C42ID",
-    name: "\u8F68\u8FF9\u540D\u79F0",
-    coordinates: "\u8F68\u8FF9\u5750\u6807\u6570\u7EC4 [[lon, lat, alt?], ...]",
-    durationSeconds: "\u52A8\u753B\u65F6\u957F\uFF08\u79D2\uFF09",
-    trailSeconds: "\u5C3E\u8FF9\u957F\u5EA6\uFF08\u79D2\uFF09",
-    label: "\u79FB\u52A8\u4F53\u6807\u7B7E"
-  },
-  addHeatmap: {
-    data: "GeoJSON Point FeatureCollection",
-    radius: "\u70ED\u529B\u5F71\u54CD\u534A\u5F84\uFF08\u50CF\u7D20\uFF09"
-  },
-  geocode: {
-    address: '\u5730\u5740\u3001\u5730\u6807\u6216\u5730\u540D\uFF0C\u4F8B\u5982 "\u6545\u5BAB"\u3001"Eiffel Tower"\u3001"\u4E1C\u4EAC\u5854"',
-    countryCode: '\u4E24\u4F4D ISO \u56FD\u5BB6\u4EE3\u7801\u9650\u5236\u641C\u7D22\u8303\u56F4\uFF08\u5982 "CN"\u3001"US"\u3001"JP"\uFF09'
-  }
-};
+import { normalizeCesiumToolLocale } from "cesium-mcp-contracts";
 
 // src/tool-manifest.ts
 import {
+  cesiumBrowserToolContracts,
   cesiumBrowserToolsetDefinitions,
   cesiumBrowserToolsetNames,
   cesiumSharedToolNames
 } from "cesium-mcp-contracts";
 var cesiumRuntimeOnlyToolNames = ["setIonToken"];
+var sharedContractByName = new Map(
+  cesiumBrowserToolContracts.map((contract) => [contract.name, contract])
+);
+function getCesiumRuntimeToolMetadata(name, locale) {
+  const contract = sharedContractByName.get(name);
+  if (!contract) return void 0;
+  const localized = contract.localizations[locale];
+  return {
+    description: localized.description,
+    parameterDescriptions: localized.parameters,
+    annotations: {
+      title: contract.title,
+      readOnlyHint: contract.annotations.readOnlyHint ?? false,
+      destructiveHint: contract.annotations.destructiveHint ?? false,
+      idempotentHint: contract.annotations.idempotentHint ?? false,
+      openWorldHint: contract.annotations.openWorldHint ?? false
+    }
+  };
+}
 var cesiumRuntimeToolsets = Object.fromEntries(cesiumBrowserToolsetNames.map((name) => [
   name,
   name === "scene" ? [...cesiumBrowserToolsetDefinitions[name].names, ...cesiumRuntimeOnlyToolNames] : [...cesiumBrowserToolsetDefinitions[name].names]
+]));
+var cesiumRuntimeToolsetDescriptions = Object.fromEntries(cesiumBrowserToolsetNames.map((name) => [
+  name,
+  cesiumBrowserToolsetDefinitions[name].description
 ]));
 var cesiumRuntimeCommandToolNames = [
   ...cesiumSharedToolNames,
@@ -1414,7 +495,7 @@ function _setupWss(wss) {
 }
 var server = new McpServer({
   name: "cesium-mcp-runtime",
-  version: "1.143.0",
+  version: "1.143.1",
   title: "Cesium MCP Runtime",
   description: "AI-powered 3D globe control via MCP \u2014 camera, layers, entities, animation, and interaction with CesiumJS.",
   websiteUrl: "https://github.com/gaopengbin/cesium-mcp"
@@ -1448,20 +529,7 @@ server.resource(
   }
 );
 var TOOLSETS = cesiumRuntimeToolsets;
-var TOOLSET_DESCRIPTIONS = {
-  view: "Camera view controls (flyTo, setView, getView, zoomToExtent), viewpoint bookmarks (save, load, list), and scene export",
-  entity: "Core entity operations (marker, label, model, polygon, polyline, update, remove) plus batch add, query, and property inspection",
-  layer: "Layer management (GeoJSON, list, remove, clear all, visibility, style, basemap)",
-  camera: "Advanced camera controls (lookAt, orbit, camera options)",
-  "entity-ext": "Extended entity types (billboard, box, corridor, cylinder, ellipse, rectangle, wall)",
-  animation: "Animation system (create/control animations, track entities, clock, lighting)",
-  scene: "Scene environment and post-processing (fog, atmosphere, shadows, bloom, SSAO, FXAA)",
-  tiles: "3D Tiles, terrain, imagery services, CZML and KML/KMZ data sources",
-  interaction: "User interaction (screenshot, highlight, measure)",
-  trajectory: "Trajectory playback",
-  heatmap: "Heatmap visualization",
-  geolocation: "Geocoding \u2014 convert address/place name to coordinates (Nominatim/OSM)"
-};
+var TOOLSET_DESCRIPTIONS = cesiumRuntimeToolsetDescriptions;
 var DEFAULT_TOOLSETS = ["view", "entity", "layer", "interaction"];
 var _tsEnv = process.env.CESIUM_TOOLSETS?.trim();
 var _allMode = _tsEnv === "all";
@@ -1479,9 +547,7 @@ for (const [setName, tools] of Object.entries(TOOLSETS)) {
   for (const tool of tools) TOOL_TO_TOOLSET.set(tool, setName);
 }
 var _toolDefs = /* @__PURE__ */ new Map();
-var _localeKey = process.env.CESIUM_LOCALE?.trim().toLowerCase();
-var _toolDesc = _localeKey === "zh-cn" ? toolDescriptions2 : toolDescriptions;
-var _paramDesc = _localeKey === "zh-cn" ? paramDescriptions2 : paramDescriptions;
+var _localeKey = normalizeCesiumToolLocale(process.env.CESIUM_LOCALE);
 function _applyToolDef(s, args) {
   const name = args[0];
   const toolset = TOOL_TO_TOOLSET.get(name);
@@ -1500,8 +566,12 @@ function _applyToolDef(s, args) {
 }
 var _registerTool = ((...args) => {
   const name = args[0];
-  if (_toolDesc[name]) args[1] = _toolDesc[name];
-  const paramOverrides = _paramDesc[name];
+  const metadata = getCesiumRuntimeToolMetadata(name, _localeKey);
+  if (metadata) {
+    args[1] = metadata.description;
+    args[3] = metadata.annotations;
+  }
+  const paramOverrides = metadata?.parameterDescriptions;
   if (paramOverrides && typeof args[2] === "object" && args[2] !== null) {
     const schema = args[2];
     for (const [key, desc] of Object.entries(paramOverrides)) {
@@ -1511,7 +581,7 @@ var _registerTool = ((...args) => {
   if (typeof args[2] === "object" && args[2] !== null) {
     const schema = args[2];
     schema.sessionId = z.string().optional().describe(
-      _localeKey === "zh-cn" ? "\u76EE\u6807\u6D4F\u89C8\u5668 session ID\uFF08\u591A\u6D4F\u89C8\u5668\u8DEF\u7531\uFF0C\u53EF\u9009\uFF09" : "Target browser session ID for multi-browser routing (optional)"
+      _localeKey === "zh-CN" ? "\u76EE\u6807\u6D4F\u89C8\u5668 session ID\uFF08\u591A\u6D4F\u89C8\u5668\u8DEF\u7531\uFF0C\u53EF\u9009\uFF09" : "Target browser session ID for multi-browser routing (optional)"
     );
   }
   _toolDefs.set(name, args);
@@ -2743,7 +1813,7 @@ if (!_allMode) {
 }
 server.tool(
   "listSessions",
-  _localeKey === "zh-cn" ? "\u5217\u51FA\u5F53\u524D\u6240\u6709\u5DF2\u8FDE\u63A5\u7684\u6D4F\u89C8\u5668 session\uFF08ID \u548C\u8FDE\u63A5\u72B6\u6001\uFF09\uFF0C\u7528\u4E8E\u591A\u6D4F\u89C8\u5668\u8DEF\u7531" : "List all connected browser sessions (ID and connection state) for multi-browser routing",
+  _localeKey === "zh-CN" ? "\u5217\u51FA\u5F53\u524D\u6240\u6709\u5DF2\u8FDE\u63A5\u7684\u6D4F\u89C8\u5668 session\uFF08ID \u548C\u8FDE\u63A5\u72B6\u6001\uFF09\uFF0C\u7528\u4E8E\u591A\u6D4F\u89C8\u5668\u8DEF\u7531" : "List all connected browser sessions (ID and connection state) for multi-browser routing",
   {},
   { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "List Sessions" },
   async () => {
@@ -2758,7 +1828,7 @@ server.tool(
 function _createHttpMcpServer(filterToolsets) {
   const s = new McpServer({
     name: "cesium-mcp-runtime",
-    version: "1.143.0",
+    version: "1.143.1",
     title: "Cesium MCP Runtime",
     description: "AI-powered 3D globe control via MCP \u2014 camera, layers, entities, animation, and interaction with CesiumJS.",
     websiteUrl: "https://github.com/gaopengbin/cesium-mcp"
@@ -2805,7 +1875,7 @@ function _createHttpMcpServer(filterToolsets) {
   }
   s.tool(
     "listSessions",
-    _localeKey === "zh-cn" ? "\u5217\u51FA\u5F53\u524D\u6240\u6709\u5DF2\u8FDE\u63A5\u7684\u6D4F\u89C8\u5668 session\uFF08ID \u548C\u8FDE\u63A5\u72B6\u6001\uFF09\uFF0C\u7528\u4E8E\u591A\u6D4F\u89C8\u5668\u8DEF\u7531" : "List all connected browser sessions (ID and connection state) for multi-browser routing",
+    _localeKey === "zh-CN" ? "\u5217\u51FA\u5F53\u524D\u6240\u6709\u5DF2\u8FDE\u63A5\u7684\u6D4F\u89C8\u5668 session\uFF08ID \u548C\u8FDE\u63A5\u72B6\u6001\uFF09\uFF0C\u7528\u4E8E\u591A\u6D4F\u89C8\u5668\u8DEF\u7531" : "List all connected browser sessions (ID and connection state) for multi-browser routing",
     {},
     { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "List Sessions" },
     async () => {

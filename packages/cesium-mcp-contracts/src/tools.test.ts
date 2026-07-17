@@ -40,6 +40,39 @@ describe('cesiumCoreToolContracts', () => {
     }
   })
 
+  it('publishes complete behavior annotations and bilingual metadata', () => {
+    for (const tool of cesiumBrowserToolContracts) {
+      expect(tool.title).not.toBe(tool.name)
+      expect(tool.annotations).toMatchObject({
+        readOnlyHint: expect.any(Boolean),
+        destructiveHint: expect.any(Boolean),
+        idempotentHint: expect.any(Boolean),
+        openWorldHint: expect.any(Boolean),
+      })
+      expect(tool.localizations.en.description).toBe(tool.description)
+      expect(tool.localizations['zh-CN'].description).not.toBe('')
+      const parameterNames = Object.keys(
+        (tool.inputSchema.properties ?? {}) as Record<string, unknown>,
+      )
+      for (const locale of ['en', 'zh-CN'] as const) {
+        expect(Object.keys(tool.localizations[locale].parameters)).toEqual(
+          expect.arrayContaining(parameterNames),
+        )
+      }
+    }
+
+    const geocode = cesiumBrowserToolContracts.find(tool => tool.name === 'geocode')!
+    expect(geocode.title).toBe('Geocode Address')
+    expect(geocode.annotations).toMatchObject({ readOnlyHint: true, openWorldHint: true })
+
+    const removeLayer = cesiumBrowserToolContracts.find(tool => tool.name === 'removeLayer')!
+    expect(removeLayer.annotations).toMatchObject({ destructiveHint: true, idempotentHint: true })
+
+    const gaussian = cesiumBrowserToolContracts.find(tool => tool.name === 'load3dGaussianSplat')!
+    expect(gaussian.localizations['zh-CN'].description).toContain('高斯泼溅')
+    expect(gaussian.localizations['zh-CN'].parameters.url).toContain('tileset.json')
+  })
+
   it('selects core, all, one, or several deduplicated toolsets', () => {
     expect(selectCesiumToolContracts()).toBe(cesiumCoreToolContracts)
     expect(selectCesiumToolContracts('all')).toBe(cesiumBrowserToolContracts)

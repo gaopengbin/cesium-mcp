@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 
 import { describe, expect, it } from 'vitest'
 import {
+  cesiumBrowserToolContracts,
   cesiumBrowserToolsetDefinitions,
   cesiumBrowserToolsetNames,
   cesiumSharedToolNames,
@@ -10,7 +11,9 @@ import {
   cesiumRuntimeCommandToolNames,
   cesiumRuntimeMetaToolNames,
   cesiumRuntimeOnlyToolNames,
+  cesiumRuntimeToolsetDescriptions,
   cesiumRuntimeToolsets,
+  getCesiumRuntimeToolMetadata,
 } from './tool-manifest.js'
 
 describe('runtime tool manifest', () => {
@@ -23,6 +26,33 @@ describe('runtime tool manifest', () => {
 
       expect(runtimeNames.slice(0, sharedNames.length)).toEqual(sharedNames)
       if (name !== 'scene') expect(runtimeNames).toHaveLength(sharedNames.length)
+    }
+  })
+
+  it('derives localized registration metadata from the canonical contracts', () => {
+    for (const contract of cesiumBrowserToolContracts) {
+      const metadata = getCesiumRuntimeToolMetadata(contract.name, 'en')!
+      expect(metadata.description).toBe(contract.description)
+      expect(metadata.annotations).toEqual({
+        title: contract.title,
+        readOnlyHint: contract.annotations.readOnlyHint,
+        destructiveHint: contract.annotations.destructiveHint,
+        idempotentHint: contract.annotations.idempotentHint,
+        openWorldHint: contract.annotations.openWorldHint,
+      })
+    }
+
+    const chineseGaussian = getCesiumRuntimeToolMetadata('load3dGaussianSplat', 'zh-CN')!
+    expect(chineseGaussian.description).toContain('高斯泼溅')
+    expect(chineseGaussian.parameterDescriptions.url).toContain('tileset.json')
+    expect(getCesiumRuntimeToolMetadata('setIonToken', 'en')).toBeUndefined()
+  })
+
+  it('reuses canonical toolset descriptions', () => {
+    for (const name of cesiumBrowserToolsetNames) {
+      expect(cesiumRuntimeToolsetDescriptions[name]).toBe(
+        cesiumBrowserToolsetDefinitions[name].description,
+      )
     }
   })
 

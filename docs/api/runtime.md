@@ -64,9 +64,9 @@ cesium-mcp-runtime
 }
 ```
 
-## MCP Tools (58 + 2 meta)
+## MCP Tools (62 command tools + 2 discovery meta-tools)
 
-Tools are organized into **12 toolsets**. By default, 4 core toolsets are enabled (~31 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically.
+Tools are organized into **12 toolsets**. By default, 4 core toolsets are enabled (30 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically. Shared titles, behavior annotations, and localized descriptions come from `cesium-mcp-contracts`.
 
 ### Toolsets
 
@@ -74,15 +74,15 @@ Tools are organized into **12 toolsets**. By default, 4 core toolsets are enable
 |---------|-------|---------|-------------|
 | `view` | 8 | Yes | Camera view controls + viewpoint bookmarks + scene export |
 | `entity` | 10 | Yes | Core entity operations + batch, query & property inspection |
-| `layer` | 8 | Yes | Layer management (GeoJSON, schema, style, basemap) |
+| `layer` | 9 | Yes | Layer management (GeoJSON, schema, style, basemap) |
 | `interaction` | 3 | Yes | Screenshot, highlight & measurement |
 | `camera` | 4 | — | Advanced camera controls (orbit, lookAt) |
 | `entity-ext` | 7 | — | Extended entity types (box, cylinder, wall, etc.) |
 | `animation` | 8 | — | Animation system (waypoints, clock, tracking, lighting) |
-| `tiles` | 5 | — | 3D Tiles, terrain, imagery services, CZML & KML |
+| `tiles` | 7 | — | 3D Tiles, Gaussian Splats, terrain, imagery services, CZML & KML |
 | `trajectory` | 1 | — | Trajectory playback |
 | `heatmap` | 1 | — | Heatmap visualization |
-| `scene` | 2 | — | Scene options & post-processing |
+| `scene` | 3 | — | Scene options, post-processing & Runtime-only Ion credentials |
 | `geolocation` | 1 | — | Geocoding — convert address/place name to coordinates (Nominatim/OSM) |
 
 ### Dynamic Discovery

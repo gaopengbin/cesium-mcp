@@ -21,7 +21,7 @@ const viewer = new Cesium.Viewer('cesiumContainer')
 const bridge = new CesiumBridge(viewer)
 ```
 
-## 命令（58 个）
+## 命令（60 个）
 
 ### 视图控制
 
@@ -56,6 +56,7 @@ const bridge = new CesiumBridge(viewer)
 | 命令 | 描述 | 关键参数 |
 |------|------|----------|
 | `addGeoJsonLayer` | 加载 GeoJSON 数据 | `url` 或 `data`, `name`, `style` |
+| `addGeoJsonPrimitive` | 使用 Primitive 加载大规模 GeoJSON | `url` 或 `data`, `name`, `allowPicking` |
 | `listLayers` | 列出所有已加载图层 | — |
 | `removeLayer` | 按 ID 移除图层 | `layerId` |
 | `clearAll` | 移除所有图层、实体和数据源 | — |
@@ -103,10 +104,12 @@ const bridge = new CesiumBridge(viewer)
 | 命令 | 描述 | 关键参数 |
 |------|------|----------|
 | `load3dTiles` | 加载 3D Tileset | `url` 或 `ionAssetId`, `name`, `maximumScreenSpaceError` |
+| `load3dGaussianSplat` | 加载 3D 高斯泼溅数据集 | `url`, `name`, `maximumScreenSpaceError` |
 | `loadTerrain` | 设置地形提供者 | `url`, `provider` |
 | `loadImageryService` | 添加影像图层 | `url`/`serviceType` 或 `ionAssetId`, `name` |
 | `loadCzml` | 加载 CZML 时间动态数据 | `data` 或 `url`, `name` |
 | `loadKml` | 加载 KML/KMZ 数据 | `data` 或 `url`, `name` |
+| `setEdgeDisplayMode` | 设置 3D Tiles 表面/边缘显示模式 | `tilesetId`, `mode` |
 
 ### 交互
 

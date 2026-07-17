@@ -470,6 +470,7 @@ var CesiumMcpBridge = (function (exports) {
                 imgData[i - 1] = palette[offset + 2];
                 imgData[i] = useGradientOpacity ? palette[offset + 3] : finalAlpha;
               }
+              img.data = imgData;
               this.ctx.putImageData(img, x, y);
               this._renderBoundaries = [1e3, 1e3, 0, 0];
             },

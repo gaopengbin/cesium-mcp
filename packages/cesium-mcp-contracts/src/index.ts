@@ -1,4 +1,5 @@
 export { cesiumCoreToolContracts } from './tools'
+export { normalizeCesiumToolLocale } from './metadata'
 export {
   cesiumBrowserToolContracts,
   cesiumBrowserToolsetDefinitions,
@@ -16,5 +17,7 @@ export type {
 export type {
   CesiumToolAnnotations,
   CesiumToolContract,
+  CesiumToolLocale,
+  CesiumToolLocalization,
   JsonSchema,
 } from './types'

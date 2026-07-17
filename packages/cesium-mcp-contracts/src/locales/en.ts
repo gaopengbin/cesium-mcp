@@ -1,6 +1,6 @@
 /**
  * English locale — tool descriptions & parameter descriptions
- * Default locale for cesium-mcp-runtime
+ * Shared locale metadata for Cesium tool contracts
  */
 
 export const toolDescriptions: Record<string, string> = {
@@ -65,10 +65,12 @@ export const toolDescriptions: Record<string, string> = {
 
   // — tiles
   load3dTiles: 'Load 3D Tiles dataset (e.g. building white models, city models)',
+  load3dGaussianSplat: 'Load a 3D Gaussian Splat dataset',
   loadTerrain: 'Load or switch terrain (flat/ArcGIS/CesiumIon/custom URL)',
   loadImageryService: 'Load imagery service layer (WMS/WMTS/XYZ/ArcGIS MapServer)',
   loadCzml: 'Load CZML time-dynamic data source (CesiumJS native format, supports time-varying position/style/animation). data and url are mutually exclusive',
   loadKml: 'Load KML/KMZ data source (Google Earth format). data and url are mutually exclusive',
+  setEdgeDisplayMode: 'Set the edge display mode for one or all 3D Tiles layers',
 
   // — interaction
   screenshot: 'Capture current map view (returns base64 PNG)',
@@ -112,6 +114,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     roll: 'Roll angle (degrees)',
   },
   zoomToExtent: {
+    bbox: 'Geographic extent [west, south, east, north] in degrees',
     west: 'West boundary longitude (degrees)',
     south: 'South boundary latitude (degrees)',
     east: 'East boundary longitude (degrees)',
@@ -294,6 +297,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     height: 'Height above ground (meters)',
     extrudedHeight: 'Extruded height (meters)',
     outline: 'Show outline',
+    fill: 'Show fill',
     outlineColor: 'Outline color',
   },
   addCylinder: {
@@ -437,8 +441,16 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     id: 'Layer ID',
     name: 'Layer name',
     url: 'tileset.json URL',
+    ionAssetId: 'Cesium Ion 3D Tiles asset ID',
     maximumScreenSpaceError: 'Maximum screen space error (lower = more detailed)',
     heightOffset: 'Height offset (meters)',
+  },
+  load3dGaussianSplat: {
+    id: 'Layer ID',
+    name: 'Layer name',
+    url: 'Gaussian Splat tileset.json URL',
+    maximumScreenSpaceError: 'Maximum screen space error (lower = more detailed)',
+    show: 'Whether the layer is visible',
   },
   loadTerrain: {
     provider: 'Terrain provider type',
@@ -449,6 +461,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     id: 'Layer ID',
     name: 'Layer name',
     url: 'Imagery service URL',
+    ionAssetId: 'Cesium Ion imagery asset ID',
     serviceType: 'Service type',
     layerName: 'WMS/WMTS layer name',
     opacity: 'Opacity (0-1)',
@@ -471,6 +484,10 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     clampToGround: 'Clamp entities to ground surface',
     flyTo: 'Fly to data extent after loading (default true)',
   },
+  setEdgeDisplayMode: {
+    tilesetId: 'Target layer ID (omit to apply to all 3D Tiles layers)',
+    mode: 'Edge mode: surfaces_only, surfaces_and_edges, or edges_only',
+  },
   playTrajectory: {
     id: 'Trajectory layer ID',
     name: 'Trajectory name',
@@ -480,8 +497,15 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     label: 'Moving object label',
   },
   addHeatmap: {
+    id: 'Layer ID',
+    name: 'Layer name',
     data: 'GeoJSON Point FeatureCollection',
     radius: 'Heat influence radius (pixels)',
+    gradient: 'Heatmap color gradient',
+    blur: 'Heat blur factor',
+    maxOpacity: 'Maximum heatmap opacity',
+    minOpacity: 'Minimum heatmap opacity',
+    resolution: 'Heatmap texture resolution in pixels',
   },
   geocode: {
     address: 'Address, landmark, or place name, e.g. "故宫", "Eiffel Tower", "東京タワー"',

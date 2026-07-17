@@ -168,25 +168,25 @@ MCP client config:
 }
 ```
 
-## 58 Available Tools
+## 62 Available Command Tools
 
-Tools are organized into **12 toolsets**. Default mode enables 4 core toolsets (~31 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically at runtime.
+Tools are organized into **12 toolsets**. Default mode enables 4 core toolsets (30 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically at runtime.
 
-> **i18n**: Tool descriptions default to English. Set `CESIUM_LOCALE=zh-CN` for Chinese.
+> **i18n**: Tool descriptions default to English. Set `CESIUM_LOCALE=zh-CN` for Chinese. Titles, behavior annotations, and localized descriptions come from the shared `cesium-mcp-contracts` package.
 
 | Toolset | Tools |
 |---------|-------|
 | **view** (default) | `flyTo`, `setView`, `getView`, `zoomToExtent`, `saveViewpoint`, `loadViewpoint`, `listViewpoints`, `exportScene` |
 | **entity** (default) | `addMarker`, `addLabel`, `addModel`, `addPolygon`, `addPolyline`, `updateEntity`, `removeEntity`, `batchAddEntities`, `queryEntities`, `getEntityProperties` |
-| **layer** (default) | `addGeoJsonLayer`, `listLayers`, `removeLayer`, `clearAll`, `setLayerVisibility`, `updateLayerStyle`, `getLayerSchema`, `setBasemap` |
+| **layer** (default) | `addGeoJsonLayer`, `addGeoJsonPrimitive`, `listLayers`, `removeLayer`, `clearAll`, `setLayerVisibility`, `updateLayerStyle`, `getLayerSchema`, `setBasemap` |
 | **interaction** (default) | `screenshot`, `highlight`, `measure` |
 | camera | `lookAtTransform`, `startOrbit`, `stopOrbit`, `setCameraOptions` |
 | entity-ext | `addBillboard`, `addBox`, `addCorridor`, `addCylinder`, `addEllipse`, `addRectangle`, `addWall` |
 | animation | `createAnimation`, `controlAnimation`, `removeAnimation`, `listAnimations`, `updateAnimationPath`, `trackEntity`, `controlClock`, `setGlobeLighting` |
-| tiles | `load3dTiles`, `loadTerrain`, `loadImageryService`, `loadCzml`, `loadKml` |
+| tiles | `load3dTiles`, `load3dGaussianSplat`, `loadTerrain`, `loadImageryService`, `loadCzml`, `loadKml`, `setEdgeDisplayMode` |
 | trajectory | `playTrajectory` |
 | heatmap | `addHeatmap` |
-| scene | `setSceneOptions`, `setPostProcess` |
+| scene | `setSceneOptions`, `setPostProcess`, `setIonToken` (Runtime only) |
 | geolocation | `geocode` |
 
 > **Relationship with CesiumGS official MCP servers**: The `camera`, `entity-ext`, and `animation` toolsets natively fuse capabilities from [CesiumGS/cesium-mcp-server](https://github.com/CesiumGS/cesium-mcp-server) (Camera Server, Entity Server, Animation Server) into this project's unified bridge architecture. This means you get all official functionality plus additional tools — in a single MCP server, without running multiple processes.

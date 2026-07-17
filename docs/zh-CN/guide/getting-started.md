@@ -182,6 +182,6 @@ cd cesium-mcp/examples/minimal
 
 - [架构概览](/zh-CN/guide/architecture) — 了解共享执行层与独立适配层
 - [WebMCP 浏览器接入](/zh-CN/guide/webmcp) — 无需 MCP 服务，直接暴露页面工具
-- [Bridge API](/zh-CN/api/bridge) — 全部 58 个命令
+- [Bridge API](/zh-CN/api/bridge) — 全部 60 个浏览器命令
 - [Runtime API](/zh-CN/api/runtime) — MCP 工具和资源
 - [Dev API](/zh-CN/api/dev) — IDE 编码辅助工具

@@ -21,7 +21,7 @@ const viewer = new Cesium.Viewer('cesiumContainer')
 const bridge = new CesiumBridge(viewer)
 ```
 
-## Commands (58)
+## Commands (60)
 
 ### View Control
 
@@ -56,6 +56,7 @@ const bridge = new CesiumBridge(viewer)
 | Command | Description | Key Parameters |
 |---------|-------------|----------------|
 | `addGeoJsonLayer` | Load GeoJSON data | `url` or `data`, `name`, `style` |
+| `addGeoJsonPrimitive` | Load large GeoJSON datasets with primitives | `url` or `data`, `name`, `allowPicking` |
 | `listLayers` | List all loaded layers | — |
 | `removeLayer` | Remove a layer by ID | `layerId` |
 | `clearAll` | Remove all layers, entities, and data sources | — |
@@ -103,10 +104,12 @@ const bridge = new CesiumBridge(viewer)
 | Command | Description | Key Parameters |
 |---------|-------------|----------------|
 | `load3dTiles` | Load 3D Tileset | `url` or `ionAssetId`, `name`, `maximumScreenSpaceError` |
+| `load3dGaussianSplat` | Load a 3D Gaussian Splat dataset | `url`, `name`, `maximumScreenSpaceError` |
 | `loadTerrain` | Set terrain provider | `url`, `provider` |
 | `loadImageryService` | Add imagery layer | `url`/`serviceType` or `ionAssetId`, `name` |
 | `loadCzml` | Load CZML time-dynamic data | `data` or `url`, `name` |
 | `loadKml` | Load KML/KMZ data | `data` or `url`, `name` |
+| `setEdgeDisplayMode` | Set 3D Tiles surface/edge display | `tilesetId`, `mode` |
 
 ### Interaction
 
