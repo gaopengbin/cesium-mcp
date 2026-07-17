@@ -12,6 +12,7 @@
   <link rel="shortcut icon" href="/favicon.svg">
   <script src="/packages/cesium-mcp-webmcp/dist/cesium-mcp-webmcp.browser.global.js"></script>
   <script src="/tool-router.js"></script>
+  <script src="/agent-response.js"></script>
   <title>CesiumJS AI Agent - Browser Only</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" onload="this.onload=null;this.rel='stylesheet'">
@@ -582,6 +583,7 @@ const I18N = {
     errorPrefix: 'Error',
     rateLimitError: 'Too many requests. Please try again in a minute.',
     aiUnavailable: 'The hosted AI is temporarily unavailable.',
+    incompleteToolResponse: 'The AI returned an incomplete tool call twice. Please shorten the request or try again.',
     insecureAssetUrl: 'This HTTPS demo cannot load that HTTP asset. Use HTTPS or configure an approved asset proxy.',
     argsLabel: 'Args',
     resultLabel: 'Result',
@@ -659,6 +661,7 @@ const I18N = {
     errorPrefix: '错误',
     rateLimitError: '请求过于频繁，请一分钟后再试。',
     aiUnavailable: '在线 AI 服务暂时不可用。',
+    incompleteToolResponse: 'AI 连续两次返回了不完整的工具调用，请缩短请求后重试。',
     insecureAssetUrl: '当前 HTTPS 演示不能直接加载该 HTTP 资源，请改用 HTTPS 或配置允许的资源代理。',
     argsLabel: '参数',
     resultLabel: '结果',
@@ -861,6 +864,8 @@ Guidelines:
 - For place names, use the geocode tool first to get coordinates, then use flyTo or addMarker
 - After executing actions, briefly confirm what you did
 - If the user asks about capabilities, explain what tools are available
+- Use structured tool calls only; never print tool-call markup or tool JSON as text
+- Keep tool arguments compact. Do not generate large inline CZML; prefer atomic tools or an existing data URL, and split large work into smaller calls
 - Reply in English`,
   'zh-CN': `你是一个 CesiumJS 三维地球助手，通过控制浏览器中的实时 CesiumJS Viewer，帮助用户探索地点并可视化地理数据。
 
@@ -872,6 +877,8 @@ Guidelines:
 - 遇到地名时，先使用 geocode 获取坐标，再调用 flyTo 或 addMarker
 - 完成操作后，简短确认执行结果
 - 用户询问能力时，说明当前可用的工具
+- 只使用结构化工具调用，不要在文字中输出工具调用标记或工具 JSON
+- 保持工具参数紧凑，不要生成大段内联 CZML；优先使用原子工具或已有数据 URL，并将大型任务拆分执行
 - 使用简体中文回复`,
 }
 
@@ -1098,10 +1105,17 @@ async function runAgentLoop() {
   try {
     let maxIterations = 10;  // safety limit
     while (maxIterations-- > 0) {
-      const response = await callLLM();
-      if (!response) break;
-
-      const choice = response.choices[0];
+      const choice = await CesiumAgentResponse.requestValidChoice(
+        recoveryPrompt => callLLM(recoveryPrompt),
+        {
+          locale: currentLocale,
+          maxRetries: 1,
+          onInvalid: ({ attempt, reason }) => console.warn(
+            '[Agent] Invalid assistant response',
+            { attempt, reason },
+          ),
+        },
+      );
       const msg = choice.message;
 
       // Add assistant message to history
@@ -1159,7 +1173,10 @@ async function runAgentLoop() {
     }
   } catch (err) {
     showThinking(false);
-    appendMessage('system', `${t('errorPrefix')}: ${err.message}`);
+    const errorMessage = err.code === 'INCOMPLETE_TOOL_RESPONSE'
+      ? t('incompleteToolResponse')
+      : err.message
+    appendMessage('system', `${t('errorPrefix')}: ${errorMessage}`);
     console.error('[Agent]', err);
   } finally {
     isProcessing = false;
@@ -1168,12 +1185,16 @@ async function runAgentLoop() {
   }
 }
 
-async function callLLM() {
+async function callLLM(recoveryPrompt = '') {
   const scope = activeToolSelection.toolsetNames.join(', ')
   const routingPrompt = currentLocale === 'zh-CN'
     ? `本轮已启用工具范围：${scope}。只根据当前提供的工具判断可执行能力。`
     : `Active tool scope for this turn: ${scope}. Judge executable capabilities only from the tools provided.`
-  const allMessages = [{ role: 'system', content: `${SYSTEM_PROMPTS[currentLocale]}\n\n${routingPrompt}` }, ...messages];
+  const recoveryInstruction = recoveryPrompt ? `\n\n${recoveryPrompt}` : ''
+  const allMessages = [{
+    role: 'system',
+    content: `${SYSTEM_PROMPTS[currentLocale]}\n\n${routingPrompt}${recoveryInstruction}`,
+  }, ...messages];
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

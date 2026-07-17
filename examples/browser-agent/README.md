@@ -56,6 +56,10 @@ The built-in chat defaults to automatic routing. It matches English and Chinese 
 
 The selector above the prompt also offers the 15-tool core set, each individual toolset, and an advanced all-61 mode. WebMCP registration always remains all 61 regardless of this chat selection.
 
+### Tool-call recovery
+
+The built-in chat validates every assistant response before adding it to conversation history. A completion stopped by the token limit, malformed structured arguments, or tool markup emitted as ordinary text is discarded and retried once with a compact-tool instruction. Inline `loadCzml` arguments above 6,000 characters are also retried as smaller atomic calls or an existing data URL. If recovery fails again, the page shows a localized error instead of exposing partial XML or JSON.
+
 ## HTTPS asset proxy
 
 The hosted page is HTTPS, so browsers block HTTP tilesets as mixed content. The Pages Worker exposes a path-preserving proxy for explicitly approved sources:

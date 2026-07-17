@@ -92,6 +92,15 @@ describe('browser-agent startup order', () => {
     expect(html).toContain('tools: activeToolSelection.tools')
   })
 
+  it('retries incomplete tool responses without rendering raw tool markup', () => {
+    expect(html).toContain('<script src="/agent-response.js"></script>')
+    expect(html).toContain('CesiumAgentResponse.requestValidChoice')
+    expect(html).toContain("maxRetries: 1")
+    expect(html).toContain("err.code === 'INCOMPLETE_TOOL_RESPONSE'")
+    expect(html).toContain('Do not generate large inline CZML')
+    expect(html).toContain('不要生成大段内联 CZML')
+  })
+
   it('rewrites the allowlisted HTTP tiles origin for both execution paths', () => {
     expect(html).toContain("'http://jojo1986.cn:8888': 'jojo'")
     expect(html).toContain('function prepareCommandParams(action, params)')
