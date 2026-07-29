@@ -1,6 +1,6 @@
 # MCP 2026-07-28 升级计划
 
-> 状态：SDK v2 stable 已接入，官方 `server-stateless` 一致性场景已通过
+> 状态：SDK v2 stable 已接入，`1.143.4-next.0` 已发布到 npm `next`
 > 工作分支：`codex/mcp-2026-07-28-upgrade`
 > 基线：`@modelcontextprotocol/sdk ^1.29.0`、MCP `2025-11-25` 兼容行为
 
@@ -20,12 +20,14 @@
 - 精确锁定官方 conformance `0.2.0-alpha.10`，`server-stateless`
   场景达到 28/28 通过、0 失败；2 个 list-changed SHOULD 项保留为 warning。
 - 将一致性测试专用诊断工具限制在 `CESIUM_MCP_CONFORMANCE=1`，不混入生产工具列表。
+- 已合并到 `main`，并通过 GitHub Actions 将 bridge、runtime、dev
+  `1.143.4-next.0` 发布到 npm `next`；`latest` 保持 `1.143.3`。
+- 已更新根 README、runtime README 和官网中英文安装/兼容性文档。
 
 正式版发布前剩余：
 
-- 更新面向用户的中英文 runtime 文档和 changeset。
 - 完成真实 Chrome → MCP HTTP → WebSocket → Cesium 的浏览器闭环验证。
-- 先发布 npm `next` 验证，不移动 `latest`。
+- 收集 npm `next` 的真实客户端验证结果，确认无阻断问题后再移动 `latest`。
 
 ## 1. 目标
 

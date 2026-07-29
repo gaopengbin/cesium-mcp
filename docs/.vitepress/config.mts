@@ -27,6 +27,13 @@ export default defineConfig({
           { text: 'WebMCP', link: '/zh-CN/guide/webmcp' },
           { text: 'API 参考', link: '/zh-CN/api/bridge' },
           { text: '示例', link: '/zh-CN/examples/' },
+          {
+            text: `v${version}`,
+            items: [
+              { text: '更新日志', link: 'https://github.com/gaopengbin/cesium-mcp/releases' },
+              { text: 'npm', link: 'https://www.npmjs.com/package/cesium-mcp-runtime' },
+            ],
+          },
         ],
         sidebar: {
           '/zh-CN/guide/': [

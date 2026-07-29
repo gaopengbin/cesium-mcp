@@ -7,7 +7,12 @@
 [![npm version](https://img.shields.io/npm/v/cesium-mcp-runtime.svg)](https://www.npmjs.com/package/cesium-mcp-runtime)
 [![license](https://img.shields.io/npm/l/cesium-mcp-runtime.svg)](LICENSE)
 
-> **Status**: stable, slow release cadence (updated as needed). If you only want to try the "AI + Cesium" feel, [examples/browser-agent](../../examples/browser-agent/) is the recommended starting point — zero backend, runs in three minutes. See [Which mode should I use?](https://gaopengbin.github.io/cesium-mcp/guide/which-mode.html)
+> **Release channels**: `latest` is the stable `1.143.3` line. `next` is
+> `1.143.4-next.0`, the MCP SDK v2 preview with MCP `2026-07-28` support.
+> If you only want to try the "AI + Cesium" feel,
+> [examples/browser-agent](../../examples/browser-agent/) is the recommended
+> starting point — zero backend, runs in three minutes. See
+> [Which mode should I use?](https://gaopengbin.github.io/cesium-mcp/guide/which-mode.html).
 
 ## Architecture
 
@@ -28,11 +33,15 @@ Two transport modes are supported:
 ## Install & Run
 
 ```bash
-# Run directly with npx (stdio mode, default)
+# Stable channel (stdio mode, default)
 npx cesium-mcp-runtime
 
-# Or install globally
+# MCP v2 preview
+npx cesium-mcp-runtime@next
+
+# Or install either channel globally
 npm install -g cesium-mcp-runtime
+npm install -g cesium-mcp-runtime@next
 cesium-mcp-runtime
 ```
 
@@ -324,14 +333,15 @@ curl -X POST http://localhost:9100/push \
 
 ## Compatibility
 
-| cesium-mcp-runtime | cesium-mcp-bridge | Cesium |
-|--------------------|-------------------|--------|
-| 1.143.x | 1.143.x | ~1.143.0 |
+| Channel | Runtime | Bridge | MCP protocol | Cesium |
+|---------|---------|--------|--------------|--------|
+| `latest` | `1.143.3` | `1.143.3` | 2025-era clients | `~1.143.0` |
+| `next` | `1.143.4-next.0` | `1.143.4-next.0` | `2025-11-25` + `2026-07-28` | `~1.143.0` |
 
-The SDK v2 upgrade branch serves MCP `2025-11-25` clients and the
-`2026-07-28` protocol from the same stdio/HTTP entry using the stable
-`@modelcontextprotocol/server` and `@modelcontextprotocol/node` `2.0.0`
-packages.
+The `next` release serves both protocol generations from the same stdio/HTTP
+entry using stable `@modelcontextprotocol/server` and
+`@modelcontextprotocol/node` `2.0.0` packages. Remove `@next` from the npx or
+npm command to return to `latest`.
 
 The repository pins the official conformance runner separately and validates
 the `2026-07-28` `server-stateless` scenario with:

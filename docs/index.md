@@ -24,7 +24,7 @@ features:
   - icon:
       src: /icons/clients.svg
     title: WebMCP and MCP
-    details: Expose page-local tools directly to compatible browsers, or connect Claude Desktop, VS Code, Cursor, Dify, and other MCP clients through the runtime.
+    details: Expose page-local tools directly to compatible browsers, or connect MCP clients through the runtime. The v2 preview supports both MCP 2025-11-25 and 2026-07-28.
   - icon:
       src: /icons/packages.svg
     title: Composable Packages, One Ecosystem
