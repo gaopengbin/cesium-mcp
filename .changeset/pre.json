@@ -1,0 +1,15 @@
+{
+  "mode": "pre",
+  "tag": "next",
+  "initialVersions": {
+    "cesium-webmcp-integration-example": "0.1.1",
+    "cesium-mcp-bridge": "1.143.3",
+    "cesium-mcp-contracts": "0.4.0",
+    "cesium-mcp-dev": "1.143.3",
+    "cesium-mcp-runtime": "1.143.3",
+    "cesium-mcp-webmcp": "0.2.2"
+  },
+  "changesets": [
+    "modern-globes-connect"
+  ]
+}

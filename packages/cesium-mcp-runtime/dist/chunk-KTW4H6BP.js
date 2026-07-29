@@ -467,7 +467,7 @@ function _setupWss(wss) {
     });
   });
 }
-var RUNTIME_VERSION = true ? "1.143.3" : "0.0.0-dev";
+var RUNTIME_VERSION = true ? "1.143.4-next.0" : "0.0.0-dev";
 function createRuntimeMcpServer() {
   return new McpServer({
     name: "cesium-mcp-runtime",

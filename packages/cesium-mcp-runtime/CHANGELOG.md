@@ -1,5 +1,15 @@
 # cesium-mcp-runtime
 
+## 1.143.4-next.0
+
+### Patch Changes
+
+- [#14](https://github.com/gaopengbin/cesium-mcp/pull/14) [`fffcd9f`](https://github.com/gaopengbin/cesium-mcp/commit/fffcd9fad81300feb511a7b677e413937609f594) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Upgrade the runtime to the stable MCP TypeScript SDK v2 while preserving
+  2025-era client compatibility and adding MCP `2026-07-28` HTTP and stdio
+  support. The runtime now uses canonical JSON Schema validation, exposes the
+  real `/mcp` network route, and runs the official stateless server conformance
+  scenario in CI.
+
 ## 1.143.3
 
 ### Patch Changes

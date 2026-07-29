@@ -1,5 +1,12 @@
 # cesium-mcp-bridge
 
+## 1.143.4-next.0
+
+### Patch Changes
+
+- Rebuild the browser bundle with the existing heatmap.js strict-mode patch
+  applied, avoiding assignment to the read-only `ImageData.data` property.
+
 ## 1.143.3
 
 ### Patch Changes

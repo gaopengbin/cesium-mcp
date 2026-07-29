@@ -1,6 +1,6 @@
 {
   "name": "cesium-webmcp-integration-example",
-  "version": "0.1.1",
+  "version": "0.1.2-next.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "cesium": "~1.143.0",
-    "cesium-mcp-bridge": "^1.143.1",
+    "cesium-mcp-bridge": "^1.143.4-next.0",
     "cesium-mcp-webmcp": "^0.2.0"
   },
   "devDependencies": {
