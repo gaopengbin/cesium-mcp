@@ -10,6 +10,7 @@
     "cesium-mcp-webmcp": "0.2.2"
   },
   "changesets": [
-    "modern-globes-connect"
+    "modern-globes-connect",
+    "viewer-session-query"
   ]
 }

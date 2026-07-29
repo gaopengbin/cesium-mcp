@@ -1,5 +1,12 @@
 # cesium-mcp-runtime
 
+## 1.143.4-next.1
+
+### Patch Changes
+
+- [#18](https://github.com/gaopengbin/cesium-mcp/pull/18) [`37ab89d`](https://github.com/gaopengbin/cesium-mcp/commit/37ab89d668bd72d569a9dd4bb791403d5979c736) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Serve the built-in Cesium Viewer when `session` or other query parameters are
+  present on `/` or `/index.html`.
+
 ## 1.143.4-next.0
 
 ### Patch Changes
