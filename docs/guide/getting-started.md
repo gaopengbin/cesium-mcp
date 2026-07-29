@@ -10,6 +10,20 @@ This guide configures the Node.js MCP runtime for desktop clients and workflow p
 
 ## Installation
 
+::: tip MCP 2026-07-28 preview
+`cesium-mcp-runtime@1.143.4-next.0` is available on npm under the `next`
+tag. It supports existing MCP `2025-11-25` clients and the new
+`2026-07-28` protocol from the same stdio/HTTP entry. The stable `latest`
+tag remains on `1.143.3`.
+
+```bash
+npm install cesium-mcp-bridge@next
+npx cesium-mcp-runtime@next
+```
+
+Remove `@next` to return to the stable channel.
+:::
+
 ### 1. Add the Bridge to Your CesiumJS App
 
 ```bash
@@ -42,6 +56,13 @@ npx cesium-mcp-runtime --transport http --port 3211
 This starts a Node.js process that:
 - Exposes MCP tools on the selected transport (stdio or HTTP)
 - Opens a **WebSocket server** on port 9100 (for the browser bridge)
+
+To run the MCP v2 preview in either mode, append `@next` to the package name:
+
+```bash
+npx cesium-mcp-runtime@next
+npx cesium-mcp-runtime@next --transport http --port 3211
+```
 
 ### 3. Configure Your AI Agent
 
@@ -89,6 +110,9 @@ Create `.cursor/mcp.json`:
   }
 }
 ```
+
+For the preview channel, use `"cesium-mcp-runtime@next"` as the last
+argument in any of the client configurations above.
 
 #### Dify / n8n (HTTP transport)
 

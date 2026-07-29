@@ -7,7 +7,11 @@
 [![npm version](https://img.shields.io/npm/v/cesium-mcp-runtime.svg)](https://www.npmjs.com/package/cesium-mcp-runtime)
 [![license](https://img.shields.io/npm/l/cesium-mcp-runtime.svg)](LICENSE)
 
-> **状态说明**：release 节奏偏慢（按需更新）。如果你只是想试 "AI + Cesium" 的效果，[examples/browser-agent](../../examples/browser-agent/) 是更推荐的起点（零后端、三分钟上手）。详见 [我应该用哪种模式？](https://gaopengbin.github.io/cesium-mcp/zh-CN/guide/which-mode.html)
+> **发布通道**：`latest` 是稳定版 `1.143.3`；`next` 是
+> `1.143.4-next.0`，提供 MCP `2026-07-28` 支持的 SDK v2 预览版。
+> 如果你只是想体验 “AI + Cesium”，更推荐从
+> [examples/browser-agent](../../examples/browser-agent/) 开始（零后端、三分钟上手）。
+> 详见 [我应该用哪种模式？](https://gaopengbin.github.io/cesium-mcp/zh-CN/guide/which-mode.html)。
 
 ## 架构
 
@@ -28,11 +32,15 @@ AI 智能体 <--MCP HTTP---> cesium-mcp-runtime <--WebSocket--> 浏览器 (cesiu
 ## 安装与运行
 
 ```bash
-# 使用 npx 直接运行（stdio 模式，默认）
+# 稳定通道（stdio 模式，默认）
 npx cesium-mcp-runtime
 
-# 或全局安装
+# MCP v2 预览通道
+npx cesium-mcp-runtime@next
+
+# 也可以全局安装任一通道
 npm install -g cesium-mcp-runtime
+npm install -g cesium-mcp-runtime@next
 cesium-mcp-runtime
 ```
 
@@ -324,13 +332,14 @@ curl -X POST http://localhost:9100/push \
 
 ## 兼容性
 
-| cesium-mcp-runtime | cesium-mcp-bridge | Cesium |
-|--------------------|-------------------|--------|
-| 1.143.x | 1.143.x | ~1.143.0 |
+| 通道 | Runtime | Bridge | MCP 协议 | Cesium |
+|------|---------|--------|----------|--------|
+| `latest` | `1.143.3` | `1.143.3` | 2025-era 客户端 | `~1.143.0` |
+| `next` | `1.143.4-next.0` | `1.143.4-next.0` | `2025-11-25` + `2026-07-28` | `~1.143.0` |
 
-SDK v2 升级分支通过同一个 stdio/HTTP 入口同时支持 MCP `2025-11-25`
-客户端和 `2026-07-28` 协议，并使用稳定版
+`next` 通过同一个 stdio/HTTP 入口服务两代协议，使用稳定版
 `@modelcontextprotocol/server`、`@modelcontextprotocol/node` `2.0.0`。
+从 npx 或 npm 命令中去掉 `@next` 即可回到 `latest`。
 
 仓库单独精确锁定官方 conformance runner，并通过以下命令验证
 `2026-07-28` 的 `server-stateless` 场景：

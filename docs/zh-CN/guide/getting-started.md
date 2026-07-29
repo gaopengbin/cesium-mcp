@@ -10,6 +10,19 @@
 
 ## 安装
 
+::: tip MCP 2026-07-28 预览版
+`cesium-mcp-runtime@1.143.4-next.0` 已通过 npm `next` 标签发布。它从同一个
+stdio/HTTP 入口同时支持现有 MCP `2025-11-25` 客户端和新的 `2026-07-28`
+协议。稳定版 `latest` 仍保持在 `1.143.3`。
+
+```bash
+npm install cesium-mcp-bridge@next
+npx cesium-mcp-runtime@next
+```
+
+去掉 `@next` 即可回到稳定通道。
+:::
+
 ### 1. 在 CesiumJS 应用中添加 Bridge
 
 ```bash
@@ -42,6 +55,13 @@ npx cesium-mcp-runtime --transport http --port 3211
 运行后会启动一个 Node.js 进程，它会：
 - 在所选传输方式（stdio 或 HTTP）上提供 MCP 工具
 - 在 9100 端口开启 **WebSocket 服务器**（与浏览器 Bridge 通信）
+
+要在任一模式下运行 MCP v2 预览版，请在包名后加 `@next`：
+
+```bash
+npx cesium-mcp-runtime@next
+npx cesium-mcp-runtime@next --transport http --port 3211
+```
 
 ### 3. 配置 AI 智能体
 
@@ -89,6 +109,9 @@ npx cesium-mcp-runtime --transport http --port 3211
   }
 }
 ```
+
+在上述任一客户端配置中测试预览版时，将最后一个参数改为
+`"cesium-mcp-runtime@next"`。
 
 #### Dify / n8n（HTTP 传输模式）
 

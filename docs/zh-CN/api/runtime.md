@@ -4,6 +4,15 @@
 
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 
+::: tip 发布通道
+- 稳定版：`npx cesium-mcp-runtime` → `latest@1.143.3`
+- MCP v2 预览版：`npx cesium-mcp-runtime@next` → `next@1.143.4-next.0`
+
+预览版同时支持 MCP `2025-11-25` 和 `2026-07-28`，使用稳定版 TypeScript
+SDK v2，并已通过官方 `server-stateless` 一致性场景（28/28）。去掉
+`@next` 即可回到稳定版。
+:::
+
 ## 安装与运行
 
 ```bash
