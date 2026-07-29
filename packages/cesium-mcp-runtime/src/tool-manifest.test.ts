@@ -87,12 +87,18 @@ describe('runtime tool manifest', () => {
   })
 
   it('builds shared runtime validation from canonical JSON Schema', () => {
-    expect(runtimeSource).toContain('zodObjectFromJsonSchema(metadata.inputSchema)')
+    expect(runtimeSource).toContain('inputSchema = createMcpInputSchema(jsonSchema)')
   })
 
   it('matches the concrete MCP discovery registrations', () => {
     for (const name of cesiumRuntimeMetaToolNames) {
-      expect(runtimeSource).toMatch(new RegExp(`server\\.tool\\(\\s*'${name}'`))
+      expect(runtimeSource).toMatch(new RegExp(`s\\.registerTool\\(\\s*'${name}'`))
     }
+  })
+
+  it('uses the SDK v2 dual-era serving entries', () => {
+    expect(runtimeSource).toContain('createMcpHandler(({ requestInfo }) =>')
+    expect(runtimeSource).toContain('serveStdio(() => buildMcpServer({')
+    expect(runtimeSource).not.toContain('@modelcontextprotocol/sdk')
   })
 })

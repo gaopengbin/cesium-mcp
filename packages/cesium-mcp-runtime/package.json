@@ -4,6 +4,9 @@
   "description": "Cesium MCP Runtime Server — AI Agent 通过 MCP 协议操控浏览器 Cesium",
   "mcpName": "io.github.gaopengbin/cesium-mcp-runtime",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
@@ -28,12 +31,14 @@
     "build": "tsup"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/node": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "cesium-mcp-contracts": "^0.4.0",
     "ws": "^8.21.0",
-    "zod": "^3.22.0"
+    "zod": "^4.2.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
     "@types/node": "^20.0.0",
     "@types/ws": "^8.5.10",
     "tsup": "^8.5.1",
