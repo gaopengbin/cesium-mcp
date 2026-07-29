@@ -1,5 +1,5 @@
 ---
-"cesium-mcp-runtime": minor
+"cesium-mcp-runtime": patch
 ---
 
 Upgrade the runtime to the stable MCP TypeScript SDK v2 while preserving

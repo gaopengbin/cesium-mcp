@@ -1,5 +1,12 @@
 # cesium-webmcp-integration-example
 
+## 0.1.2-next.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - cesium-mcp-bridge@1.143.4-next.0
+
 ## 0.1.1
 
 ### Patch Changes
