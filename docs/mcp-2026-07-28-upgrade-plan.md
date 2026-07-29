@@ -1,6 +1,6 @@
 # MCP 2026-07-28 升级计划
 
-> 状态：SDK v2 stable 已接入，`1.143.4-next.0` 已发布到 npm `next`
+> 状态：SDK v2 stable 已接入，`1.143.4-next.1` 已发布并通过 npm 安装闭环复测
 > 工作分支：`codex/mcp-2026-07-28-upgrade`
 > 基线：`@modelcontextprotocol/sdk ^1.29.0`、MCP `2025-11-25` 兼容行为
 
@@ -21,17 +21,21 @@
   场景达到 28/28 通过、0 失败；2 个 list-changed SHOULD 项保留为 warning。
 - 将一致性测试专用诊断工具限制在 `CESIUM_MCP_CONFORMANCE=1`，不混入生产工具列表。
 - 已合并到 `main`，并通过 GitHub Actions 将 bridge、runtime、dev
-  `1.143.4-next.0` 发布到 npm `next`；`latest` 保持 `1.143.3`。
+  `1.143.4-next.1` 发布到 npm `next`；`latest` 保持 `1.143.3`。
 - 已更新根 README、runtime README 和官网中英文安装/兼容性文档。
+
+预发布验证已完成：
+
+- npm 全新安装的 `next.1` 已完成真实 Chrome → MCP HTTP → WebSocket → Cesium
+  闭环：
+  官方 SDK v2 Client 以 `2026-07-28` modern 模式执行
+  `getView → flyTo → getView`，Chrome Viewer 实际飞到悉尼。
+- 内置 Viewer 的 `/?session=...` 和 `/index.html?session=...` 均返回 200。
+- Runtime `/bridge.js` 与 npm 安装的 `bridge@next` 浏览器包完全一致。
 
 正式版发布前剩余：
 
-- 已完成 npm `next` 的真实 Chrome → MCP HTTP → WebSocket → Cesium 闭环：
-  官方 SDK v2 Client 以 `2026-07-28` modern 模式执行
-  `getView → flyTo → getView`，Chrome Viewer 实际从上海飞到东京。
-- 闭环测试发现内置 Viewer 的 `/?session=...` 被错误返回 404；修复已增加
-  回归测试，需要先发布新的 npm `next` 预发布版本并复测。
-- 新预发布版本确认无阻断问题后，再移动 `latest`。
+- 确认将 `1.143.4` 移动到 npm `latest` 的发布时间。
 
 ## 1. 目标
 
