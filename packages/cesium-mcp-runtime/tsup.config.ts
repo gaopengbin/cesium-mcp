@@ -6,7 +6,7 @@ export default defineConfig({
   format: ['esm'],
   dts: true,
   clean: true,
-  target: 'node18',
+  target: 'node20',
   external: ['undici'],
   define: {
     __VERSION__: JSON.stringify(pkg.version),

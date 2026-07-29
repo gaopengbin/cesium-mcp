@@ -25,3 +25,6 @@ jobs:
       - run: npm run build
 
       - run: npx vitest run
+
+      - run: npm run test:conformance:mcp
+        if: matrix.node-version == 22

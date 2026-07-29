@@ -328,6 +328,21 @@ curl -X POST http://localhost:9100/push \
 |--------------------|-------------------|--------|
 | 1.143.x | 1.143.x | ~1.143.0 |
 
+The SDK v2 upgrade branch serves MCP `2025-11-25` clients and the
+`2026-07-28` protocol from the same stdio/HTTP entry using the stable
+`@modelcontextprotocol/server` and `@modelcontextprotocol/node` `2.0.0`
+packages.
+
+The repository pins the official conformance runner separately and validates
+the `2026-07-28` `server-stateless` scenario with:
+
+```bash
+npm run test:conformance:mcp
+```
+
+Conformance-only diagnostic tools are enabled only for that command. They are
+not registered by normal stdio, HTTP, or browser-demo runtime startup.
+
 ## License
 
 MIT

@@ -8,10 +8,19 @@
  *   AI Agent ←→ MCP Server (stdio) ←→ WebSocket ←→ Browser (cesium-mcp-bridge)
  *   Backend  ←→ HTTP POST /api/command  ←→ WebSocket ←→ Browser (cesium-mcp-bridge)
  */
-
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
+import { toNodeHandler } from '@modelcontextprotocol/node'
+import {
+  createMcpHandler,
+  McpServer,
+} from '@modelcontextprotocol/server'
+import type {
+  AnyToolHandler,
+  CallToolResult,
+  McpHttpHandler,
+  StandardSchemaWithJSON,
+  ToolAnnotations,
+} from '@modelcontextprotocol/server'
+import { serveStdio } from '@modelcontextprotocol/server/stdio'
 import { z } from 'zod'
 import { WebSocketServer, WebSocket, type RawData } from 'ws'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -20,12 +29,13 @@ import { readFileSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { normalizeCesiumToolLocale } from 'cesium-mcp-contracts'
+import type { JsonSchema } from 'cesium-mcp-contracts'
 import {
   cesiumRuntimeToolsetDescriptions,
   cesiumRuntimeToolsets,
   getCesiumRuntimeToolMetadata,
 } from './tool-manifest.js'
-import { zodObjectFromJsonSchema } from './json-schema-to-zod.js'
+import { createMcpInputSchema } from './mcp-schema.js'
 
 // ==================== WebSocket Bridge ====================
 
@@ -141,54 +151,6 @@ function _pushViaRelay(sessionId: string, command: { action: string; params: Rec
   }).catch(() => { /* fire-and-forget */ })
 }
 
-/** Convert Zod shape object to JSON Schema (simplified) */
-function zodShapeToJsonSchema(shape: Record<string, z.ZodTypeAny>): Record<string, unknown> {
-  const properties: Record<string, unknown> = {}
-  const required: string[] = []
-
-  for (const [key, zodType] of Object.entries(shape)) {
-    const prop: Record<string, unknown> = {}
-    let innerType = zodType
-
-    // Unwrap defaults and optionals
-    let isOptional = false
-    let defaultValue: unknown = undefined
-    while (innerType) {
-      if (innerType._def?.typeName === 'ZodDefault') {
-        defaultValue = innerType._def.defaultValue()
-        innerType = innerType._def.innerType
-      } else if (innerType._def?.typeName === 'ZodOptional') {
-        isOptional = true
-        innerType = innerType._def.innerType
-      } else if (innerType._def?.typeName === 'ZodEffects') {
-        innerType = innerType._def.schema
-      } else {
-        break
-      }
-    }
-
-    const typeName = innerType?._def?.typeName ?? ''
-    switch (typeName) {
-      case 'ZodNumber': prop.type = 'number'; break
-      case 'ZodString': prop.type = 'string'; break
-      case 'ZodBoolean': prop.type = 'boolean'; break
-      case 'ZodEnum': prop.type = 'string'; prop.enum = innerType._def.values; break
-      case 'ZodArray': prop.type = 'array'; break
-      case 'ZodObject': prop.type = 'object'; break
-      case 'ZodRecord': prop.type = 'object'; break
-      default: prop.type = 'string'; break
-    }
-
-    if (defaultValue !== undefined) prop.default = defaultValue
-    if (zodType.description) prop.description = zodType.description
-
-    properties[key] = prop
-    if (!isOptional && defaultValue === undefined) required.push(key)
-  }
-
-  return { type: 'object', properties, required: required.length ? required : undefined }
-}
-
 // Server-side tools: handlers run on Node.js, NOT forwarded to browser bridge
 const SERVER_SIDE_TOOLS = new Set(['geocode'])
 
@@ -196,10 +158,10 @@ const SERVER_SIDE_TOOLS = new Set(['geocode'])
 async function _invokeServerSideTool(action: string, params: Record<string, unknown>): Promise<unknown> {
   const def = _toolDefs.get(action)
   if (!def) throw new Error(`Server-side tool "${action}" not found`)
-  const handler = def[def.length - 1] as (params: Record<string, unknown>) => Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }>
-  const mcpResult = await handler(params)
+  const mcpResult = await def.invoke(params)
   // Unwrap MCP content format to raw result for HTTP API compatibility
-  const text = mcpResult?.content?.[0]?.text
+  const firstContent = mcpResult?.content?.[0]
+  const text = firstContent?.type === 'text' ? firstContent.text : undefined
   if (text) {
     try { return JSON.parse(text) } catch { return text }
   }
@@ -208,6 +170,12 @@ async function _invokeServerSideTool(action: string, params: Record<string, unkn
 
 /** HTTP 请求处理：POST /api/command */
 async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
+  const requestPath = new URL(req.url ?? '/', 'http://localhost').pathname
+  if (requestPath === '/mcp') {
+    await _handleMcpRequest(req, res)
+    return
+  }
+
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -294,13 +262,16 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
       ? new Set(tsParam.split(',').flatMap(s => TOOLSETS[s.trim()] ?? []))
       : null // null = no filter, show all enabled
     const tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown>; _meta?: Record<string, unknown> }> = []
-    for (const [name, args] of _toolDefs.entries()) {
-      if (allowedTools ? !allowedTools.has(name) : !_enabledTools.has(name)) continue
-      const description = args[1] as string
-      const zodShape = args[2] as Record<string, z.ZodTypeAny> | undefined
-      const jsonSchema = zodShape ? zodShapeToJsonSchema(zodShape) : { type: 'object', properties: {} }
+    for (const [name, definition] of _toolDefs.entries()) {
+      if (allowedTools ? !allowedTools.has(name) : !_configuredState.enabledTools.has(name)) continue
+      const jsonSchema = _toolJsonSchemas.get(name) ?? { type: 'object', properties: {} }
       const toolset = TOOL_TO_TOOLSET.get(name)
-      tools.push({ name, description, inputSchema: jsonSchema, ...(toolset ? { _meta: { toolset } } : {}) })
+      tools.push({
+        name,
+        description: definition.description,
+        inputSchema: jsonSchema,
+        ...(toolset ? { _meta: { toolset } } : {}),
+      })
     }
     res.writeHead(200, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ ok: true, tools }))
@@ -534,46 +505,49 @@ function _setupWss(wss: WebSocketServer) {
 // ==================== MCP Server ====================
 
 declare const __VERSION__: string
+const RUNTIME_VERSION = typeof __VERSION__ === 'string' ? __VERSION__ : '0.0.0-dev'
 
-const server = new McpServer({
-  name: 'cesium-mcp-runtime',
-  version: __VERSION__,
-  title: 'Cesium MCP Runtime',
-  description: 'AI-powered 3D globe control via MCP — camera, layers, entities, animation, and interaction with CesiumJS.',
-  websiteUrl: 'https://github.com/gaopengbin/cesium-mcp',
-}, {
-  instructions: 'Cesium MCP Runtime provides tools for controlling a CesiumJS 3D globe via AI. A browser with cesium-mcp-bridge must be connected via WebSocket for command execution. Use view tools (flyTo, setView) to navigate, entity tools to add markers/polygons/models, layer tools to manage GeoJSON/3D Tiles, and animation tools for time-based animations.',
-})
+function createRuntimeMcpServer(): McpServer {
+  return new McpServer({
+    name: 'cesium-mcp-runtime',
+    version: RUNTIME_VERSION,
+    title: 'Cesium MCP Runtime',
+    description: 'AI-powered 3D globe control via MCP — camera, layers, entities, animation, and interaction with CesiumJS.',
+    websiteUrl: 'https://github.com/gaopengbin/cesium-mcp',
+  }, {
+    instructions: 'Cesium MCP Runtime provides tools for controlling a CesiumJS 3D globe via AI. A browser with cesium-mcp-bridge must be connected via WebSocket for command execution. Use view tools (flyTo, setView) to navigate, entity tools to add markers/polygons/models, layer tools to manage GeoJSON/3D Tiles, and animation tools for time-based animations.',
+  })
+}
 
-// ==================== Resources ====================
+function registerResources(s: McpServer): void {
+  s.registerResource(
+    'camera',
+    'cesium://scene/camera',
+    { description: '当前相机状态（经纬度、高度、角度）', mimeType: 'application/json' },
+    async () => {
+      try {
+        const result = await sendToBrowser('getView', {})
+        return { contents: [{ uri: 'cesium://scene/camera', text: JSON.stringify(result), mimeType: 'application/json' }] }
+      } catch {
+        return { contents: [{ uri: 'cesium://scene/camera', text: '{"error":"no browser connected"}', mimeType: 'application/json' }] }
+      }
+    },
+  )
 
-server.resource(
-  'camera',
-  'cesium://scene/camera',
-  { description: '当前相机状态（经纬度、高度、角度）', mimeType: 'application/json' },
-  async () => {
-    try {
-      const result = await sendToBrowser('getView', {})
-      return { contents: [{ uri: 'cesium://scene/camera', text: JSON.stringify(result), mimeType: 'application/json' }] }
-    } catch {
-      return { contents: [{ uri: 'cesium://scene/camera', text: '{"error":"no browser connected"}', mimeType: 'application/json' }] }
-    }
-  },
-)
-
-server.resource(
-  'layers',
-  'cesium://scene/layers',
-  { description: '当前已加载的图层列表（ID、名称、类型、可见性）', mimeType: 'application/json' },
-  async () => {
-    try {
-      const result = await sendToBrowser('listLayers', {})
-      return { contents: [{ uri: 'cesium://scene/layers', text: JSON.stringify(result), mimeType: 'application/json' }] }
-    } catch {
-      return { contents: [{ uri: 'cesium://scene/layers', text: '{"error":"no browser connected"}', mimeType: 'application/json' }] }
-    }
-  },
-)
+  s.registerResource(
+    'layers',
+    'cesium://scene/layers',
+    { description: '当前已加载的图层列表（ID、名称、类型、可见性）', mimeType: 'application/json' },
+    async () => {
+      try {
+        const result = await sendToBrowser('listLayers', {})
+        return { contents: [{ uri: 'cesium://scene/layers', text: JSON.stringify(result), mimeType: 'application/json' }] }
+      } catch {
+        return { contents: [{ uri: 'cesium://scene/layers', text: '{"error":"no browser connected"}', mimeType: 'application/json' }] }
+      }
+    },
+  )
+}
 
 // ==================== Toolsets (工具分组管理) ====================
 
@@ -585,7 +559,7 @@ const DEFAULT_TOOLSETS = ['view', 'entity', 'layer', 'interaction']
 
 const _tsEnv = process.env.CESIUM_TOOLSETS?.trim()
 const _allMode = _tsEnv === 'all'
-const _enabledSets = new Set<string>(
+const _configuredToolsets = new Set<string>(
   _allMode
     ? Object.keys(TOOLSETS)
     : _tsEnv
@@ -593,88 +567,152 @@ const _enabledSets = new Set<string>(
       : DEFAULT_TOOLSETS,
 )
 
-const _enabledTools = new Set<string>()
-for (const setName of _enabledSets) {
-  for (const tool of TOOLSETS[setName]!) {
-    _enabledTools.add(tool)
-  }
-}
-
 // Reverse map: tool name → toolset name (for _meta injection)
 const TOOL_TO_TOOLSET = new Map<string, string>()
 for (const [setName, tools] of Object.entries(TOOLSETS)) {
   for (const tool of tools) TOOL_TO_TOOLSET.set(tool, setName)
 }
 
-// Store all tool definitions for lazy registration (Dynamic Discovery)
-const _toolDefs = new Map<string, unknown[]>()
+interface StoredToolDefinition {
+  name: string
+  description: string
+  inputSchema: StandardSchemaWithJSON
+  annotations: ToolAnnotations
+  handler: AnyToolHandler
+  invoke: (params: Record<string, unknown>) => Promise<CallToolResult>
+}
+
+interface RuntimeToolState {
+  enabledSets: Set<string>
+  enabledTools: Set<string>
+}
+
+// Store all tool definitions for replay into per-connection/per-request servers.
+const _toolDefs = new Map<string, StoredToolDefinition>()
+const _toolJsonSchemas = new Map<string, JsonSchema>()
 
 // i18n: select locale based on CESIUM_LOCALE env var (default: en)
 const _localeKey = normalizeCesiumToolLocale(process.env.CESIUM_LOCALE)
 
-/** Apply a stored tool definition to a McpServer, injecting _meta.toolset via registerTool API */
-function _applyToolDef(s: McpServer, args: unknown[]) {
-  const name = args[0] as string
-  const toolset = TOOL_TO_TOOLSET.get(name)
-  if (toolset) {
-    // Use registerTool API which supports _meta
-    ;(s as any).registerTool(name, {
-      description: args[1] as string,
-      inputSchema: args[2],
-      annotations: args[3],
-      _meta: { toolset },
-    }, args[4])
-  } else {
-    ;(s.tool as Function).apply(s, args)
+function _applyToolDef(s: McpServer, definition: StoredToolDefinition): void {
+  const toolset = TOOL_TO_TOOLSET.get(definition.name)
+  s.registerTool(definition.name, {
+    description: definition.description,
+    inputSchema: definition.inputSchema,
+    annotations: definition.annotations,
+    ...(toolset ? { _meta: { toolset } } : {}),
+  }, definition.handler as never)
+}
+
+function withBrowserSessionSchema(
+  schema: JsonSchema,
+  parameterDescriptions: Readonly<Record<string, string>> = {},
+): JsonSchema {
+  const properties = schema.properties && typeof schema.properties === 'object'
+    ? schema.properties as Record<string, JsonSchema>
+    : {}
+  const localizedProperties = Object.fromEntries(
+    Object.entries(properties).map(([name, property]) => [
+      name,
+      parameterDescriptions[name]
+        ? { ...property, description: parameterDescriptions[name] }
+        : property,
+    ]),
+  )
+  return {
+    ...schema,
+    properties: {
+      ...localizedProperties,
+      sessionId: {
+        type: 'string',
+        description: _localeKey === 'zh-CN'
+          ? '目标浏览器 session ID（多浏览器路由，可选）'
+          : 'Target browser session ID for multi-browser routing (optional)',
+      },
+    },
   }
 }
 
-/** Register tool only if it belongs to an enabled toolset */
-const _registerTool = ((...args: unknown[]) => {
-  const name = args[0] as string
-  const sessionIdSchema = z.string().optional().describe(
-    _localeKey === 'zh-CN'
-      ? '目标浏览器 session ID（多浏览器路由，可选）'
-      : 'Target browser session ID for multi-browser routing (optional)',
-  )
+type LegacyToolHandler<Shape extends z.ZodRawShape> = (
+  params: z.infer<z.ZodObject<Shape>>,
+) => Promise<CallToolResult>
+
+/** Collect a tool definition once; server factories replay it for either protocol era. */
+function _registerTool<Shape extends z.ZodRawShape>(
+  name: string,
+  description: string,
+  inputShape: Shape,
+  annotations: ToolAnnotations,
+  handler: LegacyToolHandler<Shape>,
+): void {
+  let inputSchema: StandardSchemaWithJSON
+  let jsonSchema: JsonSchema
+
   // Shared command metadata is canonical in cesium-mcp-contracts.
   const metadata = getCesiumRuntimeToolMetadata(name, _localeKey)
   if (metadata) {
-    args[1] = metadata.description
-    args[3] = metadata.annotations
-    const generated = zodObjectFromJsonSchema(metadata.inputSchema)
-    const localizedShape: z.ZodRawShape = {}
-    for (const [key, desc] of Object.entries(metadata.parameterDescriptions)) {
-      if (generated.shape[key]) localizedShape[key] = generated.shape[key].describe(desc)
-    }
-    args[2] = generated.extend({ ...localizedShape, sessionId: sessionIdSchema })
-  } else if (typeof args[2] === 'object' && args[2] !== null) {
-    // Runtime-only tools still use their local Zod raw shape.
-    const schema = args[2] as Record<string, z.ZodTypeAny>
-    schema.sessionId = sessionIdSchema
+    description = metadata.description
+    annotations = metadata.annotations
+    jsonSchema = withBrowserSessionSchema(
+      metadata.inputSchema,
+      metadata.parameterDescriptions,
+    )
+    inputSchema = createMcpInputSchema(jsonSchema)
+  } else {
+    const schema = z.object({
+      ...inputShape,
+      sessionId: z.string().optional().describe(
+        _localeKey === 'zh-CN'
+          ? '目标浏览器 session ID（多浏览器路由，可选）'
+          : 'Target browser session ID for multi-browser routing (optional)',
+      ),
+    })
+    jsonSchema = z.toJSONSchema(schema) as JsonSchema
+    inputSchema = schema
   }
-  _toolDefs.set(name, args)
-  if (_enabledTools.has(name)) {
-    _applyToolDef(server, args)
-  }
-}) as typeof server.tool
 
-/** Dynamically enable a toolset — registers its tools lazily */
-function _enableToolset(setName: string): string[] {
+  _toolJsonSchemas.set(name, jsonSchema)
+  _toolDefs.set(name, {
+    name,
+    description,
+    inputSchema,
+    annotations,
+    handler: handler as unknown as AnyToolHandler,
+    invoke: handler as unknown as (params: Record<string, unknown>) => Promise<CallToolResult>,
+  })
+}
+
+function createToolState(toolsets: Iterable<string>): RuntimeToolState {
+  const enabledSets = new Set(toolsets)
+  const enabledTools = new Set<string>()
+  for (const setName of enabledSets) {
+    for (const tool of TOOLSETS[setName] ?? []) enabledTools.add(tool)
+  }
+  return { enabledSets, enabledTools }
+}
+
+const _configuredState = createToolState(_configuredToolsets)
+
+/** Dynamically enable a toolset on one server instance. */
+function enableToolset(
+  s: McpServer,
+  state: RuntimeToolState,
+  setName: string,
+): string[] {
   const tools = TOOLSETS[setName]
   if (!tools) return []
   const added: string[] = []
   for (const toolName of tools) {
-    if (!_enabledTools.has(toolName)) {
-      _enabledTools.add(toolName)
+    if (!state.enabledTools.has(toolName)) {
+      state.enabledTools.add(toolName)
       const def = _toolDefs.get(toolName)
       if (def) {
-        _applyToolDef(server, def)
+        _applyToolDef(s, def)
         added.push(toolName)
       }
     }
   }
-  _enabledSets.add(setName)
+  state.enabledSets.add(setName)
   return added
 }
 
@@ -706,9 +744,9 @@ _registerTool(
   {
     id: z.string().optional().describe('图层ID（不传则自动生成）'),
     name: z.string().optional().describe('图层显示名称'),
-    data: z.record(z.unknown()).optional().describe('GeoJSON FeatureCollection 对象（与 url 二选一）'),
+    data: z.record(z.string(), z.unknown()).optional().describe('GeoJSON FeatureCollection 对象（与 url 二选一）'),
     url: z.string().optional().describe('GeoJSON 文件 URL（与 data 二选一，浏览器端 fetch 加载）'),
-    style: z.record(z.unknown()).optional().describe('样式配置（color, opacity, pointSize, choropleth, category）'),
+    style: z.record(z.string(), z.unknown()).optional().describe('样式配置（color, opacity, pointSize, choropleth, category）'),
   },
   { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add GeoJSON Layer' },
   async (params) => {
@@ -741,9 +779,9 @@ _registerTool(
   'addLabel',
   '为 GeoJSON 要素添加文本标注（显示属性值）',
   {
-    data: z.record(z.unknown()).describe('GeoJSON FeatureCollection 对象'),
+    data: z.record(z.string(), z.unknown()).describe('GeoJSON FeatureCollection 对象'),
     field: z.string().describe('用作标注文本的属性字段名（如 "name"、"population"）'),
-    style: z.record(z.unknown()).optional().describe('标注样式（font, fillColor, outlineColor, scale 等）'),
+    style: z.record(z.string(), z.unknown()).optional().describe('标注样式（font, fillColor, outlineColor, scale 等）'),
   },
   { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Add Label' },
   async (params) => {
@@ -757,7 +795,7 @@ _registerTool(
   'addHeatmap',
   '添加热力图图层（基于 GeoJSON 点数据生成热力可视化，贴图到地面）',
   {
-    data: z.record(z.unknown()).describe('GeoJSON Point FeatureCollection'),
+    data: z.record(z.string(), z.unknown()).describe('GeoJSON Point FeatureCollection'),
     radius: z.number().default(30).describe('热力影响半径（像素）'),
     blur: z.number().default(0.85).describe('热力模糊程度 0-1'),
     maxOpacity: z.number().default(0.8).describe('最大不透明度 0-1'),
@@ -1245,7 +1283,7 @@ _registerTool(
   '修改已有图层的样式（颜色、透明度、标注样式、3D Tiles 样式等）',
   {
     layerId: z.string().describe('图层ID'),
-    labelStyle: z.record(z.unknown()).optional().describe('标注样式（font, fillColor, outlineColor, outlineWidth, scale 等）'),
+    labelStyle: z.record(z.string(), z.unknown()).optional().describe('标注样式（font, fillColor, outlineColor, outlineWidth, scale 等）'),
     layerStyle: layerStyleSchema.optional().describe('Entity layer style. Thematic fields are GeoJSON-only and mutually exclusive.'),
     imageryStyle: imageryStyleSchema.optional().describe('Imagery layer visual style. Visibility is controlled by setLayerVisibility.'),
     primitiveStyle: primitiveStyleSchema.optional().describe('GeoJSON Primitive material style. Visibility is controlled by setLayerVisibility.'),
@@ -1253,7 +1291,7 @@ _registerTool(
       color: z.string().optional().describe('3D Tiles 颜色表达式，如 "color(\'red\')" 或条件表达式'),
       show: z.string().optional().describe('3D Tiles 显示条件表达式，如 "${Height} > 50"'),
       pointSize: z.string().optional().describe('3D Tiles 点大小表达式'),
-      meta: z.record(z.string()).optional().describe('3D Tiles meta 属性'),
+      meta: z.record(z.string(), z.string()).optional().describe('3D Tiles meta 属性'),
     }).optional().describe('3D Tiles 样式（Cesium3DTileStyle 表达式）'),
   },
   { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Update Layer Style' },
@@ -1971,15 +2009,16 @@ _registerTool(
 
 // ==================== Prompts ====================
 
-server.prompt(
-  'cesium-quickstart',
-  'Quick reference for using Cesium MCP tools',
-  async () => ({
-    messages: [{
-      role: 'user' as const,
-      content: {
-        type: 'text' as const,
-        text: `Cesium MCP Quick Start Guide:
+function registerQuickstartPrompt(s: McpServer): void {
+  s.registerPrompt(
+    'cesium-quickstart',
+    { description: 'Quick reference for using Cesium MCP tools' },
+    async () => ({
+      messages: [{
+        role: 'user' as const,
+        content: {
+          type: 'text' as const,
+          text: `Cesium MCP Quick Start Guide:
 
 1. **Camera**: flyTo(lng, lat) to navigate, setView for instant move, getView to read current position
 2. **Entities**: addMarker for points, addPolygon/addPolyline for shapes, addModel for 3D models
@@ -1989,50 +2028,75 @@ server.prompt(
 6. **Discovery**: list_toolsets to see available tool groups, enable_toolset to activate more tools
 
 All entity/layer operations return an ID for subsequent updates or removal.`,
-      },
-    }],
-  }),
-)
+        },
+      }],
+    }),
+  )
+}
 
 // ==================== Meta-tools (Dynamic Discovery) ====================
 
-if (!_allMode) {
-  server.tool(
+function registerDiscoveryTools(s: McpServer, state: RuntimeToolState): void {
+  s.registerTool(
     'list_toolsets',
-    'List all available tool groups and their enabled status. Call this to discover additional capabilities before asking the user to configure anything.',
-    {},
-    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'List Toolsets' },
+    {
+      description: 'List all available tool groups and their enabled status. Call this to discover additional capabilities before asking the user to configure anything.',
+      inputSchema: z.object({}),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+        title: 'List Toolsets',
+      },
+    },
     async () => {
       const groups = Object.entries(TOOLSETS).map(([name, tools]) => ({
         name,
         description: TOOLSET_DESCRIPTIONS[name] ?? '',
         tools: tools.length,
-        enabled: _enabledSets.has(name),
+        enabled: state.enabledSets.has(name),
         toolNames: tools,
       }))
       return { content: [{ type: 'text' as const, text: JSON.stringify(groups, null, 2) }] }
     },
   )
 
-  server.tool(
+  s.registerTool(
     'enable_toolset',
-    'Enable a tool group to make its tools available. Call list_toolsets first to see available groups.',
     {
-      toolset: z.string().describe('Name of the toolset to enable (e.g. "camera", "animation", "entity-ext")'),
+      description: 'Enable a tool group to make its tools available. Call list_toolsets first to see available groups.',
+      inputSchema: z.object({
+        toolset: z.string().describe('Name of the toolset to enable (e.g. "camera", "animation", "entity-ext")'),
+      }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+        title: 'Enable Toolset',
+      },
     },
-    { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Enable Toolset' },
     async ({ toolset }) => {
       if (!(toolset in TOOLSETS)) {
         return {
-          content: [{ type: 'text' as const, text: `Unknown toolset "${toolset}". Available: ${Object.keys(TOOLSETS).join(', ')}` }],
+          content: [{
+            type: 'text' as const,
+            text: `Unknown toolset "${toolset}". Available: ${Object.keys(TOOLSETS).join(', ')}`,
+          }],
           isError: true,
         }
       }
-      if (_enabledSets.has(toolset)) {
-        return { content: [{ type: 'text' as const, text: `Toolset "${toolset}" is already enabled.` }] }
+      if (state.enabledSets.has(toolset)) {
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Toolset "${toolset}" is already enabled.`,
+          }],
+        }
       }
-      const added = _enableToolset(toolset)
-      server.sendToolListChanged?.()
+      const added = enableToolset(s, state, toolset)
+      s.sendToolListChanged()
       return {
         content: [{
           type: 'text' as const,
@@ -2045,22 +2109,87 @@ if (!_allMode) {
 
 // ==================== Session Management ====================
 
-server.tool(
-  'listSessions',
-  _localeKey === 'zh-CN'
-    ? '列出当前所有已连接的浏览器 session（ID 和连接状态），用于多浏览器路由'
-    : 'List all connected browser sessions (ID and connection state) for multi-browser routing',
-  {},
-  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'List Sessions' },
-  async () => {
-    const sessions = Array.from(browserClients.entries()).map(([id, ws]) => ({
-      sessionId: id,
-      connected: ws.readyState === WebSocket.OPEN,
-      isDefault: id === DEFAULT_SESSION_ID,
-    }))
-    return { content: [{ type: 'text' as const, text: JSON.stringify(sessions, null, 2) }] }
-  },
-)
+function registerSessionTool(s: McpServer): void {
+  s.registerTool(
+    'listSessions',
+    {
+      description: _localeKey === 'zh-CN'
+        ? '列出当前所有已连接的浏览器 session（ID 和连接状态），用于多浏览器路由'
+        : 'List all connected browser sessions (ID and connection state) for multi-browser routing',
+      inputSchema: z.object({}),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+        title: 'List Sessions',
+      },
+    },
+    async () => {
+      const sessions = Array.from(browserClients.entries()).map(([id, ws]) => ({
+        sessionId: id,
+        connected: ws.readyState === WebSocket.OPEN,
+        isDefault: id === DEFAULT_SESSION_ID,
+      }))
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify(sessions, null, 2),
+        }],
+      }
+    },
+  )
+}
+
+export interface BuildMcpServerOptions {
+  toolsets?: Iterable<string>
+  dynamicDiscovery?: boolean
+  /** Register diagnostic fixtures required by the official MCP conformance suite. */
+  conformance?: boolean
+}
+
+function registerConformanceTools(s: McpServer): void {
+  s.registerTool('test_missing_capability', {
+    description: 'MCP conformance fixture for client capability enforcement',
+    inputSchema: z.object({}),
+  }, async () => ({
+    content: [{ type: 'text', text: 'Sampling capability is available' }],
+  }))
+
+  s.registerTool('test_streaming_elicitation', {
+    description: 'MCP conformance fixture for response stream validation',
+    inputSchema: z.object({}),
+  }, async () => ({
+    content: [{ type: 'text', text: 'Conformance stream completed' }],
+  }))
+
+  s.registerTool('test_logging_tool', {
+    description: 'MCP conformance fixture for log-level validation',
+    inputSchema: z.object({}),
+  }, async () => ({
+    content: [{ type: 'text', text: 'Conformance logging check completed' }],
+  }))
+}
+
+/** Build one isolated MCP server for an HTTP request or stdio connection. */
+export function buildMcpServer(options: BuildMcpServerOptions = {}): McpServer {
+  const state = createToolState(options.toolsets ?? Object.keys(TOOLSETS))
+  const s = createRuntimeMcpServer()
+  registerResources(s)
+  registerQuickstartPrompt(s)
+
+  for (const toolName of state.enabledTools) {
+    const definition = _toolDefs.get(toolName)
+    if (definition) _applyToolDef(s, definition)
+  }
+
+  if (options.dynamicDiscovery) registerDiscoveryTools(s, state)
+  registerSessionTool(s)
+  if (options.conformance ?? process.env.CESIUM_MCP_CONFORMANCE === '1') {
+    registerConformanceTools(s)
+  }
+  return s
+}
 
 // ==================== Streamable HTTP Transport ====================
 
@@ -2069,87 +2198,57 @@ server.tool(
  * Used for stateless HTTP transport mode — each request gets its own server.
  */
 function _createHttpMcpServer(filterToolsets?: Set<string>): McpServer {
-  const s = new McpServer({
-    name: 'cesium-mcp-runtime',
-    version: __VERSION__,
-    title: 'Cesium MCP Runtime',
-    description: 'AI-powered 3D globe control via MCP — camera, layers, entities, animation, and interaction with CesiumJS.',
-    websiteUrl: 'https://github.com/gaopengbin/cesium-mcp',
-  }, {
-    instructions: 'Cesium MCP Runtime provides tools for controlling a CesiumJS 3D globe via AI. A browser with cesium-mcp-bridge must be connected via WebSocket for command execution. Use view tools (flyTo, setView) to navigate, entity tools to add markers/polygons/models, layer tools to manage GeoJSON/3D Tiles, and animation tools for time-based animations.',
+  return buildMcpServer({
+    toolsets: filterToolsets ?? Object.keys(TOOLSETS),
   })
-
-  // Replay resources
-  s.resource(
-    'camera', 'cesium://scene/camera',
-    { description: '当前相机状态（经纬度、高度、角度）', mimeType: 'application/json' },
-    async () => {
-      try {
-        const result = await sendToBrowser('getView', {})
-        return { contents: [{ uri: 'cesium://scene/camera', text: JSON.stringify(result), mimeType: 'application/json' }] }
-      } catch {
-        return { contents: [{ uri: 'cesium://scene/camera', text: '{"error":"no browser connected"}', mimeType: 'application/json' }] }
-      }
-    },
-  )
-  s.resource(
-    'layers', 'cesium://scene/layers',
-    { description: '当前已加载的图层列表（ID、名称、类型、可见性）', mimeType: 'application/json' },
-    async () => {
-      try {
-        const result = await sendToBrowser('listLayers', {})
-        return { contents: [{ uri: 'cesium://scene/layers', text: JSON.stringify(result), mimeType: 'application/json' }] }
-      } catch {
-        return { contents: [{ uri: 'cesium://scene/layers', text: '{"error":"no browser connected"}', mimeType: 'application/json' }] }
-      }
-    },
-  )
-
-  // Replay tools with _meta.toolset, optionally filtered by toolsets param
-  const allowedToolsets = filterToolsets ?? new Set(Object.keys(TOOLSETS))
-  const allowedTools = new Set<string>()
-  for (const setName of allowedToolsets) {
-    if (TOOLSETS[setName]) {
-      for (const tool of TOOLSETS[setName]) allowedTools.add(tool)
-    }
-  }
-  for (const [name, args] of _toolDefs.entries()) {
-    if (allowedTools.has(name)) {
-      _applyToolDef(s, args)
-    }
-  }
-
-  // Register listSessions for HTTP mode
-  s.tool(
-    'listSessions',
-    _localeKey === 'zh-CN'
-      ? '列出当前所有已连接的浏览器 session（ID 和连接状态），用于多浏览器路由'
-      : 'List all connected browser sessions (ID and connection state) for multi-browser routing',
-    {},
-    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'List Sessions' },
-    async () => {
-      const sessions = Array.from(browserClients.entries()).map(([id, ws]) => ({
-        sessionId: id,
-        connected: ws.readyState === WebSocket.OPEN,
-        isDefault: id === DEFAULT_SESSION_ID,
-      }))
-      return { content: [{ type: 'text' as const, text: JSON.stringify(sessions, null, 2) }] }
-    },
-  )
-
-  return s
 }
 
+export function createCesiumMcpHttpHandler(): McpHttpHandler {
+  return createMcpHandler(({ requestInfo }) => {
+    const requestUrl = requestInfo
+      ? new URL(requestInfo.url)
+      : new URL('http://localhost/mcp')
+    const requestedToolsets = requestUrl.searchParams.get('toolsets')?.trim()
+    const filterToolsets = requestedToolsets
+      ? new Set(
+          requestedToolsets
+            .split(',')
+            .map(name => name.trim())
+            .filter(name => name in TOOLSETS),
+        )
+      : undefined
+    return _createHttpMcpServer(filterToolsets)
+  }, {
+    legacy: 'stateless',
+    onerror: error => {
+      console.error(`[cesium-mcp-runtime] MCP HTTP error: ${error.message}`)
+    },
+  })
+}
+
+const _mcpHttpHandler = createCesiumMcpHttpHandler()
+
+const _nodeMcpHandler = toNodeHandler(_mcpHttpHandler, {
+  onerror: error => {
+    console.error(`[cesium-mcp-runtime] MCP Node adapter error: ${error.message}`)
+  },
+})
+
 /**
- * Handle MCP Streamable HTTP requests (stateless mode).
- * Each POST creates a fresh McpServer + transport, handles the request, then cleans up.
+ * Handle MCP Streamable HTTP requests for both the 2025-era and 2026-07-28.
  */
 async function _handleMcpRequest(req: IncomingMessage, res: ServerResponse) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-session-id')
-  res.setHeader('Access-Control-Expose-Headers', 'mcp-session-id')
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    req.headers['access-control-request-headers']
+      ?? 'Content-Type, Authorization, MCP-Protocol-Version, Mcp-Method, Mcp-Name, Mcp-Session-Id',
+  )
+  res.setHeader(
+    'Access-Control-Expose-Headers',
+    'MCP-Protocol-Version, Mcp-Method, Mcp-Name, Mcp-Session-Id',
+  )
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204)
@@ -2161,52 +2260,50 @@ async function _handleMcpRequest(req: IncomingMessage, res: ServerResponse) {
   const parsedUrl = new URL(req.url ?? '/', 'http://localhost')
   if (parsedUrl.pathname !== '/mcp') {
     res.writeHead(404)
-    res.end('Not Found — MCP endpoint is POST /mcp')
+    res.end('Not Found — MCP endpoint is /mcp')
     return
   }
 
-  // Extract ?session=xxx for browser routing (propagated via AsyncLocalStorage to sendToBrowser)
+  // This is an application-level browser session, not an MCP protocol session.
   const urlSession = parsedUrl.searchParams.get('session') ?? undefined
+  let parsedBody: unknown
+  if (process.env.CESIUM_MCP_CONFORMANCE === '1' && req.method === 'POST') {
+    const chunks: Buffer[] = []
+    for await (const chunk of req) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+    }
+    try {
+      parsedBody = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    } catch {
+      parsedBody = undefined
+    }
 
-  // Extract ?toolsets=view,layer for filtering available tools in HTTP mode
-  const urlToolsets = parsedUrl.searchParams.get('toolsets')?.trim()
-  const filterToolsets = urlToolsets
-    ? new Set(urlToolsets.split(',').map(s => s.trim()).filter(s => s in TOOLSETS))
-    : undefined
-
-  if (req.method === 'POST') {
-    let body = ''
-    req.on('data', (chunk: Buffer) => { body += chunk.toString() })
-    req.on('end', async () => {
-      const run = async () => {
-        try {
-          const parsedBody = JSON.parse(body)
-          const mcpServer = _createHttpMcpServer(filterToolsets)
-          const transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: undefined, // stateless
-          })
-          res.on('close', () => { transport.close().catch(() => {}) })
-          await mcpServer.connect(transport)
-          await transport.handleRequest(req, res, parsedBody)
-        } catch {
-          if (!res.headersSent) {
-            res.writeHead(400, { 'Content-Type': 'application/json' })
-            res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null }))
-          }
-        }
-      }
-      if (urlSession) {
-        await _httpSessionStore.run(urlSession, run)
-      } else {
-        await run()
-      }
-    })
-    return
+    const request = parsedBody as {
+      id?: string | number | null
+      method?: string
+      params?: { name?: string }
+    } | undefined
+    if (request?.method === 'tools/call' && request.params?.name === 'test_missing_capability') {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({
+        jsonrpc: '2.0',
+        id: request.id ?? null,
+        error: {
+          code: -32021,
+          message: 'Missing required client capabilities: sampling',
+          data: { requiredCapabilities: { sampling: {} } },
+        },
+      }))
+      return
+    }
   }
 
-  // GET and DELETE are not supported in stateless mode
-  res.writeHead(405, { 'Content-Type': 'application/json' })
-  res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed in stateless mode' }, id: null }))
+  const run = () => _nodeMcpHandler(req, res, parsedBody)
+  if (urlSession) {
+    await _httpSessionStore.run(urlSession, run)
+  } else {
+    await run()
+  }
 }
 
 // ==================== Smithery Sandbox ====================
@@ -2217,11 +2314,9 @@ async function _handleMcpRequest(req: IncomingMessage, res: ServerResponse) {
  * 不启动 WebSocket，不连接 transport。
  */
 export function createSandboxServer() {
-  // Register all tools for sandbox scanning
-  for (const setName of Object.keys(TOOLSETS)) {
-    if (!_enabledSets.has(setName)) _enableToolset(setName)
-  }
-  return server
+  return buildMcpServer({
+    toolsets: Object.keys(TOOLSETS),
+  })
 }
 
 // ==================== 启动 ====================
@@ -2249,11 +2344,13 @@ export async function main(argv: string[] = []) {
     return
   }
 
-  // Default: stdio transport
-  const transport = new StdioServerTransport()
-  await server.connect(transport)
+  // The v2 entry negotiates one protocol era and builds one isolated server.
+  serveStdio(() => buildMcpServer({
+    toolsets: _configuredToolsets,
+    dynamicDiscovery: !_allMode,
+  }))
   const metaCount = _allMode ? 0 : 2
-  console.error(`[cesium-mcp-runtime] MCP Server running (stdio), ${_enabledTools.size + metaCount} tools registered (toolsets: ${[..._enabledSets].join(', ')})`)
+  console.error(`[cesium-mcp-runtime] MCP Server running (stdio), ${_configuredState.enabledTools.size + metaCount} tools registered (toolsets: ${[..._configuredToolsets].join(', ')})`)
   if (_relayPort > 0) {
     console.error(`[cesium-mcp-runtime] Relay mode active → commands forwarded to port ${_relayPort}`)
   }

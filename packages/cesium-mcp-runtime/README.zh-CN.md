@@ -328,6 +328,20 @@ curl -X POST http://localhost:9100/push \
 |--------------------|-------------------|--------|
 | 1.143.x | 1.143.x | ~1.143.0 |
 
+SDK v2 升级分支通过同一个 stdio/HTTP 入口同时支持 MCP `2025-11-25`
+客户端和 `2026-07-28` 协议，并使用稳定版
+`@modelcontextprotocol/server`、`@modelcontextprotocol/node` `2.0.0`。
+
+仓库单独精确锁定官方 conformance runner，并通过以下命令验证
+`2026-07-28` 的 `server-stateless` 场景：
+
+```bash
+npm run test:conformance:mcp
+```
+
+一致性测试专用诊断工具只会在上述命令中启用，不会注册到正常的 stdio、
+HTTP 或浏览器 Demo Runtime 中。
+
 ## 许可证
 
 MIT
