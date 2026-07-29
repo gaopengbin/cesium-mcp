@@ -173,6 +173,11 @@ async function _invokeServerSideTool(action, params) {
   }
   return mcpResult;
 }
+function isViewerRequest(method, url) {
+  if (method !== "GET") return false;
+  const path = new URL(url ?? "/", "http://localhost").pathname;
+  return path === "/" || path === "/index.html";
+}
 async function handleHttpRequest(req, res) {
   const requestPath = new URL(req.url ?? "/", "http://localhost").pathname;
   if (requestPath === "/mcp") {
@@ -304,7 +309,7 @@ async function handleHttpRequest(req, res) {
     res.end("// local bridge bundle not found");
     return;
   }
-  if (req.method === "GET" && (req.url === "/" || req.url === "/index.html")) {
+  if (isViewerRequest(req.method, req.url)) {
     const token = process.env.CESIUM_ION_TOKEN || "";
     const html = _getViewerHtml(token, WS_PORT);
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -2028,6 +2033,7 @@ function _parseArg(argv, key) {
 }
 
 export {
+  isViewerRequest,
   buildMcpServer,
   createCesiumMcpHttpHandler,
   createSandboxServer,

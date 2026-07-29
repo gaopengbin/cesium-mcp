@@ -2,11 +2,13 @@ import {
   buildMcpServer,
   createCesiumMcpHttpHandler,
   createSandboxServer,
+  isViewerRequest,
   main
-} from "./chunk-KTW4H6BP.js";
+} from "./chunk-H2GV6H7J.js";
 export {
   buildMcpServer,
   createCesiumMcpHttpHandler,
   createSandboxServer,
+  isViewerRequest,
   main
 };

@@ -1,5 +1,6 @@
 import { McpServer, McpHttpHandler } from '@modelcontextprotocol/server';
 
+declare function isViewerRequest(method: string | undefined, url: string | undefined): boolean;
 interface BuildMcpServerOptions {
     toolsets?: Iterable<string>;
     dynamicDiscovery?: boolean;
@@ -17,4 +18,4 @@ declare function createCesiumMcpHttpHandler(): McpHttpHandler;
 declare function createSandboxServer(): McpServer;
 declare function main(argv?: string[]): Promise<void>;
 
-export { type BuildMcpServerOptions, buildMcpServer, createCesiumMcpHttpHandler, createSandboxServer, main };
+export { type BuildMcpServerOptions, buildMcpServer, createCesiumMcpHttpHandler, createSandboxServer, isViewerRequest, main };
