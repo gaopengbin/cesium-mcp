@@ -168,6 +168,12 @@ async function _invokeServerSideTool(action: string, params: Record<string, unkn
   return mcpResult
 }
 
+export function isViewerRequest(method: string | undefined, url: string | undefined): boolean {
+  if (method !== 'GET') return false
+  const path = new URL(url ?? '/', 'http://localhost').pathname
+  return path === '/' || path === '/index.html'
+}
+
 /** HTTP 请求处理：POST /api/command */
 async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
   const requestPath = new URL(req.url ?? '/', 'http://localhost').pathname
@@ -321,7 +327,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
   }
 
   // GET / — serve built-in viewer page
-  if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html')) {
+  if (isViewerRequest(req.method, req.url)) {
     const token = process.env.CESIUM_ION_TOKEN || ''
     const html = _getViewerHtml(token, WS_PORT)
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })

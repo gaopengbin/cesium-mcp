@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
+import { isViewerRequest } from './index.js'
 
 /**
  * runtime 的核心逻辑都是模块内函数（依赖模块级 Map 状态），
@@ -73,6 +74,13 @@ describe('HTTP route matching logic', () => {
 
   it('should return not-found for unknown routes', () => {
     expect(routeRequest('GET', '/api/unknown')).toBe('not-found')
+  })
+
+  it('should serve the viewer when session query parameters are present', () => {
+    expect(isViewerRequest('GET', '/?session=e2e-next')).toBe(true)
+    expect(isViewerRequest('GET', '/index.html?session=demo')).toBe(true)
+    expect(isViewerRequest('GET', '/api/status?session=demo')).toBe(false)
+    expect(isViewerRequest('POST', '/?session=demo')).toBe(false)
   })
 })
 

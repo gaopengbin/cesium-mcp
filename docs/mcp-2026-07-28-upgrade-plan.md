@@ -26,8 +26,12 @@
 
 正式版发布前剩余：
 
-- 完成真实 Chrome → MCP HTTP → WebSocket → Cesium 的浏览器闭环验证。
-- 收集 npm `next` 的真实客户端验证结果，确认无阻断问题后再移动 `latest`。
+- 已完成 npm `next` 的真实 Chrome → MCP HTTP → WebSocket → Cesium 闭环：
+  官方 SDK v2 Client 以 `2026-07-28` modern 模式执行
+  `getView → flyTo → getView`，Chrome Viewer 实际从上海飞到东京。
+- 闭环测试发现内置 Viewer 的 `/?session=...` 被错误返回 404；修复已增加
+  回归测试，需要先发布新的 npm `next` 预发布版本并复测。
+- 新预发布版本确认无阻断问题后，再移动 `latest`。
 
 ## 1. 目标
 
