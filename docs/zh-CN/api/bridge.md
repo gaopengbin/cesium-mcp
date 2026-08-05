@@ -33,7 +33,7 @@ const bridge = new CesiumBridge(viewer, {
 })
 ```
 
-内置 Executor 按领域组织并渐进迁移，迁移过程不会改变公开的 `execute()` 或单命令覆盖契约。
+内置的视图、实体、图层和相机 Executor 已按领域组织；其余领域继续渐进迁移，不会改变公开的 `execute()` 或单命令覆盖契约。
 
 集成卸载时调用 `bridge.dispose()`。它会释放 Bridge 管理的动画、页面状态和事件处理器，但不会销毁应用拥有的 Viewer。
 

@@ -16,7 +16,6 @@ import type {
   AddPolygonParams,
   AddModelParams,
   UpdateEntityParams,
-  RemoveEntityParams,
   SetBasemapParams,
   Load3dTilesParams,
   AddGaussianSplatParams,
@@ -143,63 +142,9 @@ export class CesiumBridge {
       if (executor) return await executor(p, this)
 
       switch (cmd.action) {
-        case 'addGeoJsonLayer': {
-          const info = await this.addGeoJsonLayer(p as AddGeoJsonLayerParams)
-          return { success: true, data: info, message: `GeoJSON layer '${info.name}' added` }
-        }
-        case 'addGeoJsonPrimitive': {
-          const info = await this.addGeoJsonPrimitive(p as AddGeoJsonPrimitiveParams)
-          return { success: true, data: info, message: `GeoJSON primitive '${info.name}' added` }
-        }
         case 'addHeatmap': {
           const info = await this.addHeatmap(p as AddHeatmapParams)
           return { success: true, data: info, message: `Heatmap '${info.name}' added` }
-        }
-        case 'addLabel': {
-          const count = this.addLabel(p as AddLabelParams & { data: Record<string, unknown> })
-          return { success: true, data: { labelCount: count }, message: `${count} labels added` }
-        }
-        case 'addMarker': {
-          const entity = this.addMarker(p as AddMarkerParams)
-          return { success: true, data: { entityId: entity.id }, message: 'Marker added' }
-        }
-        case 'addPolyline': {
-          const entity = this.addPolyline(p as AddPolylineParams)
-          return { success: true, data: { entityId: entity.id }, message: 'Polyline added' }
-        }
-        case 'addPolygon': {
-          const entity = this.addPolygon(p as AddPolygonParams)
-          return { success: true, data: { entityId: entity.id }, message: 'Polygon added' }
-        }
-        case 'addModel': {
-          const entity = this.addModel(p as AddModelParams)
-          return { success: true, data: { entityId: entity.id }, message: 'Model added' }
-        }
-        case 'updateEntity': {
-          const ok = this.updateEntity(p as UpdateEntityParams)
-          return { success: ok, message: ok ? 'Entity updated' : undefined, error: ok ? undefined : `Entity not found: ${(p as any).entityId}` }
-        }
-        case 'removeEntity': {
-          const ok = this.removeEntity((p as RemoveEntityParams).entityId)
-          return { success: ok, message: ok ? 'Entity removed' : undefined, error: ok ? undefined : `Entity not found: ${(p as any).entityId}` }
-        }
-        case 'removeLayer':
-          this.removeLayer(p.id as string)
-          return { success: true, message: `Layer '${p.id}' removed` }
-        case 'clearAll': {
-          const result = this.clearAll()
-          return { success: true, data: result, message: `Cleared ${result.removedLayers} layers and ${result.removedEntities} entities` }
-        }
-        case 'setBasemap': {
-          const basemap = this.setBasemap(p as SetBasemapParams)
-          return { success: true, data: { basemap }, message: `Basemap set to '${basemap}'` }
-        }
-        case 'setLayerVisibility':
-          this.setLayerVisibility(p.id as string, p.visible as boolean)
-          return { success: true, message: `Layer '${p.id}' visibility set to ${p.visible}` }
-        case 'updateLayerStyle': {
-          const ok = this.updateLayerStyle(p as UpdateLayerStyleParams)
-          return { success: ok, message: ok ? 'Layer style updated' : undefined, error: ok ? undefined : `图层未找到或不支持样式修改: ${(p as any).layerId}` }
         }
         case 'screenshot': {
           const result = await this.screenshot()
@@ -238,14 +183,6 @@ export class CesiumBridge {
         case 'playTrajectory': {
           const result = this.playTrajectory(p as PlayTrajectoryParams)
           return { success: true, data: { entityId: result.entityId }, message: 'Trajectory playback started' }
-        }
-        case 'listLayers': {
-          const layers = this.listLayers()
-          return { success: true, data: { layers }, message: `${layers.length} layers found` }
-        }
-        case 'getLayerSchema': {
-          const result = this.getLayerSchema(p as GetLayerSchemaParams)
-          return { success: true, data: result, message: `Layer '${result.layerName}' has ${result.fields.length} fields, ${result.entityCount} entities` }
         }
         // ==================== Entity Types (融合官方) ====================
         case 'addBillboard': {
@@ -319,19 +256,6 @@ export class CesiumBridge {
         case 'setIonToken':
           Cesium.Ion.defaultAccessToken = p.token as string
           return { success: true, message: 'Cesium Ion access token updated' }
-        // ==================== Batch & Query ====================
-        case 'batchAddEntities': {
-          const result = this.batchAddEntities(p as BatchAddEntitiesParams)
-          return { success: true, data: result, message: `${result.entityIds.length} entities added` }
-        }
-        case 'queryEntities': {
-          const entities = this.queryEntities(p as QueryEntitiesParams)
-          return { success: true, data: { entities }, message: `${entities.length} entities found` }
-        }
-        case 'getEntityProperties': {
-          const result = this.getEntityProperties(p as GetEntityPropertiesParams)
-          return { success: true, data: result, message: `Properties for entity '${result.entityId}'` }
-        }
         default:
           return { success: false, error: `未知指令: ${cmd.action}` }
       }

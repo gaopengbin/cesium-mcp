@@ -5632,6 +5632,175 @@ var CesiumMcpBridge = (function (exports) {
     }
   };
 
+  // src/executors/entity.ts
+  var entityExecutors = {
+    addMarker(params, bridge) {
+      const entity = bridge.addMarker(params);
+      return {
+        success: true,
+        data: { entityId: entity.id },
+        message: "Marker added"
+      };
+    },
+    addLabel(params, bridge) {
+      const count = bridge.addLabel(
+        params
+      );
+      return {
+        success: true,
+        data: { labelCount: count },
+        message: `${count} labels added`
+      };
+    },
+    addModel(params, bridge) {
+      const entity = bridge.addModel(params);
+      return {
+        success: true,
+        data: { entityId: entity.id },
+        message: "Model added"
+      };
+    },
+    addPolygon(params, bridge) {
+      const entity = bridge.addPolygon(params);
+      return {
+        success: true,
+        data: { entityId: entity.id },
+        message: "Polygon added"
+      };
+    },
+    addPolyline(params, bridge) {
+      const entity = bridge.addPolyline(params);
+      return {
+        success: true,
+        data: { entityId: entity.id },
+        message: "Polyline added"
+      };
+    },
+    updateEntity(params, bridge) {
+      const input = params;
+      const updated = bridge.updateEntity(input);
+      return {
+        success: updated,
+        message: updated ? "Entity updated" : void 0,
+        error: updated ? void 0 : `Entity not found: ${input.entityId}`
+      };
+    },
+    removeEntity(params, bridge) {
+      const input = params;
+      const removed = bridge.removeEntity(input.entityId);
+      return {
+        success: removed,
+        message: removed ? "Entity removed" : void 0,
+        error: removed ? void 0 : `Entity not found: ${input.entityId}`
+      };
+    },
+    batchAddEntities(params, bridge) {
+      const result = bridge.batchAddEntities(params);
+      return {
+        success: true,
+        data: result,
+        message: `${result.entityIds.length} entities added`
+      };
+    },
+    queryEntities(params, bridge) {
+      const entities = bridge.queryEntities(params);
+      return {
+        success: true,
+        data: { entities },
+        message: `${entities.length} entities found`
+      };
+    },
+    getEntityProperties(params, bridge) {
+      const result = bridge.getEntityProperties(
+        params
+      );
+      return {
+        success: true,
+        data: result,
+        message: `Properties for entity '${result.entityId}'`
+      };
+    }
+  };
+
+  // src/executors/layer.ts
+  var layerExecutors = {
+    async addGeoJsonLayer(params, bridge) {
+      const info = await bridge.addGeoJsonLayer(
+        params
+      );
+      return {
+        success: true,
+        data: info,
+        message: `GeoJSON layer '${info.name}' added`
+      };
+    },
+    async addGeoJsonPrimitive(params, bridge) {
+      const info = await bridge.addGeoJsonPrimitive(
+        params
+      );
+      return {
+        success: true,
+        data: info,
+        message: `GeoJSON primitive '${info.name}' added`
+      };
+    },
+    listLayers(_params, bridge) {
+      const layers = bridge.listLayers();
+      return {
+        success: true,
+        data: { layers },
+        message: `${layers.length} layers found`
+      };
+    },
+    getLayerSchema(params, bridge) {
+      const result = bridge.getLayerSchema(params);
+      return {
+        success: true,
+        data: result,
+        message: `Layer '${result.layerName}' has ${result.fields.length} fields, ${result.entityCount} entities`
+      };
+    },
+    removeLayer(params, bridge) {
+      const id = params.id;
+      bridge.removeLayer(id);
+      return { success: true, message: `Layer '${id}' removed` };
+    },
+    clearAll(_params, bridge) {
+      const result = bridge.clearAll();
+      return {
+        success: true,
+        data: result,
+        message: `Cleared ${result.removedLayers} layers and ${result.removedEntities} entities`
+      };
+    },
+    setLayerVisibility(params, bridge) {
+      const id = params.id;
+      const visible = params.visible;
+      bridge.setLayerVisibility(id, visible);
+      return {
+        success: true,
+        message: `Layer '${id}' visibility set to ${visible}`
+      };
+    },
+    updateLayerStyle(params, bridge) {
+      const input = params;
+      const updated = bridge.updateLayerStyle(input);
+      return {
+        success: updated,
+        message: updated ? "Layer style updated" : void 0,
+        error: updated ? void 0 : `\u56FE\u5C42\u672A\u627E\u5230\u6216\u4E0D\u652F\u6301\u6837\u5F0F\u4FEE\u6539: ${input.layerId}`
+      };
+    },
+    setBasemap(params, bridge) {
+      const basemap = bridge.setBasemap(params);
+      return {
+        success: true,
+        data: { basemap },
+        message: `Basemap set to '${basemap}'`
+      };
+    }
+  };
+
   // src/executors/view.ts
   var viewExecutors = {
     async flyTo(params, bridge) {
@@ -5697,6 +5866,8 @@ var CesiumMcpBridge = (function (exports) {
   // src/executors/executor-registry.ts
   var defaultBridgeExecutors = {
     ...viewExecutors,
+    ...entityExecutors,
+    ...layerExecutors,
     ...cameraExecutors
   };
   Object.freeze(Object.keys(defaultBridgeExecutors));
@@ -5743,63 +5914,9 @@ var CesiumMcpBridge = (function (exports) {
         const executor = this._executors.get(cmd.action);
         if (executor) return await executor(p, this);
         switch (cmd.action) {
-          case "addGeoJsonLayer": {
-            const info = await this.addGeoJsonLayer(p);
-            return { success: true, data: info, message: `GeoJSON layer '${info.name}' added` };
-          }
-          case "addGeoJsonPrimitive": {
-            const info = await this.addGeoJsonPrimitive(p);
-            return { success: true, data: info, message: `GeoJSON primitive '${info.name}' added` };
-          }
           case "addHeatmap": {
             const info = await this.addHeatmap(p);
             return { success: true, data: info, message: `Heatmap '${info.name}' added` };
-          }
-          case "addLabel": {
-            const count = this.addLabel(p);
-            return { success: true, data: { labelCount: count }, message: `${count} labels added` };
-          }
-          case "addMarker": {
-            const entity = this.addMarker(p);
-            return { success: true, data: { entityId: entity.id }, message: "Marker added" };
-          }
-          case "addPolyline": {
-            const entity = this.addPolyline(p);
-            return { success: true, data: { entityId: entity.id }, message: "Polyline added" };
-          }
-          case "addPolygon": {
-            const entity = this.addPolygon(p);
-            return { success: true, data: { entityId: entity.id }, message: "Polygon added" };
-          }
-          case "addModel": {
-            const entity = this.addModel(p);
-            return { success: true, data: { entityId: entity.id }, message: "Model added" };
-          }
-          case "updateEntity": {
-            const ok = this.updateEntity(p);
-            return { success: ok, message: ok ? "Entity updated" : void 0, error: ok ? void 0 : `Entity not found: ${p.entityId}` };
-          }
-          case "removeEntity": {
-            const ok = this.removeEntity(p.entityId);
-            return { success: ok, message: ok ? "Entity removed" : void 0, error: ok ? void 0 : `Entity not found: ${p.entityId}` };
-          }
-          case "removeLayer":
-            this.removeLayer(p.id);
-            return { success: true, message: `Layer '${p.id}' removed` };
-          case "clearAll": {
-            const result = this.clearAll();
-            return { success: true, data: result, message: `Cleared ${result.removedLayers} layers and ${result.removedEntities} entities` };
-          }
-          case "setBasemap": {
-            const basemap = this.setBasemap(p);
-            return { success: true, data: { basemap }, message: `Basemap set to '${basemap}'` };
-          }
-          case "setLayerVisibility":
-            this.setLayerVisibility(p.id, p.visible);
-            return { success: true, message: `Layer '${p.id}' visibility set to ${p.visible}` };
-          case "updateLayerStyle": {
-            const ok = this.updateLayerStyle(p);
-            return { success: ok, message: ok ? "Layer style updated" : void 0, error: ok ? void 0 : `\u56FE\u5C42\u672A\u627E\u5230\u6216\u4E0D\u652F\u6301\u6837\u5F0F\u4FEE\u6539: ${p.layerId}` };
           }
           case "screenshot": {
             const result = await this.screenshot();
@@ -5838,14 +5955,6 @@ var CesiumMcpBridge = (function (exports) {
           case "playTrajectory": {
             const result = this.playTrajectory(p);
             return { success: true, data: { entityId: result.entityId }, message: "Trajectory playback started" };
-          }
-          case "listLayers": {
-            const layers = this.listLayers();
-            return { success: true, data: { layers }, message: `${layers.length} layers found` };
-          }
-          case "getLayerSchema": {
-            const result = this.getLayerSchema(p);
-            return { success: true, data: result, message: `Layer '${result.layerName}' has ${result.fields.length} fields, ${result.entityCount} entities` };
           }
           // ==================== Entity Types (融合官方) ====================
           case "addBillboard": {
@@ -5919,19 +6028,6 @@ var CesiumMcpBridge = (function (exports) {
           case "setIonToken":
             Cesium11.Ion.defaultAccessToken = p.token;
             return { success: true, message: "Cesium Ion access token updated" };
-          // ==================== Batch & Query ====================
-          case "batchAddEntities": {
-            const result = this.batchAddEntities(p);
-            return { success: true, data: result, message: `${result.entityIds.length} entities added` };
-          }
-          case "queryEntities": {
-            const entities = this.queryEntities(p);
-            return { success: true, data: { entities }, message: `${entities.length} entities found` };
-          }
-          case "getEntityProperties": {
-            const result = this.getEntityProperties(p);
-            return { success: true, data: result, message: `Properties for entity '${result.entityId}'` };
-          }
           default:
             return { success: false, error: `\u672A\u77E5\u6307\u4EE4: ${cmd.action}` };
         }
