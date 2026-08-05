@@ -1,5 +1,7 @@
 # cesium-mcp-runtime
 
+## 1.144.1
+
 ## 1.144.0
 
 ### Patch Changes
