@@ -1,5 +1,11 @@
 # cesium-mcp-dev
 
+## 1.144.0
+
+### Minor Changes
+
+- [#24](https://github.com/gaopengbin/cesium-mcp/pull/24) [`17ebd35`](https://github.com/gaopengbin/cesium-mcp/commit/17ebd35bf7ec69e416febd43801c55c716aa7f05) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Migrate the IDE development server to the stable MCP SDK v2 stdio entry while preserving legacy client negotiation and adding dual-era integration tests.
+
 ## 1.143.4
 
 ## 1.143.4-next.1

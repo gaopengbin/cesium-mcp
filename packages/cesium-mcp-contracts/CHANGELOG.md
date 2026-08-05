@@ -1,5 +1,11 @@
 # cesium-mcp-contracts
 
+## 0.5.0
+
+### Minor Changes
+
+- [`b2b9c92`](https://github.com/gaopengbin/cesium-mcp/commit/b2b9c92db6034e8ecb6c17f5a139ec6bf960bb30) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Add shared runtime input validation, per-command Bridge executor overrides, per-Viewer state isolation, and an idempotent Bridge lifecycle cleanup API.
+
 ## 0.4.0
 
 ### Minor Changes

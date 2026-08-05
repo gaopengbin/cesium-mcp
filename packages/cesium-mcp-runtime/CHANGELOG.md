@@ -1,5 +1,14 @@
 # cesium-mcp-runtime
 
+## 1.144.0
+
+### Patch Changes
+
+- [`98f980b`](https://github.com/gaopengbin/cesium-mcp/commit/98f980bf447f2091625ed4772b7fb02235159529) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Isolate browser sessions with exact fail-closed routing and response ownership, and strengthen Bridge disposal by cancelling pending viewer activity and releasing internal references.
+
+- Updated dependencies [[`b2b9c92`](https://github.com/gaopengbin/cesium-mcp/commit/b2b9c92db6034e8ecb6c17f5a139ec6bf960bb30)]:
+  - cesium-mcp-contracts@0.5.0
+
 ## 1.143.4
 
 ### Patch Changes
