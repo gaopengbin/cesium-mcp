@@ -95,7 +95,7 @@ Cesium MCP uses shared contracts and a protocol-neutral browser executor with se
 
 ### cesium-mcp-contracts (Shared)
 
-The contracts package owns transport-neutral tool names, descriptions, JSON Schemas, defaults, result shapes, and toolset membership. The WebMCP adapter and MCP runtime both consume these definitions. At registration time the runtime converts the canonical JSON Schema to Zod, so MCP validation and WebMCP declarations cannot drift into separate schemas.
+The contracts package owns transport-neutral tool names, descriptions, JSON Schemas, defaults, result shapes, and toolset membership. WebMCP publishes these definitions directly, Function Calling maps the same input schema to `function.parameters`, and the MCP runtime wraps it as an SDK v2 Standard Schema while adding only the optional transport-level `sessionId`. Automated parity tests compare all 61 shared tools and the 60-tool Bridge Executor Registry so names, descriptions, and input schemas cannot silently drift.
 
 ### cesium-mcp-bridge (Browser)
 

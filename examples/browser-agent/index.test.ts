@@ -83,7 +83,12 @@ describe('browser-agent startup order', () => {
   })
 
   it('routes built-in chat tools while preserving explicit core and full modes', () => {
-    expect(html).toContain('<script src="/tool-router.js"></script>')
+    expect(html).toContain('<script src="./tool-router.js"></script>')
+    expect(html).toContain('<script src="./function-tools.js"></script>')
+    expect(html).not.toContain('<script src="/function-tools.js"></script>')
+    expect(html).toContain('CesiumFunctionTools.toFunctionTools(selection.tools)')
+    expect(html).toContain('bridge.execute(CesiumFunctionTools.toBridgeCommand(')
+    expect(html).not.toContain('function toFunctionTools(')
     expect(html).toContain('id="toolModeSelect"')
     expect(html).toContain("value=\"auto\"")
     expect(html).toContain("value=\"core\"")
@@ -93,7 +98,7 @@ describe('browser-agent startup order', () => {
   })
 
   it('retries incomplete tool responses without rendering raw tool markup', () => {
-    expect(html).toContain('<script src="/agent-response.js"></script>')
+    expect(html).toContain('<script src="./agent-response.js"></script>')
     expect(html).toContain('CesiumAgentResponse.requestValidChoice')
     expect(html).toContain("maxRetries: 1")
     expect(html).toContain("err.code === 'INCOMPLETE_TOOL_RESPONSE'")

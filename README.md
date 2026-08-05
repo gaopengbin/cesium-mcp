@@ -216,7 +216,11 @@ git clone https://github.com/gaopengbin/cesium-mcp.git
 cd cesium-mcp
 npm install
 npm run build
+npm test
+npm run test:contracts
 ```
+
+`test:contracts` is the focused parity gate for MCP Runtime metadata, WebMCP registration, Function Calling definitions, and the 60-tool Bridge Executor Registry.
 
 ## Version Policy
 

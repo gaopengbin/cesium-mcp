@@ -11,8 +11,9 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="shortcut icon" href="/favicon.svg">
   <script src="/packages/cesium-mcp-webmcp/dist/cesium-mcp-webmcp.browser.global.js"></script>
-  <script src="/tool-router.js"></script>
-  <script src="/agent-response.js"></script>
+  <script src="./tool-router.js"></script>
+  <script src="./function-tools.js"></script>
+  <script src="./agent-response.js"></script>
   <title>CesiumJS AI Agent - Browser Only</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" onload="this.onload=null;this.rel='stylesheet'">
@@ -833,24 +834,13 @@ function prepareCommandParams(action, params) {
   return { ...params, url: rewrittenUrl }
 }
 
-function toFunctionTools(contracts) {
-  return contracts.map(tool => ({
-  type: 'function',
-  function: {
-    name: tool.name,
-    description: tool.description,
-    parameters: tool.inputSchema,
-  },
-  }))
-}
-
-const TOOLS = toFunctionTools(TOOL_CONTRACTS)
+const TOOLS = CesiumFunctionTools.toFunctionTools(TOOL_CONTRACTS)
 
 function resolveChatToolSelection(prompt) {
   const selection = CesiumToolRouter.resolveToolSelection(prompt, CONFIG.toolMode, TOOL_API)
   return {
     ...selection,
-    tools: toFunctionTools(selection.tools),
+    tools: CesiumFunctionTools.toFunctionTools(selection.tools),
   }
 }
 const SYSTEM_PROMPTS = {
@@ -1134,10 +1124,10 @@ async function runAgentLoop() {
               result = await clientGeocode(params)
             } else {
               await initCesium()
-              result = await bridge.execute({
-                action: tc.function.name,
-                params: prepareCommandParams(tc.function.name, params),
-              })
+              result = await bridge.execute(CesiumFunctionTools.toBridgeCommand(
+                tc.function.name,
+                prepareCommandParams(tc.function.name, params),
+              ))
             }
             updateToolCall(toolEl, 'done', result);
             // Truncate large results (e.g. screenshot base64) to avoid context overflow
