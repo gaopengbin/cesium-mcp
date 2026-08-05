@@ -47,7 +47,7 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 | **cesium-mcp-webmcp** | 基于原生 `document.modelContext` 的 Cesium 工具适配层 | 新增浏览器适配层 | [源码](packages/cesium-mcp-webmcp/) |
 | **examples/webmcp-integration** | 不包含聊天 UI 和 MCP 服务的 npm + Vite 接入示例 | 开发者示例 | [示例](examples/webmcp-integration/) |
 | **examples/browser-agent** | 纯浏览器 AI Agent，自动暴露 WebMCP 工具 | 推荐入口 | [示例](examples/browser-agent/) · [在线 demo](https://cesium-browser-agent.pages.dev/) |
-| **cesium-mcp-runtime** | MCP 服务器（stdio + HTTP） | 稳定版 + MCP v2 预览版 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) · [源码](packages/cesium-mcp-runtime/) |
+| **cesium-mcp-runtime** | MCP 服务器（stdio + HTTP） | 稳定版 MCP SDK v2 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) · [源码](packages/cesium-mcp-runtime/) |
 | **cesium-mcp-dev** | 给代码助手用的 CesiumJS API 知识库 | 维护中 | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) · [源码](packages/cesium-mcp-dev/) |
 
 > **怎么选？** 个人项目或想最快试用 → browser-agent；让兼容浏览器的 Agent 发现页面内 Cesium 工具 → WebMCP；已有 Web 应用要嵌 AI 助手 → bridge + 自己接 function calling；要从 Claude Desktop / Cursor / Dify 调用 → MCP runtime。
@@ -151,22 +151,16 @@ const bridge = new CesiumBridge(viewer);
 按路径 2 安装 bridge，然后启动 MCP runtime：
 
 ```bash
-# 稳定通道 — npm latest（1.143.3）
+# 稳定通道 — npm latest，MCP SDK v2
 npx cesium-mcp-runtime
 
-# MCP v2 预览通道 — npm next（1.143.4-next.0）
-npx cesium-mcp-runtime@next
-
-# HTTP 模式；使用预览版时加 @next
+# HTTP 模式
 npx cesium-mcp-runtime --transport http --port 3000
-npx cesium-mcp-runtime@next --transport http --port 3000
 ```
 
-`next` 预览版通过同一个 stdio/HTTP 入口同时支持现有 MCP `2025-11-25`
-客户端和新的 `2026-07-28` 协议，使用稳定版 TypeScript SDK v2，并已通过
-官方 `server-stateless` 一致性场景（28/28）。npm `latest` 仍保持在
-`1.143.3`；去掉 `@next` 即可回退。若希望浏览器端包版本一致，请在应用中
-安装 `cesium-mcp-bridge@next`。
+稳定版通过同一个 stdio/HTTP 入口同时支持现有 MCP `2025-11-25`
+客户端和新的 `2026-07-28` 协议，使用稳定版 TypeScript SDK v2，并通过
+官方 `server-stateless` 一致性场景（28/28）。
 
 MCP 客户端配置：
 
@@ -180,9 +174,6 @@ MCP 客户端配置：
   }
 }
 ```
-
-在 MCP 客户端中测试预览版时，把最后一个参数改为
-`"cesium-mcp-runtime@next"`。
 
 ## 62 个可用命令工具
 

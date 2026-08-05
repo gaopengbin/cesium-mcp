@@ -5,12 +5,11 @@
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 
 ::: tip Release channels
-- Stable: `npx cesium-mcp-runtime` → `latest@1.143.3`
-- MCP v2 preview: `npx cesium-mcp-runtime@next` → `next@1.143.4-next.0`
+- Stable: `npx cesium-mcp-runtime` → npm `latest`
 
-The preview supports MCP `2025-11-25` and `2026-07-28`, uses the stable
-TypeScript SDK v2, and passed the official `server-stateless` conformance
-scenario (28/28). Remove `@next` to return to the stable release.
+The stable release supports MCP `2025-11-25` and `2026-07-28`, uses the
+stable TypeScript SDK v2, and passes the official `server-stateless`
+conformance scenario (28/28).
 :::
 
 ## Installation & Run

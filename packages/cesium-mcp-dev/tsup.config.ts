@@ -6,7 +6,7 @@ export default defineConfig({
   format: ['esm'],
   dts: true,
   clean: true,
-  target: 'node18',
+  target: 'node20',
   banner: { js: '#!/usr/bin/env node' },
   define: {
     __VERSION__: JSON.stringify(pkg.version),

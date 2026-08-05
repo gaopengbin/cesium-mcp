@@ -31,6 +31,14 @@ jobs:
 
       - run: npx vitest run
 
+      # Workspace builds update the tracked browser/runtime bundles and can
+      # create new hashed chunks. Changesets resets tracked files internally,
+      # but leaves untracked chunks behind and would add them to the version PR.
+      - name: Clean generated bundles before Changesets
+        run: |
+          git restore --worktree packages/cesium-mcp-runtime/dist packages/cesium-mcp-bridge/dist
+          git clean -fd packages/cesium-mcp-runtime/dist packages/cesium-mcp-bridge/dist
+
       - name: Create Release PR or Publish
         uses: changesets/action@v1
         with:

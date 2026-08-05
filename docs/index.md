@@ -24,7 +24,7 @@ features:
   - icon:
       src: /icons/clients.svg
     title: WebMCP and MCP
-    details: Expose page-local tools directly to compatible browsers, or connect MCP clients through the runtime. The v2 preview supports both MCP 2025-11-25 and 2026-07-28.
+    details: Expose page-local tools directly to compatible browsers, or connect MCP clients through the stable SDK v2 runtime with support for MCP 2025-11-25 and 2026-07-28.
   - icon:
       src: /icons/packages.svg
     title: Composable Packages, One Ecosystem

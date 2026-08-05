@@ -4,6 +4,9 @@
 
 [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev)
 
+稳定版 stdio 服务器使用 MCP SDK v2，可同时协商 MCP `2025-11-25` 和
+`2026-07-28` 客户端。
+
 ## 安装与运行
 
 ```bash

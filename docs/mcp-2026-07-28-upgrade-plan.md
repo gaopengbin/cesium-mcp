@@ -4,6 +4,10 @@
 > 工作分支：`codex/mcp-2026-07-28-upgrade`
 > 基线：`@modelcontextprotocol/sdk ^1.29.0`、MCP `2025-11-25` 兼容行为
 
+> 2026-08-05 收口：`cesium-mcp-dev` 也已迁移到稳定版 SDK v2，并新增
+> modern/legacy stdio 对照测试；根目录旧 HTTP 启动脚本改为委托 Runtime
+> 正式入口。相关改动随下一次稳定版发布。
+
 ## 实施进度（2026-07-29）
 
 已完成：
