@@ -33,7 +33,7 @@ const bridge = new CesiumBridge(viewer, {
 })
 ```
 
-内置的视图、实体、图层、相机、交互、场景和三维数据 Executor 已按领域组织；其余领域继续渐进迁移，不会改变公开的 `execute()` 或单命令覆盖契约。
+全部 60 个浏览器安全 Executor 已按领域组织，并与共享契约进行完整性校验。公开的 `execute()` 和单命令覆盖契约保持不变；敏感的 `setIonToken` 兼容命令不会进入共享 AI 工具面。
 
 集成卸载时调用 `bridge.dispose()`。它会释放 Bridge 管理的动画、页面状态和事件处理器，但不会销毁应用拥有的 Viewer。
 

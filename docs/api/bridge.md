@@ -33,7 +33,7 @@ const bridge = new CesiumBridge(viewer, {
 })
 ```
 
-Built-in view, entity, layer, camera, interaction, scene, and tiles executors are organized by domain. The remaining domains migrate incrementally without changing the public `execute()` or override contract.
+All 60 browser-safe executors are organized by domain and checked against the shared contracts. The public `execute()` and override contract remain stable; the sensitive `setIonToken` compatibility command stays outside the shared AI tool surface.
 
 Call `bridge.dispose()` when removing the integration. It releases Bridge-managed activity and event handlers without destroying the application-owned Viewer.
 

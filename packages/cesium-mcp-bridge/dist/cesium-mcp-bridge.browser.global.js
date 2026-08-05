@@ -633,7 +633,7 @@ var CesiumMcpBridge = (function (exports) {
   });
 
   // src/bridge.ts
-  var Cesium11 = __toESM(require_cesium());
+  var Cesium12 = __toESM(require_cesium());
 
   // ../cesium-mcp-contracts/dist/index.js
   var paramDescriptions = {
@@ -5612,6 +5612,67 @@ var CesiumMcpBridge = (function (exports) {
     return { applied };
   }
 
+  // src/executors/animation.ts
+  var animationExecutors = {
+    createAnimation(params, bridge) {
+      const entity = bridge.createAnimation(params);
+      return {
+        success: true,
+        data: { entityId: entity.id },
+        message: "Animation created"
+      };
+    },
+    controlAnimation(params, bridge) {
+      const input = params;
+      bridge.controlAnimation(input.action);
+      return { success: true, message: `Animation ${input.action}` };
+    },
+    removeAnimation(params, bridge) {
+      const input = params;
+      const removed = bridge.removeAnimation(input.entityId);
+      return {
+        success: removed,
+        message: removed ? "Animation removed" : void 0,
+        error: removed ? void 0 : `Animation entity not found: ${input.entityId}`
+      };
+    },
+    listAnimations(_params, bridge) {
+      const animations = bridge.listAnimations();
+      return {
+        success: true,
+        data: { animations },
+        message: `${animations.length} animations found`
+      };
+    },
+    updateAnimationPath(params, bridge) {
+      const updated = bridge.updateAnimationPath(
+        params
+      );
+      return {
+        success: updated,
+        message: updated ? "Animation path updated" : void 0,
+        error: updated ? void 0 : "Entity or path not found"
+      };
+    },
+    trackEntity(params, bridge) {
+      const input = params;
+      bridge.trackEntity(input);
+      return {
+        success: true,
+        message: input.entityId ? `Tracking entity ${input.entityId}` : "Tracking stopped"
+      };
+    },
+    controlClock(params, bridge) {
+      const input = params;
+      bridge.controlClock(input);
+      return { success: true, message: `Clock ${input.action} applied` };
+    },
+    setGlobeLighting(params, bridge) {
+      bridge.setGlobeLighting(params);
+      return { success: true, message: "Globe lighting updated" };
+    }
+  };
+
   // src/executors/camera.ts
   var cameraExecutors = {
     lookAtTransform(params, bridge) {
@@ -5718,6 +5779,50 @@ var CesiumMcpBridge = (function (exports) {
         success: true,
         data: result,
         message: `Properties for entity '${result.entityId}'`
+      };
+    }
+  };
+
+  // src/executors/entity-ext.ts
+  var entityExtExecutors = {
+    addBillboard(params, bridge) {
+      const entity = bridge.addBillboard(params);
+      return { success: true, data: { entityId: entity.id }, message: "Billboard added" };
+    },
+    addBox(params, bridge) {
+      const entity = bridge.addBox(params);
+      return { success: true, data: { entityId: entity.id }, message: "Box added" };
+    },
+    addCorridor(params, bridge) {
+      const entity = bridge.addCorridor(params);
+      return { success: true, data: { entityId: entity.id }, message: "Corridor added" };
+    },
+    addCylinder(params, bridge) {
+      const entity = bridge.addCylinder(params);
+      return { success: true, data: { entityId: entity.id }, message: "Cylinder added" };
+    },
+    addEllipse(params, bridge) {
+      const entity = bridge.addEllipse(params);
+      return { success: true, data: { entityId: entity.id }, message: "Ellipse added" };
+    },
+    addRectangle(params, bridge) {
+      const entity = bridge.addRectangle(params);
+      return { success: true, data: { entityId: entity.id }, message: "Rectangle added" };
+    },
+    addWall(params, bridge) {
+      const entity = bridge.addWall(params);
+      return { success: true, data: { entityId: entity.id }, message: "Wall added" };
+    }
+  };
+
+  // src/executors/heatmap.ts
+  var heatmapExecutors = {
+    async addHeatmap(params, bridge) {
+      const info = await bridge.addHeatmap(params);
+      return {
+        success: true,
+        data: info,
+        message: `Heatmap '${info.name}' added`
       };
     }
   };
@@ -5903,6 +6008,20 @@ var CesiumMcpBridge = (function (exports) {
     }
   };
 
+  // src/executors/trajectory.ts
+  var trajectoryExecutors = {
+    playTrajectory(params, bridge) {
+      const result = bridge.playTrajectory(
+        params
+      );
+      return {
+        success: true,
+        data: { entityId: result.entityId },
+        message: "Trajectory playback started"
+      };
+    }
+  };
+
   // src/executors/view.ts
   var viewExecutors = {
     async flyTo(params, bridge) {
@@ -5971,14 +6090,27 @@ var CesiumMcpBridge = (function (exports) {
     ...entityExecutors,
     ...layerExecutors,
     ...cameraExecutors,
+    ...entityExtExecutors,
+    ...animationExecutors,
     ...sceneExecutors,
     ...tilesExecutors,
-    ...interactionExecutors
+    ...interactionExecutors,
+    ...trajectoryExecutors,
+    ...heatmapExecutors
   };
   Object.freeze(Object.keys(defaultBridgeExecutors));
   function createDefaultBridgeExecutors() {
     return { ...defaultBridgeExecutors };
   }
+
+  // src/executors/internal.ts
+  var Cesium11 = __toESM(require_cesium());
+  var internalBridgeExecutors = {
+    setIonToken(params) {
+      Cesium11.Ion.defaultAccessToken = params.token;
+      return { success: true, message: "Cesium Ion access token updated" };
+    }
+  };
 
   // src/bridge.ts
   var CesiumBridge = class {
@@ -5993,6 +6125,7 @@ var CesiumMcpBridge = (function (exports) {
       this._validateInputs = options.validateInputs ?? true;
       this._executors = new Map(Object.entries({
         ...createDefaultBridgeExecutors(),
+        ...internalBridgeExecutors,
         ...options.executors
       }));
     }
@@ -6018,79 +6151,7 @@ var CesiumMcpBridge = (function (exports) {
         }
         const executor = this._executors.get(cmd.action);
         if (executor) return await executor(p, this);
-        switch (cmd.action) {
-          case "addHeatmap": {
-            const info = await this.addHeatmap(p);
-            return { success: true, data: info, message: `Heatmap '${info.name}' added` };
-          }
-          case "playTrajectory": {
-            const result = this.playTrajectory(p);
-            return { success: true, data: { entityId: result.entityId }, message: "Trajectory playback started" };
-          }
-          // ==================== Entity Types (融合官方) ====================
-          case "addBillboard": {
-            const entity = this.addBillboard(p);
-            return { success: true, data: { entityId: entity.id }, message: "Billboard added" };
-          }
-          case "addBox": {
-            const entity = this.addBox(p);
-            return { success: true, data: { entityId: entity.id }, message: "Box added" };
-          }
-          case "addCorridor": {
-            const entity = this.addCorridor(p);
-            return { success: true, data: { entityId: entity.id }, message: "Corridor added" };
-          }
-          case "addCylinder": {
-            const entity = this.addCylinder(p);
-            return { success: true, data: { entityId: entity.id }, message: "Cylinder added" };
-          }
-          case "addEllipse": {
-            const entity = this.addEllipse(p);
-            return { success: true, data: { entityId: entity.id }, message: "Ellipse added" };
-          }
-          case "addRectangle": {
-            const entity = this.addRectangle(p);
-            return { success: true, data: { entityId: entity.id }, message: "Rectangle added" };
-          }
-          case "addWall": {
-            const entity = this.addWall(p);
-            return { success: true, data: { entityId: entity.id }, message: "Wall added" };
-          }
-          // ==================== Animation (融合官方) ====================
-          case "createAnimation": {
-            const entity = this.createAnimation(p);
-            return { success: true, data: { entityId: entity.id }, message: "Animation created" };
-          }
-          case "controlAnimation":
-            this.controlAnimation(p.action);
-            return { success: true, message: `Animation ${p.action}` };
-          case "removeAnimation": {
-            const ok = this.removeAnimation(p.entityId);
-            return { success: ok, message: ok ? "Animation removed" : void 0, error: ok ? void 0 : `Animation entity not found: ${p.entityId}` };
-          }
-          case "listAnimations": {
-            const animations = this.listAnimations();
-            return { success: true, data: { animations }, message: `${animations.length} animations found` };
-          }
-          case "updateAnimationPath": {
-            const ok = this.updateAnimationPath(p);
-            return { success: ok, message: ok ? "Animation path updated" : void 0, error: ok ? void 0 : "Entity or path not found" };
-          }
-          case "trackEntity":
-            this.trackEntity(p);
-            return { success: true, message: p.entityId ? `Tracking entity ${p.entityId}` : "Tracking stopped" };
-          case "controlClock":
-            this.controlClock(p);
-            return { success: true, message: `Clock ${p.action} applied` };
-          case "setGlobeLighting":
-            this.setGlobeLighting(p);
-            return { success: true, message: "Globe lighting updated" };
-          case "setIonToken":
-            Cesium11.Ion.defaultAccessToken = p.token;
-            return { success: true, message: "Cesium Ion access token updated" };
-          default:
-            return { success: false, error: `\u672A\u77E5\u6307\u4EE4: ${cmd.action}` };
-        }
+        return { success: false, error: `\u672A\u77E5\u6307\u4EE4: ${cmd.action}` };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         return { success: false, error: msg };
@@ -6266,28 +6327,28 @@ var CesiumMcpBridge = (function (exports) {
     _attachLabelsToDataSource(ds, params) {
       const { field, style } = params;
       const font = style?.font ?? "12px sans-serif";
-      const fillColor = style?.fillColor ? Cesium11.Color.fromCssColorString(style.fillColor) : Cesium11.Color.WHITE;
-      const outlineColor = style?.outlineColor ? Cesium11.Color.fromCssColorString(style.outlineColor) : Cesium11.Color.BLACK;
+      const fillColor = style?.fillColor ? Cesium12.Color.fromCssColorString(style.fillColor) : Cesium12.Color.WHITE;
+      const outlineColor = style?.outlineColor ? Cesium12.Color.fromCssColorString(style.outlineColor) : Cesium12.Color.BLACK;
       const outlineWidth = style?.outlineWidth ?? 2;
-      const pixelOffset = style?.pixelOffset ? new Cesium11.Cartesian2(style.pixelOffset[0], style.pixelOffset[1]) : new Cesium11.Cartesian2(0, -16);
+      const pixelOffset = style?.pixelOffset ? new Cesium12.Cartesian2(style.pixelOffset[0], style.pixelOffset[1]) : new Cesium12.Cartesian2(0, -16);
       let count = 0;
       const entities = ds.entities.values;
       for (let i = 0; i < entities.length; i++) {
         const e = entities[i];
         if (!e.properties || !e.position) continue;
-        const val = e.properties[field]?.getValue(Cesium11.JulianDate.now());
+        const val = e.properties[field]?.getValue(Cesium12.JulianDate.now());
         if (val == null || val === "") continue;
-        e.label = new Cesium11.LabelGraphics({
+        e.label = new Cesium12.LabelGraphics({
           text: String(val),
           font,
           fillColor,
           outlineColor,
           outlineWidth,
-          style: Cesium11.LabelStyle.FILL_AND_OUTLINE,
+          style: Cesium12.LabelStyle.FILL_AND_OUTLINE,
           pixelOffset,
           scale: style?.scale ?? 1,
-          verticalOrigin: Cesium11.VerticalOrigin.BOTTOM,
-          heightReference: Cesium11.HeightReference.CLAMP_TO_GROUND,
+          verticalOrigin: Cesium12.VerticalOrigin.BOTTOM,
+          heightReference: Cesium12.HeightReference.CLAMP_TO_GROUND,
           disableDepthTestDistance: Number.POSITIVE_INFINITY
         });
         count++;

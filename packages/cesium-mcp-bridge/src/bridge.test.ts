@@ -1,3 +1,4 @@
+import * as Cesium from 'cesium'
 import { describe, expect, it, vi } from 'vitest'
 
 import { CesiumBridge } from './bridge.js'
@@ -70,6 +71,40 @@ describe('CesiumBridge command boundary', () => {
       latitude: 39.9,
     })
     expect(result).toEqual({ success: true, message: 'Camera view set' })
+  })
+
+  it('keeps the internal Ion token command outside shared tool contracts', async () => {
+    const bridge = makeBridge()
+    const previous = Cesium.Ion.defaultAccessToken
+
+    try {
+      const result = await bridge.execute({
+        action: 'setIonToken',
+        params: { token: 'test-token' },
+      })
+
+      expect(result).toEqual({
+        success: true,
+        message: 'Cesium Ion access token updated',
+      })
+      expect(Cesium.Ion.defaultAccessToken).toBe('test-token')
+    } finally {
+      Cesium.Ion.defaultAccessToken = previous
+    }
+  })
+
+  it('returns the existing error shape for unknown commands', async () => {
+    const bridge = makeBridge()
+
+    const result = await bridge.execute({
+      action: 'customUnknownCommand',
+      params: {},
+    })
+
+    expect(result).toEqual({
+      success: false,
+      error: '未知指令: customUnknownCommand',
+    })
   })
 
   it('disposes bridge-managed handlers idempotently', () => {

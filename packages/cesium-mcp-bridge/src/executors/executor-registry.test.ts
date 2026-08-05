@@ -1,4 +1,4 @@
-import { cesiumBrowserToolsetDefinitions } from 'cesium-mcp-contracts'
+import { cesiumSharedToolNames } from 'cesium-mcp-contracts'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { CesiumBridge } from '../bridge.js'
@@ -63,20 +63,32 @@ function bridgeStub() {
     loadCzml: vi.fn().mockResolvedValue({ id: 'czml-1', name: 'Flight' }),
     loadKml: vi.fn().mockResolvedValue({ id: 'kml-1', name: 'Boundary' }),
     setEdgeDisplayMode: vi.fn().mockReturnValue({ applied: 2 }),
+    addBillboard: vi.fn().mockReturnValue({ id: 'billboard-1' }),
+    addBox: vi.fn().mockReturnValue({ id: 'box-1' }),
+    addCorridor: vi.fn().mockReturnValue({ id: 'corridor-1' }),
+    addCylinder: vi.fn().mockReturnValue({ id: 'cylinder-1' }),
+    addEllipse: vi.fn().mockReturnValue({ id: 'ellipse-1' }),
+    addRectangle: vi.fn().mockReturnValue({ id: 'rectangle-1' }),
+    addWall: vi.fn().mockReturnValue({ id: 'wall-1' }),
+    createAnimation: vi.fn().mockReturnValue({ id: 'animation-1' }),
+    controlAnimation: vi.fn(),
+    removeAnimation: vi.fn().mockReturnValue(true),
+    listAnimations: vi.fn().mockReturnValue([{ entityId: 'animation-1' }]),
+    updateAnimationPath: vi.fn().mockReturnValue(true),
+    trackEntity: vi.fn(),
+    controlClock: vi.fn(),
+    setGlobeLighting: vi.fn(),
+    playTrajectory: vi.fn().mockReturnValue({
+      entityId: 'trajectory-1',
+      stop: vi.fn(),
+    }),
+    addHeatmap: vi.fn().mockResolvedValue({ id: 'heatmap-1', name: 'Density' }),
   } as unknown as CesiumBridge
 }
 
 describe('default Bridge executor registry', () => {
-  it('covers every migrated domain contract exactly once', () => {
-    const expected = [
-      ...cesiumBrowserToolsetDefinitions.view.names,
-      ...cesiumBrowserToolsetDefinitions.entity.names,
-      ...cesiumBrowserToolsetDefinitions.layer.names,
-      ...cesiumBrowserToolsetDefinitions.camera.names,
-      ...cesiumBrowserToolsetDefinitions.scene.names,
-      ...cesiumBrowserToolsetDefinitions.tiles.names,
-      ...cesiumBrowserToolsetDefinitions.interaction.names,
-    ]
+  it('covers every Bridge shared-tool contract exactly once', () => {
+    const expected = cesiumSharedToolNames.filter(name => name !== 'geocode')
 
     expect(defaultBridgeExecutorNames).toEqual(expected)
     expect(Object.keys(createDefaultBridgeExecutors())).toEqual(expected)
@@ -208,6 +220,56 @@ describe('default Bridge executor registry', () => {
       success: true,
       data: { applied: 2 },
       message: 'Edge display mode set on 2 tileset(s)',
+    })
+  })
+
+  it('preserves extended entity and animation result shapes', async () => {
+    const bridge = bridgeStub()
+    const executors = createDefaultBridgeExecutors()
+
+    const billboard = await executors.addBillboard!(
+      { longitude: 116.4, latitude: 39.9, image: 'pin.png' },
+      bridge,
+    )
+    const animation = await executors.createAnimation!(
+      { waypoints: [] },
+      bridge,
+    )
+
+    expect(billboard).toEqual({
+      success: true,
+      data: { entityId: 'billboard-1' },
+      message: 'Billboard added',
+    })
+    expect(animation).toEqual({
+      success: true,
+      data: { entityId: 'animation-1' },
+      message: 'Animation created',
+    })
+  })
+
+  it('preserves trajectory and heatmap result shapes', async () => {
+    const bridge = bridgeStub()
+    const executors = createDefaultBridgeExecutors()
+
+    const trajectory = await executors.playTrajectory!(
+      { coordinates: [[116.4, 39.9], [116.5, 40]] },
+      bridge,
+    )
+    const heatmap = await executors.addHeatmap!(
+      { data: { type: 'FeatureCollection', features: [] } },
+      bridge,
+    )
+
+    expect(trajectory).toEqual({
+      success: true,
+      data: { entityId: 'trajectory-1' },
+      message: 'Trajectory playback started',
+    })
+    expect(heatmap).toEqual({
+      success: true,
+      data: { id: 'heatmap-1', name: 'Density' },
+      message: "Heatmap 'Density' added",
     })
   })
 })

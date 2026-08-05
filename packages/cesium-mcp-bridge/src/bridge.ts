@@ -48,8 +48,6 @@ import type {
   AddRectangleParams,
   AddWallParams,
   CreateAnimationParams,
-  ControlAnimationParams,
-  RemoveAnimationParams,
   UpdateAnimationPathParams,
   TrackEntityParams,
   ControlClockParams,
@@ -73,6 +71,7 @@ import { addBillboard as addBillboardCmd, addBox as addBoxCmd, addCorridor as ad
 import { createAnimation as createAnimationCmd, controlAnimation as controlAnimationCmd, removeAnimation as removeAnimationCmd, listAnimations as listAnimationsCmd, updateAnimationPath as updateAnimationPathCmd, trackEntity as trackEntityCmd, controlClock as controlClockCmd, setGlobeLighting as setGlobeLightingCmd, type AnimationMap } from './commands/animation'
 import { setSceneOptions as setSceneOptionsCmd, setPostProcess as setPostProcessCmd, setEdgeDisplayMode as setEdgeDisplayModeCmd } from './commands/scene'
 import { createDefaultBridgeExecutors } from './executors/executor-registry'
+import { internalBridgeExecutors } from './executors/internal'
 
 export type BridgeExecutor = (
   params: Record<string, unknown>,
@@ -108,6 +107,7 @@ export class CesiumBridge {
     this._validateInputs = options.validateInputs ?? true
     this._executors = new Map(Object.entries({
       ...createDefaultBridgeExecutors(),
+      ...internalBridgeExecutors,
       ...options.executors,
     }))
   }
@@ -141,79 +141,7 @@ export class CesiumBridge {
       const executor = this._executors.get(cmd.action)
       if (executor) return await executor(p, this)
 
-      switch (cmd.action) {
-        case 'addHeatmap': {
-          const info = await this.addHeatmap(p as AddHeatmapParams)
-          return { success: true, data: info, message: `Heatmap '${info.name}' added` }
-        }
-        case 'playTrajectory': {
-          const result = this.playTrajectory(p as PlayTrajectoryParams)
-          return { success: true, data: { entityId: result.entityId }, message: 'Trajectory playback started' }
-        }
-        // ==================== Entity Types (融合官方) ====================
-        case 'addBillboard': {
-          const entity = this.addBillboard(p as AddBillboardParams)
-          return { success: true, data: { entityId: entity.id }, message: 'Billboard added' }
-        }
-        case 'addBox': {
-          const entity = this.addBox(p as AddBoxParams)
-          return { success: true, data: { entityId: entity.id }, message: 'Box added' }
-        }
-        case 'addCorridor': {
-          const entity = this.addCorridor(p as AddCorridorParams)
-          return { success: true, data: { entityId: entity.id }, message: 'Corridor added' }
-        }
-        case 'addCylinder': {
-          const entity = this.addCylinder(p as AddCylinderParams)
-          return { success: true, data: { entityId: entity.id }, message: 'Cylinder added' }
-        }
-        case 'addEllipse': {
-          const entity = this.addEllipse(p as AddEllipseParams)
-          return { success: true, data: { entityId: entity.id }, message: 'Ellipse added' }
-        }
-        case 'addRectangle': {
-          const entity = this.addRectangle(p as AddRectangleParams)
-          return { success: true, data: { entityId: entity.id }, message: 'Rectangle added' }
-        }
-        case 'addWall': {
-          const entity = this.addWall(p as AddWallParams)
-          return { success: true, data: { entityId: entity.id }, message: 'Wall added' }
-        }
-        // ==================== Animation (融合官方) ====================
-        case 'createAnimation': {
-          const entity = this.createAnimation(p as CreateAnimationParams)
-          return { success: true, data: { entityId: entity.id }, message: 'Animation created' }
-        }
-        case 'controlAnimation':
-          this.controlAnimation((p as ControlAnimationParams).action)
-          return { success: true, message: `Animation ${(p as ControlAnimationParams).action}` }
-        case 'removeAnimation': {
-          const ok = this.removeAnimation((p as RemoveAnimationParams).entityId)
-          return { success: ok, message: ok ? 'Animation removed' : undefined, error: ok ? undefined : `Animation entity not found: ${(p as any).entityId}` }
-        }
-        case 'listAnimations': {
-          const animations = this.listAnimations()
-          return { success: true, data: { animations }, message: `${animations.length} animations found` }
-        }
-        case 'updateAnimationPath': {
-          const ok = this.updateAnimationPath(p as UpdateAnimationPathParams)
-          return { success: ok, message: ok ? 'Animation path updated' : undefined, error: ok ? undefined : 'Entity or path not found' }
-        }
-        case 'trackEntity':
-          this.trackEntity(p as TrackEntityParams)
-          return { success: true, message: (p as TrackEntityParams).entityId ? `Tracking entity ${(p as TrackEntityParams).entityId}` : 'Tracking stopped' }
-        case 'controlClock':
-          this.controlClock(p as ControlClockParams)
-          return { success: true, message: `Clock ${(p as ControlClockParams).action} applied` }
-        case 'setGlobeLighting':
-          this.setGlobeLighting(p as SetGlobeLightingParams)
-          return { success: true, message: 'Globe lighting updated' }
-        case 'setIonToken':
-          Cesium.Ion.defaultAccessToken = p.token as string
-          return { success: true, message: 'Cesium Ion access token updated' }
-        default:
-          return { success: false, error: `未知指令: ${cmd.action}` }
-      }
+      return { success: false, error: `未知指令: ${cmd.action}` }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       return { success: false, error: msg }
