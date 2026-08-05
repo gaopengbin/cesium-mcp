@@ -4,8 +4,8 @@
 
 | Version | Supported |
 | ------- | --------- |
-| 1.139.x | Yes       |
-| < 1.139 | No        |
+| Latest npm release | Yes |
+| Older releases | Security fixes only when explicitly announced |
 
 ## Reporting a Vulnerability
 

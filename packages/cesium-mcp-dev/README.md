@@ -11,6 +11,9 @@
 
 `cesium-mcp-dev` helps AI coding assistants (GitHub Copilot, Cursor, Claude Code, etc.) write better CesiumJS code by providing API documentation lookup, code snippet generation, and Entity configuration building -- all through the MCP protocol.
 
+The stable stdio server uses MCP SDK v2 and negotiates both MCP `2025-11-25`
+and `2026-07-28` clients.
+
 ```
 IDE AI Assistant <--MCP stdio--> cesium-mcp-dev --> API docs, code snippets, Entity configs
 ```

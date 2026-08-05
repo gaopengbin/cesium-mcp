@@ -44,7 +44,7 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 | **cesium-mcp-webmcp** | Native `document.modelContext` adapter for Cesium tool contracts | New browser adapter | [source](packages/cesium-mcp-webmcp/) |
 | **examples/webmcp-integration** | Focused npm + Vite integration without a chat UI or MCP server | Developer example | [example](examples/webmcp-integration/) |
 | **examples/browser-agent** | Browser-only AI agent with automatic WebMCP exposure | Recommended | [example](examples/browser-agent/) · [live demo](https://cesium-browser-agent.pages.dev/) |
-| **cesium-mcp-runtime** | MCP server (stdio + HTTP) | Stable + MCP v2 preview | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) · [source](packages/cesium-mcp-runtime/) |
+| **cesium-mcp-runtime** | MCP server (stdio + HTTP) | Stable MCP SDK v2 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) · [source](packages/cesium-mcp-runtime/) |
 | **cesium-mcp-dev** | CesiumJS API knowledge base for coding assistants | Maintained | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev) · [source](packages/cesium-mcp-dev/) |
 
 > **Which one?** Personal project or quick try → browser-agent. Let a compatible browser agent discover page-local Cesium tools → WebMCP. Existing web app embedding an AI assistant → bridge + your own function calling. Calling from Claude Desktop / Cursor / Dify → MCP runtime.
@@ -148,23 +148,17 @@ See [examples/browser-agent/index.html](examples/browser-agent/index.html) for a
 Install bridge as in Path 2, then start the MCP runtime:
 
 ```bash
-# Stable channel — npm latest (1.143.3)
+# Stable channel — npm latest, MCP SDK v2
 npx cesium-mcp-runtime
 
-# MCP v2 preview — npm next (1.143.4-next.0)
-npx cesium-mcp-runtime@next
-
-# HTTP mode; add @next to use the preview
+# HTTP mode
 npx cesium-mcp-runtime --transport http --port 3000
-npx cesium-mcp-runtime@next --transport http --port 3000
 ```
 
-The `next` preview serves existing MCP `2025-11-25` clients and the new
+The stable release serves existing MCP `2025-11-25` clients and the new
 `2026-07-28` protocol from the same stdio/HTTP entry. It uses the stable
-TypeScript SDK v2 and has passed the official `server-stateless` conformance
-scenario (28/28). The npm `latest` tag remains on `1.143.3`, so you can switch
-back by removing `@next`. For matching preview package versions, install
-`cesium-mcp-bridge@next` in the browser application.
+TypeScript SDK v2 and passes the official `server-stateless` conformance
+scenario (28/28).
 
 MCP client config:
 
@@ -178,9 +172,6 @@ MCP client config:
   }
 }
 ```
-
-To test the preview from an MCP client, change the last argument to
-`"cesium-mcp-runtime@next"`.
 
 ## 62 Available Command Tools
 

@@ -11,6 +11,9 @@
 
 `cesium-mcp-dev` 帮助 AI 编程助手（GitHub Copilot、Cursor、Claude Code 等）编写更好的 CesiumJS 代码——通过 MCP 协议提供 API 文档查询、代码片段生成和 Entity 配置构建功能。
 
+稳定版 stdio 服务器使用 MCP SDK v2，可同时协商 MCP `2025-11-25` 和
+`2026-07-28` 客户端。
+
 ```
 IDE AI 助手 <--MCP stdio--> cesium-mcp-dev --> API 文档、代码片段、Entity 配置
 ```

@@ -4,6 +4,9 @@
 
 [![npm](https://img.shields.io/npm/v/cesium-mcp-dev)](https://www.npmjs.com/package/cesium-mcp-dev)
 
+The stable stdio server uses MCP SDK v2 and negotiates both MCP `2025-11-25`
+and `2026-07-28` clients.
+
 ## Installation & Run
 
 ```bash

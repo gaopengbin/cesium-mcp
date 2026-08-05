@@ -22,13 +22,15 @@
   ],
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsup"
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "zod": "^3.22.0"
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.2.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
     "@types/node": "^20.0.0",
     "tsup": "^8.5.1",
     "tsx": "^4.0.0",

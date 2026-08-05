@@ -24,7 +24,7 @@ features:
   - icon:
       src: /icons/clients.svg
     title: 同时支持 WebMCP 与 MCP
-    details: 可直接向兼容浏览器暴露页面工具，也可通过 Runtime 连接 MCP 客户端。v2 预览版同时支持 MCP 2025-11-25 与 2026-07-28。
+    details: 可直接向兼容浏览器暴露页面工具，也可通过稳定版 SDK v2 Runtime 连接 MCP 客户端，并同时支持 MCP 2025-11-25 与 2026-07-28。
   - icon:
       src: /icons/packages.svg
     title: 可组合的包，一个生态

@@ -7,8 +7,8 @@
 [![npm version](https://img.shields.io/npm/v/cesium-mcp-runtime.svg)](https://www.npmjs.com/package/cesium-mcp-runtime)
 [![license](https://img.shields.io/npm/l/cesium-mcp-runtime.svg)](LICENSE)
 
-> **Release channels**: `latest` is the stable `1.143.3` line. `next` is
-> `1.143.4-next.0`, the MCP SDK v2 preview with MCP `2026-07-28` support.
+> **Release channel**: `latest` uses the stable MCP SDK v2 and supports both
+> MCP `2025-11-25` and `2026-07-28` from the same stdio/HTTP entry.
 > If you only want to try the "AI + Cesium" feel,
 > [examples/browser-agent](../../examples/browser-agent/) is the recommended
 > starting point — zero backend, runs in three minutes. See
@@ -36,12 +36,8 @@ Two transport modes are supported:
 # Stable channel (stdio mode, default)
 npx cesium-mcp-runtime
 
-# MCP v2 preview
-npx cesium-mcp-runtime@next
-
-# Or install either channel globally
+# Or install globally
 npm install -g cesium-mcp-runtime
-npm install -g cesium-mcp-runtime@next
 cesium-mcp-runtime
 ```
 
@@ -342,13 +338,11 @@ curl -X POST http://localhost:9100/push \
 
 | Channel | Runtime | Bridge | MCP protocol | Cesium |
 |---------|---------|--------|--------------|--------|
-| `latest` | `1.143.3` | `1.143.3` | 2025-era clients | `~1.143.0` |
-| `next` | `1.143.4-next.0` | `1.143.4-next.0` | `2025-11-25` + `2026-07-28` | `~1.143.0` |
+| `latest` | current stable | matching stable | `2025-11-25` + `2026-07-28` | `~1.143.0` |
 
-The `next` release serves both protocol generations from the same stdio/HTTP
-entry using stable `@modelcontextprotocol/server` and
-`@modelcontextprotocol/node` `2.0.0` packages. Remove `@next` from the npx or
-npm command to return to `latest`.
+The stable release serves both protocol generations from the same stdio/HTTP
+entry using `@modelcontextprotocol/server` and
+`@modelcontextprotocol/node` `2.0.0` packages.
 
 The repository pins the official conformance runner separately and validates
 the `2026-07-28` `server-stateless` scenario with:
