@@ -57,7 +57,7 @@ const bridge = new CesiumBridge(viewer, {
 })
 ```
 
-Built-in view, entity, layer, and camera executors are organized by domain. The remaining domains migrate incrementally while the public `execute()` and per-command override contract remain stable.
+Built-in view, entity, layer, camera, interaction, scene, and tiles executors are organized by domain. The remaining domains migrate incrementally while the public `execute()` and per-command override contract remain stable.
 
 Call `bridge.dispose()` when the integration is unmounted. It stops Bridge-managed camera/trajectory activity, clears page-local state and event handlers, and leaves the application-owned Viewer and scene content intact.
 

@@ -51,6 +51,18 @@ function bridgeStub() {
     setLayerVisibility: vi.fn(),
     updateLayerStyle: vi.fn().mockReturnValue(true),
     setBasemap: vi.fn().mockReturnValue('dark'),
+    screenshot: vi.fn().mockResolvedValue({ dataUrl: 'data:image/png;base64,test' }),
+    highlight: vi.fn(),
+    measure: vi.fn().mockReturnValue({ value: 12.5, unit: 'km' }),
+    setSceneOptions: vi.fn(),
+    setPostProcess: vi.fn(),
+    load3dTiles: vi.fn().mockResolvedValue({ id: 'tiles-1', name: 'Buildings' }),
+    load3dGaussianSplat: vi.fn().mockResolvedValue({ id: 'splat-1', name: 'Scan' }),
+    loadTerrain: vi.fn(),
+    loadImageryService: vi.fn().mockResolvedValue({ id: 'imagery-1', name: 'WMS' }),
+    loadCzml: vi.fn().mockResolvedValue({ id: 'czml-1', name: 'Flight' }),
+    loadKml: vi.fn().mockResolvedValue({ id: 'kml-1', name: 'Boundary' }),
+    setEdgeDisplayMode: vi.fn().mockReturnValue({ applied: 2 }),
   } as unknown as CesiumBridge
 }
 
@@ -61,6 +73,9 @@ describe('default Bridge executor registry', () => {
       ...cesiumBrowserToolsetDefinitions.entity.names,
       ...cesiumBrowserToolsetDefinitions.layer.names,
       ...cesiumBrowserToolsetDefinitions.camera.names,
+      ...cesiumBrowserToolsetDefinitions.scene.names,
+      ...cesiumBrowserToolsetDefinitions.tiles.names,
+      ...cesiumBrowserToolsetDefinitions.interaction.names,
     ]
 
     expect(defaultBridgeExecutorNames).toEqual(expected)
@@ -153,6 +168,46 @@ describe('default Bridge executor registry', () => {
       success: true,
       data: { removedLayers: 1, removedEntities: 2 },
       message: 'Cleared 1 layers and 2 entities',
+    })
+  })
+
+  it('preserves interaction result shapes and highlight intent', async () => {
+    const bridge = bridgeStub()
+    const executors = createDefaultBridgeExecutors()
+
+    const screenshot = await executors.screenshot!({}, bridge)
+    const highlighted = await executors.highlight!({ clear: true }, bridge)
+
+    expect(screenshot).toEqual({
+      success: true,
+      data: { dataUrl: 'data:image/png;base64,test' },
+      message: 'Screenshot captured',
+    })
+    expect(bridge.highlight).toHaveBeenCalledWith({ clear: true })
+    expect(highlighted).toEqual({
+      success: true,
+      message: 'Highlight cleared',
+    })
+  })
+
+  it('preserves scene and tiles result shapes', async () => {
+    const bridge = bridgeStub()
+    const executors = createDefaultBridgeExecutors()
+
+    const scene = await executors.setSceneOptions!({ fog: true }, bridge)
+    const tiles = await executors.load3dTiles!({ url: 'https://example.com/tileset.json' }, bridge)
+    const edges = await executors.setEdgeDisplayMode!({ mode: 'edges_only' }, bridge)
+
+    expect(scene).toEqual({ success: true, message: 'Scene options updated' })
+    expect(tiles).toEqual({
+      success: true,
+      data: { id: 'tiles-1', name: 'Buildings' },
+      message: "3D Tiles 'Buildings' loaded",
+    })
+    expect(edges).toEqual({
+      success: true,
+      data: { applied: 2 },
+      message: 'Edge display mode set on 2 tileset(s)',
     })
   })
 })

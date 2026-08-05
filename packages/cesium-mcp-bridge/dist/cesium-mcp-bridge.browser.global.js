@@ -5722,6 +5722,34 @@ var CesiumMcpBridge = (function (exports) {
     }
   };
 
+  // src/executors/interaction.ts
+  var interactionExecutors = {
+    async screenshot(_params, bridge) {
+      const result = await bridge.screenshot();
+      return {
+        success: true,
+        data: result,
+        message: "Screenshot captured"
+      };
+    },
+    highlight(params, bridge) {
+      const input = params;
+      bridge.highlight(input);
+      return {
+        success: true,
+        message: input.clear ? "Highlight cleared" : "Features highlighted"
+      };
+    },
+    measure(params, bridge) {
+      const result = bridge.measure(params);
+      return {
+        success: true,
+        data: result,
+        message: `Measurement complete: ${result.value} ${result.unit}`
+      };
+    }
+  };
+
   // src/executors/layer.ts
   var layerExecutors = {
     async addGeoJsonLayer(params, bridge) {
@@ -5801,6 +5829,80 @@ var CesiumMcpBridge = (function (exports) {
     }
   };
 
+  // src/executors/scene.ts
+  var sceneExecutors = {
+    setSceneOptions(params, bridge) {
+      bridge.setSceneOptions(params);
+      return { success: true, message: "Scene options updated" };
+    },
+    setPostProcess(params, bridge) {
+      bridge.setPostProcess(params);
+      return { success: true, message: "Post-processing effects updated" };
+    }
+  };
+
+  // src/executors/tiles.ts
+  var tilesExecutors = {
+    async load3dTiles(params, bridge) {
+      const info = await bridge.load3dTiles(params);
+      return {
+        success: true,
+        data: info,
+        message: `3D Tiles '${info.name}' loaded`
+      };
+    },
+    async load3dGaussianSplat(params, bridge) {
+      const info = await bridge.load3dGaussianSplat(
+        params
+      );
+      return {
+        success: true,
+        data: info,
+        message: `3D Gaussian Splat '${info.name}' loaded`
+      };
+    },
+    loadTerrain(params, bridge) {
+      bridge.loadTerrain(params);
+      return { success: true, message: "Terrain provider updated" };
+    },
+    async loadImageryService(params, bridge) {
+      const info = await bridge.loadImageryService(
+        params
+      );
+      return {
+        success: true,
+        data: info,
+        message: `Imagery service '${info.name}' loaded`
+      };
+    },
+    async loadCzml(params, bridge) {
+      const info = await bridge.loadCzml(params);
+      return {
+        success: true,
+        data: info,
+        message: `CZML data source '${info.name}' loaded`
+      };
+    },
+    async loadKml(params, bridge) {
+      const info = await bridge.loadKml(params);
+      return {
+        success: true,
+        data: info,
+        message: `KML data source '${info.name}' loaded`
+      };
+    },
+    setEdgeDisplayMode(params, bridge) {
+      const result = bridge.setEdgeDisplayMode(
+        params
+      );
+      return {
+        success: true,
+        data: result,
+        message: `Edge display mode set on ${result.applied} tileset(s)`
+      };
+    }
+  };
+
   // src/executors/view.ts
   var viewExecutors = {
     async flyTo(params, bridge) {
@@ -5868,7 +5970,10 @@ var CesiumMcpBridge = (function (exports) {
     ...viewExecutors,
     ...entityExecutors,
     ...layerExecutors,
-    ...cameraExecutors
+    ...cameraExecutors,
+    ...sceneExecutors,
+    ...tilesExecutors,
+    ...interactionExecutors
   };
   Object.freeze(Object.keys(defaultBridgeExecutors));
   function createDefaultBridgeExecutors() {
@@ -5917,40 +6022,6 @@ var CesiumMcpBridge = (function (exports) {
           case "addHeatmap": {
             const info = await this.addHeatmap(p);
             return { success: true, data: info, message: `Heatmap '${info.name}' added` };
-          }
-          case "screenshot": {
-            const result = await this.screenshot();
-            return { success: true, data: result, message: "Screenshot captured" };
-          }
-          case "highlight":
-            this.highlight(p);
-            return { success: true, message: p.clear ? "Highlight cleared" : "Features highlighted" };
-          case "measure": {
-            const result = this.measure(p);
-            return { success: true, data: result, message: `Measurement complete: ${result.value} ${result.unit}` };
-          }
-          case "load3dTiles": {
-            const info = await this.load3dTiles(p);
-            return { success: true, data: info, message: `3D Tiles '${info.name}' loaded` };
-          }
-          case "load3dGaussianSplat": {
-            const info = await this.load3dGaussianSplat(p);
-            return { success: true, data: info, message: `3D Gaussian Splat '${info.name}' loaded` };
-          }
-          case "loadTerrain":
-            this.loadTerrain(p);
-            return { success: true, message: "Terrain provider updated" };
-          case "loadImageryService": {
-            const info = await this.loadImageryService(p);
-            return { success: true, data: info, message: `Imagery service '${info.name}' loaded` };
-          }
-          case "loadCzml": {
-            const info = await this.loadCzml(p);
-            return { success: true, data: info, message: `CZML data source '${info.name}' loaded` };
-          }
-          case "loadKml": {
-            const info = await this.loadKml(p);
-            return { success: true, data: info, message: `KML data source '${info.name}' loaded` };
           }
           case "playTrajectory": {
             const result = this.playTrajectory(p);
@@ -6014,17 +6085,6 @@ var CesiumMcpBridge = (function (exports) {
           case "setGlobeLighting":
             this.setGlobeLighting(p);
             return { success: true, message: "Globe lighting updated" };
-          // ==================== Scene & Post-Processing ====================
-          case "setSceneOptions":
-            this.setSceneOptions(p);
-            return { success: true, message: "Scene options updated" };
-          case "setPostProcess":
-            this.setPostProcess(p);
-            return { success: true, message: "Post-processing effects updated" };
-          case "setEdgeDisplayMode": {
-            const result = this.setEdgeDisplayMode(p);
-            return { success: true, data: result, message: `Edge display mode set on ${result.applied} tileset(s)` };
-          }
           case "setIonToken":
             Cesium11.Ion.defaultAccessToken = p.token;
             return { success: true, message: "Cesium Ion access token updated" };

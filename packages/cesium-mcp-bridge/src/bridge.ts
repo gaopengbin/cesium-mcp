@@ -146,40 +146,6 @@ export class CesiumBridge {
           const info = await this.addHeatmap(p as AddHeatmapParams)
           return { success: true, data: info, message: `Heatmap '${info.name}' added` }
         }
-        case 'screenshot': {
-          const result = await this.screenshot()
-          return { success: true, data: result, message: 'Screenshot captured' }
-        }
-        case 'highlight':
-          this.highlight(p as HighlightParams)
-          return { success: true, message: (p as HighlightParams).clear ? 'Highlight cleared' : 'Features highlighted' }
-        case 'measure': {
-          const result = this.measure(p as MeasureParams)
-          return { success: true, data: result, message: `Measurement complete: ${result.value} ${result.unit}` }
-        }
-        case 'load3dTiles': {
-          const info = await this.load3dTiles(p as Load3dTilesParams)
-          return { success: true, data: info, message: `3D Tiles '${info.name}' loaded` }
-        }
-        case 'load3dGaussianSplat': {
-          const info = await this.load3dGaussianSplat(p as AddGaussianSplatParams)
-          return { success: true, data: info, message: `3D Gaussian Splat '${info.name}' loaded` }
-        }
-        case 'loadTerrain':
-          this.loadTerrain(p as LoadTerrainParams)
-          return { success: true, message: 'Terrain provider updated' }
-        case 'loadImageryService': {
-          const info = await this.loadImageryService(p as LoadImageryServiceParams)
-          return { success: true, data: info, message: `Imagery service '${info.name}' loaded` }
-        }
-        case 'loadCzml': {
-          const info = await this.loadCzml(p as LoadCzmlParams)
-          return { success: true, data: info, message: `CZML data source '${info.name}' loaded` }
-        }
-        case 'loadKml': {
-          const info = await this.loadKml(p as LoadKmlParams)
-          return { success: true, data: info, message: `KML data source '${info.name}' loaded` }
-        }
         case 'playTrajectory': {
           const result = this.playTrajectory(p as PlayTrajectoryParams)
           return { success: true, data: { entityId: result.entityId }, message: 'Trajectory playback started' }
@@ -242,17 +208,6 @@ export class CesiumBridge {
         case 'setGlobeLighting':
           this.setGlobeLighting(p as SetGlobeLightingParams)
           return { success: true, message: 'Globe lighting updated' }
-        // ==================== Scene & Post-Processing ====================
-        case 'setSceneOptions':
-          this.setSceneOptions(p as SetSceneOptionsParams)
-          return { success: true, message: 'Scene options updated' }
-        case 'setPostProcess':
-          this.setPostProcess(p as SetPostProcessParams)
-          return { success: true, message: 'Post-processing effects updated' }
-        case 'setEdgeDisplayMode': {
-          const result = this.setEdgeDisplayMode(p as SetEdgeDisplayModeParams)
-          return { success: true, data: result, message: `Edge display mode set on ${result.applied} tileset(s)` }
-        }
         case 'setIonToken':
           Cesium.Ion.defaultAccessToken = p.token as string
           return { success: true, message: 'Cesium Ion access token updated' }
