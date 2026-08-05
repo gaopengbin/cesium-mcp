@@ -33,6 +33,8 @@ const bridge = new CesiumBridge(viewer, {
 })
 ```
 
+Built-in executors are organized by domain and migrate incrementally without changing the public `execute()` or override contract.
+
 Call `bridge.dispose()` when removing the integration. It releases Bridge-managed activity and event handlers without destroying the application-owned Viewer.
 
 ## Commands (60)

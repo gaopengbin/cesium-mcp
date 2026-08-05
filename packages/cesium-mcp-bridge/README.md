@@ -57,13 +57,15 @@ const bridge = new CesiumBridge(viewer, {
 })
 ```
 
+Built-in executors are organized by domain and are being migrated incrementally. The public `execute()` and per-command override contract remain stable throughout that migration.
+
 Call `bridge.dispose()` when the integration is unmounted. It stops Bridge-managed camera/trajectory activity, clears page-local state and event handlers, and leaves the application-owned Viewer and scene content intact.
 
 ## WebMCP
 
 WebMCP integration lives in the separate [`cesium-mcp-webmcp`](../cesium-mcp-webmcp) package. This package remains the Cesium execution layer and exposes no browser protocol or transport adapter.
 
-## Commands (43)
+## Commands (60)
 
 ### View Control
 

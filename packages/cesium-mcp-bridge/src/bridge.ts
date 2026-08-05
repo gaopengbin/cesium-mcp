@@ -73,6 +73,7 @@ import { lookAtTransform as lookAtTransformCmd, startOrbit as startOrbitCmd, sto
 import { addBillboard as addBillboardCmd, addBox as addBoxCmd, addCorridor as addCorridorCmd, addCylinder as addCylinderCmd, addEllipse as addEllipseCmd, addRectangle as addRectangleCmd, addWall as addWallCmd } from './commands/entity-types'
 import { createAnimation as createAnimationCmd, controlAnimation as controlAnimationCmd, removeAnimation as removeAnimationCmd, listAnimations as listAnimationsCmd, updateAnimationPath as updateAnimationPathCmd, trackEntity as trackEntityCmd, controlClock as controlClockCmd, setGlobeLighting as setGlobeLightingCmd, type AnimationMap } from './commands/animation'
 import { setSceneOptions as setSceneOptionsCmd, setPostProcess as setPostProcessCmd, setEdgeDisplayMode as setEdgeDisplayModeCmd } from './commands/scene'
+import { createDefaultBridgeExecutors } from './executors/executor-registry'
 
 export type BridgeExecutor = (
   params: Record<string, unknown>,
@@ -106,7 +107,10 @@ export class CesiumBridge {
     this._viewer = viewer
     this._layerManager = new LayerManager(viewer)
     this._validateInputs = options.validateInputs ?? true
-    this._executors = new Map(Object.entries(options.executors ?? {}))
+    this._executors = new Map(Object.entries({
+      ...createDefaultBridgeExecutors(),
+      ...options.executors,
+    }))
   }
 
   get viewer(): Cesium.Viewer {
@@ -139,17 +143,6 @@ export class CesiumBridge {
       if (executor) return await executor(p, this)
 
       switch (cmd.action) {
-        case 'flyTo':
-          await this.flyTo(p as FlyToParams)
-          return { success: true, message: 'Camera flew to target position' }
-        case 'setView':
-          this.setView(p as SetViewParams)
-          return { success: true, message: 'Camera view set' }
-        case 'getView':
-          return { success: true, data: this.getView(), message: 'Current view state retrieved' }
-        case 'zoomToExtent':
-          await this.zoomToExtent(p as ZoomToExtentParams)
-          return { success: true, message: 'Zoomed to extent' }
         case 'addGeoJsonLayer': {
           const info = await this.addGeoJsonLayer(p as AddGeoJsonLayerParams)
           return { success: true, data: info, message: `GeoJSON layer '${info.name}' added` }
@@ -254,19 +247,6 @@ export class CesiumBridge {
           const result = this.getLayerSchema(p as GetLayerSchemaParams)
           return { success: true, data: result, message: `Layer '${result.layerName}' has ${result.fields.length} fields, ${result.entityCount} entities` }
         }
-        // ==================== Camera (融合官方) ====================
-        case 'lookAtTransform':
-          this.lookAtTransform(p as LookAtTransformParams)
-          return { success: true, message: 'Camera lookAtTransform applied' }
-        case 'startOrbit':
-          this.startOrbit(p as StartOrbitParams)
-          return { success: true, message: 'Orbit started' }
-        case 'stopOrbit':
-          this.stopOrbit()
-          return { success: true, message: 'Orbit stopped' }
-        case 'setCameraOptions':
-          this.setCameraOptions(p as SetCameraOptionsParams)
-          return { success: true, message: 'Camera options updated' }
         // ==================== Entity Types (融合官方) ====================
         case 'addBillboard': {
           const entity = this.addBillboard(p as AddBillboardParams)
@@ -351,24 +331,6 @@ export class CesiumBridge {
         case 'getEntityProperties': {
           const result = this.getEntityProperties(p as GetEntityPropertiesParams)
           return { success: true, data: result, message: `Properties for entity '${result.entityId}'` }
-        }
-        // ==================== Viewpoint Bookmarks ====================
-        case 'saveViewpoint': {
-          const state = this.saveViewpoint(p as SaveViewpointParams)
-          return { success: true, data: state, message: `Viewpoint '${(p as SaveViewpointParams).name}' saved` }
-        }
-        case 'loadViewpoint': {
-          const state = this.loadViewpoint(p as LoadViewpointParams)
-          if (!state) return { success: false, error: `Viewpoint '${(p as LoadViewpointParams).name}' not found` }
-          return { success: true, data: state, message: `Viewpoint '${(p as LoadViewpointParams).name}' loaded` }
-        }
-        case 'listViewpoints': {
-          const viewpoints = this.listViewpoints()
-          return { success: true, data: { viewpoints }, message: `${viewpoints.length} viewpoints saved` }
-        }
-        case 'exportScene': {
-          const result = this.exportScene()
-          return { success: true, data: result, message: 'Scene exported' }
         }
         default:
           return { success: false, error: `未知指令: ${cmd.action}` }

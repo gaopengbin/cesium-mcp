@@ -2768,6 +2768,98 @@ function setEdgeDisplayMode(viewer, layerManager, params) {
   return { applied };
 }
 
+// src/executors/camera.ts
+var cameraExecutors = {
+  lookAtTransform(params, bridge) {
+    bridge.lookAtTransform(params);
+    return { success: true, message: "Camera lookAtTransform applied" };
+  },
+  startOrbit(params, bridge) {
+    bridge.startOrbit(params);
+    return { success: true, message: "Orbit started" };
+  },
+  stopOrbit(_params, bridge) {
+    bridge.stopOrbit();
+    return { success: true, message: "Orbit stopped" };
+  },
+  setCameraOptions(params, bridge) {
+    bridge.setCameraOptions(params);
+    return { success: true, message: "Camera options updated" };
+  }
+};
+
+// src/executors/view.ts
+var viewExecutors = {
+  async flyTo(params, bridge) {
+    await bridge.flyTo(params);
+    return { success: true, message: "Camera flew to target position" };
+  },
+  setView(params, bridge) {
+    bridge.setView(params);
+    return { success: true, message: "Camera view set" };
+  },
+  getView(_params, bridge) {
+    return {
+      success: true,
+      data: bridge.getView(),
+      message: "Current view state retrieved"
+    };
+  },
+  async zoomToExtent(params, bridge) {
+    await bridge.zoomToExtent(params);
+    return { success: true, message: "Zoomed to extent" };
+  },
+  saveViewpoint(params, bridge) {
+    const viewpoint = params;
+    const state = bridge.saveViewpoint(viewpoint);
+    return {
+      success: true,
+      data: state,
+      message: `Viewpoint '${viewpoint.name}' saved`
+    };
+  },
+  loadViewpoint(params, bridge) {
+    const viewpoint = params;
+    const state = bridge.loadViewpoint(viewpoint);
+    if (!state) {
+      return {
+        success: false,
+        error: `Viewpoint '${viewpoint.name}' not found`
+      };
+    }
+    return {
+      success: true,
+      data: state,
+      message: `Viewpoint '${viewpoint.name}' loaded`
+    };
+  },
+  listViewpoints(_params, bridge) {
+    const viewpoints = bridge.listViewpoints();
+    return {
+      success: true,
+      data: { viewpoints },
+      message: `${viewpoints.length} viewpoints saved`
+    };
+  },
+  exportScene(_params, bridge) {
+    return {
+      success: true,
+      data: bridge.exportScene(),
+      message: "Scene exported"
+    };
+  }
+};
+
+// src/executors/executor-registry.ts
+var defaultBridgeExecutors = {
+  ...viewExecutors,
+  ...cameraExecutors
+};
+Object.freeze(Object.keys(defaultBridgeExecutors));
+function createDefaultBridgeExecutors() {
+  return { ...defaultBridgeExecutors };
+}
+
 // src/bridge.ts
 var CesiumBridge = class {
   constructor(viewer, options = {}) {
@@ -2779,7 +2871,10 @@ var CesiumBridge = class {
     this._viewer = viewer;
     this._layerManager = new LayerManager(viewer);
     this._validateInputs = options.validateInputs ?? true;
-    this._executors = new Map(Object.entries(options.executors ?? {}));
+    this._executors = new Map(Object.entries({
+      ...createDefaultBridgeExecutors(),
+      ...options.executors
+    }));
   }
   get viewer() {
     return this._viewer;
@@ -2804,17 +2899,6 @@ var CesiumBridge = class {
       const executor = this._executors.get(cmd.action);
       if (executor) return await executor(p, this);
       switch (cmd.action) {
-        case "flyTo":
-          await this.flyTo(p);
-          return { success: true, message: "Camera flew to target position" };
-        case "setView":
-          this.setView(p);
-          return { success: true, message: "Camera view set" };
-        case "getView":
-          return { success: true, data: this.getView(), message: "Current view state retrieved" };
-        case "zoomToExtent":
-          await this.zoomToExtent(p);
-          return { success: true, message: "Zoomed to extent" };
         case "addGeoJsonLayer": {
           const info = await this.addGeoJsonLayer(p);
           return { success: true, data: info, message: `GeoJSON layer '${info.name}' added` };
@@ -2919,19 +3003,6 @@ var CesiumBridge = class {
           const result = this.getLayerSchema(p);
           return { success: true, data: result, message: `Layer '${result.layerName}' has ${result.fields.length} fields, ${result.entityCount} entities` };
         }
-        // ==================== Camera (融合官方) ====================
-        case "lookAtTransform":
-          this.lookAtTransform(p);
-          return { success: true, message: "Camera lookAtTransform applied" };
-        case "startOrbit":
-          this.startOrbit(p);
-          return { success: true, message: "Orbit started" };
-        case "stopOrbit":
-          this.stopOrbit();
-          return { success: true, message: "Orbit stopped" };
-        case "setCameraOptions":
-          this.setCameraOptions(p);
-          return { success: true, message: "Camera options updated" };
         // ==================== Entity Types (融合官方) ====================
         case "addBillboard": {
           const entity = this.addBillboard(p);
@@ -3016,24 +3087,6 @@ var CesiumBridge = class {
         case "getEntityProperties": {
           const result = this.getEntityProperties(p);
           return { success: true, data: result, message: `Properties for entity '${result.entityId}'` };
-        }
-        // ==================== Viewpoint Bookmarks ====================
-        case "saveViewpoint": {
-          const state = this.saveViewpoint(p);
-          return { success: true, data: state, message: `Viewpoint '${p.name}' saved` };
-        }
-        case "loadViewpoint": {
-          const state = this.loadViewpoint(p);
-          if (!state) return { success: false, error: `Viewpoint '${p.name}' not found` };
-          return { success: true, data: state, message: `Viewpoint '${p.name}' loaded` };
-        }
-        case "listViewpoints": {
-          const viewpoints = this.listViewpoints();
-          return { success: true, data: { viewpoints }, message: `${viewpoints.length} viewpoints saved` };
-        }
-        case "exportScene": {
-          const result = this.exportScene();
-          return { success: true, data: result, message: "Scene exported" };
         }
         default:
           return { success: false, error: `\u672A\u77E5\u6307\u4EE4: ${cmd.action}` };

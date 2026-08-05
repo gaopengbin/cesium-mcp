@@ -56,6 +56,22 @@ describe('CesiumBridge command boundary', () => {
     )
   })
 
+  it('dispatches built-in view commands through the default registry', async () => {
+    const bridge = makeBridge()
+    const setView = vi.spyOn(bridge, 'setView').mockImplementation(() => {})
+
+    const result = await bridge.execute({
+      action: 'setView',
+      params: { longitude: 116.4, latitude: 39.9 },
+    })
+
+    expect(setView).toHaveBeenCalledWith({
+      longitude: 116.4,
+      latitude: 39.9,
+    })
+    expect(result).toEqual({ success: true, message: 'Camera view set' })
+  })
+
   it('disposes bridge-managed handlers idempotently', () => {
     const bridge = makeBridge()
     const handler = vi.fn()
