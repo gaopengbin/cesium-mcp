@@ -117,16 +117,25 @@ export function zoomToExtent(viewer: Cesium.Viewer, params: ZoomToExtentParams):
 
 // ==================== Viewpoint Bookmarks ====================
 
-const _viewpoints = new Map<string, ViewState>()
+const _viewpoints = new WeakMap<Cesium.Viewer, Map<string, ViewState>>()
+
+function viewpointsFor(viewer: Cesium.Viewer): Map<string, ViewState> {
+  let viewpoints = _viewpoints.get(viewer)
+  if (!viewpoints) {
+    viewpoints = new Map()
+    _viewpoints.set(viewer, viewpoints)
+  }
+  return viewpoints
+}
 
 export function saveViewpoint(viewer: Cesium.Viewer, params: SaveViewpointParams): ViewState {
   const state = getView(viewer)
-  _viewpoints.set(params.name, state)
+  viewpointsFor(viewer).set(params.name, state)
   return state
 }
 
 export function loadViewpoint(viewer: Cesium.Viewer, params: LoadViewpointParams): ViewState | null {
-  const state = _viewpoints.get(params.name)
+  const state = viewpointsFor(viewer).get(params.name)
   if (!state) return null
   const duration = params.duration ?? 2
   if (duration > 0) {
@@ -137,6 +146,10 @@ export function loadViewpoint(viewer: Cesium.Viewer, params: LoadViewpointParams
   return state
 }
 
-export function listViewpoints(): { name: string; state: ViewState }[] {
-  return Array.from(_viewpoints.entries()).map(([name, state]) => ({ name, state }))
+export function listViewpoints(viewer: Cesium.Viewer): { name: string; state: ViewState }[] {
+  return Array.from(viewpointsFor(viewer).entries()).map(([name, state]) => ({ name, state }))
+}
+
+export function clearViewpoints(viewer: Cesium.Viewer): void {
+  _viewpoints.delete(viewer)
 }

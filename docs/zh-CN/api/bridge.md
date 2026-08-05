@@ -21,6 +21,20 @@ const viewer = new Cesium.Viewer('cesiumContainer')
 const bridge = new CesiumBridge(viewer)
 ```
 
+JSON 命令在执行前会使用共享工具契约校验参数。可以只覆盖一个 Executor，其余命令继续使用默认实现：
+
+```js
+const bridge = new CesiumBridge(viewer, {
+  executors: {
+    load3dTiles: async (params, bridge) => {
+      return loadAuthorizedTileset(bridge.viewer, params)
+    },
+  },
+})
+```
+
+集成卸载时调用 `bridge.dispose()`。它会释放 Bridge 管理的动画、页面状态和事件处理器，但不会销毁应用拥有的 Viewer。
+
 ## 命令（60 个）
 
 ### 视图控制

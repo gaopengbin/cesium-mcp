@@ -697,6 +697,13 @@ declare class LayerManager {
     setBasemap(params: SetBasemapParams): string;
 }
 
+type BridgeExecutor = (params: Record<string, unknown>, bridge: CesiumBridge) => BridgeResult | Promise<BridgeResult>;
+interface CesiumBridgeOptions {
+    /** Validate shared browser-tool input contracts before dispatch. Defaults to true. */
+    validateInputs?: boolean;
+    /** Override selected commands without replacing the default dispatcher. */
+    executors?: Readonly<Record<string, BridgeExecutor>>;
+}
 /**
  * CesiumBridge — AI Agent 操控 Cesium 的统一执行层
  *
@@ -710,7 +717,9 @@ declare class CesiumBridge {
     private _eventHandlers;
     private _orbitHandler;
     private _animations;
-    constructor(viewer: Cesium.Viewer);
+    private _validateInputs;
+    private _executors;
+    constructor(viewer: Cesium.Viewer, options?: CesiumBridgeOptions);
     get viewer(): Cesium.Viewer;
     get layerManager(): LayerManager;
     execute(cmd: BridgeCommand): Promise<BridgeResult>;
@@ -726,6 +735,12 @@ declare class CesiumBridge {
         removedLayers: number;
         removedEntities: number;
     };
+    /**
+     * Release timers, camera motion, page-local state, and event handlers owned by
+     * this Bridge. The Viewer and scene content remain owned by the application.
+     */
+    dispose(): void;
+    private _stopManagedActivity;
     setLayerVisibility(id: string, visible: boolean): void;
     toggleLayer(id: string): void;
     zoomToLayer(id: string): void;
@@ -803,4 +818,4 @@ declare class CesiumBridge {
     private _emit;
 }
 
-export { type AddBillboardParams, type AddBoxParams, type AddCorridorParams, type AddCylinderParams, type AddEllipseParams, type AddGaussianSplatParams, type AddGeoJsonLayerParams, type AddGeoJsonPrimitiveParams, type AddHeatmapParams, type AddLabelParams, type AddMarkerParams, type AddModelParams, type AddPolygonParams, type AddPolylineParams, type AddRectangleParams, type AddWallParams, type AnimationInfo, type AnimationWaypoint, type BatchAddEntitiesParams, type BatchEntityDef, type BridgeCommand, type BridgeEvent, type BridgeEventHandler, type BridgeEventType, type BridgeResult, type CategoryStyle, CesiumBridge, type ChoroplethStyle, type ClearAllResult, type ColorInput, type ControlAnimationParams, type ControlClockParams, type CreateAnimationParams, type EntityPropertiesResult, type ExportSceneResult, type FlyToParams, type GetEntityPropertiesParams, type HighlightParams, type ImageryLayerStyle, type LayerInfo, LayerManager, type LayerStyle, type Load3dTilesParams, type LoadCzmlParams, type LoadImageryServiceParams, type LoadKmlParams, type LoadTerrainParams, type LoadViewpointParams, type LookAtTransformParams, type MaterialInput, type MaterialSpec, type MeasureParams, type MeasureResult, type OrientationInput, type PlayTrajectoryParams, type PositionDegrees, type PrimitiveLayerStyle, type QueryEntitiesParams, type QueryEntityResult, type RemoveAnimationParams, type RemoveEntityParams, type SaveViewpointParams, type ScreenshotResult, type SetBasemapParams, type SetCameraOptionsParams, type SetEdgeDisplayModeParams, type SetEdgeDisplayModeResult, type SetGlobeLightingParams, type SetPostProcessParams, type SetSceneOptionsParams, type SetViewParams, type StartOrbitParams, type TrackEntityParams, type UpdateAnimationPathParams, type UpdateEntityParams, type UpdateLayerStyleParams, type ViewState, type ZoomToExtentParams };
+export { type AddBillboardParams, type AddBoxParams, type AddCorridorParams, type AddCylinderParams, type AddEllipseParams, type AddGaussianSplatParams, type AddGeoJsonLayerParams, type AddGeoJsonPrimitiveParams, type AddHeatmapParams, type AddLabelParams, type AddMarkerParams, type AddModelParams, type AddPolygonParams, type AddPolylineParams, type AddRectangleParams, type AddWallParams, type AnimationInfo, type AnimationWaypoint, type BatchAddEntitiesParams, type BatchEntityDef, type BridgeCommand, type BridgeEvent, type BridgeEventHandler, type BridgeEventType, type BridgeExecutor, type BridgeResult, type CategoryStyle, CesiumBridge, type CesiumBridgeOptions, type ChoroplethStyle, type ClearAllResult, type ColorInput, type ControlAnimationParams, type ControlClockParams, type CreateAnimationParams, type EntityPropertiesResult, type ExportSceneResult, type FlyToParams, type GetEntityPropertiesParams, type HighlightParams, type ImageryLayerStyle, type LayerInfo, LayerManager, type LayerStyle, type Load3dTilesParams, type LoadCzmlParams, type LoadImageryServiceParams, type LoadKmlParams, type LoadTerrainParams, type LoadViewpointParams, type LookAtTransformParams, type MaterialInput, type MaterialSpec, type MeasureParams, type MeasureResult, type OrientationInput, type PlayTrajectoryParams, type PositionDegrees, type PrimitiveLayerStyle, type QueryEntitiesParams, type QueryEntityResult, type RemoveAnimationParams, type RemoveEntityParams, type SaveViewpointParams, type ScreenshotResult, type SetBasemapParams, type SetCameraOptionsParams, type SetEdgeDisplayModeParams, type SetEdgeDisplayModeResult, type SetGlobeLightingParams, type SetPostProcessParams, type SetSceneOptionsParams, type SetViewParams, type StartOrbitParams, type TrackEntityParams, type UpdateAnimationPathParams, type UpdateEntityParams, type UpdateLayerStyleParams, type ViewState, type ZoomToExtentParams };

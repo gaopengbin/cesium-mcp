@@ -44,8 +44,8 @@ export function screenshot(viewer: Cesium.Viewer): Promise<ScreenshotResult> {
  * 高亮指定图层的要素（支持备份/恢复原始样式）
  */
 
-// 模块级备份存储：entityId -> 原始样式
-const _highlightBackups = new Map<string, Record<string, any>>()
+// Entity identity keeps highlights isolated across Viewer instances and allows GC cleanup.
+const _highlightBackups = new WeakMap<Cesium.Entity, Record<string, any>>()
 
 export function highlight(
   viewer: Cesium.Viewer,
@@ -101,7 +101,7 @@ export function highlight(
 
 function backupAndHighlight(entity: Cesium.Entity, color: Cesium.Color): void {
   // 仅首次备份，避免覆盖原始值
-  if (!_highlightBackups.has(entity.id)) {
+  if (!_highlightBackups.has(entity)) {
     const b: Record<string, any> = {}
     if (entity.polygon) b.polygonMaterial = entity.polygon.material
     if (entity.polyline) { b.polylineMaterial = entity.polyline.material; b.polylineWidth = entity.polyline.width }
@@ -115,13 +115,13 @@ function backupAndHighlight(entity: Cesium.Entity, color: Cesium.Color): void {
     if (entity.rectangle) b.rectangleMaterial = entity.rectangle.material
     if (entity.wall) b.wallMaterial = entity.wall.material
     if (entity.corridor) b.corridorMaterial = entity.corridor.material
-    _highlightBackups.set(entity.id, b)
+    _highlightBackups.set(entity, b)
   }
   applyHighlight(entity, color)
 }
 
 function restoreEntityStyle(entity: Cesium.Entity): void {
-  const b = _highlightBackups.get(entity.id)
+  const b = _highlightBackups.get(entity)
   if (!b) return
   if (entity.polygon) entity.polygon.material = b.polygonMaterial
   if (entity.polyline) { entity.polyline.material = b.polylineMaterial; entity.polyline.width = b.polylineWidth }
@@ -135,7 +135,7 @@ function restoreEntityStyle(entity: Cesium.Entity): void {
   if (entity.rectangle) entity.rectangle.material = b.rectangleMaterial
   if (entity.wall) entity.wall.material = b.wallMaterial
   if (entity.corridor) entity.corridor.material = b.corridorMaterial
-  _highlightBackups.delete(entity.id)
+  _highlightBackups.delete(entity)
 }
 
 function applyHighlight(entity: Cesium.Entity, color: Cesium.Color): void {

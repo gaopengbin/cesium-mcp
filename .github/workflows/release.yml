@@ -25,6 +25,10 @@ jobs:
 
       - run: npm run build
 
+      - run: npm run typecheck
+
+      - run: npm run lint
+
       - run: npx vitest run
 
       - name: Create Release PR or Publish

@@ -1,6 +1,7 @@
 'use strict';
 
 var Cesium3 = require('cesium');
+var cesiumMcpContracts = require('cesium-mcp-contracts');
 var h337 = require('heatmap.js');
 
 function _interopDefault (e) { return e && e.__esModule ? e : { default: e }; }
@@ -175,14 +176,22 @@ function zoomToExtent(viewer, params) {
     });
   });
 }
-var _viewpoints = /* @__PURE__ */ new Map();
+var _viewpoints = /* @__PURE__ */ new WeakMap();
+function viewpointsFor(viewer) {
+  let viewpoints = _viewpoints.get(viewer);
+  if (!viewpoints) {
+    viewpoints = /* @__PURE__ */ new Map();
+    _viewpoints.set(viewer, viewpoints);
+  }
+  return viewpoints;
+}
 function saveViewpoint(viewer, params) {
   const state = getView(viewer);
-  _viewpoints.set(params.name, state);
+  viewpointsFor(viewer).set(params.name, state);
   return state;
 }
 function loadViewpoint(viewer, params) {
-  const state = _viewpoints.get(params.name);
+  const state = viewpointsFor(viewer).get(params.name);
   if (!state) return null;
   const duration = params.duration ?? 2;
   if (duration > 0) {
@@ -192,8 +201,11 @@ function loadViewpoint(viewer, params) {
   }
   return state;
 }
-function listViewpoints() {
-  return Array.from(_viewpoints.entries()).map(([name, state]) => ({ name, state }));
+function listViewpoints(viewer) {
+  return Array.from(viewpointsFor(viewer).entries()).map(([name, state]) => ({ name, state }));
+}
+function clearViewpoints(viewer) {
+  _viewpoints.delete(viewer);
 }
 
 // src/commands/basemap-presets.ts
@@ -2001,7 +2013,7 @@ function screenshot(viewer) {
     });
   });
 }
-var _highlightBackups = /* @__PURE__ */ new Map();
+var _highlightBackups = /* @__PURE__ */ new WeakMap();
 function highlight(viewer, layerManager, params) {
   const { layerId, featureIndex, color = "#FFFF00", clear } = params;
   if (clear) {
@@ -2042,7 +2054,7 @@ function highlight(viewer, layerManager, params) {
   }
 }
 function backupAndHighlight(entity, color) {
-  if (!_highlightBackups.has(entity.id)) {
+  if (!_highlightBackups.has(entity)) {
     const b = {};
     if (entity.polygon) b.polygonMaterial = entity.polygon.material;
     if (entity.polyline) {
@@ -2065,12 +2077,12 @@ function backupAndHighlight(entity, color) {
     if (entity.rectangle) b.rectangleMaterial = entity.rectangle.material;
     if (entity.wall) b.wallMaterial = entity.wall.material;
     if (entity.corridor) b.corridorMaterial = entity.corridor.material;
-    _highlightBackups.set(entity.id, b);
+    _highlightBackups.set(entity, b);
   }
   applyHighlight(entity, color);
 }
 function restoreEntityStyle(entity) {
-  const b = _highlightBackups.get(entity.id);
+  const b = _highlightBackups.get(entity);
   if (!b) return;
   if (entity.polygon) entity.polygon.material = b.polygonMaterial;
   if (entity.polyline) {
@@ -2093,7 +2105,7 @@ function restoreEntityStyle(entity) {
   if (entity.rectangle) entity.rectangle.material = b.rectangleMaterial;
   if (entity.wall) entity.wall.material = b.wallMaterial;
   if (entity.corridor) entity.corridor.material = b.corridorMaterial;
-  _highlightBackups.delete(entity.id);
+  _highlightBackups.delete(entity);
 }
 function applyHighlight(entity, color) {
   const mat = new Cesium3__namespace.ColorMaterialProperty(color);
@@ -2758,7 +2770,7 @@ function setEdgeDisplayMode(viewer, layerManager, params) {
 
 // src/bridge.ts
 var CesiumBridge = class {
-  constructor(viewer) {
+  constructor(viewer, options = {}) {
     this._eventHandlers = /* @__PURE__ */ new Map();
     this._orbitHandler = null;
     this._animations = /* @__PURE__ */ new Map();
@@ -2766,6 +2778,8 @@ var CesiumBridge = class {
     this._activeTrajectories = /* @__PURE__ */ new Map();
     this._viewer = viewer;
     this._layerManager = new LayerManager(viewer);
+    this._validateInputs = options.validateInputs ?? true;
+    this._executors = new Map(Object.entries(options.executors ?? {}));
   }
   get viewer() {
     return this._viewer;
@@ -2776,7 +2790,19 @@ var CesiumBridge = class {
   // ==================== 命令分发（MCP/SSE 兼容） ====================
   async execute(cmd) {
     try {
-      const p = cmd.params;
+      const p = cmd.params ?? {};
+      if (this._validateInputs) {
+        const validation = cesiumMcpContracts.validateCesiumToolInput(cmd.action, p);
+        if (!validation.valid) {
+          const detail = validation.issues.map((issue) => `${issue.path} ${issue.message}`).join("; ");
+          return {
+            success: false,
+            error: `Invalid parameters for "${cmd.action}": ${detail}`
+          };
+        }
+      }
+      const executor = this._executors.get(cmd.action);
+      if (executor) return await executor(p, this);
       switch (cmd.action) {
         case "flyTo":
           await this.flyTo(p);
@@ -3045,6 +3071,21 @@ var CesiumBridge = class {
     this._emit("layerRemoved", { id });
   }
   clearAll() {
+    this._stopManagedActivity();
+    const result = this._layerManager.clearAll();
+    this._emit("layerRemoved", { id: "*" });
+    return result;
+  }
+  /**
+   * Release timers, camera motion, page-local state, and event handlers owned by
+   * this Bridge. The Viewer and scene content remain owned by the application.
+   */
+  dispose() {
+    this._stopManagedActivity();
+    clearViewpoints(this._viewer);
+    this._eventHandlers.clear();
+  }
+  _stopManagedActivity() {
     for (const [, t] of this._activeTrajectories) {
       t.stop();
     }
@@ -3054,9 +3095,6 @@ var CesiumBridge = class {
       this._orbitHandler = null;
     }
     this._animations.clear();
-    const result = this._layerManager.clearAll();
-    this._emit("layerRemoved", { id: "*" });
-    return result;
   }
   setLayerVisibility(id, visible) {
     this._layerManager.setLayerVisibility(id, visible);
@@ -3420,7 +3458,7 @@ var CesiumBridge = class {
     return loadViewpoint(this._viewer, params);
   }
   listViewpoints() {
-    return listViewpoints();
+    return listViewpoints(this._viewer);
   }
   exportScene() {
     return {

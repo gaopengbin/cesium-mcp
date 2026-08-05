@@ -44,6 +44,21 @@ await bridge.execute({
 })
 ```
 
+`execute()` validates the shared `cesium-mcp-contracts` input schema before dispatch. Custom applications can replace one command without forking the dispatcher:
+
+```typescript
+const bridge = new CesiumBridge(viewer, {
+  executors: {
+    load3dTiles: async (params, bridge) => {
+      // Apply application-specific authorization, logging, or data loading.
+      return { success: true, data: { params, viewer: bridge.viewer } }
+    },
+  },
+})
+```
+
+Call `bridge.dispose()` when the integration is unmounted. It stops Bridge-managed camera/trajectory activity, clears page-local state and event handlers, and leaves the application-owned Viewer and scene content intact.
+
 ## WebMCP
 
 WebMCP integration lives in the separate [`cesium-mcp-webmcp`](../cesium-mcp-webmcp) package. This package remains the Cesium execution layer and exposes no browser protocol or transport adapter.

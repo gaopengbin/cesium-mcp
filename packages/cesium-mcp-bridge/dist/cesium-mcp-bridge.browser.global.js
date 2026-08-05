@@ -635,6 +635,2213 @@ var CesiumMcpBridge = (function (exports) {
   // src/bridge.ts
   var Cesium11 = __toESM(require_cesium());
 
+  // ../cesium-mcp-contracts/dist/index.js
+  var paramDescriptions = {
+    flyTo: {
+      longitude: "Longitude (-180 to 180)",
+      latitude: "Latitude (-90 to 90)",
+      height: "Camera height (meters), default 50000",
+      heading: "Heading angle (degrees), 0 = North",
+      pitch: "Pitch angle (degrees), -90 = straight down",
+      duration: "Flight animation duration (seconds)"
+    },
+    setView: {
+      longitude: "Longitude (-180 to 180)",
+      latitude: "Latitude (-90 to 90)",
+      height: "Height (meters)",
+      heading: "Heading angle (degrees)",
+      pitch: "Pitch angle (degrees)",
+      roll: "Roll angle (degrees)"
+    },
+    zoomToExtent: {
+      bbox: "Geographic extent [west, south, east, north] in degrees",
+      west: "West boundary longitude (degrees)",
+      south: "South boundary latitude (degrees)",
+      east: "East boundary longitude (degrees)",
+      north: "North boundary latitude (degrees)",
+      duration: "Animation duration (seconds)"
+    },
+    saveViewpoint: {
+      name: "Bookmark name (unique identifier, overwrites if duplicate)"
+    },
+    loadViewpoint: {
+      name: "Bookmark name",
+      duration: "Fly animation duration (seconds), 0 = instant"
+    },
+    addMarker: {
+      longitude: "Longitude (-180 to 180)",
+      latitude: "Latitude (-90 to 90)",
+      label: "Label text",
+      color: "Marker color (CSS format)",
+      size: "Point size (pixels)",
+      id: "Custom layer ID (auto-generated if omitted)"
+    },
+    addLabel: {
+      data: "GeoJSON FeatureCollection object",
+      field: 'Attribute field name for label text (e.g. "name", "population")',
+      style: "Label style (font, fillColor, outlineColor, scale, etc.)"
+    },
+    addModel: {
+      longitude: "Longitude (-180 to 180)",
+      latitude: "Latitude (-90 to 90)",
+      height: "Placement height (meters)",
+      url: "glTF/GLB model file URL",
+      scale: "Model scale factor",
+      heading: "Heading angle (degrees), 0=North",
+      pitch: "Pitch angle (degrees)",
+      roll: "Roll angle (degrees)",
+      label: "Model label text"
+    },
+    addPolygon: {
+      coordinates: "Polygon outer ring coordinates [[lon, lat, height?], ...]",
+      color: "Fill color (CSS format)",
+      outlineColor: "Outline color",
+      opacity: "Fill opacity (0-1)",
+      extrudedHeight: "Extruded height (meters), for 3D effect",
+      clampToGround: "Whether to clamp to ground",
+      label: "Polygon label text"
+    },
+    addPolyline: {
+      coordinates: "Polyline coordinates array [[lon, lat, height?], ...]",
+      color: "Line color (CSS format)",
+      width: "Line width (pixels)",
+      clampToGround: "Whether to clamp to ground",
+      label: "Polyline label text"
+    },
+    updateEntity: {
+      entityId: "Entity ID (returned by addMarker/addPolyline etc.)",
+      position: "New position coordinates",
+      label: "New label text",
+      color: "New color (CSS format)",
+      scale: "New scale factor",
+      show: "Whether to show"
+    },
+    removeEntity: {
+      entityId: "Entity ID to remove"
+    },
+    batchAddEntities: {
+      entities: "Array of entity definitions, each containing a type field and parameters for that type"
+    },
+    queryEntities: {
+      name: "Name fuzzy match (case-insensitive)",
+      type: "Filter by entity type",
+      bbox: "Spatial extent filter [west, south, east, north] (degrees)"
+    },
+    addGeoJsonLayer: {
+      id: "Layer ID (auto-generated if omitted)",
+      name: "Layer display name",
+      data: "GeoJSON FeatureCollection object (mutually exclusive with url)",
+      url: "GeoJSON file URL (mutually exclusive with data, fetched in browser)",
+      style: "Style config (color, opacity, pointSize, choropleth, category)"
+    },
+    addGeoJsonPrimitive: {
+      id: "Layer ID (auto-generated if omitted)",
+      name: "Layer display name",
+      data: "GeoJSON object (mutually exclusive with url)",
+      url: "GeoJSON file URL (mutually exclusive with data)",
+      allowPicking: "Allow picking (default true, disable for better performance)",
+      show: "Whether to show (default true)"
+    },
+    listLayers: {},
+    getLayerSchema: {
+      layerId: "Layer ID (get via listLayers)"
+    },
+    removeLayer: {
+      id: "Layer ID to remove (get via listLayers)"
+    },
+    setLayerVisibility: {
+      id: "Layer ID",
+      visible: "Whether visible"
+    },
+    updateLayerStyle: {
+      layerId: "Layer ID",
+      labelStyle: "Label style (font, fillColor, outlineColor, outlineWidth, scale, etc.)",
+      layerStyle: "Entity layer style (color, opacity, strokeWidth, pointSize; GeoJSON thematic styles choropleth/category/randomColor/gradient are mutually exclusive)",
+      imageryStyle: "Imagery visual style (alpha, brightness, contrast, hue, saturation, gamma); use setLayerVisibility for show/hide",
+      primitiveStyle: "GeoJSON Primitive material style (color, opacity, outlineColor, outlineWidth, pointSize, lineWidth); use setLayerVisibility for show/hide",
+      tileStyle: "3D Tiles style (Cesium3DTileStyle expressions: color, show, pointSize, meta)"
+    },
+    setBasemap: {
+      basemap: "Basemap type: dark=dark theme, satellite=satellite imagery, standard=standard, osm=OpenStreetMap, arcgis=ArcGIS streets, light=light theme, tianditu_vec=Tianditu vector, tianditu_img=Tianditu imagery, amap=Amap roads, amap_satellite=Amap satellite",
+      token: "Token for providers requiring authentication (e.g. Tianditu)",
+      url: "Custom URL template with {x},{y},{z} placeholders. When provided, basemap param is ignored."
+    },
+    highlight: {
+      layerId: "Layer ID",
+      featureIndex: "Feature index (highlights all if omitted)",
+      color: "Highlight color (CSS format)",
+      clear: "Clear existing highlights and restore original styles"
+    },
+    measure: {
+      mode: "Measurement mode: distance or area",
+      positions: "Coordinate array [[lon, lat, alt?], ...]",
+      showOnMap: "Whether to display measurement result on map",
+      id: "Custom measurement entity ID"
+    },
+    getEntityProperties: {
+      entityId: "Entity ID (obtainable via queryEntities)"
+    },
+    lookAtTransform: {
+      longitude: "Target longitude (degrees)",
+      latitude: "Target latitude (degrees)",
+      height: "Target height (meters)",
+      heading: "Camera heading (degrees), 0=North",
+      pitch: "Camera pitch (degrees), -90=straight down",
+      range: "Distance from target (meters)"
+    },
+    startOrbit: {
+      speed: "Rotation speed (radians per tick)",
+      clockwise: "Orbit direction"
+    },
+    setCameraOptions: {
+      enableRotate: "Enable camera rotation",
+      enableTranslate: "Enable camera translation",
+      enableZoom: "Enable camera zoom",
+      enableTilt: "Enable camera tilt",
+      enableLook: "Enable camera look",
+      minimumZoomDistance: "Minimum zoom distance (meters)",
+      maximumZoomDistance: "Maximum zoom distance (meters)",
+      enableInputs: "Enable/disable all camera inputs"
+    },
+    addBillboard: {
+      longitude: "Longitude (degrees)",
+      latitude: "Latitude (degrees)",
+      height: "Height (meters)",
+      name: "Billboard name",
+      image: "Image URL for the billboard",
+      scale: "Scale factor",
+      color: "Tint color",
+      pixelOffset: "Pixel offset from position",
+      horizontalOrigin: "Horizontal origin",
+      verticalOrigin: "Vertical origin",
+      heightReference: "Height reference"
+    },
+    addBox: {
+      longitude: "Longitude (degrees)",
+      latitude: "Latitude (degrees)",
+      height: "Height (meters)",
+      name: "Box name",
+      dimensions: "Box dimensions",
+      material: "Material (color string, RGBA object, or material spec)",
+      outline: "Show outline",
+      outlineColor: "Outline color",
+      fill: "Show fill",
+      orientation: "Orientation (heading/pitch/roll in degrees)",
+      heightReference: "Height reference"
+    },
+    addCorridor: {
+      name: "Corridor name",
+      positions: "Array of positions along the corridor",
+      width: "Corridor width in meters",
+      material: "Material",
+      cornerType: "Corner type",
+      height: "Height above ground (meters)",
+      extrudedHeight: "Extruded height (meters)",
+      outline: "Show outline",
+      fill: "Show fill",
+      outlineColor: "Outline color"
+    },
+    addCylinder: {
+      longitude: "Longitude (degrees)",
+      latitude: "Latitude (degrees)",
+      height: "Height (meters)",
+      name: "Cylinder name",
+      length: "Cylinder length/height in meters",
+      topRadius: "Top radius in meters",
+      bottomRadius: "Bottom radius in meters",
+      material: "Material",
+      outline: "Show outline",
+      outlineColor: "Outline color",
+      fill: "Show fill",
+      orientation: "Orientation (heading/pitch/roll in degrees)",
+      numberOfVerticalLines: "Number of vertical lines",
+      slices: "Number of slices"
+    },
+    addEllipse: {
+      longitude: "Center longitude (degrees)",
+      latitude: "Center latitude (degrees)",
+      height: "Height (meters)",
+      name: "Ellipse name",
+      semiMajorAxis: "Semi-major axis in meters",
+      semiMinorAxis: "Semi-minor axis in meters",
+      material: "Material",
+      extrudedHeight: "Extruded height (meters)",
+      rotation: "Rotation (radians)",
+      outline: "Show outline",
+      outlineColor: "Outline color",
+      fill: "Show fill",
+      stRotation: "Texture rotation (radians)",
+      numberOfVerticalLines: "Number of vertical lines"
+    },
+    addRectangle: {
+      name: "Rectangle name",
+      west: "West longitude (degrees)",
+      south: "South latitude (degrees)",
+      east: "East longitude (degrees)",
+      north: "North latitude (degrees)",
+      material: "Material",
+      height: "Height (meters)",
+      extrudedHeight: "Extruded height (meters)",
+      rotation: "Rotation (radians)",
+      outline: "Show outline",
+      outlineColor: "Outline color",
+      fill: "Show fill",
+      stRotation: "Texture rotation (radians)"
+    },
+    addWall: {
+      name: "Wall name",
+      positions: "Array of positions along the wall",
+      minimumHeights: "Minimum heights at each position",
+      maximumHeights: "Maximum heights at each position",
+      material: "Material",
+      outline: "Show outline",
+      outlineColor: "Outline color",
+      fill: "Show fill"
+    },
+    createAnimation: {
+      name: "Animation name",
+      waypoints: "Array of waypoints with positions and timestamps",
+      modelUri: "glTF/GLB model URL, or preset: cesium_man, cesium_air, ground_vehicle, cesium_drone",
+      showPath: "Show trail path",
+      pathWidth: "Path width (pixels)",
+      pathColor: "Path color (CSS)",
+      pathLeadTime: "Path lead time (seconds)",
+      pathTrailTime: "Path trail time (seconds)",
+      multiplier: "Clock speed multiplier",
+      shouldAnimate: "Auto-start animation"
+    },
+    controlAnimation: {
+      action: "Play or pause"
+    },
+    removeAnimation: {
+      entityId: "Entity ID of the animation to remove"
+    },
+    updateAnimationPath: {
+      entityId: "Entity ID of the animation",
+      width: "New path width (pixels)",
+      color: "New path color (CSS)",
+      leadTime: "New lead time (seconds)",
+      trailTime: "New trail time (seconds)",
+      show: "Show/hide path"
+    },
+    trackEntity: {
+      entityId: "Entity ID to track (omit to stop tracking)",
+      heading: "Camera heading (degrees)",
+      pitch: "Camera pitch (degrees)",
+      range: "Camera distance from entity (meters)"
+    },
+    controlClock: {
+      action: "Clock action",
+      startTime: "ISO 8601 start time (for configure)",
+      stopTime: "ISO 8601 stop time (for configure)",
+      currentTime: "ISO 8601 current time (for configure)",
+      time: "ISO 8601 time to jump to (for setTime)",
+      multiplier: "Clock speed multiplier (for configure/setMultiplier)",
+      shouldAnimate: "Whether clock should animate (for configure)",
+      clockRange: "Clock range mode (for configure)"
+    },
+    setGlobeLighting: {
+      enableLighting: "Enable globe lighting",
+      dynamicAtmosphereLighting: "Enable dynamic atmosphere lighting",
+      dynamicAtmosphereLightingFromSun: "Use sun position for atmosphere lighting"
+    },
+    setSceneOptions: {
+      fogEnabled: "Enable/disable fog",
+      fogDensity: "Fog density (0.0~1.0, default ~0.0002)",
+      fogMinimumBrightness: "Minimum fog brightness (0.0~1.0)",
+      skyAtmosphereShow: "Show sky atmosphere",
+      skyAtmosphereHueShift: "Sky hue shift (-1.0~1.0)",
+      skyAtmosphereSaturationShift: "Sky saturation shift (-1.0~1.0)",
+      skyAtmosphereBrightnessShift: "Sky brightness shift (-1.0~1.0)",
+      groundAtmosphereShow: "Show ground atmosphere",
+      shadowsEnabled: "Enable shadows",
+      shadowsSoftShadows: "Use soft shadows",
+      shadowsDarkness: "Shadow darkness (0.0=no shadow, 1.0=fully dark)",
+      sunShow: "Show the sun",
+      sunGlowFactor: "Sun glow factor (default 1.0)",
+      moonShow: "Show the moon",
+      depthTestAgainstTerrain: "Enable depth test against terrain (entities behind terrain are hidden)",
+      backgroundColor: 'Scene background color (CSS format, e.g. "#000000")'
+    },
+    setPostProcess: {
+      bloom: "Enable bloom glow effect",
+      bloomContrast: "Bloom contrast (default 128)",
+      bloomBrightness: "Bloom brightness (default -0.3)",
+      bloomDelta: "Bloom delta (default 1.0)",
+      bloomSigma: "Bloom sigma (default 3.78)",
+      bloomStepSize: "Bloom step size (default 5.0)",
+      bloomGlowOnly: "Show only the glow (no base scene)",
+      ambientOcclusion: "Enable ambient occlusion (SSAO)",
+      aoIntensity: "AO intensity (default 3.0)",
+      aoBias: "AO bias (default 0.1)",
+      aoLengthCap: "AO length cap (default 0.26)",
+      aoStepSize: "AO step size (default 1.95)",
+      fxaa: "Enable FXAA anti-aliasing"
+    },
+    load3dTiles: {
+      id: "Layer ID",
+      name: "Layer name",
+      url: "tileset.json URL",
+      ionAssetId: "Cesium Ion 3D Tiles asset ID",
+      maximumScreenSpaceError: "Maximum screen space error (lower = more detailed)",
+      heightOffset: "Height offset (meters)"
+    },
+    load3dGaussianSplat: {
+      id: "Layer ID",
+      name: "Layer name",
+      url: "Gaussian Splat tileset.json URL",
+      maximumScreenSpaceError: "Maximum screen space error (lower = more detailed)",
+      show: "Whether the layer is visible"
+    },
+    loadTerrain: {
+      provider: "Terrain provider type",
+      url: "Custom terrain service URL",
+      cesiumIonAssetId: "Cesium Ion asset ID (required when provider=cesiumion)"
+    },
+    loadImageryService: {
+      id: "Layer ID",
+      name: "Layer name",
+      url: "Imagery service URL",
+      ionAssetId: "Cesium Ion imagery asset ID",
+      serviceType: "Service type",
+      layerName: "WMS/WMTS layer name",
+      opacity: "Opacity (0-1)"
+    },
+    loadCzml: {
+      id: "Layer ID (auto-generated if omitted)",
+      name: "Data source display name",
+      data: "CZML packet array (mutually exclusive with url)",
+      url: "CZML file URL (mutually exclusive with data, browser-side fetch)",
+      sourceUri: "Base URI for resolving relative references in CZML",
+      clampToGround: "Clamp entities to ground surface",
+      flyTo: "Fly to data extent after loading (default true)"
+    },
+    loadKml: {
+      id: "Layer ID (auto-generated if omitted)",
+      name: "Data source display name",
+      url: "KML/KMZ file URL (mutually exclusive with data, browser-side fetch)",
+      data: "KML XML string (mutually exclusive with url)",
+      sourceUri: "Base URI for resolving relative references in KML",
+      clampToGround: "Clamp entities to ground surface",
+      flyTo: "Fly to data extent after loading (default true)"
+    },
+    setEdgeDisplayMode: {
+      tilesetId: "Target layer ID (omit to apply to all 3D Tiles layers)",
+      mode: "Edge mode: surfaces_only, surfaces_and_edges, or edges_only"
+    },
+    playTrajectory: {
+      id: "Trajectory layer ID",
+      name: "Trajectory name",
+      coordinates: "Trajectory coordinates array [[lon, lat, alt?], ...]",
+      durationSeconds: "Animation duration (seconds)",
+      trailSeconds: "Trail length (seconds)",
+      label: "Moving object label"
+    },
+    addHeatmap: {
+      id: "Layer ID",
+      name: "Layer name",
+      data: "GeoJSON Point FeatureCollection",
+      radius: "Heat influence radius (pixels)",
+      gradient: "Heatmap color gradient",
+      blur: "Heat blur factor",
+      maxOpacity: "Maximum heatmap opacity",
+      minOpacity: "Minimum heatmap opacity",
+      resolution: "Heatmap texture resolution in pixels"
+    },
+    geocode: {
+      address: 'Address, landmark, or place name, e.g. "\u6545\u5BAB", "Eiffel Tower", "\u6771\u4EAC\u30BF\u30EF\u30FC"',
+      countryCode: 'Two-letter ISO country code to restrict search scope (e.g. "CN", "US", "JP")'
+    }
+  };
+  var toolDescriptions = {
+    // — view
+    flyTo: "\u98DE\u884C\u5230\u6307\u5B9A\u7ECF\u7EAC\u5EA6\u4F4D\u7F6E\uFF08\u5E26\u52A8\u753B\u8FC7\u6E21\uFF09",
+    setView: "\u77AC\u95F4\u5207\u6362\u5230\u6307\u5B9A\u7ECF\u7EAC\u5EA6\u89C6\u89D2\uFF08\u65E0\u52A8\u753B\uFF09",
+    getView: "\u83B7\u53D6\u5F53\u524D\u76F8\u673A\u89C6\u89D2\u4FE1\u606F\uFF08\u7ECF\u7EAC\u5EA6\u3001\u9AD8\u5EA6\u3001\u89D2\u5EA6\uFF09",
+    zoomToExtent: "\u7F29\u653E\u5230\u6307\u5B9A\u5730\u7406\u8303\u56F4",
+    saveViewpoint: "\u4FDD\u5B58\u5F53\u524D\u89C6\u89D2\u4E3A\u4E66\u7B7E\uFF08\u540D\u79F0 \u2192 \u89C6\u89D2\u72B6\u6001\uFF09\uFF0C\u53EF\u901A\u8FC7 loadViewpoint \u6062\u590D",
+    loadViewpoint: "\u6062\u590D\u5DF2\u4FDD\u5B58\u7684\u89C6\u89D2\u4E66\u7B7E\uFF08\u5E26\u98DE\u884C\u52A8\u753B\uFF09\uFF0C\u8FD4\u56DE\u4FDD\u5B58\u7684\u89C6\u89D2\u72B6\u6001",
+    listViewpoints: "\u5217\u51FA\u6240\u6709\u5DF2\u4FDD\u5B58\u7684\u89C6\u89D2\u4E66\u7B7E",
+    // — entity
+    addMarker: "\u5728\u6307\u5B9A\u7ECF\u7EAC\u5EA6\u6DFB\u52A0\u6807\u6CE8\u70B9\uFF0C\u8FD4\u56DE layerId \u4F9B\u540E\u7EED\u64CD\u4F5C",
+    addLabel: "\u4E3A GeoJSON \u8981\u7D20\u6DFB\u52A0\u6587\u672C\u6807\u6CE8\uFF08\u663E\u793A\u5C5E\u6027\u503C\uFF09",
+    addModel: "\u5728\u6307\u5B9A\u7ECF\u7EAC\u5EA6\u653E\u7F6E 3D \u6A21\u578B\uFF08glTF/GLB\uFF09\uFF0C\u8FD4\u56DE entityId",
+    addPolygon: "\u5728\u5730\u56FE\u4E0A\u6DFB\u52A0\u591A\u8FB9\u5F62\u533A\u57DF\uFF08\u9762\u79EF\u3001\u8FB9\u754C\uFF09\uFF0C\u8FD4\u56DE entityId",
+    addPolyline: "\u5728\u5730\u56FE\u4E0A\u6DFB\u52A0\u6298\u7EBF\uFF08\u8DEF\u5F84\u3001\u7EBF\u6BB5\uFF09\uFF0C\u8FD4\u56DE entityId",
+    updateEntity: "\u66F4\u65B0\u5DF2\u6709\u5B9E\u4F53\u7684\u5C5E\u6027\uFF08\u4F4D\u7F6E\u3001\u989C\u8272\u3001\u6807\u7B7E\u3001\u7F29\u653E\u3001\u53EF\u89C1\u6027\uFF09",
+    removeEntity: "\u79FB\u9664\u5355\u4E2A\u5B9E\u4F53\uFF08\u901A\u8FC7 entityId\uFF09",
+    batchAddEntities: "\u6279\u91CF\u6DFB\u52A0\u591A\u4E2A\u5B9E\u4F53\uFF08\u4E00\u6B21\u8C03\u7528\u521B\u5EFA\u591A\u4E2A marker/polyline/polygon/model \u7B49\uFF09\uFF0C\u8FD4\u56DE\u6240\u6709 entityId",
+    queryEntities: "\u67E5\u8BE2\u5DF2\u6709\u5B9E\u4F53 \u2014 \u6309\u540D\u79F0\u3001\u7C7B\u578B\u3001\u7A7A\u95F4\u8303\u56F4\u8FC7\u6EE4\uFF0C\u8FD4\u56DE entityId/name/type/position \u5217\u8868",
+    // — layer
+    addGeoJsonLayer: "\u6DFB\u52A0 GeoJSON \u56FE\u5C42\u5230\u5730\u56FE\uFF08\u652F\u6301 Point/Line/Polygon\uFF0C\u53EF\u914D\u7F6E\u989C\u8272/\u5206\u7EA7/\u5206\u7C7B\u6E32\u67D3\uFF09\u3002data \u548C url \u4E8C\u9009\u4E00",
+    addGeoJsonPrimitive: "\u9AD8\u6027\u80FD\u52A0\u8F7D\u5927\u89C4\u6A21 GeoJSON \u6570\u636E\uFF0810\u4E07+ \u8981\u7D20\uFF09\u3002\u7ED5\u8FC7 Entity \u7CFB\u7EDF\uFF0C\u76F4\u63A5\u4F7F\u7528 Primitive \u6E32\u67D3\uFF0C\u9002\u5408\u6D77\u91CF\u6570\u636E\u53EF\u89C6\u5316\u3002data \u548C url \u4E8C\u9009\u4E00",
+    listLayers: "\u83B7\u53D6\u5F53\u524D\u6240\u6709\u56FE\u5C42\u5217\u8868\uFF08\u542B ID\u3001\u540D\u79F0\u3001\u7C7B\u578B\u3001\u53EF\u89C1\u6027\uFF09",
+    getLayerSchema: "\u83B7\u53D6\u56FE\u5C42\u7684\u5C5E\u6027\u5B57\u6BB5\u7ED3\u6784 \u2014 \u8FD4\u56DE\u5B57\u6BB5\u540D\u3001\u7C7B\u578B\u3001\u793A\u4F8B\u503C\uFF0C\u9002\u7528\u4E8E GeoJSON/CZML/KML/3D Tiles \u56FE\u5C42",
+    removeLayer: "\u4ECE\u5730\u56FE\u4E0A\u79FB\u9664\u6307\u5B9A\u56FE\u5C42\uFF08\u6309\u56FE\u5C42ID\uFF09",
+    setLayerVisibility: "\u8BBE\u7F6E\u56FE\u5C42\u53EF\u89C1\u6027",
+    updateLayerStyle: "\u4FEE\u6539\u5DF2\u6709\u56FE\u5C42\u7684\u6837\u5F0F\uFF08\u989C\u8272\u3001\u900F\u660E\u5EA6\u3001\u6807\u6CE8\u6837\u5F0F\u30013D Tiles \u6837\u5F0F\u7B49\uFF09",
+    setBasemap: "\u5207\u6362\u5E95\u56FE\u98CE\u683C\uFF08\u6697\u8272/\u536B\u661F/\u6807\u51C6/OSM/ArcGIS/\u6D45\u8272/\u5929\u5730\u56FE/\u9AD8\u5FB7\u7B49\uFF09",
+    // — camera
+    lookAtTransform: "\u4ECE\u6307\u5B9A\u822A\u5411/\u4FEF\u4EF0/\u8DDD\u79BB\u89C2\u5BDF\u7279\u5B9A\u4F4D\u7F6E\uFF08\u73AF\u7ED5\u5F0F\u76F8\u673A\uFF09",
+    startOrbit: "\u5F00\u59CB\u56F4\u7ED5\u5F53\u524D\u89C6\u56FE\u4E2D\u5FC3\u65CB\u8F6C\u76F8\u673A",
+    stopOrbit: "\u505C\u6B62\u76F8\u673A\u73AF\u7ED5\u52A8\u753B",
+    setCameraOptions: "\u914D\u7F6E\u76F8\u673A\u63A7\u5236\u5668\u9009\u9879\uFF08\u542F\u7528/\u7981\u7528\u65CB\u8F6C\u3001\u7F29\u653E\u3001\u503E\u659C\u7B49\uFF09",
+    // — entity-ext
+    addBillboard: "\u5728\u5730\u7403\u4E0A\u6307\u5B9A\u4F4D\u7F6E\u6DFB\u52A0\u5E7F\u544A\u724C\uFF08\u56FE\u7247\u56FE\u6807\uFF09",
+    addBox: "\u5728\u6307\u5B9A\u4F4D\u7F6E\u6DFB\u52A0 3D \u76D2\u5B50\u5B9E\u4F53",
+    addCorridor: "\u6DFB\u52A0\u8D70\u5ECA\uFF08\u5E26\u5BBD\u5EA6\u7684\u8DEF\u5F84\uFF09\u5B9E\u4F53",
+    addCylinder: "\u5728\u6307\u5B9A\u4F4D\u7F6E\u6DFB\u52A0\u5706\u67F1\u4F53\u6216\u5706\u9525\u4F53\u5B9E\u4F53",
+    addEllipse: "\u5728\u6307\u5B9A\u4F4D\u7F6E\u6DFB\u52A0\u692D\u5706\u5F62\u5B9E\u4F53",
+    addRectangle: "\u6DFB\u52A0\u7531\u5730\u7406\u8FB9\u754C\u5B9A\u4E49\u7684\u77E9\u5F62\u5B9E\u4F53",
+    addWall: "\u6CBF\u4E00\u7CFB\u5217\u4F4D\u7F6E\u6DFB\u52A0\u5899\u4F53\u5B9E\u4F53",
+    // — animation
+    createAnimation: "\u521B\u5EFA\u57FA\u4E8E\u65F6\u95F4\u7684\u822A\u70B9\u52A8\u753B\uFF08\u5B9E\u4F53\u6CBF\u8DEF\u5F84\u79FB\u52A8\uFF09",
+    controlAnimation: "\u64AD\u653E\u6216\u6682\u505C\u5F53\u524D\u52A8\u753B",
+    removeAnimation: "\u79FB\u9664\u52A8\u753B\u5B9E\u4F53",
+    listAnimations: "\u5217\u51FA\u6240\u6709\u6D3B\u52A8\u52A8\u753B",
+    updateAnimationPath: "\u66F4\u65B0\u52A8\u753B\u8DEF\u5F84\u7684\u89C6\u89C9\u5C5E\u6027",
+    trackEntity: "\u7528\u76F8\u673A\u8DDF\u8E2A\uFF08\u8DDF\u968F\uFF09\u5B9E\u4F53\uFF0C\u6216\u505C\u6B62\u8DDF\u8E2A",
+    controlClock: "\u914D\u7F6E Cesium \u65F6\u949F\uFF08\u65F6\u95F4\u8303\u56F4\u3001\u901F\u5EA6\u3001\u52A8\u753B\u72B6\u6001\uFF09",
+    setGlobeLighting: "\u542F\u7528/\u7981\u7528\u5730\u7403\u5149\u7167\u548C\u5927\u6C14\u6548\u679C",
+    // — scene
+    setSceneOptions: "\u914D\u7F6E\u573A\u666F\u73AF\u5883\uFF08\u96FE\u3001\u5927\u6C14\u3001\u9634\u5F71\u3001\u592A\u9633\u3001\u6708\u4EAE\u3001\u80CC\u666F\u8272\u3001\u6DF1\u5EA6\u6D4B\u8BD5\uFF09",
+    setPostProcess: "\u914D\u7F6E\u540E\u5904\u7406\u7279\u6548\uFF08\u6CDB\u5149\u3001\u73AF\u5883\u5149\u906E\u853D SSAO\u3001\u6297\u952F\u9F7F FXAA\uFF09",
+    // — tiles
+    load3dTiles: "\u52A0\u8F7D 3D Tiles \u6570\u636E\u96C6\uFF08\u5982\u5EFA\u7B51\u767D\u819C\u3001\u57CE\u5E02\u6A21\u578B\uFF09",
+    load3dGaussianSplat: "\u52A0\u8F7D 3D \u9AD8\u65AF\u6CFC\u6E85\uFF08Gaussian Splat\uFF09\u6570\u636E\u96C6",
+    loadTerrain: "\u52A0\u8F7D\u6216\u5207\u6362\u5730\u5F62\uFF08\u5E73\u5766/ArcGIS/CesiumIon/\u81EA\u5B9A\u4E49 URL\uFF09",
+    loadImageryService: "\u52A0\u8F7D\u5F71\u50CF\u670D\u52A1\u56FE\u5C42\uFF08WMS/WMTS/XYZ/ArcGIS MapServer\uFF09",
+    loadCzml: "\u52A0\u8F7D CZML \u65F6\u5E8F\u6570\u636E\u6E90\uFF08CesiumJS \u539F\u751F\u683C\u5F0F\uFF0C\u652F\u6301\u65F6\u53D8\u4F4D\u7F6E/\u6837\u5F0F/\u52A8\u753B\uFF09\u3002data \u548C url \u4E8C\u9009\u4E00",
+    loadKml: "\u52A0\u8F7D KML/KMZ \u6570\u636E\u6E90\uFF08Google Earth \u683C\u5F0F\uFF09\u3002data \u548C url \u4E8C\u9009\u4E00",
+    setEdgeDisplayMode: "\u8BBE\u7F6E\u4E00\u4E2A\u6216\u5168\u90E8 3D Tiles \u56FE\u5C42\u7684\u8FB9\u7F18\u663E\u793A\u6A21\u5F0F",
+    // — interaction
+    screenshot: "\u622A\u53D6\u5F53\u524D\u5730\u56FE\u89C6\u56FE\uFF08\u8FD4\u56DE base64 PNG\uFF09",
+    highlight: "\u9AD8\u4EAE\u6307\u5B9A\u56FE\u5C42\u7684\u8981\u7D20",
+    measure: "\u6D4B\u91CF\u8DDD\u79BB\u6216\u9762\u79EF\uFF08\u57FA\u4E8E\u5750\u6807\u8BA1\u7B97\uFF0C\u53EF\u5728\u5730\u56FE\u4E0A\u663E\u793A\uFF09",
+    // — clear
+    clearAll: "\u6E05\u9664\u5730\u56FE\u4E0A\u7684\u6240\u6709\u56FE\u5C42\u3001\u5B9E\u4F53\u3001\u52A8\u753B\u548C\u8F68\u8FF9\uFF08\u4E00\u952E\u91CD\u7F6E\u573A\u666F\uFF09",
+    // — entity inspection
+    getEntityProperties: "\u83B7\u53D6\u6307\u5B9A\u5B9E\u4F53\u7684\u8BE6\u7EC6\u5C5E\u6027 \u2014 \u5305\u62EC\u7C7B\u578B\u3001\u4F4D\u7F6E\u3001\u81EA\u5B9A\u4E49\u5C5E\u6027\u548C\u56FE\u5F62\u5C5E\u6027",
+    // — scene export
+    exportScene: "\u5BFC\u51FA\u5F53\u524D\u573A\u666F\u5FEB\u7167 \u2014 \u5305\u542B\u89C6\u89D2\u3001\u56FE\u5C42\u5217\u8868\u3001\u5B9E\u4F53\u5217\u8868\u548C\u65F6\u95F4\u6233",
+    // — trajectory
+    playTrajectory: "\u64AD\u653E\u79FB\u52A8\u8F68\u8FF9\u52A8\u753B",
+    // — heatmap
+    addHeatmap: "\u6DFB\u52A0\u70ED\u529B\u56FE\u56FE\u5C42\uFF08\u57FA\u4E8E GeoJSON \u70B9\u6570\u636E\u751F\u6210\u70ED\u529B\u53EF\u89C6\u5316\uFF09",
+    // — geolocation
+    geocode: "\u5C06\u5730\u5740\u3001\u5730\u6807\u6216\u5730\u540D\u8F6C\u6362\u4E3A\u5730\u7406\u5750\u6807\uFF08\u7ECF\u7EAC\u5EA6\uFF09\u3002\u4F7F\u7528 OpenStreetMap Nominatim \u514D\u8D39\u670D\u52A1\uFF0C\u65E0\u9700 API Key\u3002"
+  };
+  var paramDescriptions2 = {
+    flyTo: {
+      longitude: "\u7ECF\u5EA6\uFF08-180 ~ 180\uFF09",
+      latitude: "\u7EAC\u5EA6\uFF08-90 ~ 90\uFF09",
+      height: "\u76F8\u673A\u9AD8\u5EA6\uFF08\u7C73\uFF09\uFF0C\u9ED8\u8BA4 50000",
+      heading: "\u822A\u5411\u89D2\uFF08\u5EA6\uFF09\uFF0C0 \u4E3A\u6B63\u5317",
+      pitch: "\u4FEF\u4EF0\u89D2\uFF08\u5EA6\uFF09\uFF0C-90 \u4E3A\u6B63\u4E0B\u65B9",
+      duration: "\u98DE\u884C\u52A8\u753B\u65F6\u957F\uFF08\u79D2\uFF09"
+    },
+    setView: {
+      longitude: "\u7ECF\u5EA6\uFF08-180 ~ 180\uFF09",
+      latitude: "\u7EAC\u5EA6\uFF08-90 ~ 90\uFF09",
+      height: "\u9AD8\u5EA6\uFF08\u7C73\uFF09",
+      heading: "\u822A\u5411\u89D2\uFF08\u5EA6\uFF09",
+      pitch: "\u4FEF\u4EF0\u89D2\uFF08\u5EA6\uFF09",
+      roll: "\u7FFB\u6EDA\u89D2\uFF08\u5EA6\uFF09"
+    },
+    zoomToExtent: {
+      bbox: "\u5730\u7406\u8303\u56F4 [\u897F, \u5357, \u4E1C, \u5317]\uFF08\u5EA6\uFF09",
+      west: "\u897F\u8FB9\u754C\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
+      south: "\u5357\u8FB9\u754C\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
+      east: "\u4E1C\u8FB9\u754C\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
+      north: "\u5317\u8FB9\u754C\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
+      duration: "\u52A8\u753B\u65F6\u957F\uFF08\u79D2\uFF09"
+    },
+    saveViewpoint: {
+      name: "\u4E66\u7B7E\u540D\u79F0\uFF08\u552F\u4E00\u6807\u8BC6\uFF0C\u91CD\u590D\u5219\u8986\u76D6\uFF09"
+    },
+    loadViewpoint: {
+      name: "\u4E66\u7B7E\u540D\u79F0",
+      duration: "\u98DE\u884C\u52A8\u753B\u65F6\u957F\uFF08\u79D2\uFF09\uFF0C0 \u8868\u793A\u77AC\u79FB"
+    },
+    addMarker: {
+      longitude: "\u7ECF\u5EA6\uFF08-180 ~ 180\uFF09",
+      latitude: "\u7EAC\u5EA6\uFF08-90 ~ 90\uFF09",
+      label: "\u6807\u6CE8\u6587\u672C",
+      color: "\u6807\u6CE8\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09",
+      size: "\u70B9\u5927\u5C0F\uFF08\u50CF\u7D20\uFF09",
+      id: "\u81EA\u5B9A\u4E49\u56FE\u5C42ID\uFF08\u4E0D\u4F20\u5219\u81EA\u52A8\u751F\u6210\uFF09"
+    },
+    addLabel: {
+      data: "GeoJSON FeatureCollection \u5BF9\u8C61",
+      field: '\u7528\u4F5C\u6807\u6CE8\u6587\u672C\u7684\u5C5E\u6027\u5B57\u6BB5\u540D\uFF08\u5982 "name"\u3001"population"\uFF09',
+      style: "\u6807\u6CE8\u6837\u5F0F\uFF08font, fillColor, outlineColor, scale \u7B49\uFF09"
+    },
+    addModel: {
+      longitude: "\u7ECF\u5EA6\uFF08-180 ~ 180\uFF09",
+      latitude: "\u7EAC\u5EA6\uFF08-90 ~ 90\uFF09",
+      height: "\u653E\u7F6E\u9AD8\u5EA6\uFF08\u7C73\uFF09",
+      url: "glTF/GLB \u6A21\u578B\u6587\u4EF6 URL",
+      scale: "\u6A21\u578B\u7F29\u653E\u6BD4\u4F8B",
+      heading: "\u822A\u5411\u89D2\uFF08\u5EA6\uFF09\uFF0C0=\u6B63\u5317",
+      pitch: "\u4FEF\u4EF0\u89D2\uFF08\u5EA6\uFF09",
+      roll: "\u7FFB\u6EDA\u89D2\uFF08\u5EA6\uFF09",
+      label: "\u6A21\u578B\u6807\u6CE8\u6587\u672C"
+    },
+    addPolygon: {
+      coordinates: "\u591A\u8FB9\u5F62\u5916\u73AF\u5750\u6807 [[lon, lat, height?], ...]",
+      color: "\u586B\u5145\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09",
+      outlineColor: "\u63CF\u8FB9\u989C\u8272",
+      opacity: "\u586B\u5145\u900F\u660E\u5EA6\uFF080~1\uFF09",
+      extrudedHeight: "\u62C9\u4F38\u9AD8\u5EA6\uFF08\u7C73\uFF09\uFF0C\u53EF\u7528\u4E8E\u521B\u5EFA\u7ACB\u4F53\u6548\u679C",
+      clampToGround: "\u662F\u5426\u8D34\u5730",
+      label: "\u591A\u8FB9\u5F62\u6807\u6CE8\u6587\u672C"
+    },
+    addPolyline: {
+      coordinates: "\u6298\u7EBF\u5750\u6807\u6570\u7EC4 [[lon, lat, height?], ...]",
+      color: "\u7EBF\u6761\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09",
+      width: "\u7EBF\u6761\u5BBD\u5EA6\uFF08\u50CF\u7D20\uFF09",
+      clampToGround: "\u662F\u5426\u8D34\u5730",
+      label: "\u6298\u7EBF\u6807\u6CE8\u6587\u672C"
+    },
+    updateEntity: {
+      entityId: "\u5B9E\u4F53ID\uFF08addMarker/addPolyline \u7B49\u8FD4\u56DE\u7684 entityId\uFF09",
+      position: "\u65B0\u4F4D\u7F6E\u5750\u6807",
+      label: "\u65B0\u6807\u6CE8\u6587\u672C",
+      color: "\u65B0\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09",
+      scale: "\u65B0\u7F29\u653E\u6BD4\u4F8B",
+      show: "\u662F\u5426\u663E\u793A"
+    },
+    removeEntity: {
+      entityId: "\u8981\u79FB\u9664\u7684\u5B9E\u4F53ID"
+    },
+    batchAddEntities: {
+      entities: "\u5B9E\u4F53\u5B9A\u4E49\u6570\u7EC4\uFF0C\u6BCF\u4E2A\u5143\u7D20\u5305\u542B type \u5B57\u6BB5\u548C\u8BE5\u7C7B\u578B\u6240\u9700\u7684\u53C2\u6570"
+    },
+    queryEntities: {
+      name: "\u540D\u79F0\u6A21\u7CCA\u5339\u914D\uFF08\u4E0D\u533A\u5206\u5927\u5C0F\u5199\uFF09",
+      type: "\u6309\u5B9E\u4F53\u7C7B\u578B\u8FC7\u6EE4",
+      bbox: "\u7A7A\u95F4\u8303\u56F4\u8FC7\u6EE4 [west, south, east, north]\uFF08\u5EA6\uFF09"
+    },
+    addGeoJsonLayer: {
+      id: "\u56FE\u5C42ID\uFF08\u4E0D\u4F20\u5219\u81EA\u52A8\u751F\u6210\uFF09",
+      name: "\u56FE\u5C42\u663E\u793A\u540D\u79F0",
+      data: "GeoJSON FeatureCollection \u5BF9\u8C61\uFF08\u4E0E url \u4E8C\u9009\u4E00\uFF09",
+      url: "GeoJSON \u6587\u4EF6 URL\uFF08\u4E0E data \u4E8C\u9009\u4E00\uFF0C\u6D4F\u89C8\u5668\u7AEF fetch \u52A0\u8F7D\uFF09",
+      style: "\u6837\u5F0F\u914D\u7F6E\uFF08color, opacity, pointSize, choropleth, category\uFF09"
+    },
+    addGeoJsonPrimitive: {
+      id: "\u56FE\u5C42ID\uFF08\u4E0D\u4F20\u5219\u81EA\u52A8\u751F\u6210\uFF09",
+      name: "\u56FE\u5C42\u663E\u793A\u540D\u79F0",
+      data: "GeoJSON \u5BF9\u8C61\uFF08\u4E0E url \u4E8C\u9009\u4E00\uFF09",
+      url: "GeoJSON \u6587\u4EF6 URL\uFF08\u4E0E data \u4E8C\u9009\u4E00\uFF09",
+      allowPicking: "\u662F\u5426\u5141\u8BB8\u62FE\u53D6\uFF08\u9ED8\u8BA4 true\uFF0C\u5173\u95ED\u53EF\u63D0\u5347\u6027\u80FD\uFF09",
+      show: "\u662F\u5426\u663E\u793A\uFF08\u9ED8\u8BA4 true\uFF09"
+    },
+    listLayers: {},
+    getLayerSchema: {
+      layerId: "\u56FE\u5C42ID\uFF08\u53EF\u901A\u8FC7 listLayers \u83B7\u53D6\uFF09"
+    },
+    removeLayer: {
+      id: "\u8981\u79FB\u9664\u7684\u56FE\u5C42ID\uFF08\u53EF\u901A\u8FC7 listLayers \u83B7\u53D6\uFF09"
+    },
+    setLayerVisibility: {
+      id: "\u56FE\u5C42ID",
+      visible: "\u662F\u5426\u53EF\u89C1"
+    },
+    updateLayerStyle: {
+      layerId: "\u56FE\u5C42ID",
+      labelStyle: "\u6807\u6CE8\u6837\u5F0F\uFF08font, fillColor, outlineColor, outlineWidth, scale \u7B49\uFF09",
+      layerStyle: "\u5B9E\u4F53\u56FE\u5C42\u6837\u5F0F\uFF08color, opacity, strokeWidth, pointSize\uFF1BGeoJSON \u4E3B\u9898\u6837\u5F0F choropleth/category/randomColor/gradient \u4E92\u65A5\uFF09",
+      imageryStyle: "\u5F71\u50CF\u56FE\u5C42\u89C6\u89C9\u6837\u5F0F\uFF08alpha, brightness, contrast, hue, saturation, gamma\uFF09\uFF1B\u663E\u9690\u8BF7\u4F7F\u7528 setLayerVisibility",
+      primitiveStyle: "GeoJSON Primitive \u6750\u8D28\u6837\u5F0F\uFF08color, opacity, outlineColor, outlineWidth, pointSize, lineWidth\uFF09\uFF1B\u663E\u9690\u8BF7\u4F7F\u7528 setLayerVisibility",
+      tileStyle: "3D Tiles \u6837\u5F0F\uFF08Cesium3DTileStyle \u8868\u8FBE\u5F0F\uFF1Acolor, show, pointSize, meta\uFF09"
+    },
+    setBasemap: {
+      basemap: "\u5E95\u56FE\u7C7B\u578B\uFF1Adark=\u6697\u8272, satellite=\u536B\u661F\u5F71\u50CF, standard=\u6807\u51C6, osm=OpenStreetMap, arcgis=ArcGIS\u8857\u9053, light=\u6D45\u8272, tianditu_vec=\u5929\u5730\u56FE\u77E2\u91CF, tianditu_img=\u5929\u5730\u56FE\u5F71\u50CF, amap=\u9AD8\u5FB7\u5730\u56FE, amap_satellite=\u9AD8\u5FB7\u536B\u661F",
+      token: "\u5E95\u56FE\u670D\u52A1\u4EE4\u724C\uFF08\u5929\u5730\u56FE\u7B49\u9700\u8981\u8BA4\u8BC1\u7684\u670D\u52A1\u5FC5\u586B\uFF09",
+      url: "\u81EA\u5B9A\u4E49URL\u6A21\u677F\uFF08{x},{y},{z}\u5360\u4F4D\u7B26\uFF09\uFF0C\u63D0\u4F9B\u65F6\u5FFD\u7565basemap\u53C2\u6570"
+    },
+    highlight: {
+      layerId: "\u56FE\u5C42ID",
+      featureIndex: "\u8981\u7D20\u7D22\u5F15\uFF08\u4E0D\u4F20\u5219\u9AD8\u4EAE\u5168\u90E8\uFF09",
+      color: "\u9AD8\u4EAE\u989C\u8272\uFF08CSS \u683C\u5F0F\uFF09",
+      clear: "\u6E05\u9664\u5DF2\u6709\u9AD8\u4EAE\u5E76\u6062\u590D\u539F\u59CB\u6837\u5F0F"
+    },
+    measure: {
+      mode: "\u6D4B\u91CF\u6A21\u5F0F\uFF1Adistance=\u8DDD\u79BB, area=\u9762\u79EF",
+      positions: "\u5750\u6807\u6570\u7EC4 [[\u7ECF\u5EA6, \u7EAC\u5EA6, \u9AD8\u5EA6?], ...]",
+      showOnMap: "\u662F\u5426\u5728\u5730\u56FE\u4E0A\u663E\u793A\u6D4B\u91CF\u7ED3\u679C",
+      id: "\u81EA\u5B9A\u4E49\u6D4B\u91CF\u5B9E\u4F53ID"
+    },
+    getEntityProperties: {
+      entityId: "\u5B9E\u4F53ID\uFF08\u53EF\u901A\u8FC7 queryEntities \u83B7\u53D6\uFF09"
+    },
+    lookAtTransform: {
+      longitude: "\u76EE\u6807\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
+      latitude: "\u76EE\u6807\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
+      height: "\u76EE\u6807\u9AD8\u5EA6\uFF08\u7C73\uFF09",
+      heading: "\u76F8\u673A\u822A\u5411\u89D2\uFF08\u5EA6\uFF09\uFF0C0=\u6B63\u5317",
+      pitch: "\u76F8\u673A\u4FEF\u4EF0\u89D2\uFF08\u5EA6\uFF09\uFF0C-90=\u6B63\u4E0B\u65B9",
+      range: "\u8DDD\u76EE\u6807\u8DDD\u79BB\uFF08\u7C73\uFF09"
+    },
+    startOrbit: {
+      speed: "\u65CB\u8F6C\u901F\u5EA6\uFF08\u5F27\u5EA6/\u5E27\uFF09",
+      clockwise: "\u65CB\u8F6C\u65B9\u5411"
+    },
+    setCameraOptions: {
+      enableRotate: "\u542F\u7528\u76F8\u673A\u65CB\u8F6C",
+      enableTranslate: "\u542F\u7528\u76F8\u673A\u5E73\u79FB",
+      enableZoom: "\u542F\u7528\u76F8\u673A\u7F29\u653E",
+      enableTilt: "\u542F\u7528\u76F8\u673A\u503E\u659C",
+      enableLook: "\u542F\u7528\u76F8\u673A\u73AF\u89C6",
+      minimumZoomDistance: "\u6700\u5C0F\u7F29\u653E\u8DDD\u79BB\uFF08\u7C73\uFF09",
+      maximumZoomDistance: "\u6700\u5927\u7F29\u653E\u8DDD\u79BB\uFF08\u7C73\uFF09",
+      enableInputs: "\u542F\u7528/\u7981\u7528\u6240\u6709\u76F8\u673A\u8F93\u5165"
+    },
+    addBillboard: {
+      longitude: "\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
+      latitude: "\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
+      height: "\u9AD8\u5EA6\uFF08\u7C73\uFF09",
+      name: "\u5E7F\u544A\u724C\u540D\u79F0",
+      image: "\u5E7F\u544A\u724C\u56FE\u7247 URL",
+      scale: "\u7F29\u653E\u6BD4\u4F8B",
+      color: "\u7740\u8272\u989C\u8272",
+      pixelOffset: "\u4F4D\u7F6E\u50CF\u7D20\u504F\u79FB",
+      horizontalOrigin: "\u6C34\u5E73\u539F\u70B9",
+      verticalOrigin: "\u5782\u76F4\u539F\u70B9",
+      heightReference: "\u9AD8\u5EA6\u53C2\u8003"
+    },
+    addBox: {
+      longitude: "\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
+      latitude: "\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
+      height: "\u9AD8\u5EA6\uFF08\u7C73\uFF09",
+      name: "\u76D2\u5B50\u540D\u79F0",
+      dimensions: "\u76D2\u5B50\u5C3A\u5BF8",
+      material: "\u6750\u8D28\uFF08\u989C\u8272\u5B57\u7B26\u4E32\u3001RGBA \u5BF9\u8C61\u6216\u6750\u8D28\u89C4\u683C\uFF09",
+      outline: "\u663E\u793A\u8F6E\u5ED3\u7EBF",
+      outlineColor: "\u8F6E\u5ED3\u7EBF\u989C\u8272",
+      fill: "\u663E\u793A\u586B\u5145",
+      orientation: "\u671D\u5411\uFF08\u822A\u5411/\u4FEF\u4EF0/\u7FFB\u6EDA\u89D2\u5EA6\uFF09",
+      heightReference: "\u9AD8\u5EA6\u53C2\u8003"
+    },
+    addCorridor: {
+      name: "\u8D70\u5ECA\u540D\u79F0",
+      positions: "\u8D70\u5ECA\u6CBF\u7EBF\u4F4D\u7F6E\u6570\u7EC4",
+      width: "\u8D70\u5ECA\u5BBD\u5EA6\uFF08\u7C73\uFF09",
+      material: "\u6750\u8D28",
+      cornerType: "\u62D0\u89D2\u7C7B\u578B",
+      height: "\u79BB\u5730\u9AD8\u5EA6\uFF08\u7C73\uFF09",
+      extrudedHeight: "\u62C9\u4F38\u9AD8\u5EA6\uFF08\u7C73\uFF09",
+      outline: "\u663E\u793A\u8F6E\u5ED3\u7EBF",
+      fill: "\u663E\u793A\u586B\u5145",
+      outlineColor: "\u8F6E\u5ED3\u7EBF\u989C\u8272"
+    },
+    addCylinder: {
+      longitude: "\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
+      latitude: "\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
+      height: "\u9AD8\u5EA6\uFF08\u7C73\uFF09",
+      name: "\u5706\u67F1\u4F53\u540D\u79F0",
+      length: "\u5706\u67F1\u4F53\u957F\u5EA6/\u9AD8\u5EA6\uFF08\u7C73\uFF09",
+      topRadius: "\u9876\u90E8\u534A\u5F84\uFF08\u7C73\uFF09",
+      bottomRadius: "\u5E95\u90E8\u534A\u5F84\uFF08\u7C73\uFF09",
+      material: "\u6750\u8D28",
+      outline: "\u663E\u793A\u8F6E\u5ED3\u7EBF",
+      outlineColor: "\u8F6E\u5ED3\u7EBF\u989C\u8272",
+      fill: "\u663E\u793A\u586B\u5145",
+      orientation: "\u671D\u5411\uFF08\u822A\u5411/\u4FEF\u4EF0/\u7FFB\u6EDA\u89D2\u5EA6\uFF09",
+      numberOfVerticalLines: "\u5782\u76F4\u7EBF\u6761\u6570",
+      slices: "\u5206\u7247\u6570"
+    },
+    addEllipse: {
+      longitude: "\u4E2D\u5FC3\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
+      latitude: "\u4E2D\u5FC3\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
+      height: "\u9AD8\u5EA6\uFF08\u7C73\uFF09",
+      name: "\u692D\u5706\u540D\u79F0",
+      semiMajorAxis: "\u534A\u957F\u8F74\uFF08\u7C73\uFF09",
+      semiMinorAxis: "\u534A\u77ED\u8F74\uFF08\u7C73\uFF09",
+      material: "\u6750\u8D28",
+      extrudedHeight: "\u62C9\u4F38\u9AD8\u5EA6\uFF08\u7C73\uFF09",
+      rotation: "\u65CB\u8F6C\u89D2\uFF08\u5F27\u5EA6\uFF09",
+      outline: "\u663E\u793A\u8F6E\u5ED3\u7EBF",
+      outlineColor: "\u8F6E\u5ED3\u7EBF\u989C\u8272",
+      fill: "\u663E\u793A\u586B\u5145",
+      stRotation: "\u7EB9\u7406\u65CB\u8F6C\u89D2\uFF08\u5F27\u5EA6\uFF09",
+      numberOfVerticalLines: "\u5782\u76F4\u7EBF\u6761\u6570"
+    },
+    addRectangle: {
+      name: "\u77E9\u5F62\u540D\u79F0",
+      west: "\u897F\u8FB9\u754C\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
+      south: "\u5357\u8FB9\u754C\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
+      east: "\u4E1C\u8FB9\u754C\u7ECF\u5EA6\uFF08\u5EA6\uFF09",
+      north: "\u5317\u8FB9\u754C\u7EAC\u5EA6\uFF08\u5EA6\uFF09",
+      material: "\u6750\u8D28",
+      height: "\u9AD8\u5EA6\uFF08\u7C73\uFF09",
+      extrudedHeight: "\u62C9\u4F38\u9AD8\u5EA6\uFF08\u7C73\uFF09",
+      rotation: "\u65CB\u8F6C\u89D2\uFF08\u5F27\u5EA6\uFF09",
+      outline: "\u663E\u793A\u8F6E\u5ED3\u7EBF",
+      outlineColor: "\u8F6E\u5ED3\u7EBF\u989C\u8272",
+      fill: "\u663E\u793A\u586B\u5145",
+      stRotation: "\u7EB9\u7406\u65CB\u8F6C\u89D2\uFF08\u5F27\u5EA6\uFF09"
+    },
+    addWall: {
+      name: "\u5899\u4F53\u540D\u79F0",
+      positions: "\u5899\u4F53\u6CBF\u7EBF\u4F4D\u7F6E\u6570\u7EC4",
+      minimumHeights: "\u5404\u4F4D\u7F6E\u6700\u5C0F\u9AD8\u5EA6",
+      maximumHeights: "\u5404\u4F4D\u7F6E\u6700\u5927\u9AD8\u5EA6",
+      material: "\u6750\u8D28",
+      outline: "\u663E\u793A\u8F6E\u5ED3\u7EBF",
+      outlineColor: "\u8F6E\u5ED3\u7EBF\u989C\u8272",
+      fill: "\u663E\u793A\u586B\u5145"
+    },
+    createAnimation: {
+      name: "\u52A8\u753B\u540D\u79F0",
+      waypoints: "\u5E26\u4F4D\u7F6E\u548C\u65F6\u95F4\u6233\u7684\u822A\u70B9\u6570\u7EC4",
+      modelUri: "glTF/GLB \u6A21\u578B URL\uFF0C\u6216\u9884\u8BBE\uFF1Acesium_man, cesium_air, ground_vehicle, cesium_drone",
+      showPath: "\u663E\u793A\u8F68\u8FF9\u8DEF\u5F84",
+      pathWidth: "\u8DEF\u5F84\u5BBD\u5EA6\uFF08\u50CF\u7D20\uFF09",
+      pathColor: "\u8DEF\u5F84\u989C\u8272\uFF08CSS\uFF09",
+      pathLeadTime: "\u8DEF\u5F84\u524D\u5BFC\u65F6\u95F4\uFF08\u79D2\uFF09",
+      pathTrailTime: "\u8DEF\u5F84\u5C3E\u8FF9\u65F6\u95F4\uFF08\u79D2\uFF09",
+      multiplier: "\u65F6\u949F\u901F\u7387\u500D\u6570",
+      shouldAnimate: "\u81EA\u52A8\u5F00\u59CB\u52A8\u753B"
+    },
+    controlAnimation: {
+      action: "\u64AD\u653E\u6216\u6682\u505C"
+    },
+    removeAnimation: {
+      entityId: "\u8981\u79FB\u9664\u7684\u52A8\u753B\u5B9E\u4F53 ID"
+    },
+    updateAnimationPath: {
+      entityId: "\u52A8\u753B\u5B9E\u4F53 ID",
+      width: "\u65B0\u8DEF\u5F84\u5BBD\u5EA6\uFF08\u50CF\u7D20\uFF09",
+      color: "\u65B0\u8DEF\u5F84\u989C\u8272\uFF08CSS\uFF09",
+      leadTime: "\u65B0\u524D\u5BFC\u65F6\u95F4\uFF08\u79D2\uFF09",
+      trailTime: "\u65B0\u5C3E\u8FF9\u65F6\u95F4\uFF08\u79D2\uFF09",
+      show: "\u663E\u793A/\u9690\u85CF\u8DEF\u5F84"
+    },
+    trackEntity: {
+      entityId: "\u8981\u8DDF\u8E2A\u7684\u5B9E\u4F53 ID\uFF08\u7701\u7565\u5219\u505C\u6B62\u8DDF\u8E2A\uFF09",
+      heading: "\u76F8\u673A\u822A\u5411\u89D2\uFF08\u5EA6\uFF09",
+      pitch: "\u76F8\u673A\u4FEF\u4EF0\u89D2\uFF08\u5EA6\uFF09",
+      range: "\u76F8\u673A\u8DDD\u5B9E\u4F53\u8DDD\u79BB\uFF08\u7C73\uFF09"
+    },
+    controlClock: {
+      action: "\u65F6\u949F\u64CD\u4F5C",
+      startTime: "ISO 8601 \u5F00\u59CB\u65F6\u95F4\uFF08\u7528\u4E8E configure\uFF09",
+      stopTime: "ISO 8601 \u7ED3\u675F\u65F6\u95F4\uFF08\u7528\u4E8E configure\uFF09",
+      currentTime: "ISO 8601 \u5F53\u524D\u65F6\u95F4\uFF08\u7528\u4E8E configure\uFF09",
+      time: "ISO 8601 \u8DF3\u8F6C\u65F6\u95F4\uFF08\u7528\u4E8E setTime\uFF09",
+      multiplier: "\u65F6\u949F\u901F\u7387\u500D\u6570\uFF08\u7528\u4E8E configure/setMultiplier\uFF09",
+      shouldAnimate: "\u662F\u5426\u64AD\u653E\u52A8\u753B\uFF08\u7528\u4E8E configure\uFF09",
+      clockRange: "\u65F6\u949F\u8303\u56F4\u6A21\u5F0F\uFF08\u7528\u4E8E configure\uFF09"
+    },
+    setGlobeLighting: {
+      enableLighting: "\u542F\u7528\u5730\u7403\u5149\u7167",
+      dynamicAtmosphereLighting: "\u542F\u7528\u52A8\u6001\u5927\u6C14\u5149\u7167",
+      dynamicAtmosphereLightingFromSun: "\u4F7F\u7528\u592A\u9633\u4F4D\u7F6E\u8FDB\u884C\u5927\u6C14\u5149\u7167"
+    },
+    setSceneOptions: {
+      fogEnabled: "\u542F\u7528/\u7981\u7528\u96FE\u6548",
+      fogDensity: "\u96FE\u7684\u5BC6\u5EA6\uFF080.0~1.0\uFF0C\u9ED8\u8BA4\u7EA6 0.0002\uFF09",
+      fogMinimumBrightness: "\u96FE\u7684\u6700\u4F4E\u4EAE\u5EA6\uFF080.0~1.0\uFF09",
+      skyAtmosphereShow: "\u663E\u793A\u5929\u7A7A\u5927\u6C14",
+      skyAtmosphereHueShift: "\u5929\u7A7A\u8272\u8C03\u504F\u79FB\uFF08-1.0~1.0\uFF09",
+      skyAtmosphereSaturationShift: "\u5929\u7A7A\u9971\u548C\u5EA6\u504F\u79FB\uFF08-1.0~1.0\uFF09",
+      skyAtmosphereBrightnessShift: "\u5929\u7A7A\u4EAE\u5EA6\u504F\u79FB\uFF08-1.0~1.0\uFF09",
+      groundAtmosphereShow: "\u663E\u793A\u5730\u9762\u5927\u6C14",
+      shadowsEnabled: "\u542F\u7528\u9634\u5F71",
+      shadowsSoftShadows: "\u4F7F\u7528\u8F6F\u9634\u5F71",
+      shadowsDarkness: "\u9634\u5F71\u6697\u5EA6\uFF080.0=\u65E0\u9634\u5F71\uFF0C1.0=\u5168\u6697\uFF09",
+      sunShow: "\u663E\u793A\u592A\u9633",
+      sunGlowFactor: "\u592A\u9633\u5149\u6655\u7CFB\u6570\uFF08\u9ED8\u8BA4 1.0\uFF09",
+      moonShow: "\u663E\u793A\u6708\u4EAE",
+      depthTestAgainstTerrain: "\u542F\u7528\u5730\u5F62\u6DF1\u5EA6\u6D4B\u8BD5\uFF08\u5730\u5F62\u540E\u65B9\u5B9E\u4F53\u5C06\u88AB\u9690\u85CF\uFF09",
+      backgroundColor: '\u573A\u666F\u80CC\u666F\u8272\uFF08CSS \u683C\u5F0F\uFF0C\u5982 "#000000"\uFF09'
+    },
+    setPostProcess: {
+      bloom: "\u542F\u7528\u6CDB\u5149\u7279\u6548",
+      bloomContrast: "\u6CDB\u5149\u5BF9\u6BD4\u5EA6\uFF08\u9ED8\u8BA4 128\uFF09",
+      bloomBrightness: "\u6CDB\u5149\u4EAE\u5EA6\uFF08\u9ED8\u8BA4 -0.3\uFF09",
+      bloomDelta: "\u6CDB\u5149 delta\uFF08\u9ED8\u8BA4 1.0\uFF09",
+      bloomSigma: "\u6CDB\u5149 sigma\uFF08\u9ED8\u8BA4 3.78\uFF09",
+      bloomStepSize: "\u6CDB\u5149\u6B65\u957F\uFF08\u9ED8\u8BA4 5.0\uFF09",
+      bloomGlowOnly: "\u4EC5\u663E\u793A\u53D1\u5149\u6548\u679C\uFF08\u4E0D\u663E\u793A\u57FA\u7840\u573A\u666F\uFF09",
+      ambientOcclusion: "\u542F\u7528\u73AF\u5883\u5149\u906E\u853D\uFF08SSAO\uFF09",
+      aoIntensity: "AO \u5F3A\u5EA6\uFF08\u9ED8\u8BA4 3.0\uFF09",
+      aoBias: "AO \u504F\u5DEE\uFF08\u9ED8\u8BA4 0.1\uFF09",
+      aoLengthCap: "AO \u957F\u5EA6\u4E0A\u9650\uFF08\u9ED8\u8BA4 0.26\uFF09",
+      aoStepSize: "AO \u6B65\u957F\uFF08\u9ED8\u8BA4 1.95\uFF09",
+      fxaa: "\u542F\u7528 FXAA \u6297\u952F\u9F7F"
+    },
+    load3dTiles: {
+      id: "\u56FE\u5C42ID",
+      name: "\u56FE\u5C42\u540D\u79F0",
+      url: "tileset.json \u7684 URL",
+      ionAssetId: "Cesium Ion 3D Tiles \u8D44\u4EA7 ID",
+      maximumScreenSpaceError: "\u6700\u5927\u5C4F\u5E55\u7A7A\u95F4\u8BEF\u5DEE\uFF08\u503C\u8D8A\u5C0F\u8D8A\u7CBE\u7EC6\uFF09",
+      heightOffset: "\u9AD8\u5EA6\u504F\u79FB\uFF08\u7C73\uFF09"
+    },
+    load3dGaussianSplat: {
+      id: "\u56FE\u5C42ID",
+      name: "\u56FE\u5C42\u540D\u79F0",
+      url: "\u9AD8\u65AF\u6CFC\u6E85 tileset.json \u7684 URL",
+      maximumScreenSpaceError: "\u6700\u5927\u5C4F\u5E55\u7A7A\u95F4\u8BEF\u5DEE\uFF08\u503C\u8D8A\u5C0F\u8D8A\u7CBE\u7EC6\uFF09",
+      show: "\u662F\u5426\u663E\u793A"
+    },
+    loadTerrain: {
+      provider: "\u5730\u5F62\u63D0\u4F9B\u8005\u7C7B\u578B",
+      url: "\u81EA\u5B9A\u4E49\u5730\u5F62\u670D\u52A1 URL",
+      cesiumIonAssetId: "Cesium Ion \u8D44\u4EA7ID\uFF08provider=cesiumion \u65F6\u9700\u8981\uFF09"
+    },
+    loadImageryService: {
+      id: "\u56FE\u5C42ID",
+      name: "\u56FE\u5C42\u540D\u79F0",
+      url: "\u5F71\u50CF\u670D\u52A1 URL",
+      ionAssetId: "Cesium Ion \u5F71\u50CF\u8D44\u4EA7 ID",
+      serviceType: "\u670D\u52A1\u7C7B\u578B",
+      layerName: "WMS/WMTS \u56FE\u5C42\u540D",
+      opacity: "\u900F\u660E\u5EA6\uFF080~1\uFF09"
+    },
+    loadCzml: {
+      id: "\u56FE\u5C42ID\uFF08\u4E0D\u4F20\u5219\u81EA\u52A8\u751F\u6210\uFF09",
+      name: "\u6570\u636E\u6E90\u663E\u793A\u540D\u79F0",
+      data: "CZML \u6570\u636E\u5305\u6570\u7EC4\uFF08\u4E0E url \u4E8C\u9009\u4E00\uFF09",
+      url: "CZML \u6587\u4EF6 URL\uFF08\u4E0E data \u4E8C\u9009\u4E00\uFF0C\u6D4F\u89C8\u5668\u7AEF fetch \u52A0\u8F7D\uFF09",
+      sourceUri: "CZML \u4E2D\u76F8\u5BF9\u5F15\u7528\u7684\u57FA\u7840 URI",
+      clampToGround: "\u5C06\u5B9E\u4F53\u8D34\u5730\u663E\u793A",
+      flyTo: "\u52A0\u8F7D\u540E\u81EA\u52A8\u98DE\u884C\u5230\u6570\u636E\u8303\u56F4\uFF08\u9ED8\u8BA4 true\uFF09"
+    },
+    loadKml: {
+      id: "\u56FE\u5C42ID\uFF08\u4E0D\u4F20\u5219\u81EA\u52A8\u751F\u6210\uFF09",
+      name: "\u6570\u636E\u6E90\u663E\u793A\u540D\u79F0",
+      url: "KML/KMZ \u6587\u4EF6 URL\uFF08\u4E0E data \u4E8C\u9009\u4E00\uFF0C\u6D4F\u89C8\u5668\u7AEF fetch \u52A0\u8F7D\uFF09",
+      data: "KML XML \u5B57\u7B26\u4E32\uFF08\u4E0E url \u4E8C\u9009\u4E00\uFF09",
+      sourceUri: "KML \u4E2D\u76F8\u5BF9\u5F15\u7528\u7684\u57FA\u7840 URI",
+      clampToGround: "\u5C06\u5B9E\u4F53\u8D34\u5730\u663E\u793A",
+      flyTo: "\u52A0\u8F7D\u540E\u81EA\u52A8\u98DE\u884C\u5230\u6570\u636E\u8303\u56F4\uFF08\u9ED8\u8BA4 true\uFF09"
+    },
+    setEdgeDisplayMode: {
+      tilesetId: "\u76EE\u6807\u56FE\u5C42ID\uFF08\u4E0D\u4F20\u5219\u5E94\u7528\u4E8E\u5168\u90E8 3D Tiles \u56FE\u5C42\uFF09",
+      mode: "\u8FB9\u7F18\u6A21\u5F0F\uFF1Asurfaces_only\u3001surfaces_and_edges \u6216 edges_only"
+    },
+    playTrajectory: {
+      id: "\u8F68\u8FF9\u56FE\u5C42ID",
+      name: "\u8F68\u8FF9\u540D\u79F0",
+      coordinates: "\u8F68\u8FF9\u5750\u6807\u6570\u7EC4 [[lon, lat, alt?], ...]",
+      durationSeconds: "\u52A8\u753B\u65F6\u957F\uFF08\u79D2\uFF09",
+      trailSeconds: "\u5C3E\u8FF9\u957F\u5EA6\uFF08\u79D2\uFF09",
+      label: "\u79FB\u52A8\u4F53\u6807\u7B7E"
+    },
+    addHeatmap: {
+      id: "\u56FE\u5C42ID",
+      name: "\u56FE\u5C42\u540D\u79F0",
+      data: "GeoJSON Point FeatureCollection",
+      radius: "\u70ED\u529B\u5F71\u54CD\u534A\u5F84\uFF08\u50CF\u7D20\uFF09",
+      gradient: "\u70ED\u529B\u56FE\u989C\u8272\u6E10\u53D8",
+      blur: "\u70ED\u529B\u6A21\u7CCA\u7CFB\u6570",
+      maxOpacity: "\u70ED\u529B\u56FE\u6700\u5927\u900F\u660E\u5EA6",
+      minOpacity: "\u70ED\u529B\u56FE\u6700\u5C0F\u900F\u660E\u5EA6",
+      resolution: "\u70ED\u529B\u56FE\u7EB9\u7406\u5206\u8FA8\u7387\uFF08\u50CF\u7D20\uFF09"
+    },
+    geocode: {
+      address: '\u5730\u5740\u3001\u5730\u6807\u6216\u5730\u540D\uFF0C\u4F8B\u5982 "\u6545\u5BAB"\u3001"Eiffel Tower"\u3001"\u4E1C\u4EAC\u5854"',
+      countryCode: '\u4E24\u4F4D ISO \u56FD\u5BB6\u4EE3\u7801\u9650\u5236\u641C\u7D22\u8303\u56F4\uFF08\u5982 "CN"\u3001"US"\u3001"JP"\uFF09'
+    }
+  };
+  var READ_ONLY_TOOLS = /* @__PURE__ */ new Set([
+    "screenshot",
+    "getView",
+    "queryEntities",
+    "getEntityProperties",
+    "listViewpoints",
+    "exportScene",
+    "listLayers",
+    "getLayerSchema",
+    "listAnimations",
+    "geocode"
+  ]);
+  var DESTRUCTIVE_TOOLS = /* @__PURE__ */ new Set([
+    "removeLayer",
+    "clearAll",
+    "removeEntity",
+    "removeAnimation"
+  ]);
+  var NON_IDEMPOTENT_TOOLS = /* @__PURE__ */ new Set([
+    "addGeoJsonLayer",
+    "addGeoJsonPrimitive",
+    "addLabel",
+    "addHeatmap",
+    "measure",
+    "addMarker",
+    "addPolyline",
+    "addPolygon",
+    "addModel",
+    "batchAddEntities",
+    "playTrajectory",
+    "load3dTiles",
+    "load3dGaussianSplat",
+    "loadImageryService",
+    "loadCzml",
+    "loadKml",
+    "addBillboard",
+    "addBox",
+    "addCorridor",
+    "addCylinder",
+    "addEllipse",
+    "addRectangle",
+    "addWall",
+    "createAnimation",
+    "controlAnimation",
+    "controlClock"
+  ]);
+  var OPEN_WORLD_TOOLS = /* @__PURE__ */ new Set(["geocode"]);
+  var TITLE_OVERRIDES = {
+    flyTo: "Fly To Location",
+    zoomToExtent: "Zoom to Extent",
+    addGeoJsonLayer: "Add GeoJSON Layer",
+    addGeoJsonPrimitive: "Add GeoJSON Primitive",
+    load3dTiles: "Load 3D Tiles",
+    load3dGaussianSplat: "Load 3D Gaussian Splat",
+    loadCzml: "Load CZML",
+    loadKml: "Load KML/KMZ",
+    setPostProcess: "Set Post-Processing",
+    geocode: "Geocode Address"
+  };
+  function titleFromName(name) {
+    return TITLE_OVERRIDES[name] ?? name.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/^./, (first) => first.toUpperCase());
+  }
+  function behaviorAnnotations(name) {
+    return {
+      readOnlyHint: READ_ONLY_TOOLS.has(name),
+      destructiveHint: DESTRUCTIVE_TOOLS.has(name),
+      idempotentHint: !NON_IDEMPOTENT_TOOLS.has(name),
+      openWorldHint: OPEN_WORLD_TOOLS.has(name)
+    };
+  }
+  function resolveCesiumToolMetadata(name, description, annotations = {}) {
+    return {
+      title: titleFromName(name),
+      annotations: {
+        ...behaviorAnnotations(name),
+        ...annotations
+      },
+      localizations: {
+        en: {
+          description,
+          parameters: paramDescriptions[name] ?? {}
+        },
+        "zh-CN": {
+          description: toolDescriptions[name] ?? description,
+          parameters: paramDescriptions2[name] ?? {}
+        }
+      }
+    };
+  }
+  var longitudeSchema = {
+    type: "number",
+    minimum: -180,
+    maximum: 180,
+    description: "Longitude in decimal degrees"
+  };
+  var latitudeSchema = {
+    type: "number",
+    minimum: -90,
+    maximum: 90,
+    description: "Latitude in decimal degrees"
+  };
+  var heightSchema = {
+    type: "number",
+    minimum: 0,
+    maximum: 5e7,
+    description: "Height above the ellipsoid in meters"
+  };
+  var colorSchema = {
+    type: "string",
+    minLength: 1,
+    maxLength: 64,
+    description: "CSS color such as #3B82F6 or rgba(59,130,246,0.8)"
+  };
+  var positionSchema = {
+    type: "array",
+    prefixItems: [
+      longitudeSchema,
+      latitudeSchema,
+      {
+        type: "number",
+        minimum: -12e3,
+        maximum: 5e7,
+        description: "Optional height in meters"
+      }
+    ],
+    minItems: 2,
+    maxItems: 3,
+    description: "Coordinate tuple [longitude, latitude, optional height]"
+  };
+  var geoJsonGeometrySchema = {
+    oneOf: [
+      {
+        type: "object",
+        properties: { type: { const: "Point" }, coordinates: positionSchema },
+        required: ["type", "coordinates"],
+        additionalProperties: false
+      },
+      {
+        type: "object",
+        properties: {
+          type: { const: "LineString" },
+          coordinates: { type: "array", items: positionSchema, minItems: 2 }
+        },
+        required: ["type", "coordinates"],
+        additionalProperties: false
+      },
+      {
+        type: "object",
+        properties: {
+          type: { const: "Polygon" },
+          coordinates: {
+            type: "array",
+            items: { type: "array", items: positionSchema, minItems: 4 },
+            minItems: 1
+          }
+        },
+        required: ["type", "coordinates"],
+        additionalProperties: false
+      }
+    ]
+  };
+  var geoJsonSchema = {
+    type: "object",
+    description: "GeoJSON FeatureCollection containing Point, LineString, or Polygon features",
+    properties: {
+      type: { const: "FeatureCollection" },
+      features: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            type: { const: "Feature" },
+            id: { type: ["string", "number"] },
+            geometry: geoJsonGeometrySchema,
+            properties: {
+              type: ["object", "null"],
+              description: "Feature attributes used for labels and thematic styling"
+            }
+          },
+          required: ["type", "geometry", "properties"],
+          additionalProperties: false
+        }
+      }
+    },
+    required: ["type", "features"],
+    additionalProperties: false
+  };
+  var labelStyleSchema = {
+    type: "object",
+    properties: {
+      font: { type: "string", minLength: 1, maxLength: 100 },
+      fillColor: colorSchema,
+      outlineColor: colorSchema,
+      outlineWidth: { type: "number", minimum: 0, maximum: 10 },
+      backgroundColor: colorSchema,
+      showBackground: { type: "boolean" },
+      pixelOffset: {
+        type: "array",
+        items: { type: "number", minimum: -1e3, maximum: 1e3 },
+        minItems: 2,
+        maxItems: 2
+      },
+      scale: { type: "number", exclusiveMinimum: 0, maximum: 10 }
+    },
+    additionalProperties: false
+  };
+  var layerStyleSchema = {
+    type: "object",
+    properties: {
+      color: colorSchema,
+      opacity: { type: "number", minimum: 0, maximum: 1 },
+      pointSize: { type: "number", minimum: 1, maximum: 128 },
+      strokeWidth: { type: "number", minimum: 0, maximum: 64 },
+      randomColor: { type: "boolean" },
+      gradient: { type: "array", items: colorSchema, minItems: 2, maxItems: 2 },
+      choropleth: {
+        type: "object",
+        properties: {
+          field: { type: "string", minLength: 1 },
+          breaks: { type: "array", items: { type: "number" }, minItems: 1 },
+          colors: { type: "array", items: colorSchema, minItems: 2 }
+        },
+        required: ["field", "breaks", "colors"],
+        additionalProperties: false
+      },
+      category: {
+        type: "object",
+        properties: {
+          field: { type: "string", minLength: 1 },
+          colors: { type: "array", items: colorSchema, minItems: 1 }
+        },
+        required: ["field"],
+        additionalProperties: false
+      }
+    },
+    additionalProperties: false
+  };
+  function bridgeResultSchema(data) {
+    return {
+      type: "object",
+      properties: {
+        success: { type: "boolean" },
+        message: { type: "string" },
+        error: { type: "string" },
+        ...data ? { data } : {}
+      },
+      required: ["success"],
+      additionalProperties: false
+    };
+  }
+  var entityResultSchema = bridgeResultSchema({
+    type: "object",
+    properties: { entityId: { type: "string" } },
+    required: ["entityId"],
+    additionalProperties: false
+  });
+  var viewStateSchema = {
+    type: "object",
+    properties: {
+      longitude: longitudeSchema,
+      latitude: latitudeSchema,
+      height: heightSchema,
+      heading: { type: "number" },
+      pitch: { type: "number" },
+      roll: { type: "number" }
+    },
+    required: ["longitude", "latitude", "height", "heading", "pitch", "roll"],
+    additionalProperties: false
+  };
+  var layerInfoSchema = {
+    type: "object",
+    properties: {
+      id: { type: "string" },
+      name: { type: "string" },
+      type: { type: "string" },
+      visible: { type: "boolean" },
+      color: { type: "string" },
+      dataRefId: { type: "string" }
+    },
+    required: ["id", "name", "type", "visible", "color"],
+    additionalProperties: true
+  };
+  function contract(name, description, resultDescription, inputSchema, outputSchema, annotations) {
+    const fullDescription = `${description} ${resultDescription}`;
+    return {
+      name,
+      description: fullDescription,
+      inputSchema,
+      outputSchema,
+      ...resolveCesiumToolMetadata(name, fullDescription, annotations)
+    };
+  }
+  var emptyInputSchema = {
+    type: "object",
+    properties: {},
+    additionalProperties: false
+  };
+  var cesiumCoreToolContracts = [
+    contract(
+      "flyTo",
+      "Animate the camera to a geographic location. Use for visible navigation requested by the user.",
+      "Returns { success: boolean, message?: string, error?: string }.",
+      {
+        type: "object",
+        properties: {
+          longitude: longitudeSchema,
+          latitude: latitudeSchema,
+          height: { ...heightSchema, default: 5e4 },
+          heading: { type: "number", minimum: 0, maximum: 360, default: 0 },
+          pitch: { type: "number", minimum: -90, maximum: 90, default: -45 },
+          duration: { type: "number", minimum: 0, maximum: 60, default: 2 }
+        },
+        required: ["longitude", "latitude"],
+        additionalProperties: false
+      },
+      bridgeResultSchema()
+    ),
+    contract(
+      "setView",
+      "Set the camera position immediately without animation. Use for deterministic setup or instant view changes.",
+      "Returns { success: boolean, message?: string, error?: string }.",
+      {
+        type: "object",
+        properties: {
+          longitude: longitudeSchema,
+          latitude: latitudeSchema,
+          height: { ...heightSchema, default: 5e4 },
+          heading: { type: "number", minimum: 0, maximum: 360, default: 0 },
+          pitch: { type: "number", minimum: -90, maximum: 90, default: -45 },
+          roll: { type: "number", minimum: -180, maximum: 180 }
+        },
+        required: ["longitude", "latitude"],
+        additionalProperties: false
+      },
+      bridgeResultSchema()
+    ),
+    contract(
+      "getView",
+      "Get the current camera position and orientation.",
+      "Returns { success, data: { longitude, latitude, height, heading, pitch, roll }, message? }.",
+      emptyInputSchema,
+      bridgeResultSchema(viewStateSchema),
+      { readOnlyHint: true }
+    ),
+    contract(
+      "addMarker",
+      "Add a point marker at geographic coordinates.",
+      "Returns { success, data: { entityId }, message? }; keep entityId for removeEntity.",
+      {
+        type: "object",
+        properties: {
+          longitude: longitudeSchema,
+          latitude: latitudeSchema,
+          label: { type: "string", maxLength: 200 },
+          color: { ...colorSchema, default: "#3B82F6" },
+          size: { type: "number", minimum: 1, maximum: 128, default: 12 },
+          id: { type: "string", minLength: 1, maxLength: 100 }
+        },
+        required: ["longitude", "latitude"],
+        additionalProperties: false
+      },
+      entityResultSchema
+    ),
+    contract(
+      "addPolyline",
+      "Draw a path or route from geographic coordinate tuples.",
+      "Returns { success, data: { entityId }, message? }; keep entityId for removeEntity.",
+      {
+        type: "object",
+        properties: {
+          coordinates: { type: "array", items: positionSchema, minItems: 2, maxItems: 1e4 },
+          color: { ...colorSchema, default: "#3B82F6" },
+          width: { type: "number", minimum: 1, maximum: 64, default: 3 },
+          clampToGround: { type: "boolean", default: true },
+          label: { type: "string", maxLength: 200 }
+        },
+        required: ["coordinates"],
+        additionalProperties: false
+      },
+      entityResultSchema
+    ),
+    contract(
+      "addPolygon",
+      "Draw a polygon area from geographic coordinate tuples.",
+      "Returns { success, data: { entityId }, message? }; keep entityId for removeEntity.",
+      {
+        type: "object",
+        properties: {
+          coordinates: { type: "array", items: positionSchema, minItems: 3, maxItems: 1e4 },
+          color: { ...colorSchema, default: "#3B82F6" },
+          outlineColor: { ...colorSchema, default: "#FFFFFF" },
+          opacity: { type: "number", minimum: 0, maximum: 1, default: 0.6 },
+          extrudedHeight: { type: "number", minimum: 0, maximum: 1e5 },
+          clampToGround: { type: "boolean", default: true },
+          label: { type: "string", maxLength: 200 }
+        },
+        required: ["coordinates"],
+        additionalProperties: false
+      },
+      entityResultSchema
+    ),
+    contract(
+      "addLabel",
+      "Add property-based text labels for GeoJSON features.",
+      "Returns { success, data: { labelCount: integer }, message? }.",
+      {
+        type: "object",
+        properties: {
+          data: geoJsonSchema,
+          field: { type: "string", minLength: 1, maxLength: 100 },
+          style: labelStyleSchema
+        },
+        required: ["data", "field"],
+        additionalProperties: false
+      },
+      bridgeResultSchema({
+        type: "object",
+        properties: { labelCount: { type: "integer", minimum: 0 } },
+        required: ["labelCount"],
+        additionalProperties: false
+      })
+    ),
+    contract(
+      "addGeoJsonLayer",
+      "Add a styled GeoJSON Point, LineString, or Polygon layer.",
+      "Returns { success, data: { id, name, type, visible, color, dataRefId? }, message? }; use id with highlight.",
+      {
+        type: "object",
+        properties: {
+          id: { type: "string", minLength: 1, maxLength: 100 },
+          name: { type: "string", minLength: 1, maxLength: 200 },
+          data: geoJsonSchema,
+          url: { type: "string", minLength: 1, maxLength: 4096 },
+          style: layerStyleSchema
+        },
+        additionalProperties: false
+      },
+      bridgeResultSchema(layerInfoSchema)
+    ),
+    contract(
+      "setBasemap",
+      "Switch the visible basemap style.",
+      "Returns { success, data: { basemap }, message? }.",
+      {
+        type: "object",
+        properties: {
+          basemap: {
+            type: "string",
+            enum: ["dark", "satellite", "standard", "osm", "arcgis", "light", "tianditu_vec", "tianditu_img", "amap", "amap_satellite"],
+            default: "dark"
+          },
+          token: { type: "string", minLength: 1, maxLength: 4096 },
+          url: { type: "string", minLength: 1, maxLength: 4096 }
+        },
+        additionalProperties: false
+      },
+      bridgeResultSchema({
+        type: "object",
+        properties: {
+          basemap: {
+            type: "string",
+            enum: ["dark", "satellite", "standard", "osm", "arcgis", "light", "tianditu_vec", "tianditu_img", "amap", "amap_satellite"]
+          }
+        },
+        required: ["basemap"],
+        additionalProperties: false
+      })
+    ),
+    contract(
+      "removeEntity",
+      "Remove one entity created by an entity tool.",
+      "Returns { success, message? } or { success: false, error } when entityId is not found.",
+      {
+        type: "object",
+        properties: { entityId: { type: "string", minLength: 1, maxLength: 200 } },
+        required: ["entityId"],
+        additionalProperties: false
+      },
+      bridgeResultSchema()
+    ),
+    contract(
+      "clearAll",
+      "Clear all layers, entities, animations, and trajectories from the scene.",
+      "Returns { success, data: { removedLayers, removedEntities }, message? }.",
+      emptyInputSchema,
+      bridgeResultSchema({
+        type: "object",
+        properties: {
+          removedLayers: { type: "integer", minimum: 0 },
+          removedEntities: { type: "integer", minimum: 0 }
+        },
+        required: ["removedLayers", "removedEntities"],
+        additionalProperties: false
+      })
+    ),
+    contract(
+      "geocode",
+      "Convert an address or place name to geographic coordinates using OSM Nominatim.",
+      "Returns { success, longitude?, latitude?, displayName?, boundingBox?, message? }.",
+      {
+        type: "object",
+        properties: {
+          address: { type: "string", minLength: 2, maxLength: 300 },
+          countryCode: { type: "string", pattern: "^[A-Za-z]{2}$" }
+        },
+        required: ["address"],
+        additionalProperties: false
+      },
+      {
+        type: "object",
+        properties: {
+          success: { type: "boolean" },
+          longitude: longitudeSchema,
+          latitude: latitudeSchema,
+          displayName: { type: "string" },
+          boundingBox: {
+            type: "object",
+            properties: {
+              south: latitudeSchema,
+              north: latitudeSchema,
+              west: longitudeSchema,
+              east: longitudeSchema
+            },
+            required: ["south", "north", "west", "east"],
+            additionalProperties: false
+          },
+          message: { type: "string" }
+        },
+        required: ["success"],
+        additionalProperties: false
+      },
+      { readOnlyHint: true, untrustedContentHint: true }
+    ),
+    contract(
+      "highlight",
+      "Highlight one feature or every feature in a GeoJSON layer.",
+      "Returns { success: boolean, message?: string, error?: string }.",
+      {
+        type: "object",
+        properties: {
+          layerId: { type: "string", minLength: 1, maxLength: 100 },
+          featureIndex: { type: "integer", minimum: 0 },
+          color: { ...colorSchema, default: "#FFFF00" },
+          clear: { type: "boolean" }
+        },
+        additionalProperties: false
+      },
+      bridgeResultSchema()
+    ),
+    contract(
+      "measure",
+      "Measure distance or area between geographic coordinate tuples.",
+      "Returns { success, data: { mode, value, unit, segments?, id? }, message? }.",
+      {
+        type: "object",
+        properties: {
+          mode: { type: "string", enum: ["distance", "area"] },
+          positions: { type: "array", items: positionSchema, minItems: 2, maxItems: 1e4 },
+          showOnMap: { type: "boolean", default: true },
+          id: { type: "string", minLength: 1, maxLength: 100 }
+        },
+        required: ["mode", "positions"],
+        additionalProperties: false
+      },
+      bridgeResultSchema({
+        type: "object",
+        properties: {
+          mode: { type: "string", enum: ["distance", "area"] },
+          value: { type: "number", minimum: 0 },
+          unit: { type: "string" },
+          segments: { type: "array", items: { type: "number", minimum: 0 } },
+          id: { type: "string" }
+        },
+        required: ["mode", "value", "unit"],
+        additionalProperties: false
+      })
+    ),
+    contract(
+      "screenshot",
+      "Capture the current Cesium map view as a PNG image.",
+      "Returns { success, data: { dataUrl, width, height }, message? }; dataUrl is a base64 PNG.",
+      emptyInputSchema,
+      bridgeResultSchema({
+        type: "object",
+        properties: {
+          dataUrl: { type: "string", pattern: "^data:image/png;base64," },
+          width: { type: "integer", minimum: 1 },
+          height: { type: "integer", minimum: 1 }
+        },
+        required: ["dataUrl", "width", "height"],
+        additionalProperties: false
+      }),
+      { readOnlyHint: true }
+    )
+  ];
+  var stringSchema = { type: "string", minLength: 1, maxLength: 500 };
+  var idSchema = { type: "string", minLength: 1, maxLength: 200 };
+  var urlSchema = { type: "string", minLength: 1, maxLength: 4096 };
+  var numberSchema = { type: "number" };
+  var booleanSchema = { type: "boolean" };
+  var colorSchema2 = { type: "string", minLength: 1, maxLength: 64 };
+  var longitudeSchema2 = { type: "number", minimum: -180, maximum: 180 };
+  var latitudeSchema2 = { type: "number", minimum: -90, maximum: 90 };
+  var heightSchema2 = { type: "number", minimum: -12e3, maximum: 5e7 };
+  var durationSchema = { type: "number", minimum: 0, maximum: 86400 };
+  var positionTupleSchema = {
+    type: "array",
+    prefixItems: [longitudeSchema2, latitudeSchema2, heightSchema2],
+    minItems: 2,
+    maxItems: 3
+  };
+  var positionObjectSchema = {
+    type: "object",
+    properties: {
+      longitude: longitudeSchema2,
+      latitude: latitudeSchema2,
+      height: heightSchema2
+    },
+    required: ["longitude", "latitude"],
+    additionalProperties: false
+  };
+  var positionsSchema = {
+    type: "array",
+    items: positionObjectSchema,
+    minItems: 2,
+    maxItems: 1e4
+  };
+  var orientationSchema = {
+    type: "object",
+    properties: {
+      heading: numberSchema,
+      pitch: numberSchema,
+      roll: numberSchema
+    },
+    required: ["heading", "pitch", "roll"],
+    additionalProperties: false
+  };
+  var materialSchema = {
+    oneOf: [
+      colorSchema2,
+      {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["color", "image", "checkerboard", "stripe", "grid"] },
+          color: colorSchema2,
+          image: urlSchema,
+          evenColor: colorSchema2,
+          oddColor: colorSchema2,
+          orientation: { type: "string", enum: ["horizontal", "vertical"] },
+          cellAlpha: { type: "number", minimum: 0, maximum: 1 }
+        },
+        required: ["type"],
+        additionalProperties: true
+      }
+    ]
+  };
+  var bridgeResultSchema2 = {
+    type: "object",
+    properties: {
+      success: { type: "boolean" },
+      data: {},
+      message: { type: "string" },
+      error: { type: "string" }
+    },
+    required: ["success"],
+    additionalProperties: false
+  };
+  function objectSchema(properties, required = []) {
+    return {
+      type: "object",
+      properties,
+      ...required.length > 0 ? { required } : {},
+      additionalProperties: false
+    };
+  }
+  function tool(name, description, properties = {}, required = [], annotations) {
+    const fullDescription = `${description} Returns { success: boolean, data?: unknown, message?: string, error?: string }.`;
+    return {
+      name,
+      description: fullDescription,
+      inputSchema: objectSchema(properties, required),
+      outputSchema: bridgeResultSchema2,
+      ...resolveCesiumToolMetadata(name, fullDescription, annotations)
+    };
+  }
+  var entityName = { name: { ...stringSchema, maxLength: 200 } };
+  var entityPosition = {
+    longitude: longitudeSchema2,
+    latitude: latitudeSchema2,
+    height: { ...heightSchema2, default: 0 }
+  };
+  var entityAppearance = {
+    material: materialSchema,
+    outline: booleanSchema,
+    outlineColor: colorSchema2,
+    fill: { ...booleanSchema, default: true }
+  };
+  var cesiumExtendedToolContracts = [
+    // View
+    tool("zoomToExtent", "Animate the camera to a west/south/east/north bounding box.", {
+      bbox: {
+        type: "array",
+        prefixItems: [longitudeSchema2, latitudeSchema2, longitudeSchema2, latitudeSchema2],
+        minItems: 4,
+        maxItems: 4
+      },
+      duration: { type: "number", minimum: 0, maximum: 60, default: 1.5 }
+    }, ["bbox"]),
+    tool("saveViewpoint", "Save the current camera state under a page-local name.", {
+      name: { ...stringSchema, maxLength: 100 }
+    }, ["name"]),
+    tool("loadViewpoint", "Restore a previously saved page-local camera state.", {
+      name: { ...stringSchema, maxLength: 100 },
+      duration: { type: "number", minimum: 0, maximum: 60, default: 2 }
+    }, ["name"]),
+    tool("listViewpoints", "List camera viewpoints saved in the current page.", {}, [], { readOnlyHint: true }),
+    tool("exportScene", "Export the current view, layer, and entity state as JSON.", {}, [], { readOnlyHint: true }),
+    // Entity
+    tool("addModel", "Add a glTF or GLB model at geographic coordinates.", {
+      ...entityPosition,
+      url: urlSchema,
+      scale: { type: "number", exclusiveMinimum: 0, maximum: 1e5, default: 1 },
+      heading: { ...numberSchema, default: 0 },
+      pitch: { ...numberSchema, default: 0 },
+      roll: { ...numberSchema, default: 0 },
+      label: { type: "string", maxLength: 200 }
+    }, ["longitude", "latitude", "url"], { untrustedContentHint: true }),
+    tool("updateEntity", "Update the position, appearance, label, or visibility of an entity.", {
+      entityId: idSchema,
+      position: positionObjectSchema,
+      label: { type: "string", maxLength: 200 },
+      color: colorSchema2,
+      scale: { type: "number", minimum: 0, maximum: 1e5 },
+      show: booleanSchema
+    }, ["entityId"]),
+    tool("batchAddEntities", "Add multiple supported entities in one page operation.", {
+      entities: {
+        type: "array",
+        minItems: 1,
+        maxItems: 1e3,
+        items: {
+          type: "object",
+          properties: {
+            type: {
+              type: "string",
+              enum: ["marker", "polyline", "polygon", "model", "billboard", "box", "cylinder", "ellipse", "rectangle", "wall", "corridor"]
+            }
+          },
+          required: ["type"],
+          additionalProperties: true
+        }
+      }
+    }, ["entities"]),
+    tool("queryEntities", "Query page entities by name, type, or geographic extent.", {
+      name: { type: "string", maxLength: 200 },
+      type: { type: "string", maxLength: 100 },
+      bbox: {
+        type: "array",
+        prefixItems: [longitudeSchema2, latitudeSchema2, longitudeSchema2, latitudeSchema2],
+        minItems: 4,
+        maxItems: 4
+      }
+    }, [], { readOnlyHint: true }),
+    tool("getEntityProperties", "Read the properties and graphics metadata for one entity.", {
+      entityId: idSchema
+    }, ["entityId"], { readOnlyHint: true }),
+    // Layer
+    tool("addGeoJsonPrimitive", "Render GeoJSON as Cesium primitives for large browser datasets.", {
+      id: idSchema,
+      name: { ...stringSchema, maxLength: 200 },
+      data: { type: "object" },
+      url: urlSchema,
+      allowPicking: booleanSchema,
+      show: booleanSchema
+    }, [], { untrustedContentHint: true }),
+    tool("listLayers", "List all layers currently managed by the page.", {}, [], { readOnlyHint: true }),
+    tool("getLayerSchema", "Inspect fields, entity counts, and metadata for a layer.", {
+      layerId: idSchema
+    }, ["layerId"], { readOnlyHint: true }),
+    tool("removeLayer", "Remove a managed layer from the page.", {
+      id: idSchema
+    }, ["id"]),
+    tool("setLayerVisibility", "Show or hide a managed layer.", {
+      id: idSchema,
+      visible: booleanSchema
+    }, ["id", "visible"]),
+    tool("updateLayerStyle", "Update vector, imagery, primitive, or 3D Tiles styling for a layer.", {
+      layerId: idSchema,
+      labelStyle: { type: "object", additionalProperties: true },
+      layerStyle: { type: "object", additionalProperties: true },
+      imageryStyle: { type: "object", additionalProperties: true },
+      primitiveStyle: { type: "object", additionalProperties: true },
+      tileStyle: { type: "object", additionalProperties: true }
+    }, ["layerId"]),
+    // Camera
+    tool("lookAtTransform", "Aim the camera at a geographic target with heading, pitch, and range.", {
+      ...entityPosition,
+      heading: { ...numberSchema, default: 0 },
+      pitch: { ...numberSchema, default: -45 },
+      range: { type: "number", minimum: 0, maximum: 5e7, default: 1e3 }
+    }, ["longitude", "latitude"]),
+    tool("startOrbit", "Start continuous camera orbit around the current target.", {
+      speed: { type: "number", minimum: 1e-3, maximum: 360, default: 5e-3 },
+      clockwise: { ...booleanSchema, default: true }
+    }),
+    tool("stopOrbit", "Stop a camera orbit started by startOrbit."),
+    tool("setCameraOptions", "Configure Cesium camera input and zoom constraints.", {
+      enableRotate: booleanSchema,
+      enableTranslate: booleanSchema,
+      enableZoom: booleanSchema,
+      enableTilt: booleanSchema,
+      enableLook: booleanSchema,
+      enableInputs: booleanSchema,
+      minimumZoomDistance: { type: "number", minimum: 0 },
+      maximumZoomDistance: { type: "number", minimum: 0 }
+    }),
+    // Extended entity types
+    tool("addBillboard", "Add an image billboard at geographic coordinates.", {
+      ...entityPosition,
+      ...entityName,
+      image: urlSchema,
+      scale: { type: "number", exclusiveMinimum: 0, maximum: 1e3, default: 1 },
+      color: colorSchema2,
+      pixelOffset: objectSchema({ x: numberSchema, y: numberSchema }, ["x", "y"]),
+      horizontalOrigin: { type: "string", enum: ["CENTER", "LEFT", "RIGHT"] },
+      verticalOrigin: { type: "string", enum: ["CENTER", "TOP", "BOTTOM", "BASELINE"] },
+      heightReference: { type: "string", enum: ["NONE", "CLAMP_TO_GROUND", "RELATIVE_TO_GROUND"] }
+    }, ["longitude", "latitude", "image"], { untrustedContentHint: true }),
+    tool("addBox", "Add a three-dimensional box entity.", {
+      ...entityPosition,
+      ...entityName,
+      dimensions: objectSchema({
+        width: { type: "number", exclusiveMinimum: 0 },
+        length: { type: "number", exclusiveMinimum: 0 },
+        height: { type: "number", exclusiveMinimum: 0 }
+      }, ["width", "length", "height"]),
+      ...entityAppearance,
+      outline: { ...booleanSchema, default: true },
+      orientation: orientationSchema,
+      heightReference: { type: "string", enum: ["NONE", "CLAMP_TO_GROUND", "RELATIVE_TO_GROUND"] }
+    }, ["longitude", "latitude", "dimensions"]),
+    tool("addCorridor", "Add a corridor with a geographic centerline and width.", {
+      ...entityName,
+      positions: positionsSchema,
+      width: { type: "number", exclusiveMinimum: 0 },
+      ...entityAppearance,
+      outline: { ...booleanSchema, default: false },
+      cornerType: { type: "string", enum: ["ROUNDED", "MITERED", "BEVELED"] },
+      height: heightSchema2,
+      extrudedHeight: heightSchema2
+    }, ["positions", "width"]),
+    tool("addCylinder", "Add a cylinder or cone entity.", {
+      ...entityPosition,
+      ...entityName,
+      length: { type: "number", exclusiveMinimum: 0 },
+      topRadius: { type: "number", minimum: 0 },
+      bottomRadius: { type: "number", minimum: 0 },
+      ...entityAppearance,
+      outline: { ...booleanSchema, default: true },
+      orientation: orientationSchema,
+      numberOfVerticalLines: { type: "integer", minimum: 0, maximum: 1024, default: 16 },
+      slices: { type: "integer", minimum: 3, maximum: 4096, default: 128 }
+    }, ["longitude", "latitude", "length", "topRadius", "bottomRadius"]),
+    tool("addEllipse", "Add an ellipse or circle entity.", {
+      ...entityPosition,
+      ...entityName,
+      semiMajorAxis: { type: "number", exclusiveMinimum: 0 },
+      semiMinorAxis: { type: "number", exclusiveMinimum: 0 },
+      ...entityAppearance,
+      outline: { ...booleanSchema, default: false },
+      extrudedHeight: heightSchema2,
+      rotation: numberSchema,
+      stRotation: numberSchema,
+      numberOfVerticalLines: { type: "integer", minimum: 0, maximum: 1024, default: 16 }
+    }, ["longitude", "latitude", "semiMajorAxis", "semiMinorAxis"]),
+    tool("addRectangle", "Add a geographic rectangle entity.", {
+      ...entityName,
+      west: longitudeSchema2,
+      south: latitudeSchema2,
+      east: longitudeSchema2,
+      north: latitudeSchema2,
+      ...entityAppearance,
+      outline: { ...booleanSchema, default: false },
+      height: heightSchema2,
+      extrudedHeight: heightSchema2,
+      rotation: numberSchema,
+      stRotation: numberSchema
+    }, ["west", "south", "east", "north"]),
+    tool("addWall", "Add a wall along geographic positions.", {
+      ...entityName,
+      positions: positionsSchema,
+      minimumHeights: { type: "array", items: heightSchema2, maxItems: 1e4 },
+      maximumHeights: { type: "array", items: heightSchema2, maxItems: 1e4 },
+      ...entityAppearance,
+      outline: { ...booleanSchema, default: false }
+    }, ["positions"]),
+    // Animation
+    tool("createAnimation", "Create a time-dynamic entity moving through ISO-timestamped waypoints.", {
+      ...entityName,
+      waypoints: {
+        type: "array",
+        minItems: 2,
+        maxItems: 1e4,
+        items: objectSchema({
+          ...entityPosition,
+          time: { type: "string", format: "date-time" }
+        }, ["longitude", "latitude", "time"])
+      },
+      modelUri: urlSchema,
+      showPath: { ...booleanSchema, default: true },
+      pathWidth: { type: "number", minimum: 0, maximum: 64, default: 2 },
+      pathColor: { ...colorSchema2, default: "#00FF00" },
+      pathLeadTime: { ...durationSchema, default: 0 },
+      pathTrailTime: { type: "number", minimum: 0, maximum: 1e12, default: 1e10 },
+      multiplier: { type: "number", minimum: 0, maximum: 1e5, default: 1 },
+      shouldAnimate: { ...booleanSchema, default: true }
+    }, ["waypoints"], { untrustedContentHint: true }),
+    tool("controlAnimation", "Play or pause the Cesium clock animation.", {
+      action: { type: "string", enum: ["play", "pause"] }
+    }, ["action"]),
+    tool("removeAnimation", "Remove one animated entity.", {
+      entityId: idSchema
+    }, ["entityId"]),
+    tool("listAnimations", "List animated entities in the current page.", {}, [], { readOnlyHint: true }),
+    tool("updateAnimationPath", "Update the path appearance of an animated entity.", {
+      entityId: idSchema,
+      width: { type: "number", minimum: 0, maximum: 64 },
+      color: colorSchema2,
+      leadTime: durationSchema,
+      trailTime: durationSchema,
+      show: booleanSchema
+    }, ["entityId"]),
+    tool("trackEntity", "Track an entity with the Cesium camera, or stop tracking when entityId is omitted.", {
+      entityId: idSchema,
+      heading: { ...numberSchema, default: 0 },
+      pitch: { ...numberSchema, default: -30 },
+      range: { type: "number", minimum: 0, maximum: 5e7, default: 500 }
+    }),
+    tool("controlClock", "Configure Cesium simulation time, current time, speed, or range.", {
+      action: { type: "string", enum: ["configure", "setTime", "setMultiplier"] },
+      startTime: { type: "string", format: "date-time" },
+      stopTime: { type: "string", format: "date-time" },
+      currentTime: { type: "string", format: "date-time" },
+      time: { type: "string", format: "date-time" },
+      multiplier: { type: "number", minimum: 0, maximum: 1e5 },
+      shouldAnimate: booleanSchema,
+      clockRange: { type: "string", enum: ["UNBOUNDED", "CLAMPED", "LOOP_STOP"] }
+    }, ["action"]),
+    tool("setGlobeLighting", "Configure globe lighting and atmosphere lighting.", {
+      enableLighting: booleanSchema,
+      dynamicAtmosphereLighting: booleanSchema,
+      dynamicAtmosphereLightingFromSun: booleanSchema
+    }),
+    // Scene
+    tool("setSceneOptions", "Configure fog, atmosphere, shadows, celestial bodies, terrain depth testing, and background.", {
+      fogEnabled: booleanSchema,
+      fogDensity: { type: "number", minimum: 0, maximum: 1 },
+      fogMinimumBrightness: { type: "number", minimum: 0, maximum: 1 },
+      skyAtmosphereShow: booleanSchema,
+      skyAtmosphereHueShift: numberSchema,
+      skyAtmosphereSaturationShift: numberSchema,
+      skyAtmosphereBrightnessShift: numberSchema,
+      groundAtmosphereShow: booleanSchema,
+      shadowsEnabled: booleanSchema,
+      shadowsSoftShadows: booleanSchema,
+      shadowsDarkness: { type: "number", minimum: 0, maximum: 1 },
+      sunShow: booleanSchema,
+      sunGlowFactor: { type: "number", minimum: 0 },
+      moonShow: booleanSchema,
+      depthTestAgainstTerrain: booleanSchema,
+      backgroundColor: colorSchema2
+    }),
+    tool("setPostProcess", "Configure bloom, ambient occlusion, and FXAA post-processing.", {
+      bloom: booleanSchema,
+      bloomContrast: numberSchema,
+      bloomBrightness: numberSchema,
+      bloomDelta: numberSchema,
+      bloomSigma: numberSchema,
+      bloomStepSize: numberSchema,
+      bloomGlowOnly: booleanSchema,
+      ambientOcclusion: booleanSchema,
+      aoIntensity: numberSchema,
+      aoBias: numberSchema,
+      aoLengthCap: numberSchema,
+      aoStepSize: numberSchema,
+      fxaa: booleanSchema
+    }),
+    // Tiles and external data
+    tool("load3dTiles", "Load a 3D Tiles tileset from a URL or Cesium ion asset.", {
+      id: idSchema,
+      name: { ...stringSchema, maxLength: 200 },
+      url: urlSchema,
+      ionAssetId: { type: "integer", minimum: 1 },
+      maximumScreenSpaceError: { type: "number", minimum: 0, default: 16 },
+      heightOffset: { ...numberSchema, default: 0 }
+    }, [], { untrustedContentHint: true }),
+    tool("load3dGaussianSplat", "Load a 3D Gaussian Splat tileset from a URL.", {
+      id: idSchema,
+      name: { ...stringSchema, maxLength: 200 },
+      url: urlSchema,
+      maximumScreenSpaceError: { type: "number", minimum: 0, default: 16 },
+      show: { ...booleanSchema, default: true }
+    }, ["url"], { untrustedContentHint: true }),
+    tool("loadTerrain", "Switch the Cesium terrain provider.", {
+      provider: { type: "string", enum: ["cesiumion", "arcgis", "flat"] },
+      url: urlSchema,
+      cesiumIonAssetId: { type: "integer", minimum: 1 }
+    }, ["provider"], { untrustedContentHint: true }),
+    tool("loadImageryService", "Load WMS, WMTS, XYZ, ArcGIS MapServer, or ion imagery.", {
+      id: idSchema,
+      name: { ...stringSchema, maxLength: 200 },
+      url: urlSchema,
+      ionAssetId: { type: "integer", minimum: 1 },
+      serviceType: { type: "string", enum: ["wms", "wmts", "xyz", "arcgis_mapserver", "ion"] },
+      layerName: { type: "string", maxLength: 500 },
+      opacity: { type: "number", minimum: 0, maximum: 1, default: 1 }
+    }, [], { untrustedContentHint: true }),
+    tool("loadCzml", "Load CZML data from inline packets or a URL.", {
+      id: idSchema,
+      name: { ...stringSchema, maxLength: 200 },
+      data: { type: "array", maxItems: 1e4 },
+      url: urlSchema,
+      sourceUri: urlSchema,
+      clampToGround: booleanSchema,
+      flyTo: booleanSchema
+    }, [], { untrustedContentHint: true }),
+    tool("loadKml", "Load KML or KMZ data from inline text or a URL.", {
+      id: idSchema,
+      name: { ...stringSchema, maxLength: 200 },
+      url: urlSchema,
+      data: { type: "string", maxLength: 1e7 },
+      sourceUri: urlSchema,
+      clampToGround: booleanSchema,
+      flyTo: booleanSchema
+    }, [], { untrustedContentHint: true }),
+    tool("setEdgeDisplayMode", "Set surface and edge rendering mode for one or all 3D Tiles layers.", {
+      tilesetId: idSchema,
+      mode: { type: "string", enum: ["surfaces_only", "surfaces_and_edges", "edges_only"] }
+    }, ["mode"]),
+    // Specialized visualization
+    tool("playTrajectory", "Play a moving entity along geographic coordinate tuples.", {
+      id: idSchema,
+      name: { ...stringSchema, maxLength: 200 },
+      coordinates: { type: "array", items: positionTupleSchema, minItems: 2, maxItems: 1e4 },
+      durationSeconds: { ...durationSchema, default: 10 },
+      trailSeconds: { ...durationSchema, default: 2 },
+      label: { type: "string", maxLength: 200 }
+    }, ["coordinates"]),
+    tool("addHeatmap", "Add a heatmap from GeoJSON point features.", {
+      id: idSchema,
+      name: { ...stringSchema, maxLength: 200 },
+      data: { type: "object" },
+      radius: { type: "number", minimum: 1, maximum: 500, default: 30 },
+      gradient: { type: "object", additionalProperties: colorSchema2 },
+      blur: { type: "number", minimum: 0, maximum: 1, default: 0.85 },
+      maxOpacity: { type: "number", minimum: 0, maximum: 1, default: 0.8 },
+      minOpacity: { type: "number", minimum: 0, maximum: 1, default: 0 },
+      resolution: { type: "integer", minimum: 64, maximum: 4096, default: 512 }
+    }, ["data"])
+  ];
+  var cesiumBrowserToolsetNames = [
+    "view",
+    "entity",
+    "layer",
+    "camera",
+    "entity-ext",
+    "animation",
+    "scene",
+    "tiles",
+    "interaction",
+    "trajectory",
+    "heatmap",
+    "geolocation"
+  ];
+  var allContracts = [...cesiumCoreToolContracts, ...cesiumExtendedToolContracts];
+  var contractByName = new Map(allContracts.map((tool2) => [tool2.name, tool2]));
+  if (contractByName.size !== allContracts.length) {
+    throw new Error("Duplicate Cesium browser tool contract name");
+  }
+  var cesiumBrowserToolsetDefinitions = {
+    view: {
+      description: "Camera navigation, viewpoint bookmarks, and scene export",
+      names: ["flyTo", "setView", "getView", "zoomToExtent", "saveViewpoint", "loadViewpoint", "listViewpoints", "exportScene"]
+    },
+    entity: {
+      description: "Core entity creation, updates, removal, batch operations, and queries",
+      names: ["addMarker", "addLabel", "addModel", "addPolygon", "addPolyline", "updateEntity", "removeEntity", "batchAddEntities", "queryEntities", "getEntityProperties"]
+    },
+    layer: {
+      description: "GeoJSON, layer discovery, visibility, styling, removal, and basemaps",
+      names: ["addGeoJsonLayer", "addGeoJsonPrimitive", "listLayers", "getLayerSchema", "removeLayer", "clearAll", "setLayerVisibility", "updateLayerStyle", "setBasemap"]
+    },
+    camera: {
+      description: "Advanced camera targeting, orbit, and input options",
+      names: ["lookAtTransform", "startOrbit", "stopOrbit", "setCameraOptions"]
+    },
+    "entity-ext": {
+      description: "Billboard, box, corridor, cylinder, ellipse, rectangle, and wall entities",
+      names: ["addBillboard", "addBox", "addCorridor", "addCylinder", "addEllipse", "addRectangle", "addWall"]
+    },
+    animation: {
+      description: "Time-dynamic entities, paths, tracking, clock control, and globe lighting",
+      names: ["createAnimation", "controlAnimation", "removeAnimation", "listAnimations", "updateAnimationPath", "trackEntity", "controlClock", "setGlobeLighting"]
+    },
+    scene: {
+      description: "Scene environment and post-processing options",
+      names: ["setSceneOptions", "setPostProcess"]
+    },
+    tiles: {
+      description: "3D Tiles, Gaussian Splats, terrain, imagery, CZML, KML, and edge display",
+      names: ["load3dTiles", "load3dGaussianSplat", "loadTerrain", "loadImageryService", "loadCzml", "loadKml", "setEdgeDisplayMode"]
+    },
+    interaction: {
+      description: "Screenshot, feature highlighting, and measurement",
+      names: ["screenshot", "highlight", "measure"]
+    },
+    trajectory: {
+      description: "Trajectory playback",
+      names: ["playTrajectory"]
+    },
+    heatmap: {
+      description: "Heatmap visualization",
+      names: ["addHeatmap"]
+    },
+    geolocation: {
+      description: "Address and place-name geocoding",
+      names: ["geocode"]
+    }
+  };
+  function contractsForNames(names) {
+    return names.map((name) => {
+      const contract2 = contractByName.get(name);
+      if (!contract2) throw new Error(`Missing Cesium browser tool contract: ${name}`);
+      return contract2;
+    });
+  }
+  var cesiumBrowserToolsets = Object.fromEntries(cesiumBrowserToolsetNames.map((name) => [
+    name,
+    {
+      name,
+      description: cesiumBrowserToolsetDefinitions[name].description,
+      tools: contractsForNames(cesiumBrowserToolsetDefinitions[name].names)
+    }
+  ]));
+  var cesiumBrowserToolContracts = cesiumBrowserToolsetNames.flatMap((name) => cesiumBrowserToolsets[name].tools);
+  cesiumBrowserToolContracts.map((tool2) => tool2.name);
+  var contractByName2 = new Map(
+    cesiumBrowserToolContracts.map((contract2) => [contract2.name, contract2])
+  );
+  function addIssue(issues, path, message) {
+    issues.push({ path, message });
+  }
+  function isRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+  function equals(left, right) {
+    if (Object.is(left, right)) return true;
+    if (typeof left !== "object" || left === null || typeof right !== "object" || right === null) {
+      return false;
+    }
+    try {
+      return JSON.stringify(left) === JSON.stringify(right);
+    } catch {
+      return false;
+    }
+  }
+  function typeMatches(type, value) {
+    switch (type) {
+      case "object":
+        return isRecord(value);
+      case "array":
+        return Array.isArray(value);
+      case "string":
+        return typeof value === "string";
+      case "number":
+        return typeof value === "number" && Number.isFinite(value);
+      case "integer":
+        return typeof value === "number" && Number.isInteger(value);
+      case "boolean":
+        return typeof value === "boolean";
+      case "null":
+        return value === null;
+      default:
+        return true;
+    }
+  }
+  function validateSchema(schema, value, path, issues) {
+    const oneOf = schema.oneOf;
+    if (Array.isArray(oneOf)) {
+      const candidates = oneOf.map((candidate) => {
+        const candidateIssues = [];
+        validateSchema(candidate, value, path, candidateIssues);
+        return candidateIssues;
+      });
+      const matches = candidates.filter((candidate) => candidate.length === 0);
+      if (matches.length === 1) return;
+      if (matches.length > 1) {
+        addIssue(issues, path, "must match exactly one allowed schema");
+        return;
+      }
+      const closest = [...candidates].sort((left, right) => left.length - right.length)[0];
+      if (closest && closest.length > 0) issues.push(...closest);
+      else addIssue(issues, path, "does not match any allowed schema");
+      return;
+    }
+    if ("const" in schema && !equals(value, schema.const)) {
+      addIssue(issues, path, `must equal ${JSON.stringify(schema.const)}`);
+      return;
+    }
+    if (Array.isArray(schema.enum) && !schema.enum.some((item) => equals(item, value))) {
+      addIssue(issues, path, `must be one of ${schema.enum.map(String).join(", ")}`);
+      return;
+    }
+    if (schema.type && !typeMatches(schema.type, value)) {
+      addIssue(issues, path, `must be ${String(schema.type)}`);
+      return;
+    }
+    if (typeof value === "number") {
+      if (typeof schema.minimum === "number" && value < schema.minimum) {
+        addIssue(issues, path, `must be >= ${schema.minimum}`);
+      }
+      if (typeof schema.maximum === "number" && value > schema.maximum) {
+        addIssue(issues, path, `must be <= ${schema.maximum}`);
+      }
+      if (typeof schema.exclusiveMinimum === "number" && value <= schema.exclusiveMinimum) {
+        addIssue(issues, path, `must be > ${schema.exclusiveMinimum}`);
+      }
+      if (typeof schema.exclusiveMaximum === "number" && value >= schema.exclusiveMaximum) {
+        addIssue(issues, path, `must be < ${schema.exclusiveMaximum}`);
+      }
+    }
+    if (typeof value === "string") {
+      if (typeof schema.minLength === "number" && value.length < schema.minLength) {
+        addIssue(issues, path, `must contain at least ${schema.minLength} characters`);
+      }
+      if (typeof schema.maxLength === "number" && value.length > schema.maxLength) {
+        addIssue(issues, path, `must contain at most ${schema.maxLength} characters`);
+      }
+      if (typeof schema.pattern === "string" && !new RegExp(schema.pattern).test(value)) {
+        addIssue(issues, path, `must match ${schema.pattern}`);
+      }
+      if (schema.format === "date-time" && Number.isNaN(Date.parse(value))) {
+        addIssue(issues, path, "must be a valid date-time");
+      }
+    }
+    if (Array.isArray(value)) {
+      if (typeof schema.minItems === "number" && value.length < schema.minItems) {
+        addIssue(issues, path, `must contain at least ${schema.minItems} items`);
+      }
+      if (typeof schema.maxItems === "number" && value.length > schema.maxItems) {
+        addIssue(issues, path, `must contain at most ${schema.maxItems} items`);
+      }
+      const prefixItems = Array.isArray(schema.prefixItems) ? schema.prefixItems : [];
+      for (let index = 0; index < Math.min(prefixItems.length, value.length); index++) {
+        validateSchema(prefixItems[index], value[index], `${path}[${index}]`, issues);
+      }
+      if (isRecord(schema.items)) {
+        for (let index = prefixItems.length; index < value.length; index++) {
+          validateSchema(schema.items, value[index], `${path}[${index}]`, issues);
+        }
+      }
+    }
+    if (isRecord(value)) {
+      const properties = isRecord(schema.properties) ? schema.properties : {};
+      const required = Array.isArray(schema.required) ? schema.required : [];
+      for (const property of required) {
+        if (typeof property === "string" && !(property in value)) {
+          addIssue(issues, `${path}.${property}`, "is required");
+        }
+      }
+      for (const [property, propertyValue] of Object.entries(value)) {
+        const propertySchema = properties[property];
+        if (isRecord(propertySchema)) {
+          validateSchema(propertySchema, propertyValue, `${path}.${property}`, issues);
+        } else if (schema.additionalProperties === false) {
+          addIssue(issues, `${path}.${property}`, "is not allowed");
+        } else if (isRecord(schema.additionalProperties)) {
+          validateSchema(schema.additionalProperties, propertyValue, `${path}.${property}`, issues);
+        }
+      }
+    }
+  }
+  function validateCesiumToolInput(name, input) {
+    const contract2 = contractByName2.get(name);
+    if (!contract2) return { knownTool: false, valid: true, issues: [] };
+    const issues = [];
+    validateSchema(contract2.inputSchema, input, "$", issues);
+    return {
+      knownTool: true,
+      valid: issues.length === 0,
+      issues
+    };
+  }
+
   // src/commands/view.ts
   var Cesium2 = __toESM(require_cesium());
 
@@ -788,14 +2995,22 @@ var CesiumMcpBridge = (function (exports) {
       });
     });
   }
-  var _viewpoints = /* @__PURE__ */ new Map();
+  var _viewpoints = /* @__PURE__ */ new WeakMap();
+  function viewpointsFor(viewer) {
+    let viewpoints = _viewpoints.get(viewer);
+    if (!viewpoints) {
+      viewpoints = /* @__PURE__ */ new Map();
+      _viewpoints.set(viewer, viewpoints);
+    }
+    return viewpoints;
+  }
   function saveViewpoint(viewer, params) {
     const state = getView(viewer);
-    _viewpoints.set(params.name, state);
+    viewpointsFor(viewer).set(params.name, state);
     return state;
   }
   function loadViewpoint(viewer, params) {
-    const state = _viewpoints.get(params.name);
+    const state = viewpointsFor(viewer).get(params.name);
     if (!state) return null;
     const duration = params.duration ?? 2;
     if (duration > 0) {
@@ -805,8 +3020,11 @@ var CesiumMcpBridge = (function (exports) {
     }
     return state;
   }
-  function listViewpoints() {
-    return Array.from(_viewpoints.entries()).map(([name, state]) => ({ name, state }));
+  function listViewpoints(viewer) {
+    return Array.from(viewpointsFor(viewer).entries()).map(([name, state]) => ({ name, state }));
+  }
+  function clearViewpoints(viewer) {
+    _viewpoints.delete(viewer);
   }
 
   // src/commands/layer.ts
@@ -2624,7 +4842,7 @@ var CesiumMcpBridge = (function (exports) {
       });
     });
   }
-  var _highlightBackups = /* @__PURE__ */ new Map();
+  var _highlightBackups = /* @__PURE__ */ new WeakMap();
   function highlight(viewer, layerManager, params) {
     const { layerId, featureIndex, color = "#FFFF00", clear } = params;
     if (clear) {
@@ -2665,7 +4883,7 @@ var CesiumMcpBridge = (function (exports) {
     }
   }
   function backupAndHighlight(entity, color) {
-    if (!_highlightBackups.has(entity.id)) {
+    if (!_highlightBackups.has(entity)) {
       const b = {};
       if (entity.polygon) b.polygonMaterial = entity.polygon.material;
       if (entity.polyline) {
@@ -2688,12 +4906,12 @@ var CesiumMcpBridge = (function (exports) {
       if (entity.rectangle) b.rectangleMaterial = entity.rectangle.material;
       if (entity.wall) b.wallMaterial = entity.wall.material;
       if (entity.corridor) b.corridorMaterial = entity.corridor.material;
-      _highlightBackups.set(entity.id, b);
+      _highlightBackups.set(entity, b);
     }
     applyHighlight(entity, color);
   }
   function restoreEntityStyle(entity) {
-    const b = _highlightBackups.get(entity.id);
+    const b = _highlightBackups.get(entity);
     if (!b) return;
     if (entity.polygon) entity.polygon.material = b.polygonMaterial;
     if (entity.polyline) {
@@ -2716,7 +4934,7 @@ var CesiumMcpBridge = (function (exports) {
     if (entity.rectangle) entity.rectangle.material = b.rectangleMaterial;
     if (entity.wall) entity.wall.material = b.wallMaterial;
     if (entity.corridor) entity.corridor.material = b.corridorMaterial;
-    _highlightBackups.delete(entity.id);
+    _highlightBackups.delete(entity);
   }
   function applyHighlight(entity, color) {
     const mat = new Cesium5.ColorMaterialProperty(color);
@@ -3396,7 +5614,7 @@ var CesiumMcpBridge = (function (exports) {
 
   // src/bridge.ts
   var CesiumBridge = class {
-    constructor(viewer) {
+    constructor(viewer, options = {}) {
       this._eventHandlers = /* @__PURE__ */ new Map();
       this._orbitHandler = null;
       this._animations = /* @__PURE__ */ new Map();
@@ -3404,6 +5622,8 @@ var CesiumMcpBridge = (function (exports) {
       this._activeTrajectories = /* @__PURE__ */ new Map();
       this._viewer = viewer;
       this._layerManager = new LayerManager(viewer);
+      this._validateInputs = options.validateInputs ?? true;
+      this._executors = new Map(Object.entries(options.executors ?? {}));
     }
     get viewer() {
       return this._viewer;
@@ -3414,7 +5634,19 @@ var CesiumMcpBridge = (function (exports) {
     // ==================== 命令分发（MCP/SSE 兼容） ====================
     async execute(cmd) {
       try {
-        const p = cmd.params;
+        const p = cmd.params ?? {};
+        if (this._validateInputs) {
+          const validation = validateCesiumToolInput(cmd.action, p);
+          if (!validation.valid) {
+            const detail = validation.issues.map((issue) => `${issue.path} ${issue.message}`).join("; ");
+            return {
+              success: false,
+              error: `Invalid parameters for "${cmd.action}": ${detail}`
+            };
+          }
+        }
+        const executor = this._executors.get(cmd.action);
+        if (executor) return await executor(p, this);
         switch (cmd.action) {
           case "flyTo":
             await this.flyTo(p);
@@ -3683,6 +5915,21 @@ var CesiumMcpBridge = (function (exports) {
       this._emit("layerRemoved", { id });
     }
     clearAll() {
+      this._stopManagedActivity();
+      const result = this._layerManager.clearAll();
+      this._emit("layerRemoved", { id: "*" });
+      return result;
+    }
+    /**
+     * Release timers, camera motion, page-local state, and event handlers owned by
+     * this Bridge. The Viewer and scene content remain owned by the application.
+     */
+    dispose() {
+      this._stopManagedActivity();
+      clearViewpoints(this._viewer);
+      this._eventHandlers.clear();
+    }
+    _stopManagedActivity() {
       for (const [, t] of this._activeTrajectories) {
         t.stop();
       }
@@ -3692,9 +5939,6 @@ var CesiumMcpBridge = (function (exports) {
         this._orbitHandler = null;
       }
       this._animations.clear();
-      const result = this._layerManager.clearAll();
-      this._emit("layerRemoved", { id: "*" });
-      return result;
     }
     setLayerVisibility(id, visible) {
       this._layerManager.setLayerVisibility(id, visible);
@@ -4058,7 +6302,7 @@ var CesiumMcpBridge = (function (exports) {
       return loadViewpoint(this._viewer, params);
     }
     listViewpoints() {
-      return listViewpoints();
+      return listViewpoints(this._viewer);
     }
     exportScene() {
       return {

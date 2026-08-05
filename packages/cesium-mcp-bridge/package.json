@@ -51,6 +51,7 @@
   "homepage": "https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-bridge",
   "license": "MIT",
   "dependencies": {
+    "cesium-mcp-contracts": "^0.4.0",
     "heatmap.js": "^2.0.5"
   }
 }

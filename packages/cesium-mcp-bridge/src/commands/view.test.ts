@@ -57,11 +57,7 @@ describe('setView', () => {
   })
 })
 
-// Clear the module-level _viewpoints Map between tests
-// We do this by saving/loading and checking behavior
 describe('viewpoint bookmarks', () => {
-  // Each test uses unique viewpoint names to avoid state leakage
-
   it('saveViewpoint should save camera state and return it', () => {
     const viewer = makeViewer()
     const state = saveViewpoint(viewer, { name: 'test-save-1' })
@@ -105,20 +101,34 @@ describe('viewpoint bookmarks', () => {
     saveViewpoint(viewer, { name: 'test-list-a' })
     saveViewpoint(viewer, { name: 'test-list-b' })
 
-    const list = listViewpoints()
+    const list = listViewpoints(viewer)
     const names = list.map(v => v.name)
     expect(names).toContain('test-list-a')
     expect(names).toContain('test-list-b')
   })
 
   it('saveViewpoint should overwrite existing viewpoint', () => {
-    const viewer1 = makeViewer({ lon: 100, lat: 20, height: 500, heading: 0, pitch: -45, roll: 0 })
-    saveViewpoint(viewer1, { name: 'test-overwrite-1' })
+    const viewer = makeViewer({ lon: 100, lat: 20, height: 500, heading: 0, pitch: -45, roll: 0 })
+    saveViewpoint(viewer, { name: 'test-overwrite-1' })
+    viewer.camera.positionCartographic.longitude = 110 * (Math.PI / 180)
+    viewer.camera.positionCartographic.latitude = 25 * (Math.PI / 180)
+    viewer.camera.positionCartographic.height = 800
+    saveViewpoint(viewer, { name: 'test-overwrite-1' })
 
-    const viewer2 = makeViewer({ lon: 110, lat: 25, height: 800, heading: 0, pitch: -45, roll: 0 })
-    saveViewpoint(viewer2, { name: 'test-overwrite-1' })
-
-    const state = loadViewpoint(viewer2, { name: 'test-overwrite-1', duration: 0 })
+    const state = loadViewpoint(viewer, { name: 'test-overwrite-1', duration: 0 })
     expect(state!.longitude).toBeCloseTo(110, 1)
+  })
+
+  it('isolates viewpoints with the same name between viewers', () => {
+    const viewer1 = makeViewer({ lon: 100, lat: 20, height: 500, heading: 0, pitch: -45, roll: 0 })
+    const viewer2 = makeViewer({ lon: 110, lat: 25, height: 800, heading: 0, pitch: -45, roll: 0 })
+
+    saveViewpoint(viewer1, { name: 'shared-name' })
+    saveViewpoint(viewer2, { name: 'shared-name' })
+
+    expect(loadViewpoint(viewer1, { name: 'shared-name', duration: 0 })!.longitude).toBeCloseTo(100, 1)
+    expect(loadViewpoint(viewer2, { name: 'shared-name', duration: 0 })!.longitude).toBeCloseTo(110, 1)
+    expect(listViewpoints(viewer1)).toHaveLength(1)
+    expect(listViewpoints(viewer2)).toHaveLength(1)
   })
 })

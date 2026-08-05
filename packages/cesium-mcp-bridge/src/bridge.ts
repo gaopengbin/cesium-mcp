@@ -1,4 +1,5 @@
 import * as Cesium from 'cesium'
+import { validateCesiumToolInput } from 'cesium-mcp-contracts'
 import type {
   BridgeCommand,
   BridgeResult,
@@ -63,7 +64,7 @@ import type {
   SaveViewpointParams,
   LoadViewpointParams,
 } from './types'
-import { flyTo, setView, getView, zoomToExtent, saveViewpoint, loadViewpoint, listViewpoints } from './commands/view'
+import { flyTo, setView, getView, zoomToExtent, saveViewpoint, loadViewpoint, listViewpoints, clearViewpoints } from './commands/view'
 import { LayerManager } from './commands/layer'
 import { addLabels, addMarker, addPolyline, addPolygon, addModel, updateEntity, removeEntity, batchAddEntities, queryEntities, getEntityProperties } from './commands/entity'
 import { screenshot, highlight, measure } from './commands/interaction'
@@ -72,6 +73,18 @@ import { lookAtTransform as lookAtTransformCmd, startOrbit as startOrbitCmd, sto
 import { addBillboard as addBillboardCmd, addBox as addBoxCmd, addCorridor as addCorridorCmd, addCylinder as addCylinderCmd, addEllipse as addEllipseCmd, addRectangle as addRectangleCmd, addWall as addWallCmd } from './commands/entity-types'
 import { createAnimation as createAnimationCmd, controlAnimation as controlAnimationCmd, removeAnimation as removeAnimationCmd, listAnimations as listAnimationsCmd, updateAnimationPath as updateAnimationPathCmd, trackEntity as trackEntityCmd, controlClock as controlClockCmd, setGlobeLighting as setGlobeLightingCmd, type AnimationMap } from './commands/animation'
 import { setSceneOptions as setSceneOptionsCmd, setPostProcess as setPostProcessCmd, setEdgeDisplayMode as setEdgeDisplayModeCmd } from './commands/scene'
+
+export type BridgeExecutor = (
+  params: Record<string, unknown>,
+  bridge: CesiumBridge,
+) => BridgeResult | Promise<BridgeResult>
+
+export interface CesiumBridgeOptions {
+  /** Validate shared browser-tool input contracts before dispatch. Defaults to true. */
+  validateInputs?: boolean
+  /** Override selected commands without replacing the default dispatcher. */
+  executors?: Readonly<Record<string, BridgeExecutor>>
+}
 
 /**
  * CesiumBridge — AI Agent 操控 Cesium 的统一执行层
@@ -86,10 +99,14 @@ export class CesiumBridge {
   private _eventHandlers: Map<BridgeEventType, Set<BridgeEventHandler>> = new Map()
   private _orbitHandler: OrbitHandler | null = null
   private _animations: AnimationMap = new Map()
+  private _validateInputs: boolean
+  private _executors: Map<string, BridgeExecutor>
 
-  constructor(viewer: Cesium.Viewer) {
+  constructor(viewer: Cesium.Viewer, options: CesiumBridgeOptions = {}) {
     this._viewer = viewer
     this._layerManager = new LayerManager(viewer)
+    this._validateInputs = options.validateInputs ?? true
+    this._executors = new Map(Object.entries(options.executors ?? {}))
   }
 
   get viewer(): Cesium.Viewer {
@@ -104,7 +121,23 @@ export class CesiumBridge {
 
   async execute(cmd: BridgeCommand): Promise<BridgeResult> {
     try {
-      const p = cmd.params as Record<string, any>
+      const p = (cmd.params ?? {}) as Record<string, any>
+      if (this._validateInputs) {
+        const validation = validateCesiumToolInput(cmd.action, p)
+        if (!validation.valid) {
+          const detail = validation.issues
+            .map(issue => `${issue.path} ${issue.message}`)
+            .join('; ')
+          return {
+            success: false,
+            error: `Invalid parameters for "${cmd.action}": ${detail}`,
+          }
+        }
+      }
+
+      const executor = this._executors.get(cmd.action)
+      if (executor) return await executor(p, this)
+
       switch (cmd.action) {
         case 'flyTo':
           await this.flyTo(p as FlyToParams)
@@ -384,22 +417,33 @@ export class CesiumBridge {
   }
 
   clearAll(): { removedLayers: number; removedEntities: number } {
-    // 停止所有轨迹动画
-    for (const [, t] of this._activeTrajectories) {
-      t.stop()
-    }
-    this._activeTrajectories.clear()
-    // 停止轨道动画
-    if (this._orbitHandler) {
-      stopOrbitCmd(this._orbitHandler)
-      this._orbitHandler = null
-    }
-    // 清除动画
-    this._animations.clear()
+    this._stopManagedActivity()
     // 清除所有图层和实体
     const result = this._layerManager.clearAll()
     this._emit('layerRemoved', { id: '*' })
     return result
+  }
+
+  /**
+   * Release timers, camera motion, page-local state, and event handlers owned by
+   * this Bridge. The Viewer and scene content remain owned by the application.
+   */
+  dispose(): void {
+    this._stopManagedActivity()
+    clearViewpoints(this._viewer)
+    this._eventHandlers.clear()
+  }
+
+  private _stopManagedActivity(): void {
+    for (const [, t] of this._activeTrajectories) {
+      t.stop()
+    }
+    this._activeTrajectories.clear()
+    if (this._orbitHandler) {
+      stopOrbitCmd(this._orbitHandler)
+      this._orbitHandler = null
+    }
+    this._animations.clear()
   }
 
   setLayerVisibility(id: string, visible: boolean): void {
@@ -847,7 +891,7 @@ export class CesiumBridge {
   }
 
   listViewpoints() {
-    return listViewpoints()
+    return listViewpoints(this._viewer)
   }
 
   exportScene(): ExportSceneResult {

@@ -21,6 +21,20 @@ const viewer = new Cesium.Viewer('cesiumContainer')
 const bridge = new CesiumBridge(viewer)
 ```
 
+JSON command dispatch validates the shared tool contract before execution. You can override one executor while preserving all defaults:
+
+```js
+const bridge = new CesiumBridge(viewer, {
+  executors: {
+    load3dTiles: async (params, bridge) => {
+      return loadAuthorizedTileset(bridge.viewer, params)
+    },
+  },
+})
+```
+
+Call `bridge.dispose()` when removing the integration. It releases Bridge-managed activity and event handlers without destroying the application-owned Viewer.
+
 ## Commands (60)
 
 ### View Control

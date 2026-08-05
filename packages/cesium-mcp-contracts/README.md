@@ -32,6 +32,23 @@ console.log(cesiumBrowserToolsets.animation.description)
 
 Selections can be `core` (15 lightweight contracts), `all` (61 browser-safe contracts), one toolset name, or an array of toolset names. The 12 domain toolsets mirror the runtime capability groups. Sixty contracts execute directly through the Bridge; `geocode` is an application-provided browser service. `setIonToken` is intentionally excluded because page agents must not receive application credentials.
 
+## Runtime input validation
+
+Use the same published JSON Schemas at any custom execution boundary:
+
+```ts
+import { validateCesiumToolInput } from 'cesium-mcp-contracts'
+
+const result = validateCesiumToolInput('flyTo', {
+  longitude: 116.4,
+  latitude: 39.9,
+})
+
+if (!result.valid) console.error(result.issues)
+```
+
+Unknown tool names return `knownTool: false` so protocol-specific or application-defined tools can keep their own validation. `CesiumBridge.execute()` enables this validation by default.
+
 Consumers are responsible for adapting these contracts to their protocol or model provider. Execution remains outside this package.
 
 ## CesiumJS compatibility

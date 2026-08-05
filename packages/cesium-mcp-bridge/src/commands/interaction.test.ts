@@ -417,6 +417,23 @@ describe('highlight', () => {
     expect(entities[0].polygon.material).toBe(originalMat)
   })
 
+  it('isolates highlight backups for equal entity IDs in different viewers', () => {
+    const first = makeEntity('shared-id', 'polygon')
+    const second = makeEntity('shared-id', 'polygon')
+    first.polygon.material = 'first-original'
+    second.polygon.material = 'second-original'
+    const firstManager = makeLayerManager([first])
+    const secondManager = makeLayerManager([second])
+
+    highlight(makeViewer(), firstManager, { layerId: 'layer1' })
+    highlight(makeViewer(), secondManager, { layerId: 'layer1' })
+    highlight(makeViewer(), firstManager, { layerId: 'layer1', clear: true })
+    highlight(makeViewer(), secondManager, { layerId: 'layer1', clear: true })
+
+    expect(first.polygon.material).toBe('first-original')
+    expect(second.polygon.material).toBe('second-original')
+  })
+
   it('should do nothing when layerId is not found', () => {
     const lm = { getCesiumRefs: () => undefined } as any
     const viewer = makeViewer()

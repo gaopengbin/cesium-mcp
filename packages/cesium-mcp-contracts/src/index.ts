@@ -1,5 +1,6 @@
 export { cesiumCoreToolContracts } from './tools'
 export { normalizeCesiumToolLocale } from './metadata'
+export { validateCesiumToolInput } from './validation'
 export {
   cesiumBrowserToolContracts,
   cesiumBrowserToolsetDefinitions,
@@ -21,3 +22,7 @@ export type {
   CesiumToolLocalization,
   JsonSchema,
 } from './types'
+export type {
+  CesiumToolValidationIssue,
+  CesiumToolValidationResult,
+} from './validation'

@@ -1,4 +1,5 @@
 export { CesiumBridge } from './bridge'
+export type { BridgeExecutor, CesiumBridgeOptions } from './bridge'
 export { LayerManager } from './commands/layer'
 export type {
   BridgeCommand,
