@@ -1,5 +1,11 @@
 # cesium-mcp-dev
 
+## 1.144.1
+
+### Patch Changes
+
+- [#25](https://github.com/gaopengbin/cesium-mcp/pull/25) [`152757f`](https://github.com/gaopengbin/cesium-mcp/commit/152757f8a2b05286ede68aa67d6dc123258df8ab) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Fix the published CLI entry so Node can execute the bundle and negotiate both modern and legacy MCP over stdio.
+
 ## 1.144.0
 
 ### Minor Changes
