@@ -46,6 +46,12 @@ export class LayerManager {
     this._cesiumRefs.set(layerId, refs as CesiumRefs)
   }
 
+  /** Release Bridge-owned bookkeeping without removing application scene content. */
+  dispose(): void {
+    this._layers.length = 0
+    this._cesiumRefs.clear()
+  }
+
   // ==================== addGeoJsonLayer ====================
 
   async addGeoJsonLayer(params: AddGeoJsonLayerParams): Promise<LayerInfo> {

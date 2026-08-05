@@ -36,6 +36,12 @@ import {
   getCesiumRuntimeToolMetadata,
 } from './tool-manifest.js'
 import { createMcpInputSchema } from './mcp-schema.js'
+import {
+  rejectPendingRequestsForClient,
+  resolveBrowserTarget,
+  settlePendingBrowserResponse,
+} from './browser-session-router.js'
+import type { PendingBrowserRequest } from './browser-session-router.js'
 
 // ==================== WebSocket Bridge ====================
 
@@ -46,11 +52,7 @@ const MAX_PORT_RETRIES = 10
 const browserClients = new Map<string, WebSocket>()
 
 /** 等待浏览器响应的 pending requests */
-const pendingRequests = new Map<string, {
-  resolve: (result: unknown) => void
-  reject: (err: Error) => void
-  timer: ReturnType<typeof setTimeout>
-}>()
+const pendingRequests = new Map<string, PendingBrowserRequest<WebSocket>>()
 
 let requestIdCounter = 0
 let _relayPort = 0 // >0 means relay mode: forward commands to an existing instance
@@ -60,15 +62,6 @@ const DEFAULT_SESSION_ID = process.env.DEFAULT_SESSION_ID ?? 'default'
 /** URL-level session context for MCP HTTP requests (e.g. /mcp?session=xxx) */
 const _httpSessionStore = new AsyncLocalStorage<string>()
 
-function getDefaultBrowser(): WebSocket | null {
-  if (browserClients.size === 0) return null
-  // 优先返回绑定的 session 连接
-  const preferred = browserClients.get(DEFAULT_SESSION_ID)
-  if (preferred && preferred.readyState === WebSocket.OPEN) return preferred
-  // fallback: 返回第一个可用连接
-  return browserClients.values().next().value ?? null
-}
-
 function sendToBrowser(action: string, params: Record<string, unknown>, timeoutMs = 30000): Promise<unknown> {
   // Extract sessionId from params for multi-browser routing (transparent to tool handlers)
   const { sessionId: paramSessionId, ...cleanParams } = params as { sessionId?: string; [k: string]: unknown }
@@ -76,11 +69,18 @@ function sendToBrowser(action: string, params: Record<string, unknown>, timeoutM
   const sessionId = paramSessionId ?? _httpSessionStore.getStore()
   if (_relayPort > 0) return _sendViaRelay(action, cleanParams, timeoutMs, sessionId)
   return new Promise((resolve, reject) => {
-    const ws = sessionId
-      ? (browserClients.get(sessionId) ?? getDefaultBrowser())
-      : getDefaultBrowser()
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      reject(new Error('无浏览器连接。请在浏览器中打开包含 CesiumJS 的页面并连接 WebSocket。示例：http://localhost:9100/demo/'))
+    const target = resolveBrowserTarget(
+      browserClients,
+      sessionId,
+      DEFAULT_SESSION_ID,
+      WebSocket.OPEN,
+    )
+    const ws = target.client
+    if (!ws) {
+      const message = sessionId
+        ? `Browser session is not connected: ${sessionId}`
+        : 'No browser connection. Open a CesiumJS page and connect its WebSocket bridge.'
+      reject(new Error(message))
       return
     }
 
@@ -90,7 +90,13 @@ function sendToBrowser(action: string, params: Record<string, unknown>, timeoutM
       reject(new Error(`浏览器响应超时（${timeoutMs}ms）`))
     }, timeoutMs)
 
-    pendingRequests.set(reqId, { resolve, reject, timer })
+    pendingRequests.set(reqId, {
+      client: ws,
+      sessionId: target.sessionId!,
+      resolve,
+      reject,
+      timer,
+    })
 
     ws.send(JSON.stringify({
       jsonrpc: '2.0',
@@ -102,13 +108,18 @@ function sendToBrowser(action: string, params: Record<string, unknown>, timeoutM
 }
 
 /** 将命令推送到指定 session 的浏览器（fire-and-forget，不等待响应） */
-function pushToBrowser(sessionId: string, command: { action: string; params: Record<string, unknown> }): boolean {
+function pushToBrowser(sessionId: string | undefined, command: { action: string; params: Record<string, unknown> }): boolean {
   if (_relayPort > 0) {
     _pushViaRelay(sessionId, command)
     return true
   }
-  const ws = browserClients.get(sessionId) ?? getDefaultBrowser()
-  if (!ws || ws.readyState !== WebSocket.OPEN) return false
+  const ws = resolveBrowserTarget(
+    browserClients,
+    sessionId,
+    DEFAULT_SESSION_ID,
+    WebSocket.OPEN,
+  ).client
+  if (!ws) return false
   ws.send(JSON.stringify({
     jsonrpc: '2.0',
     id: `push_${++requestIdCounter}`,
@@ -143,7 +154,7 @@ async function _sendViaRelay(action: string, params: Record<string, unknown>, ti
 }
 
 /** Relay mode: forward pushToBrowser via HTTP POST to existing instance */
-function _pushViaRelay(sessionId: string, command: { action: string; params: Record<string, unknown> }) {
+function _pushViaRelay(sessionId: string | undefined, command: { action: string; params: Record<string, unknown> }) {
   fetch(`http://127.0.0.1:${_relayPort}/api/command`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -199,7 +210,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
     req.on('end', () => {
       try {
         const payload = JSON.parse(body)
-        const sessionId: string = payload.sessionId ?? 'default'
+        const sessionId: string | undefined = payload.sessionId
         const commands: Array<{ action: string; params: Record<string, unknown> }> =
           Array.isArray(payload.commands) ? payload.commands : [payload.command]
 
@@ -479,7 +490,6 @@ function _setupWss(wss: WebSocketServer) {
     const oldWs = browserClients.get(sessionId)
     if (oldWs && oldWs.readyState === WebSocket.OPEN) {
       console.error(`[ws] 同名 session=${sessionId} 已存在，关闭旧连接`)
-      oldWs.removeAllListeners('close')
       oldWs.close(1000, 'replaced by new connection')
     }
     console.error(`[ws] 浏览器连接: session=${sessionId}`)
@@ -488,22 +498,18 @@ function _setupWss(wss: WebSocketServer) {
     ws.on('message', (raw: RawData) => {
       try {
         const msg = JSON.parse(raw.toString())
-        if (msg.id && pendingRequests.has(msg.id)) {
-          const pending = pendingRequests.get(msg.id)!
-          pendingRequests.delete(msg.id)
-          clearTimeout(pending.timer)
-          if (msg.error) {
-            pending.reject(new Error(msg.error.message ?? JSON.stringify(msg.error)))
-          } else {
-            pending.resolve(msg.result)
-          }
-        }
+        settlePendingBrowserResponse(pendingRequests, ws, msg)
       } catch { /* ignore parse errors */ }
     })
 
     ws.on('close', () => {
       console.error(`[ws] 浏览器断开: session=${sessionId}`)
-      browserClients.delete(sessionId)
+      if (browserClients.get(sessionId) === ws) browserClients.delete(sessionId)
+      rejectPendingRequestsForClient(
+        pendingRequests,
+        ws,
+        new Error(`Browser session disconnected: ${sessionId}`),
+      )
     })
   })
 }

@@ -59,7 +59,7 @@ const bridge = new CesiumBridge(viewer, {
 
 All 60 browser-safe executors are organized by domain and checked against the shared contracts. The public `execute()` and per-command override contract remain stable; the sensitive `setIonToken` compatibility command stays outside the shared AI tool surface.
 
-Call `bridge.dispose()` when the integration is unmounted. It stops Bridge-managed camera/trajectory activity, clears page-local state and event handlers, and leaves the application-owned Viewer and scene content intact.
+Call `bridge.dispose()` when the integration is unmounted. It cancels camera flights and pending screenshots, stops Bridge-managed camera/trajectory activity, clears page-local state, internal Cesium references, executors, and event handlers, and leaves the application-owned Viewer and scene content intact. Disposal is idempotent; later `execute()` calls fail with a disposed error.
 
 ## WebMCP
 

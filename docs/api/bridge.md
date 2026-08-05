@@ -35,7 +35,7 @@ const bridge = new CesiumBridge(viewer, {
 
 All 60 browser-safe executors are organized by domain and checked against the shared contracts. The public `execute()` and override contract remain stable; the sensitive `setIonToken` compatibility command stays outside the shared AI tool surface.
 
-Call `bridge.dispose()` when removing the integration. It releases Bridge-managed activity and event handlers without destroying the application-owned Viewer.
+Call `bridge.dispose()` when removing the integration. It cancels camera flights and pending screenshots, releases Bridge-managed activity, internal Cesium references, executors, and event handlers without destroying the application-owned Viewer or its scene content. Disposal is idempotent; later `execute()` calls return a disposed error.
 
 ## Commands (60)
 

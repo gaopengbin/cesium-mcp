@@ -119,4 +119,104 @@ describe('CesiumBridge command boundary', () => {
 
     expect(handler).not.toHaveBeenCalled()
   })
+
+  it('cancels viewer activity and rejects commands after disposal', async () => {
+    const cancelFlight = vi.fn()
+    const viewer = {
+      camera: { cancelFlight },
+      dataSources: { length: 0 },
+      entities: { values: [] },
+    }
+    const executor = vi.fn<BridgeExecutor>().mockResolvedValue({ success: true })
+    const bridge = new CesiumBridge(viewer as never, {
+      executors: { flyTo: executor },
+    })
+
+    bridge.dispose()
+    bridge.dispose()
+    const result = await bridge.execute({
+      action: 'flyTo',
+      params: { longitude: 116.4, latitude: 39.9 },
+    })
+
+    expect(cancelFlight).toHaveBeenCalledOnce()
+    expect(executor).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      success: false,
+      error: 'CesiumBridge has been disposed',
+    })
+  })
+
+  it('aborts a pending screenshot when disposed', async () => {
+    const removeListener = vi.fn()
+    const viewer = {
+      camera: { cancelFlight: vi.fn() },
+      dataSources: { length: 0 },
+      entities: { values: [] },
+      scene: {
+        requestRender: vi.fn(),
+        canvas: {
+          toDataURL: () => 'data:image/png;base64,abc',
+          width: 800,
+          height: 600,
+        },
+        postRender: {
+          addEventListener: vi.fn(() => removeListener),
+        },
+      },
+    }
+    const bridge = new CesiumBridge(viewer as never)
+
+    const pendingScreenshot = bridge.screenshot()
+    bridge.dispose()
+
+    await expect(pendingScreenshot).rejects.toThrow('Screenshot cancelled')
+    expect(removeListener).toHaveBeenCalledOnce()
+  })
+
+  it('isolates managed camera activity between Viewer instances', () => {
+    const stopA = vi.fn()
+    const stopB = vi.fn()
+    const viewerA = {
+      camera: { cancelFlight: vi.fn(), rotateRight: vi.fn() },
+      clock: { onTick: { addEventListener: vi.fn(() => stopA) } },
+    }
+    const viewerB = {
+      camera: { cancelFlight: vi.fn(), rotateRight: vi.fn() },
+      clock: { onTick: { addEventListener: vi.fn(() => stopB) } },
+    }
+    const bridgeA = new CesiumBridge(viewerA as never)
+    const bridgeB = new CesiumBridge(viewerB as never)
+
+    bridgeA.startOrbit({ speed: 0.01 })
+    bridgeB.startOrbit({ speed: 0.02 })
+    bridgeA.dispose()
+
+    expect(stopA).toHaveBeenCalledOnce()
+    expect(stopB).not.toHaveBeenCalled()
+    expect(viewerA.camera.cancelFlight).toHaveBeenCalledOnce()
+    expect(viewerB.camera.cancelFlight).not.toHaveBeenCalled()
+
+    bridgeB.stopOrbit()
+    expect(stopB).toHaveBeenCalledOnce()
+  })
+
+  it('releases LayerManager bookkeeping without removing scene content', () => {
+    const viewer = { camera: { cancelFlight: vi.fn() } }
+    const bridge = new CesiumBridge(viewer as never)
+    const entity = { id: 'marker-1' }
+    bridge.layerManager.layers.push({
+      id: 'marker_marker-1',
+      name: 'Marker',
+      type: 'marker',
+      visible: true,
+      color: '#3B82F6',
+    })
+    bridge.layerManager.setCesiumRefs('marker_marker-1', { entity } as never)
+
+    bridge.dispose()
+
+    expect(bridge.layerManager.layers).toEqual([])
+    expect(bridge.layerManager.getCesiumRefs('marker_marker-1')).toBeUndefined()
+  })
 })

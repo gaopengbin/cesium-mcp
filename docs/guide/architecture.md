@@ -205,7 +205,7 @@ For MCP HTTP mode, add `?session=xxx` to the endpoint URL to automatically route
 http://localhost:3216/mcp?session=project-a
 ```
 
-Routing priority: tool param `sessionId` > URL `?session=xxx` > `DEFAULT_SESSION_ID` env > first connected browser.
+Routing priority: tool param `sessionId` > URL `?session=xxx` > `DEFAULT_SESSION_ID` env > first connected browser. Tool and URL selections are exact: if the requested browser session is unavailable, the runtime returns an error rather than falling through to a different Viewer. The default/first-connected fallback is used only when no session was selected explicitly. Each pending request is bound to its target WebSocket, so another browser cannot settle it, and disconnects reject owned requests immediately.
 
 ## Version Strategy
 

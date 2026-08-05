@@ -852,6 +852,11 @@ This is the recommended approach for third-party integrations (e.g., Dify) — n
 3. `DEFAULT_SESSION_ID` environment variable
 4. First connected browser (fallback)
 
+Explicit tool/URL selections are fail-closed. If that browser session is not
+open, the call fails instead of falling back to another Viewer. Fallback applies
+only when no session was selected explicitly. Responses are accepted only from
+the WebSocket that owns the pending request.
+
 ## HTTP Push API
 
 For non-MCP integrations (e.g., FastAPI backends), the runtime exposes an HTTP endpoint:

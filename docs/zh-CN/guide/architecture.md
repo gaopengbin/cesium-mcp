@@ -205,7 +205,7 @@ MCP HTTP 模式下，在端点 URL 后添加 `?session=xxx` 可自动将所有�
 http://localhost:3216/mcp?session=project-a
 ```
 
-路由优先级：工具参数 `sessionId` > URL `?session=xxx` > `DEFAULT_SESSION_ID` 环境变量 > 第一个已连接的浏览器。
+路由优先级：工具参数 `sessionId` > URL `?session=xxx` > `DEFAULT_SESSION_ID` 环境变量 > 第一个已连接的浏览器。工具参数和 URL 中显式选择的会话必须精确命中；目标会话不可用时 Runtime 会返回错误，不会把命令转发到另一个 Viewer。只有调用方没有显式选择会话时，才会使用默认会话或首个已连接浏览器。每个待处理请求还会绑定到接收命令的 WebSocket，其他浏览器不能代替它返回结果；目标断线时对应请求会立即失败。
 
 ## 版本策略
 

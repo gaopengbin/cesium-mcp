@@ -7,12 +7,23 @@ import type { LayerManager } from './layer'
  * 地图截图，返回 base64 DataURL
  * 带 5 秒超时保护，防止 postRender 不触发导致 Promise 悬挂
  */
-export function screenshot(viewer: Cesium.Viewer): Promise<ScreenshotResult> {
+export function screenshot(
+  viewer: Cesium.Viewer,
+  signal?: AbortSignal,
+): Promise<ScreenshotResult> {
   return new Promise((resolve, reject) => {
     let settled = false
+    const onAbort = () => {
+      if (settled) return
+      settled = true
+      cleanup()
+      reject(new Error('Screenshot cancelled'))
+    }
+
     const timeout = setTimeout(() => {
       if (settled) return
       settled = true
+      cleanup()
       // 超时后仍尝试直接从 canvas 取图
       try {
         const canvas = viewer.scene.canvas
@@ -25,10 +36,9 @@ export function screenshot(viewer: Cesium.Viewer): Promise<ScreenshotResult> {
 
     viewer.scene.requestRender()
     const removeListener = viewer.scene.postRender.addEventListener(() => {
-      removeListener()
       if (settled) return
       settled = true
-      clearTimeout(timeout)
+      cleanup()
       const canvas = viewer.scene.canvas
       const dataUrl = canvas.toDataURL('image/png')
       resolve({
@@ -37,6 +47,14 @@ export function screenshot(viewer: Cesium.Viewer): Promise<ScreenshotResult> {
         height: canvas.height,
       })
     })
+    signal?.addEventListener('abort', onAbort, { once: true })
+    if (signal?.aborted) onAbort()
+
+    function cleanup() {
+      clearTimeout(timeout)
+      removeListener()
+      signal?.removeEventListener('abort', onAbort)
+    }
   })
 }
 

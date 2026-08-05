@@ -851,6 +851,8 @@ http://localhost:3216/mcp?session=project-a
 3. `DEFAULT_SESSION_ID` 环境变量
 4. 第一个已连接的浏览器（兜底）
 
+工具参数或 URL 中的显式会话采用失败关闭策略：目标浏览器会话未连接时调用直接失败，不会回退到另一个 Viewer。只有未显式指定会话时才使用兜底路由。待处理请求的响应只接受其目标 WebSocket 返回的数据。
+
 ## HTTP Push API
 
 对于非 MCP 集成（如 FastAPI 后端），Runtime 暴露 HTTP 端点：

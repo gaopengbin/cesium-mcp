@@ -321,6 +321,13 @@ All tool calls from that connection are automatically routed to the matching bro
 3. `DEFAULT_SESSION_ID` environment variable
 4. First connected browser (fallback)
 
+Explicit routing is fail-closed: when a tool parameter or MCP URL names a
+session that is missing or disconnected, the call returns an error instead of
+running against another Viewer. The default/first-connected fallback applies
+only when the caller did not explicitly select a session. Pending responses are
+also accepted only from the browser that received the command, and are rejected
+immediately if that browser disconnects.
+
 ## HTTP Push API
 
 The runtime also exposes an HTTP endpoint for non-MCP integrations (e.g., FastAPI backend):

@@ -35,7 +35,7 @@ const bridge = new CesiumBridge(viewer, {
 
 全部 60 个浏览器安全 Executor 已按领域组织，并与共享契约进行完整性校验。公开的 `execute()` 和单命令覆盖契约保持不变；敏感的 `setIonToken` 兼容命令不会进入共享 AI 工具面。
 
-集成卸载时调用 `bridge.dispose()`。它会释放 Bridge 管理的动画、页面状态和事件处理器，但不会销毁应用拥有的 Viewer。
+集成卸载时调用 `bridge.dispose()`。它会取消相机飞行和待完成截图，释放 Bridge 管理的动画、页面状态、Cesium 对象引用、Executor 和事件处理器，但不会销毁应用拥有的 Viewer 或场景内容。重复调用是安全的；销毁后的 `execute()` 会返回已销毁错误。
 
 ## 命令（60 个）
 

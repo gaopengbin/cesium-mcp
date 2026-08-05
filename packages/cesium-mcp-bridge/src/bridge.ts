@@ -100,6 +100,8 @@ export class CesiumBridge {
   private _animations: AnimationMap = new Map()
   private _validateInputs: boolean
   private _executors: Map<string, BridgeExecutor>
+  private _operationAbortController = new AbortController()
+  private _disposed = false
 
   constructor(viewer: Cesium.Viewer, options: CesiumBridgeOptions = {}) {
     this._viewer = viewer
@@ -124,6 +126,9 @@ export class CesiumBridge {
 
   async execute(cmd: BridgeCommand): Promise<BridgeResult> {
     try {
+      if (this._disposed) {
+        return { success: false, error: 'CesiumBridge has been disposed' }
+      }
       const p = (cmd.params ?? {}) as Record<string, any>
       if (this._validateInputs) {
         const validation = validateCesiumToolInput(cmd.action, p)
@@ -198,9 +203,15 @@ export class CesiumBridge {
    * this Bridge. The Viewer and scene content remain owned by the application.
    */
   dispose(): void {
+    if (this._disposed) return
+    this._disposed = true
+    this._operationAbortController.abort()
+    this._viewer.camera?.cancelFlight?.()
     this._stopManagedActivity()
     clearViewpoints(this._viewer)
+    this._layerManager.dispose()
     this._eventHandlers.clear()
+    this._executors.clear()
   }
 
   private _stopManagedActivity(): void {
@@ -485,7 +496,7 @@ export class CesiumBridge {
   // ==================== Interaction ====================
 
   screenshot(): Promise<ScreenshotResult> {
-    return screenshot(this._viewer)
+    return screenshot(this._viewer, this._operationAbortController.signal)
   }
 
   highlight(params: HighlightParams): void {
@@ -675,6 +686,7 @@ export class CesiumBridge {
   // ==================== Events ====================
 
   on(event: BridgeEventType, handler: BridgeEventHandler): () => void {
+    if (this._disposed) return () => {}
     if (!this._eventHandlers.has(event)) {
       this._eventHandlers.set(event, new Set())
     }

@@ -48,7 +48,9 @@ await bridge.execute({
 
 WebMCP 接入已拆分到独立的 [`cesium-mcp-webmcp`](../cesium-mcp-webmcp) 包。本包只保留 Cesium 执行能力，不包含浏览器协议或传输适配器。
 
-## 命令 (43)
+集成卸载时调用 `bridge.dispose()`。它会取消相机飞行和待完成截图，停止 Bridge 管理的相机、轨迹与动画活动，清理页面局部状态、Cesium 对象引用、Executor 和事件处理器，但不会销毁应用拥有的 Viewer 或场景内容。重复调用是安全的，销毁后的 `execute()` 会返回已销毁错误。
+
+## 命令 (60)
 
 ### 视图控制
 

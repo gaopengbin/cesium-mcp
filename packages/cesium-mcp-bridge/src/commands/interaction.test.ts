@@ -502,4 +502,53 @@ describe('screenshot', () => {
     expect(result.width).toBe(1024)
     vi.useRealTimers()
   })
+
+  it('should remove its render listener when aborted', async () => {
+    const removeListener = vi.fn()
+    const viewer = {
+      scene: {
+        requestRender: vi.fn(),
+        canvas: {
+          toDataURL: () => 'data:image/png;base64,abc',
+          width: 800,
+          height: 600,
+        },
+        postRender: {
+          addEventListener: vi.fn(() => removeListener),
+        },
+      },
+    } as any
+    const controller = new AbortController()
+
+    const promise = screenshot(viewer, controller.signal)
+    controller.abort()
+
+    await expect(promise).rejects.toThrow('Screenshot cancelled')
+    expect(removeListener).toHaveBeenCalledOnce()
+  })
+
+  it('should remove its render listener after the timeout fallback', async () => {
+    vi.useFakeTimers()
+    const removeListener = vi.fn()
+    const viewer = {
+      scene: {
+        requestRender: vi.fn(),
+        canvas: {
+          toDataURL: () => 'data:image/png;base64,timeout-fallback',
+          width: 1024,
+          height: 768,
+        },
+        postRender: {
+          addEventListener: vi.fn(() => removeListener),
+        },
+      },
+    } as any
+
+    const promise = screenshot(viewer)
+    vi.advanceTimersByTime(5100)
+
+    await expect(promise).resolves.toMatchObject({ width: 1024, height: 768 })
+    expect(removeListener).toHaveBeenCalledOnce()
+    vi.useRealTimers()
+  })
 })
