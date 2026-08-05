@@ -1,5 +1,26 @@
 # cesium-mcp-bridge
 
+## 1.144.0
+
+### Minor Changes
+
+- [`87bb9d2`](https://github.com/gaopengbin/cesium-mcp/commit/87bb9d22f66922b272348b534eb575993e85beb0) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Complete the domain executor registry for all 60 browser-safe Bridge tools, remove the central command switch, and preserve the internal Ion-token compatibility command outside the shared AI tool surface.
+
+### Patch Changes
+
+- [`0740204`](https://github.com/gaopengbin/cesium-mcp/commit/0740204eab9d031704f01a04a21e2a62a4c68425) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Move interaction, scene, and tiles command paths into domain executor registries while preserving existing command results and override behavior.
+
+- [`477f4f7`](https://github.com/gaopengbin/cesium-mcp/commit/477f4f7d66a0a38d1e8a61e8fb330710ca726310) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Move the entity and layer command paths into domain executor registries with shared-contract coverage tests and unchanged command result shapes.
+
+- [`6316dcf`](https://github.com/gaopengbin/cesium-mcp/commit/6316dcf1bc3e0c0bc8d5bae6dd1c281808fdb12e) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Move the view and advanced-camera command paths into domain executor registries while preserving command results and user override precedence.
+
+- [`98f980b`](https://github.com/gaopengbin/cesium-mcp/commit/98f980bf447f2091625ed4772b7fb02235159529) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Isolate browser sessions with exact fail-closed routing and response ownership, and strengthen Bridge disposal by cancelling pending viewer activity and releasing internal references.
+
+- [`b2b9c92`](https://github.com/gaopengbin/cesium-mcp/commit/b2b9c92db6034e8ecb6c17f5a139ec6bf960bb30) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Add shared runtime input validation, per-command Bridge executor overrides, per-Viewer state isolation, and an idempotent Bridge lifecycle cleanup API.
+
+- Updated dependencies [[`b2b9c92`](https://github.com/gaopengbin/cesium-mcp/commit/b2b9c92db6034e8ecb6c17f5a139ec6bf960bb30)]:
+  - cesium-mcp-contracts@0.5.0
+
 ## 1.143.4
 
 ## 1.143.4-next.1

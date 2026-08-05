@@ -1,5 +1,12 @@
 # cesium-mcp-webmcp
 
+## 0.2.3
+
+### Patch Changes
+
+- Updated dependencies [[`b2b9c92`](https://github.com/gaopengbin/cesium-mcp/commit/b2b9c92db6034e8ecb6c17f5a139ec6bf960bb30)]:
+  - cesium-mcp-contracts@0.5.0
+
 ## 0.2.2
 
 ### Patch Changes
