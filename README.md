@@ -231,13 +231,7 @@ Official CesiumJS releases are reviewed before the compatibility baseline is bum
 
 ## Star History
 
-<a href="https://star-history.com/#gaopengbin/cesium-mcp&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=gaopengbin/cesium-mcp&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=gaopengbin/cesium-mcp&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=gaopengbin/cesium-mcp&type=Date" />
- </picture>
-</a>
+[![Star History Chart](https://raw.githubusercontent.com/gaopengbin/cesium-mcp/star-history-data/.github/star-history/chart.svg)](https://github.com/gaopengbin/cesium-mcp)
 
 ## License
 
