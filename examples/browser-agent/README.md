@@ -45,7 +45,7 @@ Unsupported browsers simply skip registration and continue using the built-in fu
 
 The WebMCP surface exposes 61 tools in the `view`, `entity`, `layer`, `camera`, `entity-ext`, `animation`, `scene`, `tiles`, `interaction`, `trajectory`, `heatmap`, and `geolocation` toolsets. `setIonToken` is intentionally application-owned and is not exposed to page agents.
 
-The built-in chat defaults to automatic routing. It matches English and Chinese intent to a task bundle, for example:
+The built-in chat defaults to automatic routing. It matches English and Chinese intent to task bundles, preserves multiple primary intents before adding supporting toolsets, and never sends more than 20 tools, for example:
 
 | Request | Routed toolsets | Tools sent |
 |---------|-----------------|------------|
@@ -55,6 +55,8 @@ The built-in chat defaults to automatic routing. It matches English and Chinese 
 | Add markers, models, or shapes | `entity`, `view`, `geolocation` | 19 |
 
 The selector above the prompt also offers the 15-tool core set, each individual toolset, and an advanced all-61 mode. WebMCP registration always remains all 61 regardless of this chat selection.
+
+Run `npm run test:routing` from the repository root to execute the deterministic routing baseline. Its 30 bilingual scenarios cover all 12 toolsets, including multi-intent requests, and report scenario pass rate, required-tool recall, average tools sent, and maximum tools sent. This measures whether the needed tools reach the model; provider-specific tool-choice quality remains a separate model evaluation.
 
 ### Tool-call recovery
 

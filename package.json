@@ -19,6 +19,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest",
     "test:contracts": "vitest run packages/cesium-mcp-runtime/src/tool-manifest.test.ts packages/cesium-mcp-webmcp/src/index.test.ts packages/cesium-mcp-bridge/src/executors/executor-registry.test.ts examples/browser-agent/contract-parity.test.ts",
+    "test:routing": "vitest run examples/browser-agent/tool-router.eval.test.ts --reporter=verbose",
     "test:e2e:packed": "npm run build && node scripts/run-packed-runtime-e2e.mjs",
     "test:e2e:published": "node scripts/run-packed-runtime-e2e.mjs --runtime cesium-mcp-runtime@latest",
     "test:conformance:mcp": "npm run build -w packages/cesium-mcp-runtime && node scripts/run-mcp-conformance.mjs",
