@@ -43,6 +43,11 @@
       toolsets: ['camera', 'view', 'geolocation'],
     },
     {
+      name: 'view',
+      pattern: /\b(fly\s+to|zoom\s+to|navigate\s+to|go\s+to|viewpoints?|camera\s+position|export\s+(the\s+)?scene)\b|飞到|缩放到|定位到|前往|视角|视点|导出场景/i,
+      toolsets: ['view', 'geolocation'],
+    },
+    {
       name: 'interaction',
       pattern: /\b(screenshots?|measure|distance|area|highlight)\b|截图|测量|距离|面积|高亮/i,
       toolsets: ['interaction', 'view', 'geolocation'],
@@ -60,8 +65,12 @@
   ]
 
   function routeToolsets(prompt) {
-    const route = routes.find(candidate => candidate.pattern.test(String(prompt || '')))
-    return route ? [...route.toolsets] : []
+    const matches = routes.filter(candidate => candidate.pattern.test(String(prompt || '')))
+    if (matches.length === 0) return []
+
+    const primaryToolsets = matches.map(route => route.toolsets[0])
+    const supportingToolsets = matches.flatMap(route => route.toolsets.slice(1))
+    return [...new Set([...primaryToolsets, ...supportingToolsets])]
   }
 
   function collectToolsets(toolsetNames, contracts, limit = Infinity) {

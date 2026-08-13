@@ -47,6 +47,21 @@ describe('browser-agent tool router', () => {
     expect(animation.tools).toHaveLength(19)
   })
 
+  it('keeps each primary intent ahead of supporting toolsets', () => {
+    const selection = router.resolveToolSelection(
+      'Load a GeoJSON layer and highlight the important area',
+      'auto',
+      contracts,
+    )
+
+    expect(selection.toolsetNames).toEqual(['layer', 'interaction', 'view'])
+    expect(selection.tools.map((tool: any) => tool.name)).toEqual(expect.arrayContaining([
+      'addGeoJsonLayer',
+      'highlight',
+    ]))
+    expect(selection.tools).toHaveLength(router.MAX_AUTO_TOOLS)
+  })
+
   it('falls back to core tools and supports explicit toolset or full selection', () => {
     expect(router.resolveToolSelection('你好', 'auto', contracts).tools).toHaveLength(15)
     expect(router.resolveToolSelection('', 'core', contracts).tools).toHaveLength(15)

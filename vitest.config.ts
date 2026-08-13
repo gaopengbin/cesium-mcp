@@ -16,6 +16,7 @@ export default defineConfig({
       'examples/browser-agent/index.test.ts',
       'examples/browser-agent/contract-parity.test.ts',
       'examples/browser-agent/tool-router.test.ts',
+      'examples/browser-agent/tool-router.eval.test.ts',
       'examples/browser-agent/functions/**/*.test.ts',
     ],
   },
