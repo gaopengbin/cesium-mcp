@@ -209,7 +209,12 @@ git clone https://github.com/gaopengbin/cesium-mcp.git
 cd cesium-mcp
 npm install
 npm run build
+npm test
+npm run test:contracts
+npm run test:e2e:packed
 ```
+
+`test:e2e:packed` 会生成 npm tarball、安装到全新的临时项目、打开真实 Cesium Viewer，并验证 Runtime、WebSocket 与 Bridge 的命令往返。
 
 ## 版本策略
 

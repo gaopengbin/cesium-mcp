@@ -75,6 +75,8 @@ cesium-mcp-runtime
 
 工具按 **12 个工具集** 组织。默认启用 4 个核心工具集（30 个工具）。设置 `CESIUM_TOOLSETS=all` 启用全部，或由 AI 在运行时动态发现和激活。共享标题、行为标注、多语言描述、默认值、输入校验、对外发布的输出 Schema 和结构化结果统一来自 `cesium-mcp-contracts` 中的标准 JSON Schema；旧客户端仍可读取文本 `content`。
 
+Runtime npm 产物会包含由 `/bridge.js` 提供的浏览器 Bridge bundle，内置 Viewer 不再依赖 unpkg 回退；CesiumJS 资源仍从 Cesium 官方 CDN 加载。
+
 ### 工具集
 
 | 工具集 | 工具数 | 默认启用 | 描述 |

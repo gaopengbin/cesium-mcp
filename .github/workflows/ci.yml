@@ -30,5 +30,11 @@ jobs:
 
       - run: npx vitest run
 
+      - run: npx playwright install --with-deps chromium
+        if: matrix.node-version == 22
+
+      - run: npm run test:e2e:packed
+        if: matrix.node-version == 22
+
       - run: npm run test:conformance:mcp
         if: matrix.node-version == 22
