@@ -1,6 +1,6 @@
 {
   "name": "cesium-mcp-bridge",
-  "version": "1.144.1",
+  "version": "1.145.0",
   "description": "Cesium MCP Bridge SDK — AI Agent 操控 Cesium 的统一执行层",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -51,7 +51,7 @@
   "homepage": "https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-bridge",
   "license": "MIT",
   "dependencies": {
-    "cesium-mcp-contracts": "^0.5.0",
+    "cesium-mcp-contracts": "^0.6.0",
     "heatmap.js": "^2.0.5"
   }
 }
