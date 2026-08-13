@@ -1,5 +1,11 @@
 # cesium-mcp-runtime
 
+## 1.145.1
+
+### Patch Changes
+
+- [#30](https://github.com/gaopengbin/cesium-mcp/pull/30) [`ac98ce6`](https://github.com/gaopengbin/cesium-mcp/commit/ac98ce65b249c9914ff34c25c8bb9dc8bf5668bc) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Ship the browser Bridge bundle inside the Runtime npm package so the built-in Viewer no longer depends on an unpkg fallback. Add a clean-install E2E that packs and installs the public artifacts, opens the real Cesium Viewer, connects its WebSocket bridge, and verifies a camera command round trip.
+
 ## 1.145.0
 
 ### Minor Changes

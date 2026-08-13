@@ -1,5 +1,7 @@
 # cesium-mcp-bridge
 
+## 1.145.1
+
 ## 1.145.0
 
 ### Minor Changes
