@@ -41,9 +41,22 @@ describe('browser-agent startup order', () => {
     expect(html).toContain("script.src = CESIUM_SCRIPT_URL")
   })
 
+  it('renders a token-free globe before optional Cesium ion configuration', () => {
+    expect(html).toContain('Cesium.TileMapServiceImageryProvider.fromUrl(NATURAL_EARTH_URL)')
+    expect(html).toContain("...(CONFIG.ionToken ? { terrain: Cesium.Terrain.fromWorldTerrain() } : {})")
+    expect(html).not.toContain('terrain: Cesium.Terrain.fromWorldTerrain(),')
+  })
+
   it('registers tools without loading the Cesium-dependent bridge bundle', () => {
     expect(html).not.toContain('<script\n    src="../../packages/cesium-mcp-bridge')
-    expect(html).toContain('/packages/cesium-mcp-webmcp/dist/cesium-mcp-webmcp.browser.global.js')
+    expect(html).not.toContain("BRIDGE_SCRIPT_URL = '/packages/cesium-mcp-bridge/")
+    expect(html).toContain(
+      "BRIDGE_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/cesium-mcp-bridge@1.145.1/dist/cesium-mcp-bridge.browser.global.js'",
+    )
+    expect(html).not.toContain('src="/packages/cesium-mcp-webmcp/')
+    expect(html).toContain(
+      'https://cdn.jsdelivr.net/npm/cesium-mcp-webmcp@0.2.4/dist/cesium-mcp-webmcp.browser.global.js',
+    )
     expect(html).toContain("await CesiumMcpWebMcp.registerCesiumWebMcp(executor, { toolsets: 'all' })")
     expect(html).not.toContain('document.modelContext.registerTool')
     expect(html).toContain('loadScript(BRIDGE_SCRIPT_URL)')

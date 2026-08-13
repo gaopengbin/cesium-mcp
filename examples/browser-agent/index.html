@@ -10,7 +10,7 @@
   <meta property="og:image" content="https://cesium-browser-agent.pages.dev/favicon.svg">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="shortcut icon" href="/favicon.svg">
-  <script src="/packages/cesium-mcp-webmcp/dist/cesium-mcp-webmcp.browser.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cesium-mcp-webmcp@0.2.4/dist/cesium-mcp-webmcp.browser.global.js"></script>
   <script src="./tool-router.js"></script>
   <script src="./function-tools.js"></script>
   <script src="./agent-response.js"></script>
@@ -939,7 +939,8 @@ function setWebMcpStatus(state, titleKey, detailKey, variables = {}) {
 // Cesium Init
 // ============================================================
 const CESIUM_SCRIPT_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Cesium.js'
-const BRIDGE_SCRIPT_URL = '/packages/cesium-mcp-bridge/dist/cesium-mcp-bridge.browser.global.js'
+const NATURAL_EARTH_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.143/Build/Cesium/Assets/Textures/NaturalEarthII'
+const BRIDGE_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/cesium-mcp-bridge@1.145.1/dist/cesium-mcp-bridge.browser.global.js'
 const BRIDGE_FALLBACK_URL = 'https://cdn.jsdelivr.net/npm/cesium-mcp-bridge@latest/dist/cesium-mcp-bridge.browser.global.js'
 
 function loadCesiumRuntime() {
@@ -1021,8 +1022,13 @@ async function initializeCesium() {
     Cesium.Ion.defaultAccessToken = CONFIG.ionToken;
   }
 
+  const baseLayer = new Cesium.ImageryLayer(
+    await Cesium.TileMapServiceImageryProvider.fromUrl(NATURAL_EARTH_URL),
+  )
+
   const viewer = new Cesium.Viewer('cesiumContainer', {
-    terrain: Cesium.Terrain.fromWorldTerrain(),
+    baseLayer,
+    ...(CONFIG.ionToken ? { terrain: Cesium.Terrain.fromWorldTerrain() } : {}),
     baseLayerPicker: false,
     geocoder: false,
     homeButton: false,
