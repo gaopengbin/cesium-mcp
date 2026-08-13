@@ -22,6 +22,8 @@ AI 智能体 <--MCP HTTP---> cesium-mcp-runtime <--WebSocket--> 浏览器 (cesiu
 
 运行时作为 MCP 兼容 AI 客户端（Claude Desktop、VS Code Copilot、Cursor 等）与运行 CesiumJS 的浏览器之间的桥梁。它将 MCP 工具调用转换为 WebSocket 命令，由 [cesium-mcp-bridge](https://www.npmjs.com/package/cesium-mcp-bridge) 在浏览器端执行。
 
+npm 包会直接携带浏览器 Bridge bundle，因此 `http://localhost:9100/` 内置 Viewer 不再依赖 unpkg 回退；CesiumJS 本身仍从 Cesium 官方 CDN 加载。
+
 支持两种传输模式：
 
 | 传输方式 | 适用场景 | 协议 |

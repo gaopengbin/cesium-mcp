@@ -28,7 +28,7 @@
     "dev": "tsx src/index.ts",
     "demo": "npx serve demo -l 3210 --no-clipboard",
     "demo:server": "tsx src/demo-server.ts",
-    "build": "tsup"
+    "build": "tsup && node ../../scripts/copy-runtime-bridge.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/node": "^2.0.0",

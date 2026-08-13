@@ -371,6 +371,8 @@ function _findLocalBridgeBundle(): string | null {
   const here = dirname(fileURLToPath(import.meta.url))
   const file = 'cesium-mcp-bridge.browser.global.js'
   const candidates = [
+    // npm package: the Runtime ships the browser bundle in its own dist.
+    join(here, file),
     // monorepo: runtime/dist → ../../cesium-mcp-bridge/dist
     join(here, '..', '..', 'cesium-mcp-bridge', 'dist', file),
     // npm install: node_modules/cesium-mcp-runtime/dist → node_modules/cesium-mcp-bridge/dist

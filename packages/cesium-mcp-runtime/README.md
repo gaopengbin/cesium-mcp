@@ -23,6 +23,8 @@ AI Agent <--MCP HTTP---> cesium-mcp-runtime <--WebSocket--> Browser (cesium-mcp-
 
 The runtime acts as a bridge between MCP-compatible AI clients (Claude Desktop, VS Code Copilot, Cursor, etc.) and a browser running CesiumJS. It translates MCP tool calls into WebSocket commands that [cesium-mcp-bridge](https://www.npmjs.com/package/cesium-mcp-bridge) executes.
 
+The npm package ships its browser Bridge bundle locally. The built-in Viewer at `http://localhost:9100/` therefore does not depend on an unpkg fallback; CesiumJS itself is still loaded from the official Cesium CDN.
+
 Two transport modes are supported:
 
 | Transport | Use Case | Protocol |

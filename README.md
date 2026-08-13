@@ -209,9 +209,11 @@ npm install
 npm run build
 npm test
 npm run test:contracts
+npm run test:e2e:packed
 ```
 
 `test:contracts` is the focused parity gate for MCP Runtime metadata, WebMCP registration, Function Calling definitions, and the 60-tool Bridge Executor Registry.
+`test:e2e:packed` builds npm tarballs, installs them in a clean temporary project, opens the real Cesium Viewer, and verifies a Runtime-WebSocket-Bridge command round trip.
 
 ## Version Policy
 

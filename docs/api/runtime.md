@@ -76,6 +76,8 @@ cesium-mcp-runtime
 
 Tools are organized into **12 toolsets**. By default, 4 core toolsets are enabled (30 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically. Shared titles, behavior annotations, localized descriptions, defaults, input validation, advertised output schemas, and structured results come from the canonical JSON Schemas in `cesium-mcp-contracts`. Tool calls retain text `content` for older clients.
 
+The Runtime npm artifact includes the browser Bridge bundle served by `/bridge.js`. The built-in Viewer does not depend on an unpkg fallback, while CesiumJS assets continue to load from the official Cesium CDN.
+
 ### Toolsets
 
 | Toolset | Tools | Default | Description |
