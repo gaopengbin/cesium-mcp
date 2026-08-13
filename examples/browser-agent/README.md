@@ -58,6 +58,8 @@ The selector above the prompt also offers the 15-tool core set, each individual 
 
 Run `npm run test:routing` from the repository root to execute the deterministic routing baseline. Its 30 bilingual scenarios cover all 12 toolsets, including multi-intent requests, and report scenario pass rate, required-tool recall, average tools sent, and maximum tools sent. This measures whether the needed tools reach the model; provider-specific tool-choice quality remains a separate model evaluation.
 
+Run `npm run eval:model-tools` for a no-network preflight of the executable model scenarios. Real-provider runs require `--live` and are separately scored for required-tool recall, schema-valid arguments, unexpected calls, multi-turn completion, and token usage. The harness supports the hosted Workers AI demo, DeepSeek, and generic OpenAI-compatible chat-completions endpoints; see the [model evaluation guide](../../docs/guide/model-tool-evaluation.md).
+
 ### Tool-call recovery
 
 The built-in chat validates every assistant response before adding it to conversation history. A completion stopped by the token limit, malformed structured arguments, or tool markup emitted as ordinary text is discarded and retried once with a compact-tool instruction. Inline `loadCzml` arguments above 6,000 characters are also retried as smaller atomic calls or an existing data URL. If recovery fails again, the page shows a localized error instead of exposing partial XML or JSON.
