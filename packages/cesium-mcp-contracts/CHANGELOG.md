@@ -1,5 +1,11 @@
 # cesium-mcp-contracts
 
+## 0.6.0
+
+### Minor Changes
+
+- [`33daff9`](https://github.com/gaopengbin/cesium-mcp/commit/33daff93c32e74d5476dd8d9461b33bf3ad88139) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Close the canonical output-contract loop across Contracts, Bridge, and MCP Runtime. Shared tools now advertise their canonical output schemas, return MCP structured content alongside legacy text content, and validate browser execution results with an opt-out for custom integrations. Screenshot calls also preserve their PNG image content while exposing structured metadata.
+
 ## 0.5.0
 
 ### Minor Changes
