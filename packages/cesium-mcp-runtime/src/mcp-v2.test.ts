@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { McpHttpHandler } from '@modelcontextprotocol/server'
+import { cesiumBrowserToolContracts } from 'cesium-mcp-contracts'
 
 import { createCesiumMcpHttpHandler } from './index.js'
 
@@ -67,6 +68,7 @@ function modernMeta(): Record<string, unknown> {
 
 afterEach(async () => {
   await Promise.all(openHandlers.splice(0).map(handler => handler.close()))
+  vi.unstubAllGlobals()
 })
 
 describe('MCP SDK v2 dual-era HTTP handler', () => {
@@ -125,6 +127,7 @@ describe('MCP SDK v2 dual-era HTTP handler', () => {
     const tools = payload.result?.tools as Array<{
       name: string
       inputSchema: Record<string, unknown>
+      outputSchema?: Record<string, unknown>
     }>
     const names = tools.map(tool => tool.name)
     const flyTo = tools.find(tool => tool.name === 'flyTo')
@@ -153,6 +156,9 @@ describe('MCP SDK v2 dual-era HTTP handler', () => {
         },
       },
     })
+    expect(flyTo?.outputSchema).toEqual(
+      cesiumBrowserToolContracts.find(contract => contract.name === 'flyTo')?.outputSchema,
+    )
   })
 
   it('validates modern tool calls before reaching the browser bridge', async () => {
@@ -179,6 +185,51 @@ describe('MCP SDK v2 dual-era HTTP handler', () => {
       isError: true,
     })
     expect(JSON.stringify(payload.result)).toContain('longitude')
+  })
+
+  it('returns canonical structured output while preserving text content', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([{
+      lat: '39.9163',
+      lon: '116.3972',
+      display_name: 'Forbidden City, Beijing, China',
+      boundingbox: ['39.91', '39.92', '116.39', '116.40'],
+    }]), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })))
+
+    const { response, payload } = await postMcp(createHandler(), {
+      jsonrpc: '2.0',
+      id: 4,
+      method: 'tools/call',
+      params: {
+        name: 'geocode',
+        arguments: { address: 'Forbidden City' },
+        _meta: modernMeta(),
+      },
+    }, {
+      modern: true,
+      name: 'geocode',
+    })
+
+    expect(response.status).toBe(200)
+    expect(payload.error).toBeUndefined()
+    expect(payload.result?.structuredContent).toEqual({
+      success: true,
+      longitude: 116.3972,
+      latitude: 39.9163,
+      displayName: 'Forbidden City, Beijing, China',
+      boundingBox: {
+        south: 39.91,
+        north: 39.92,
+        west: 116.39,
+        east: 116.4,
+      },
+    })
+    expect(payload.result?.content).toEqual([{
+      type: 'text',
+      text: JSON.stringify(payload.result?.structuredContent),
+    }])
   })
 
   it('rejects modern header/body method mismatches', async () => {

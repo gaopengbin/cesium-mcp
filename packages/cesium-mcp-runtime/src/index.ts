@@ -35,7 +35,11 @@ import {
   cesiumRuntimeToolsets,
   getCesiumRuntimeToolMetadata,
 } from './tool-manifest.js'
-import { createMcpInputSchema } from './mcp-schema.js'
+import {
+  createMcpInputSchema,
+  createMcpOutputSchema,
+} from './mcp-schema.js'
+import { attachStructuredContent } from './tool-result.js'
 import {
   rejectPendingRequestsForClient,
   resolveBrowserTarget,
@@ -170,6 +174,7 @@ async function _invokeServerSideTool(action: string, params: Record<string, unkn
   const def = _toolDefs.get(action)
   if (!def) throw new Error(`Server-side tool "${action}" not found`)
   const mcpResult = await def.invoke(params)
+  if (mcpResult.structuredContent !== undefined) return mcpResult.structuredContent
   // Unwrap MCP content format to raw result for HTTP API compatibility
   const firstContent = mcpResult?.content?.[0]
   const text = firstContent?.type === 'text' ? firstContent.text : undefined
@@ -278,7 +283,13 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
     const allowedTools = tsParam
       ? new Set(tsParam.split(',').flatMap(s => TOOLSETS[s.trim()] ?? []))
       : null // null = no filter, show all enabled
-    const tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown>; _meta?: Record<string, unknown> }> = []
+    const tools: Array<{
+      name: string
+      description: string
+      inputSchema: Record<string, unknown>
+      outputSchema?: Record<string, unknown>
+      _meta?: Record<string, unknown>
+    }> = []
     for (const [name, definition] of _toolDefs.entries()) {
       if (allowedTools ? !allowedTools.has(name) : !_configuredState.enabledTools.has(name)) continue
       const jsonSchema = _toolJsonSchemas.get(name) ?? { type: 'object', properties: {} }
@@ -287,6 +298,9 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
         name,
         description: definition.description,
         inputSchema: jsonSchema,
+        ...(definition.outputJsonSchema
+          ? { outputSchema: definition.outputJsonSchema }
+          : {}),
         ...(toolset ? { _meta: { toolset } } : {}),
       })
     }
@@ -589,6 +603,8 @@ interface StoredToolDefinition {
   name: string
   description: string
   inputSchema: StandardSchemaWithJSON
+  outputSchema?: StandardSchemaWithJSON
+  outputJsonSchema?: JsonSchema
   annotations: ToolAnnotations
   handler: AnyToolHandler
   invoke: (params: Record<string, unknown>) => Promise<CallToolResult>
@@ -611,6 +627,7 @@ function _applyToolDef(s: McpServer, definition: StoredToolDefinition): void {
   s.registerTool(definition.name, {
     description: definition.description,
     inputSchema: definition.inputSchema,
+    ...(definition.outputSchema ? { outputSchema: definition.outputSchema } : {}),
     annotations: definition.annotations,
     ...(toolset ? { _meta: { toolset } } : {}),
   }, definition.handler as never)
@@ -658,6 +675,8 @@ function _registerTool<Shape extends z.ZodRawShape>(
   handler: LegacyToolHandler<Shape>,
 ): void {
   let inputSchema: StandardSchemaWithJSON
+  let outputSchema: StandardSchemaWithJSON | undefined
+  let outputJsonSchema: JsonSchema | undefined
   let jsonSchema: JsonSchema
 
   // Shared command metadata is canonical in cesium-mcp-contracts.
@@ -670,6 +689,8 @@ function _registerTool<Shape extends z.ZodRawShape>(
       metadata.parameterDescriptions,
     )
     inputSchema = createMcpInputSchema(jsonSchema)
+    outputJsonSchema = metadata.outputSchema
+    outputSchema = createMcpOutputSchema(metadata.outputSchema)
   } else {
     const schema = z.object({
       ...inputShape,
@@ -684,13 +705,22 @@ function _registerTool<Shape extends z.ZodRawShape>(
   }
 
   _toolJsonSchemas.set(name, jsonSchema)
+  const invoke = handler as unknown as (
+    params: Record<string, unknown>,
+  ) => Promise<CallToolResult>
+  const normalizedInvoke = metadata
+    ? async (params: Record<string, unknown>) => attachStructuredContent(await invoke(params))
+    : invoke
+
   _toolDefs.set(name, {
     name,
     description,
     inputSchema,
+    outputSchema,
+    outputJsonSchema,
     annotations,
-    handler: handler as unknown as AnyToolHandler,
-    invoke: handler as unknown as (params: Record<string, unknown>) => Promise<CallToolResult>,
+    handler: normalizedInvoke as unknown as AnyToolHandler,
+    invoke: normalizedInvoke,
   })
 }
 
@@ -868,9 +898,20 @@ _registerTool(
   { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Screenshot' },
   async () => {
     const result = await sendToBrowser('screenshot', {})
-    const data = result as { dataUrl?: string } | null
-    if (data?.dataUrl) {
-      return { content: [{ type: 'image' as const, data: data.dataUrl.replace(/^data:image\/\w+;base64,/, ''), mimeType: 'image/png' }] }
+    const structured = result as {
+      success?: boolean
+      data?: { dataUrl?: string; width?: number; height?: number }
+    } | null
+    const screenshot = structured?.data
+    if (screenshot?.dataUrl) {
+      return {
+        content: [{
+          type: 'image' as const,
+          data: screenshot.dataUrl.replace(/^data:image\/\w+;base64,/, ''),
+          mimeType: 'image/png',
+        }],
+        structuredContent: structured as Record<string, unknown>,
+      }
     }
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
   },

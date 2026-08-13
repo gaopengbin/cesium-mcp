@@ -1,6 +1,9 @@
 export { cesiumCoreToolContracts } from './tools'
 export { normalizeCesiumToolLocale } from './metadata'
-export { validateCesiumToolInput } from './validation'
+export {
+  validateCesiumToolInput,
+  validateCesiumToolOutput,
+} from './validation'
 export {
   cesiumBrowserToolContracts,
   cesiumBrowserToolsetDefinitions,

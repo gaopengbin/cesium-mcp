@@ -41,6 +41,7 @@ function equals(left: unknown, right: unknown): boolean {
 }
 
 function typeMatches(type: unknown, value: unknown): boolean {
+  if (Array.isArray(type)) return type.some(candidate => typeMatches(candidate, value))
   switch (type) {
     case 'object': return isRecord(value)
     case 'array': return Array.isArray(value)
@@ -167,11 +168,26 @@ export function validateCesiumToolInput(
   name: string,
   input: unknown,
 ): CesiumToolValidationResult {
+  return validateCesiumToolValue(name, input, 'inputSchema')
+}
+
+export function validateCesiumToolOutput(
+  name: string,
+  output: unknown,
+): CesiumToolValidationResult {
+  return validateCesiumToolValue(name, output, 'outputSchema')
+}
+
+function validateCesiumToolValue(
+  name: string,
+  value: unknown,
+  schemaKey: 'inputSchema' | 'outputSchema',
+): CesiumToolValidationResult {
   const contract = contractByName.get(name)
   if (!contract) return { knownTool: false, valid: true, issues: [] }
 
   const issues: CesiumToolValidationIssue[] = []
-  validateSchema(contract.inputSchema, input, '$', issues)
+  validateSchema(contract[schemaKey], value, '$', issues)
   return {
     knownTool: true,
     valid: issues.length === 0,

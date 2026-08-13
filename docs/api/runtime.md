@@ -74,7 +74,7 @@ cesium-mcp-runtime
 
 ## MCP Tools (62 command tools + 2 discovery meta-tools)
 
-Tools are organized into **12 toolsets**. By default, 4 core toolsets are enabled (30 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically. Shared titles, behavior annotations, localized descriptions, defaults, and input validation come from the canonical JSON Schemas in `cesium-mcp-contracts`.
+Tools are organized into **12 toolsets**. By default, 4 core toolsets are enabled (30 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically. Shared titles, behavior annotations, localized descriptions, defaults, input validation, advertised output schemas, and structured results come from the canonical JSON Schemas in `cesium-mcp-contracts`. Tool calls retain text `content` for older clients.
 
 ### Toolsets
 

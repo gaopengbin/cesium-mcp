@@ -16,6 +16,7 @@ export const cesiumRuntimeMetaToolNames = ['list_toolsets', 'enable_toolset'] as
 export interface CesiumRuntimeToolMetadata {
   description: string
   inputSchema: JsonSchema
+  outputSchema: JsonSchema
   parameterDescriptions: Readonly<Record<string, string>>
   annotations: {
     title: string
@@ -41,6 +42,7 @@ export function getCesiumRuntimeToolMetadata(
   return {
     description: localized.description,
     inputSchema: contract.inputSchema,
+    outputSchema: contract.outputSchema,
     parameterDescriptions: localized.parameters,
     annotations: {
       title: contract.title,

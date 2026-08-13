@@ -34,6 +34,7 @@ describe('runtime tool manifest', () => {
       const metadata = getCesiumRuntimeToolMetadata(contract.name, 'en')!
       expect(metadata.description).toBe(contract.description)
       expect(metadata.inputSchema).toBe(contract.inputSchema)
+      expect(metadata.outputSchema).toBe(contract.outputSchema)
       expect(metadata.annotations).toEqual({
         title: contract.title,
         readOnlyHint: contract.annotations.readOnlyHint,
@@ -88,6 +89,7 @@ describe('runtime tool manifest', () => {
 
   it('builds shared runtime validation from canonical JSON Schema', () => {
     expect(runtimeSource).toContain('inputSchema = createMcpInputSchema(jsonSchema)')
+    expect(runtimeSource).toContain('outputSchema = createMcpOutputSchema(metadata.outputSchema)')
   })
 
   it('matches the concrete MCP discovery registrations', () => {

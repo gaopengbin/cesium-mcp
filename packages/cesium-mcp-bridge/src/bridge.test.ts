@@ -41,7 +41,7 @@ describe('CesiumBridge command boundary', () => {
   it('supports one-command executor overrides without replacing the dispatcher', async () => {
     const executor = vi.fn<BridgeExecutor>().mockResolvedValue({
       success: true,
-      data: { source: 'custom' },
+      message: 'Custom camera flight completed',
     })
     const bridge = makeBridge({ executors: { flyTo: executor } })
 
@@ -50,11 +50,47 @@ describe('CesiumBridge command boundary', () => {
       params: { longitude: 116.4, latitude: 39.9 },
     })
 
-    expect(result).toEqual({ success: true, data: { source: 'custom' } })
+    expect(result).toEqual({ success: true, message: 'Custom camera flight completed' })
     expect(executor).toHaveBeenCalledWith(
       { longitude: 116.4, latitude: 39.9 },
       bridge,
     )
+  })
+
+  it('rejects invalid shared-contract output after dispatch', async () => {
+    const executor = vi.fn<BridgeExecutor>().mockResolvedValue({
+      success: true,
+      data: { source: 'unexpected' },
+    })
+    const bridge = makeBridge({ executors: { flyTo: executor } })
+
+    const result = await bridge.execute({
+      action: 'flyTo',
+      params: { longitude: 116.4, latitude: 39.9 },
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('Invalid result for "flyTo"')
+    expect(result.error).toContain('$.data')
+  })
+
+  it('allows output validation to be disabled as a compatibility escape hatch', async () => {
+    const executor = vi.fn<BridgeExecutor>().mockResolvedValue({
+      success: true,
+      data: { source: 'custom' },
+    })
+    const bridge = makeBridge({
+      validateOutputs: false,
+      executors: { flyTo: executor },
+    })
+
+    await expect(bridge.execute({
+      action: 'flyTo',
+      params: { longitude: 116.4, latitude: 39.9 },
+    })).resolves.toEqual({
+      success: true,
+      data: { source: 'custom' },
+    })
   })
 
   it('dispatches built-in view commands through the default registry', async () => {

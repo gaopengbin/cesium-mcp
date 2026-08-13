@@ -95,7 +95,7 @@ Cesium MCP 使用共享工具契约和协议无关的浏览器执行层，并为
 
 ### cesium-mcp-contracts（共享契约）
 
-Contracts 包维护与传输协议无关的工具名称、描述、JSON Schema、默认值、结果结构和工具集归属。WebMCP 直接发布这些定义，Function Calling 将同一输入 Schema 映射为 `function.parameters`，MCP Runtime 则包装为 SDK v2 Standard Schema，并且只增加传输层可选参数 `sessionId`。自动化一致性测试会对照全部 61 个共享工具和 Bridge 的 60 个 Executor，防止名称、描述或输入 Schema 静默漂移。
+Contracts 包维护与传输协议无关的工具名称、描述、JSON Schema、默认值、结果结构和工具集归属。WebMCP 直接发布这些定义，Function Calling 将同一输入 Schema 映射为 `function.parameters`，MCP Runtime 则把输入和输出 Schema 包装为 SDK v2 Standard Schema，并且只在输入侧增加传输层可选参数 `sessionId`。MCP 调用发布规范的 `structuredContent`，同时保留旧客户端可读的文本 `content`。自动化一致性测试会对照全部 61 个共享工具和 Bridge 的 60 个 Executor，防止名称、描述、输入或输出 Schema 静默漂移。
 
 ### cesium-mcp-bridge（浏览器端）
 

@@ -21,7 +21,7 @@ const viewer = new Cesium.Viewer('cesiumContainer')
 const bridge = new CesiumBridge(viewer)
 ```
 
-JSON command dispatch validates the shared tool contract before execution. You can override one executor while preserving all defaults:
+JSON command dispatch validates shared input contracts before execution and output contracts after execution. You can override one executor while preserving all defaults:
 
 ```js
 const bridge = new CesiumBridge(viewer, {
@@ -32,6 +32,8 @@ const bridge = new CesiumBridge(viewer, {
   },
 })
 ```
+
+Custom integrations that intentionally extend a result can set `validateOutputs: false`. Input validation has the equivalent `validateInputs: false` compatibility escape hatch.
 
 All 60 browser-safe executors are organized by domain and checked against the shared contracts. The public `execute()` and override contract remain stable; the sensitive `setIonToken` compatibility command stays outside the shared AI tool surface.
 

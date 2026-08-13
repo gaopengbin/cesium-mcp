@@ -177,7 +177,7 @@ MCP client config:
 
 Tools are organized into **12 toolsets**. Default mode enables 4 core toolsets (30 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically at runtime.
 
-> **Canonical contracts**: Tool descriptions default to English; set `CESIUM_LOCALE=zh-CN` for Chinese. Titles, behavior annotations, localized descriptions, defaults, and Runtime input validation all come from the shared JSON Schemas in `cesium-mcp-contracts`.
+> **Canonical contracts**: Tool descriptions default to English; set `CESIUM_LOCALE=zh-CN` for Chinese. Titles, behavior annotations, localized descriptions, defaults, input validation, MCP output schemas, and structured results all come from the shared JSON Schemas in `cesium-mcp-contracts`. Text `content` remains available for older clients.
 
 | Toolset | Tools |
 |---------|-------|

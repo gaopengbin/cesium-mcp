@@ -23,3 +23,8 @@ const validator = new AjvJsonSchemaValidator(ajv)
 export function createMcpInputSchema(schema: JsonSchema): StandardSchemaWithJSON {
   return fromJsonSchema(schema, validator)
 }
+
+/** Wrap a canonical output JSON Schema for SDK v2 registration and validation. */
+export function createMcpOutputSchema(schema: JsonSchema): StandardSchemaWithJSON {
+  return fromJsonSchema(schema, validator)
+}

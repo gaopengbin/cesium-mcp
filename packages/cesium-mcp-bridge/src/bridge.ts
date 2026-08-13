@@ -1,5 +1,8 @@
 import * as Cesium from 'cesium'
-import { validateCesiumToolInput } from 'cesium-mcp-contracts'
+import {
+  validateCesiumToolInput,
+  validateCesiumToolOutput,
+} from 'cesium-mcp-contracts'
 import type {
   BridgeCommand,
   BridgeResult,
@@ -81,6 +84,8 @@ export type BridgeExecutor = (
 export interface CesiumBridgeOptions {
   /** Validate shared browser-tool input contracts before dispatch. Defaults to true. */
   validateInputs?: boolean
+  /** Validate shared browser-tool output contracts after dispatch. Defaults to true. */
+  validateOutputs?: boolean
   /** Override selected commands without replacing the default dispatcher. */
   executors?: Readonly<Record<string, BridgeExecutor>>
 }
@@ -99,6 +104,7 @@ export class CesiumBridge {
   private _orbitHandler: OrbitHandler | null = null
   private _animations: AnimationMap = new Map()
   private _validateInputs: boolean
+  private _validateOutputs: boolean
   private _executors: Map<string, BridgeExecutor>
   private _operationAbortController = new AbortController()
   private _disposed = false
@@ -107,6 +113,7 @@ export class CesiumBridge {
     this._viewer = viewer
     this._layerManager = new LayerManager(viewer)
     this._validateInputs = options.validateInputs ?? true
+    this._validateOutputs = options.validateOutputs ?? true
     this._executors = new Map(Object.entries({
       ...createDefaultBridgeExecutors(),
       ...internalBridgeExecutors,
@@ -144,7 +151,22 @@ export class CesiumBridge {
       }
 
       const executor = this._executors.get(cmd.action)
-      if (executor) return await executor(p, this)
+      if (executor) {
+        const result = await executor(p, this)
+        if (this._validateOutputs) {
+          const validation = validateCesiumToolOutput(cmd.action, result)
+          if (!validation.valid) {
+            const detail = validation.issues
+              .map(issue => `${issue.path} ${issue.message}`)
+              .join('; ')
+            return {
+              success: false,
+              error: `Invalid result for "${cmd.action}": ${detail}`,
+            }
+          }
+        }
+        return result
+      }
 
       return { success: false, error: `未知指令: ${cmd.action}` }
     } catch (err) {
