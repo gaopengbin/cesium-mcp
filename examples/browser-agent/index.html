@@ -1004,17 +1004,6 @@ function initCesium() {
   return cesiumInitPromise
 }
 
-function armCesiumActivation() {
-  const events = ['pointerdown', 'keydown']
-  const activate = () => {
-    events.forEach(event => window.removeEventListener(event, activate))
-    initCesium().catch(error => {
-      console.error('[Agent] Cesium initialization failed:', error)
-    })
-  }
-  events.forEach(event => window.addEventListener(event, activate, { once: true, passive: true }))
-}
-
 async function initializeCesium() {
   await loadCesiumRuntime()
   await loadBridgeRuntime()
@@ -1420,8 +1409,10 @@ function initToolsList() {
 // ============================================================
 async function bootstrap() {
   applyLocale()
-  armCesiumActivation()
   refreshAiUsage()
+  initCesium().catch(error => {
+    console.error('[Agent] Cesium initialization failed:', error)
+  })
   try {
     await registerPageWebMcpTools()
   } catch (error) {

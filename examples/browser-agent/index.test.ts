@@ -24,16 +24,18 @@ describe('browser-agent startup order', () => {
     expect(html).toContain('https://cesium-browser-agent.pages.dev/favicon.svg')
   })
 
-  it('registers WebMCP without starting Cesium during page load', () => {
+  it('starts Cesium immediately without blocking WebMCP registration', () => {
     const bootstrapStart = html.indexOf('async function bootstrap()')
+    const cesiumInitialization = html.indexOf('initCesium().catch', bootstrapStart)
     const registration = html.indexOf('await registerPageWebMcpTools()', bootstrapStart)
     const bootstrapEnd = html.indexOf('\n}', bootstrapStart)
     const bootstrap = html.slice(bootstrapStart, bootstrapEnd)
 
     expect(bootstrapStart).toBeGreaterThan(-1)
+    expect(cesiumInitialization).toBeGreaterThan(bootstrapStart)
     expect(registration).toBeGreaterThan(bootstrapStart)
-    expect(bootstrap).not.toContain('initCesium()')
-    expect(bootstrap).toContain('armCesiumActivation()')
+    expect(cesiumInitialization).toBeLessThan(registration)
+    expect(bootstrap).not.toContain('armCesiumActivation()')
   })
 
   it('does not parser-block startup on the remote Cesium script', () => {
