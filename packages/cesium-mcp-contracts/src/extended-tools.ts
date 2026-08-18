@@ -14,6 +14,7 @@ const durationSchema: JsonSchema = { type: 'number', minimum: 0, maximum: 86400 
 const positionTupleSchema: JsonSchema = {
   type: 'array',
   prefixItems: [longitudeSchema, latitudeSchema, heightSchema],
+  items: numberSchema,
   minItems: 2,
   maxItems: 3,
 }
@@ -122,6 +123,7 @@ export const cesiumExtendedToolContracts: readonly CesiumToolContract[] = [
     bbox: {
       type: 'array',
       prefixItems: [longitudeSchema, latitudeSchema, longitudeSchema, latitudeSchema],
+      items: numberSchema,
       minItems: 4,
       maxItems: 4,
     },
@@ -179,6 +181,7 @@ export const cesiumExtendedToolContracts: readonly CesiumToolContract[] = [
     bbox: {
       type: 'array',
       prefixItems: [longitudeSchema, latitudeSchema, longitudeSchema, latitudeSchema],
+      items: numberSchema,
       minItems: 4,
       maxItems: 4,
     },
@@ -446,7 +449,11 @@ export const cesiumExtendedToolContracts: readonly CesiumToolContract[] = [
   tool('loadCzml', 'Load CZML data from inline packets or a URL.', {
     id: idSchema,
     name: { ...stringSchema, maxLength: 200 },
-    data: { type: 'array', maxItems: 10000 },
+    data: {
+      type: 'array',
+      items: { type: 'object', additionalProperties: true },
+      maxItems: 10000,
+    },
     url: urlSchema,
     sourceUri: urlSchema,
     clampToGround: booleanSchema,
