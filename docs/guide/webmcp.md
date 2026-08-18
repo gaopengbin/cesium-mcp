@@ -20,18 +20,21 @@ The HTTPS demo also contains a narrow, path-preserving proxy for its explicitly 
 ## Install in an existing Cesium app
 
 ```bash
-npm install cesium cesium-mcp-bridge cesium-mcp-webmcp
+npm install cesium-mcp-webmcp
 ```
+
+The host application already owns `cesium` and its Viewer. The Bridge and shared contracts are installed transitively, so an existing CesiumJS application adds only one package.
 
 Register the tools after creating your Cesium viewer:
 
 ```ts
-import { CesiumBridge } from 'cesium-mcp-bridge'
-import { isWebMcpSupported, registerCesiumWebMcp } from 'cesium-mcp-webmcp'
+import {
+  isWebMcpSupported,
+  registerCesiumViewerWebMcp,
+} from 'cesium-mcp-webmcp/viewer'
 
-const bridge = new CesiumBridge(viewer)
 const registration = isWebMcpSupported()
-  ? await registerCesiumWebMcp(bridge, {
+  ? await registerCesiumViewerWebMcp(viewer, {
       toolsets: 'all',
       excludeTools: ['geocode'],
     })
@@ -41,10 +44,10 @@ const registration = isWebMcpSupported()
 registration?.unregister()
 ```
 
-`registerCesiumWebMcp()` registers the 15-tool `core` selection by default. Use `toolsets: 'all'` for all 61 browser-safe tools, or select only what the page needs:
+`registerCesiumViewerWebMcp()` registers the 15-tool `core` selection by default. Use `toolsets: 'all'` for all 61 browser-safe tools, or select only what the page needs:
 
 ```ts
-await registerCesiumWebMcp(bridge, {
+await registerCesiumViewerWebMcp(viewer, {
   toolsets: ['view', 'entity', 'layer'],
 })
 ```
@@ -56,17 +59,14 @@ The 12 available toolsets are `view`, `entity`, `layer`, `camera`, `entity-ext`,
 The bridge directly executes 60 of the 61 browser-safe contracts. `geocode` needs an application-provided handler because it calls an external service:
 
 ```ts
-const executor = {
-  execute(command) {
-    if (command.action === 'geocode') {
-      return yourGeocoder(command.params)
-    }
-
-    return bridge.execute(command)
+await registerCesiumViewerWebMcp(viewer, {
+  toolsets: 'all',
+  bridgeOptions: {
+    executors: {
+      geocode: params => yourGeocoder(params),
+    },
   },
-}
-
-await registerCesiumWebMcp(executor, { toolsets: 'all' })
+})
 ```
 
 `setIonToken` is intentionally not exposed as a page tool. Cesium ion tokens and model-provider API keys remain application-owned secrets. Do not place private keys in tool schemas, tool results, or browser storage.
@@ -94,7 +94,7 @@ WebMCP is not available in every browser. Keep the application usable without it
 
 ```ts
 if (isWebMcpSupported()) {
-  const registration = await registerCesiumWebMcp(bridge)
+  const registration = await registerCesiumViewerWebMcp(viewer)
   // Store registration and unregister it during teardown.
 }
 ```
@@ -108,7 +108,7 @@ useEffect(() => {
   if (!viewer || !isWebMcpSupported()) return
 
   const controller = new AbortController()
-  void registerCesiumWebMcp(new CesiumBridge(viewer), {
+  void registerCesiumViewerWebMcp(viewer, {
     toolsets: 'all',
     signal: controller.signal,
   }).catch(error => {

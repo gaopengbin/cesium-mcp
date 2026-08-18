@@ -12,6 +12,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./viewer": {
+      "types": "./dist/viewer.d.ts",
+      "import": "./dist/viewer.js",
+      "require": "./dist/viewer.cjs"
+    },
     "./browser": "./dist/cesium-mcp-webmcp.browser.global.js"
   },
   "files": [
@@ -25,7 +30,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "cesium-mcp-bridge": "^1.145.1",
     "cesium-mcp-contracts": "^0.6.0"
+  },
+  "peerDependencies": {
+    "cesium": "~1.143.0"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

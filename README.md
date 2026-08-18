@@ -43,7 +43,7 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 |--------|------|--------|-------|
 | **cesium-mcp-contracts** | Transport-neutral names, descriptions, and JSON Schemas for browser tools | New shared layer | [source](packages/cesium-mcp-contracts/) |
 | **cesium-mcp-bridge** | Protocol- and transport-free Cesium command executor (60+ commands) | Mainline, actively iterated | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) · [source](packages/cesium-mcp-bridge/) |
-| **cesium-mcp-webmcp** | Native `document.modelContext` adapter for Cesium tool contracts | New browser adapter | [source](packages/cesium-mcp-webmcp/) |
+| **cesium-mcp-webmcp** | One-package Viewer integration plus the native `document.modelContext` adapter | Browser integration | [source](packages/cesium-mcp-webmcp/) |
 | **examples/webmcp-integration** | Focused npm + Vite integration without a chat UI or MCP server | Developer example | [example](examples/webmcp-integration/) |
 | **examples/browser-agent** | Browser-only AI agent with automatic WebMCP exposure | Recommended | [example](examples/browser-agent/) · [live demo](https://cesium-browser-agent.pages.dev/) |
 | **cesium-mcp-runtime** | MCP server (stdio + HTTP) | Stable MCP SDK v2 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) · [source](packages/cesium-mcp-runtime/) |
@@ -117,15 +117,13 @@ Open `http://localhost:4173/examples/browser-agent/`, click **Start**, then insp
 Application developers install the adapter separately. End users only open the integrated website; they do not install npm packages or run an MCP server.
 
 ```bash
-npm install cesium cesium-mcp-bridge cesium-mcp-webmcp
+npm install cesium-mcp-webmcp
 ```
 
 ```js
-import { CesiumBridge } from 'cesium-mcp-bridge'
-import { registerCesiumWebMcp } from 'cesium-mcp-webmcp'
+import { registerCesiumViewerWebMcp } from 'cesium-mcp-webmcp/viewer'
 
-const bridge = new CesiumBridge(viewer)
-const registration = await registerCesiumWebMcp(bridge, {
+const registration = await registerCesiumViewerWebMcp(viewer, {
   toolsets: 'all',
   excludeTools: ['geocode'], // add your own browser geocoder to expose this tool
 })

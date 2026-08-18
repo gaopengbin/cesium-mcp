@@ -13,7 +13,12 @@ npm run dev
 
 ## 接入边界
 
+已有 CesiumJS 应用只需安装 `cesium-mcp-webmcp`。包内的 `/viewer` 入口会自动带上 Bridge 依赖，根入口继续为自定义 Executor 提供低层适配器。
+
 ```ts
+import { CesiumBridge } from 'cesium-mcp-webmcp/viewer'
+import { registerCesiumWebMcp } from 'cesium-mcp-webmcp'
+
 const bridge = new CesiumBridge(viewer)
 const executor = {
   execute(command) {
@@ -27,8 +32,8 @@ const registration = await registerCesiumWebMcp(executor, {
 })
 ```
 
-- `cesium-mcp-bridge` 只执行 Cesium 命令。
-- `cesium-mcp-webmcp` 只把共享契约注册到 `document.modelContext`。
+- `cesium-mcp-webmcp/viewer` 提供已打包的 Cesium Bridge。
+- `cesium-mcp-webmcp` 把共享契约注册到 `document.modelContext`。
 - 凭据和地理编码等可选服务由应用自己管理。
 - 页面或组件卸载时调用 `registration.unregister()`。
 

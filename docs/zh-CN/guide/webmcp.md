@@ -20,18 +20,21 @@ HTTPS 在线演示还为明确批准的 HTTP 测试数据配置了一个保持�
 ## 接入已有 Cesium 应用
 
 ```bash
-npm install cesium cesium-mcp-bridge cesium-mcp-webmcp
+npm install cesium-mcp-webmcp
 ```
+
+宿主应用已经拥有 `cesium` 和 Viewer。Bridge 与共享契约会作为依赖自动安装，因此已有 CesiumJS 应用只需增加一个包。
 
 创建 Cesium Viewer 后注册工具：
 
 ```ts
-import { CesiumBridge } from 'cesium-mcp-bridge'
-import { isWebMcpSupported, registerCesiumWebMcp } from 'cesium-mcp-webmcp'
+import {
+  isWebMcpSupported,
+  registerCesiumViewerWebMcp,
+} from 'cesium-mcp-webmcp/viewer'
 
-const bridge = new CesiumBridge(viewer)
 const registration = isWebMcpSupported()
-  ? await registerCesiumWebMcp(bridge, {
+  ? await registerCesiumViewerWebMcp(viewer, {
       toolsets: 'all',
       excludeTools: ['geocode'],
     })
@@ -41,10 +44,10 @@ const registration = isWebMcpSupported()
 registration?.unregister()
 ```
 
-`registerCesiumWebMcp()` 默认注册包含 15 个工具的 `core` 选择。使用 `toolsets: 'all'` 可注册全部 61 个浏览器安全工具，也可以只选择页面需要的工具集：
+`registerCesiumViewerWebMcp()` 默认注册包含 15 个工具的 `core` 选择。使用 `toolsets: 'all'` 可注册全部 61 个浏览器安全工具，也可以只选择页面需要的工具集：
 
 ```ts
-await registerCesiumWebMcp(bridge, {
+await registerCesiumViewerWebMcp(viewer, {
   toolsets: ['view', 'entity', 'layer'],
 })
 ```
@@ -56,17 +59,14 @@ await registerCesiumWebMcp(bridge, {
 Bridge 可以直接执行 61 个浏览器安全契约中的 60 个。`geocode` 会访问外部服务，因此需要应用提供处理函数：
 
 ```ts
-const executor = {
-  execute(command) {
-    if (command.action === 'geocode') {
-      return yourGeocoder(command.params)
-    }
-
-    return bridge.execute(command)
+await registerCesiumViewerWebMcp(viewer, {
+  toolsets: 'all',
+  bridgeOptions: {
+    executors: {
+      geocode: params => yourGeocoder(params),
+    },
   },
-}
-
-await registerCesiumWebMcp(executor, { toolsets: 'all' })
+})
 ```
 
 `setIonToken` 有意不作为页面工具暴露。Cesium ion token 和模型服务 API key 都应由应用管理。不要把私钥放入工具 schema、工具结果或浏览器存储中。
@@ -94,7 +94,7 @@ Origin Trial 期间，如果要部署到 HTTPS 生产环境，需要为最终使
 
 ```ts
 if (isWebMcpSupported()) {
-  const registration = await registerCesiumWebMcp(bridge)
+  const registration = await registerCesiumViewerWebMcp(viewer)
   // 保存 registration，并在页面销毁时取消注册。
 }
 ```
@@ -108,7 +108,7 @@ useEffect(() => {
   if (!viewer || !isWebMcpSupported()) return
 
   const controller = new AbortController()
-  void registerCesiumWebMcp(new CesiumBridge(viewer), {
+  void registerCesiumViewerWebMcp(viewer, {
     toolsets: 'all',
     signal: controller.signal,
   }).catch(error => {

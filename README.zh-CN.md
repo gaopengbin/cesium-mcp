@@ -46,7 +46,7 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 |------|------|------|------|
 | **cesium-mcp-contracts** | 与传输无关的浏览器工具名称、说明和 JSON Schema | 新增共享层 | [源码](packages/cesium-mcp-contracts/) |
 | **cesium-mcp-bridge** | 与协议、传输无关的 Cesium 命令执行核心（60+ 命令） | 主线，持续迭代 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) · [源码](packages/cesium-mcp-bridge/) |
-| **cesium-mcp-webmcp** | 基于原生 `document.modelContext` 的 Cesium 工具适配层 | 新增浏览器适配层 | [源码](packages/cesium-mcp-webmcp/) |
+| **cesium-mcp-webmcp** | 一包完成 Viewer 接入，并提供原生 `document.modelContext` 适配层 | 浏览器接入 | [源码](packages/cesium-mcp-webmcp/) |
 | **examples/webmcp-integration** | 不包含聊天 UI 和 MCP 服务的 npm + Vite 接入示例 | 开发者示例 | [示例](examples/webmcp-integration/) |
 | **examples/browser-agent** | 纯浏览器 AI Agent，自动暴露 WebMCP 工具 | 推荐入口 | [示例](examples/browser-agent/) · [在线 demo](https://cesium-browser-agent.pages.dev/) |
 | **cesium-mcp-runtime** | MCP 服务器（stdio + HTTP） | 稳定版 MCP SDK v2 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) · [源码](packages/cesium-mcp-runtime/) |
@@ -120,15 +120,13 @@ npx serve . -l 4173
 应用开发者需要单独安装适配包；普通用户只需打开已经接入的网站，不需要安装 npm 包，也不需要启动 MCP 服务。
 
 ```bash
-npm install cesium cesium-mcp-bridge cesium-mcp-webmcp
+npm install cesium-mcp-webmcp
 ```
 
 ```js
-import { CesiumBridge } from 'cesium-mcp-bridge'
-import { registerCesiumWebMcp } from 'cesium-mcp-webmcp'
+import { registerCesiumViewerWebMcp } from 'cesium-mcp-webmcp/viewer'
 
-const bridge = new CesiumBridge(viewer)
-const registration = await registerCesiumWebMcp(bridge, {
+const registration = await registerCesiumViewerWebMcp(viewer, {
   toolsets: 'all',
   excludeTools: ['geocode'], // 如需该工具，请接入自己的浏览器地理编码处理器
 })
