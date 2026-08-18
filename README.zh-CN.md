@@ -3,11 +3,13 @@
 
   <h1>Cesium MCP</h1>
 
-  <p><strong>给 CesiumJS 加 AI 命令的最小代价</strong></p>
+  <p><strong>面向 MCP、WebMCP、Function Calling 与浏览器 Agent 的协议无关 Cesium AI 控制 Runtime</strong></p>
 
   <p><a href="packages/cesium-mcp-bridge/">cesium-mcp-bridge</a> 是协议无关的 Cesium 命令执行核心；独立适配层可将它接入 <strong>纯浏览器 Agent</strong>、<strong>WebMCP 浏览器 Agent</strong>、<strong>function calling</strong> 或 <strong>MCP</strong>。</p>
 
   <p>四种接入方式任选其一：<a href="examples/browser-agent/">浏览器 Agent</a>（最简单，零后端）· WebMCP（页面内浏览器工具）· function calling（自托管 Web 应用嵌入）· <a href="packages/cesium-mcp-runtime/">MCP runtime</a>（接 Claude Desktop / Cursor / Dify）</p>
+
+  <p>只有外部 MCP Host 接入时才需要本地 Runtime；浏览器 Agent、WebMCP 和 Function Calling 都可以在 Web 应用中直接执行同一套命令。</p>
 
   <p><a href="https://cesium-browser-agent.pages.dev/"><strong>立即体验</strong></a> — 在线 Demo，零安装、零注册</p>
 
@@ -85,6 +87,14 @@ flowchart LR
 ```
 
 bridge 保持为执行核心，工具契约和协议适配层分别独立。四种驱动方最终都调用同一个 Cesium 命令层，按场景选一种即可。在支持 WebMCP 的浏览器中，`cesium-mcp-webmcp` 可通过 `document.modelContext` 按 12 个工具集暴露 61 个浏览器安全命令，无需增加 MCP 传输层或后端服务器。
+
+### 与 CesiumGS 官方 AI 生态的关系
+
+CesiumGS 新一代 AI 工作主要拆分到两个仓库：[`cesiumjs-ai-starter-app`](https://github.com/CesiumGS/cesiumjs-ai-starter-app) 提供可部署的应用模板，[`cesiumjs-skills`](https://github.com/CesiumGS/cesiumjs-skills) 为编码 Agent 提供开发期知识。较早的 [`cesium-ai-integrations`](https://github.com/CesiumGS/cesium-ai-integrations) 则保留了这一方向的第一代实验和社区贡献。
+
+`cesium-mcp` 是独立的 Runtime 与集成工具包，不是早期纯 WebSocket 参考架构的延续。它的 Bridge 和共享工具契约可以原样用于纯浏览器 Function Calling、原生 WebMCP、stdio/HTTP 标准 MCP，以及内嵌桌面应用。只有外部 MCP Host 需要连接浏览器中的实时 Viewer 时才使用本地 WebSocket Bridge；在线 Demo 和页面内接入都不依赖它。
+
+项目作者曾参与 `CesiumGS/cesium-ai-integrations` 的早期建设，贡献 Imagery Server、Terrain Server 和统一 MCP Gateway。这些实验为当前的多协议架构提供了经验，但本项目的实现、发布周期和路线图保持独立。
 
 ## 快速开始
 
@@ -195,8 +205,6 @@ MCP 客户端配置：
 | heatmap | `addHeatmap` |
 | scene | `setSceneOptions`, `setPostProcess`, `setIonToken`（仅 Runtime） |
 | geolocation | `geocode` |
-
-> **与 CesiumGS 官方 MCP 服务器的关系**：`camera`、`entity-ext` 和 `animation` 工具集原生融合了 [CesiumGS/cesium-mcp-server](https://github.com/CesiumGS/cesium-mcp-server)（Camera Server、Entity Server、Animation Server）的能力到本项目的统一 Bridge 架构中。一个 MCP 服务器即可获得全部官方功能加更多工具，无需运行多个进程。
 
 ## 示例
 

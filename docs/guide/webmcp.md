@@ -27,17 +27,18 @@ Register the tools after creating your Cesium viewer:
 
 ```ts
 import { CesiumBridge } from 'cesium-mcp-bridge'
-import { registerCesiumWebMcp } from 'cesium-mcp-webmcp'
+import { isWebMcpSupported, registerCesiumWebMcp } from 'cesium-mcp-webmcp'
 
 const bridge = new CesiumBridge(viewer)
-
-const registration = await registerCesiumWebMcp(bridge, {
-  toolsets: 'all',
-  excludeTools: ['geocode'],
-})
+const registration = isWebMcpSupported()
+  ? await registerCesiumWebMcp(bridge, {
+      toolsets: 'all',
+      excludeTools: ['geocode'],
+    })
+  : undefined
 
 // Call this when the page or component is unmounted.
-registration.unregister()
+registration?.unregister()
 ```
 
 `registerCesiumWebMcp()` registers the 15-tool `core` selection by default. Use `toolsets: 'all'` for all 61 browser-safe tools, or select only what the page needs:
@@ -92,13 +93,33 @@ For an HTTPS production origin during the trial period, register that exact orig
 WebMCP is not available in every browser. Keep the application usable without it and treat registration as an enhancement:
 
 ```ts
-if ('modelContext' in document) {
+if (isWebMcpSupported()) {
   const registration = await registerCesiumWebMcp(bridge)
   // Store registration and unregister it during teardown.
 }
 ```
 
 The package targets the native `document.modelContext` API and does not install a polyfill.
+
+In React StrictMode, pass a component-owned abort signal so cleanup immediately unregisters completed tools and stops an in-progress registration batch before a replacement mount registers the same names:
+
+```ts
+useEffect(() => {
+  if (!viewer || !isWebMcpSupported()) return
+
+  const controller = new AbortController()
+  void registerCesiumWebMcp(new CesiumBridge(viewer), {
+    toolsets: 'all',
+    signal: controller.signal,
+  }).catch(error => {
+    if (!controller.signal.aborted) console.error(error)
+  })
+
+  return () => controller.abort()
+}, [viewer])
+```
+
+Use `buildCesiumWebMcpTools()` when you need to inspect the final tool payloads without registering them, or when the host wants to call `document.modelContext.registerTool()` itself with additional options.
 
 ## What this package does not include
 
