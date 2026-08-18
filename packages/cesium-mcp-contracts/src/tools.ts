@@ -41,6 +41,7 @@ const positionSchema: JsonSchema = {
       description: 'Optional height in meters',
     },
   ],
+  items: { type: 'number' },
   minItems: 2,
   maxItems: 3,
   description: 'Coordinate tuple [longitude, latitude, optional height]',
