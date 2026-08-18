@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 
 ::: tip Release channels
-- Stable: `npx cesium-mcp-runtime` → npm `latest`
+- Stable: `npx -y cesium-mcp-runtime` → npm `latest`
 
 The stable release supports MCP `2025-11-25` and `2026-07-28`, uses the
 stable TypeScript SDK v2, and passes the official `server-stateless`
@@ -15,8 +15,10 @@ conformance scenario (28/28).
 ## Installation & Run
 
 ```bash
-npx cesium-mcp-runtime
+npx -y cesium-mcp-runtime
 ```
+
+Open `http://localhost:9100/` for the included Viewer. The default path does not require a separate Bridge package.
 
 Or install globally:
 
@@ -77,6 +79,8 @@ cesium-mcp-runtime
 Tools are organized into **12 toolsets**. By default, 4 core toolsets are enabled (30 tools). Set `CESIUM_TOOLSETS=all` for everything, or let the AI discover and activate toolsets dynamically. Shared titles, behavior annotations, localized descriptions, defaults, input validation, advertised output schemas, and structured results come from the canonical JSON Schemas in `cesium-mcp-contracts`. Tool calls retain text `content` for older clients.
 
 The Runtime npm artifact includes the browser Bridge bundle served by `/bridge.js`. The built-in Viewer does not depend on an unpkg fallback, while CesiumJS assets continue to load from the official Cesium CDN.
+
+The default MCP path therefore needs only `cesium-mcp-runtime`. A separate `cesium-mcp-bridge` installation is for custom CesiumJS pages, not built-in Viewer users.
 
 ### Toolsets
 

@@ -10,7 +10,7 @@
 ## 安装与运行
 
 ```bash
-npx cesium-mcp-dev
+npx -y cesium-mcp-dev
 ```
 
 ## IDE 配置

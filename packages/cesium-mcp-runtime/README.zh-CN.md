@@ -24,6 +24,8 @@ AI 智能体 <--MCP HTTP---> cesium-mcp-runtime <--WebSocket--> 浏览器 (cesiu
 
 npm 包会直接携带浏览器 Bridge bundle，因此 `http://localhost:9100/` 内置 Viewer 不再依赖 unpkg 回退；CesiumJS 本身仍从 Cesium 官方 CDN 加载。
 
+普通 MCP 用户只需使用这一个包：运行 `cesium-mcp-runtime` 并打开内置 Viewer。只有开发自定义 CesiumJS 页面时，才需要单独安装 `cesium-mcp-bridge`。
+
 支持两种传输模式：
 
 | 传输方式 | 适用场景 | 协议 |
@@ -35,12 +37,14 @@ npm 包会直接携带浏览器 Bridge bundle，因此 `http://localhost:9100/` 
 
 ```bash
 # 稳定通道（stdio 模式，默认）
-npx cesium-mcp-runtime
+npx -y cesium-mcp-runtime
 
 # 也可以全局安装
 npm install -g cesium-mcp-runtime
 cesium-mcp-runtime
 ```
+
+然后打开 `http://localhost:9100/` 使用内置 Viewer。默认路径不需要另外安装 Bridge。
 
 ### Streamable HTTP 模式
 
@@ -48,7 +52,7 @@ cesium-mcp-runtime
 
 ```bash
 # 以 HTTP 传输模式启动
-npx cesium-mcp-runtime --transport http --port 3000
+npx -y cesium-mcp-runtime --transport http --port 3000
 
 # MCP 端点：POST http://localhost:3000/mcp
 ```
@@ -56,7 +60,7 @@ npx cesium-mcp-runtime --transport http --port 3000
 也可通过环境变量配置：
 
 ```bash
-MCP_TRANSPORT=http MCP_HTTP_PORT=3000 npx cesium-mcp-runtime
+MCP_TRANSPORT=http MCP_HTTP_PORT=3000 npx -y cesium-mcp-runtime
 ```
 
 HTTP 模式下默认启用全部 62 个 Cesium 命令工具（无需动态工具集发现）。
@@ -70,7 +74,7 @@ HTTP 模式下默认启用全部 62 个 Cesium 命令工具（无需动态工具
   "mcpServers": {
     "cesium": {
       "command": "npx",
-      "args": ["cesium-mcp-runtime"],
+      "args": ["-y", "cesium-mcp-runtime"],
       "env": {
         "CESIUM_WS_PORT": "9100",
         "DEFAULT_SESSION_ID": "default"
@@ -89,7 +93,7 @@ HTTP 模式下默认启用全部 62 个 Cesium 命令工具（无需动态工具
   "servers": {
     "cesium": {
       "command": "npx",
-      "args": ["cesium-mcp-runtime"],
+      "args": ["-y", "cesium-mcp-runtime"],
       "env": {
         "DEFAULT_SESSION_ID": "default"
       }
@@ -107,7 +111,7 @@ HTTP 模式下默认启用全部 62 个 Cesium 命令工具（无需动态工具
   "mcpServers": {
     "cesium": {
       "command": "npx",
-      "args": ["cesium-mcp-runtime"]
+      "args": ["-y", "cesium-mcp-runtime"]
     }
   }
 }
@@ -141,7 +145,7 @@ HTTP 模式下默认启用全部 62 个 Cesium 命令工具（无需动态工具
   "mcpServers": {
     "cesium": {
       "command": "npx",
-      "args": ["cesium-mcp-runtime"],
+      "args": ["-y", "cesium-mcp-runtime"],
       "env": {
         "CESIUM_TOOLSETS": "all"
       }

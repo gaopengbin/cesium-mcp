@@ -26,6 +26,7 @@ cesium-mcp 提供 **四种接入路径**，它们共享同一套 Cesium 命令�
 |---|---|---|---|---|
 | **智能体运行位置** | 兼容浏览器 | Web 应用 | 你的 Web 应用 | 桌面客户端或工作流平台 |
 | **是否需要 MCP 服务** | 否 | 否 | 否 | 是 |
+| **默认安装包** | `cesium-mcp-webmcp` | 无 | `cesium-mcp-bridge` | `cesium-mcp-runtime` |
 | **包是否要求模型** | 否 | 演示站提供 | 是，由应用管理 | 由 MCP 客户端管理 |
 | **工具范围** | 15 个核心或 61 个浏览器安全工具 | 自动调度至多 20 个，也可选择全部 61 个 + 61 个 WebMCP 工具 | 应用自行选择 | Runtime 工具集 |
 | **最适合** | 面向智能体的网站 | 体验和演示 | 产品内 AI 助手 | 接入 MCP 生态 |
@@ -58,11 +59,11 @@ WebMCP 不提供 AI 模型或聊天界面。接入步骤见 [WebMCP 浏览器接
 ## 路径 4：MCP runtime
 
 ```bash
-npx cesium-mcp-runtime
-npx cesium-mcp-runtime --transport http --port 3211
+npx -y cesium-mcp-runtime
+npx -y cesium-mcp-runtime --transport http --port 3211
 ```
 
-适合 Claude Desktop、Cursor、VS Code、Dify、n8n 或其他外部 MCP 客户端。这条路径会运行 Node.js MCP 服务，并通过 WebSocket 连接浏览器 Bridge。
+适合 Claude Desktop、Cursor、VS Code、Dify、n8n 或其他外部 MCP 客户端。一个 Runtime 包已经包含 MCP 服务、浏览器 Bridge bundle、会话路由和内置 Viewer。只有接入自定义 CesiumJS 页面时，才需要单独安装 `cesium-mcp-bridge`。
 
 ## 还在犹豫？
 

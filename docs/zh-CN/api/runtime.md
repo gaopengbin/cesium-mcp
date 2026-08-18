@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime)
 
 ::: tip 发布通道
-- 稳定版：`npx cesium-mcp-runtime` → npm `latest`
+- 稳定版：`npx -y cesium-mcp-runtime` → npm `latest`
 
 稳定版同时支持 MCP `2025-11-25` 和 `2026-07-28`，使用稳定版 TypeScript
 SDK v2，并通过官方 `server-stateless` 一致性场景（28/28）。
@@ -14,8 +14,10 @@ SDK v2，并通过官方 `server-stateless` 一致性场景（28/28）。
 ## 安装与运行
 
 ```bash
-npx cesium-mcp-runtime
+npx -y cesium-mcp-runtime
 ```
+
+打开 `http://localhost:9100/` 即可使用包内 Viewer，默认路径无需单独安装 Bridge。
 
 或全局安装：
 
@@ -76,6 +78,8 @@ cesium-mcp-runtime
 工具按 **12 个工具集** 组织。默认启用 4 个核心工具集（30 个工具）。设置 `CESIUM_TOOLSETS=all` 启用全部，或由 AI 在运行时动态发现和激活。共享标题、行为标注、多语言描述、默认值、输入校验、对外发布的输出 Schema 和结构化结果统一来自 `cesium-mcp-contracts` 中的标准 JSON Schema；旧客户端仍可读取文本 `content`。
 
 Runtime npm 产物会包含由 `/bridge.js` 提供的浏览器 Bridge bundle，内置 Viewer 不再依赖 unpkg 回退；CesiumJS 资源仍从 Cesium 官方 CDN 加载。
+
+因此默认 MCP 路径只需要 `cesium-mcp-runtime`。单独安装 `cesium-mcp-bridge` 只用于自定义 CesiumJS 页面，不是内置 Viewer 用户的前提。
 
 ### 工具集
 

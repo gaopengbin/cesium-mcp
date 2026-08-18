@@ -21,7 +21,7 @@ IDE AI 助手 <--MCP stdio--> cesium-mcp-dev --> API 文档、代码片段、Ent
 ## 安装与运行
 
 ```bash
-npx cesium-mcp-dev
+npx -y cesium-mcp-dev
 ```
 
 ## IDE 配置

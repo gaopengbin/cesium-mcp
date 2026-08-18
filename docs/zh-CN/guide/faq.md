@@ -7,10 +7,10 @@
 **表现**：浏览器控制台显示 `WebSocket connection to 'ws://localhost:9100' failed`。
 
 **解决方案**：
-1. 确认 `cesium-mcp-runtime` 正在运行：`npx cesium-mcp-runtime`
+1. 确认 `cesium-mcp-runtime` 正在运行：`npx -y cesium-mcp-runtime`
 2. 检查端口 — 如果 9100 端口被占用，设置自定义端口：
    ```bash
-   CESIUM_WS_PORT=9200 npx cesium-mcp-runtime
+   CESIUM_WS_PORT=9200 npx -y cesium-mcp-runtime
    ```
    Runtime 将自动在新端口上监听。
 3. 如果使用 HTTPS，浏览器会阻止混合内容（需要使用 wss://）。可使用反向代理或隧道（如 ngrok）。
@@ -30,8 +30,8 @@
 
 Runtime 找不到已连接的浏览器会话。
 
-1. 在浏览器中打开你的 CesiumJS 应用
-2. 检查 Bridge 初始化代码是否在运行（浏览器控制台中查找 `[CesiumBridge] connected`）
+1. 打开内置 Viewer：`http://localhost:9100/?session=default`，或打开自定义 CesiumJS 页面
+2. 自定义页面需检查 Runtime WebSocket 连接是否已经初始化
 3. 如果使用多个标签页，为每个标签页设置不同的 `sessionId`
 
 ### 只有部分工具可用
@@ -39,7 +39,7 @@ Runtime 找不到已连接的浏览器会话。
 默认只启用核心工具集。要启用全部 62 个命令工具：
 
 ```bash
-CESIUM_TOOLSETS=all npx cesium-mcp-runtime
+CESIUM_TOOLSETS=all npx -y cesium-mcp-runtime
 ```
 
 或使用动态发现 — 让 AI 智能体执行：*"列出可用的工具集"*，然后 *"启用动画工具集"*。
@@ -68,7 +68,7 @@ Bridge 不处理令牌 — 由你的 CesiumJS 应用自行管理。
 设置 `CESIUM_WS_PORT` 环境变量：
 
 ```bash
-CESIUM_WS_PORT=9200 npx cesium-mcp-runtime
+CESIUM_WS_PORT=9200 npx -y cesium-mcp-runtime
 ```
 
 ### 能否使用远程/云端模式？
@@ -76,7 +76,7 @@ CESIUM_WS_PORT=9200 npx cesium-mcp-runtime
 可以。Runtime 支持 Streamable HTTP 模式进行远程访问：
 
 ```bash
-npx cesium-mcp-runtime --mode http --port 3000
+npx -y cesium-mcp-runtime --transport http --port 3000
 ```
 
 也可以使用托管端点 `https://mcp.gpb.cc`。

@@ -1,6 +1,6 @@
 # Cesium MCP 极简接入示例
 
-一个最小化的完整示例，展示如何用 cesium-mcp-bridge + cesium-mcp-runtime 让 AI Agent 操控浏览器中的 Cesium 3D 地图。
+一个面向应用开发者的自定义页面示例，展示如何把 cesium-mcp-bridge 接到 cesium-mcp-runtime。普通 MCP 用户无需使用本示例，直接运行 Runtime 自带的 Viewer 即可。
 
 ## 文件结构
 
@@ -12,11 +12,10 @@ examples/minimal/
 
 ## 快速体验
 
-### 步骤 1: 启动 Runtime
+### 步骤 1: 启动 Runtime（一包即可）
 
 ```bash
-cd packages/cesium-mcp-runtime
-npx tsx src/index.ts
+npx -y cesium-mcp-runtime
 # 监听 9100 端口 (HTTP + WebSocket + MCP stdio)
 ```
 
@@ -40,7 +39,7 @@ npx serve examples/minimal -l 3000
   "mcpServers": {
     "cesium": {
       "command": "npx",
-      "args": ["tsx", "<项目路径>/packages/cesium-mcp-runtime/src/index.ts"]
+      "args": ["-y", "cesium-mcp-runtime"]
     }
   }
 }

@@ -156,14 +156,14 @@ const bridge = new CesiumBridge(viewer);
 
 ### 路径 3 — 从 Claude Desktop / Cursor / Dify 调用（MCP）
 
-按路径 2 安装 bridge，然后启动 MCP runtime：
+普通 MCP 用户只需要 Runtime 一个包。它已经包含浏览器 Bridge bundle，并在 `http://localhost:9100/` 提供内置 Viewer；只有接入自定义页面时才需要单独安装 `cesium-mcp-bridge`。
 
 ```bash
 # 稳定通道 — npm latest，MCP SDK v2
-npx cesium-mcp-runtime
+npx -y cesium-mcp-runtime
 
 # HTTP 模式
-npx cesium-mcp-runtime --transport http --port 3000
+npx -y cesium-mcp-runtime --transport http --port 3000
 ```
 
 稳定版通过同一个 stdio/HTTP 入口同时支持现有 MCP `2025-11-25`

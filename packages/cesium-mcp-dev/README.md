@@ -21,7 +21,7 @@ IDE AI Assistant <--MCP stdio--> cesium-mcp-dev --> API docs, code snippets, Ent
 ## Install & Run
 
 ```bash
-npx cesium-mcp-dev
+npx -y cesium-mcp-dev
 ```
 
 ## IDE Configuration

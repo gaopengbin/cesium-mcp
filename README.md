@@ -153,14 +153,14 @@ See [examples/browser-agent/index.html](examples/browser-agent/index.html) for a
 
 ### Path 3 — Use from Claude Desktop / Cursor / Dify (MCP)
 
-Install bridge as in Path 2, then start the MCP runtime:
+Ordinary MCP users need only the Runtime package. It includes the browser Bridge bundle and a built-in Viewer at `http://localhost:9100/`; install `cesium-mcp-bridge` separately only when integrating a custom page.
 
 ```bash
 # Stable channel — npm latest, MCP SDK v2
-npx cesium-mcp-runtime
+npx -y cesium-mcp-runtime
 
 # HTTP mode
-npx cesium-mcp-runtime --transport http --port 3000
+npx -y cesium-mcp-runtime --transport http --port 3000
 ```
 
 The stable release serves existing MCP `2025-11-25` clients and the new

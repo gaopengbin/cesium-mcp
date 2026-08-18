@@ -25,6 +25,8 @@ The runtime acts as a bridge between MCP-compatible AI clients (Claude Desktop, 
 
 The npm package ships its browser Bridge bundle locally. The built-in Viewer at `http://localhost:9100/` therefore does not depend on an unpkg fallback; CesiumJS itself is still loaded from the official Cesium CDN.
 
+For ordinary MCP users this is a one-package setup: run `cesium-mcp-runtime` and use the built-in Viewer. Install `cesium-mcp-bridge` separately only when developing a custom CesiumJS page.
+
 Two transport modes are supported:
 
 | Transport | Use Case | Protocol |
@@ -36,12 +38,14 @@ Two transport modes are supported:
 
 ```bash
 # Stable channel (stdio mode, default)
-npx cesium-mcp-runtime
+npx -y cesium-mcp-runtime
 
 # Or install globally
 npm install -g cesium-mcp-runtime
 cesium-mcp-runtime
 ```
+
+Then open `http://localhost:9100/` to use the built-in Viewer. No separate Bridge installation is required for this default path.
 
 ### Streamable HTTP Mode
 
@@ -49,7 +53,7 @@ For remote/cloud MCP clients like Dify:
 
 ```bash
 # Start in HTTP transport mode
-npx cesium-mcp-runtime --transport http --port 3000
+npx -y cesium-mcp-runtime --transport http --port 3000
 
 # MCP endpoint: POST http://localhost:3000/mcp
 ```
@@ -57,7 +61,7 @@ npx cesium-mcp-runtime --transport http --port 3000
 Environment variable alternative:
 
 ```bash
-MCP_TRANSPORT=http MCP_HTTP_PORT=3000 npx cesium-mcp-runtime
+MCP_TRANSPORT=http MCP_HTTP_PORT=3000 npx -y cesium-mcp-runtime
 ```
 
 In HTTP mode, all 62 Cesium command tools are enabled by default (no dynamic toolset discovery needed).
@@ -71,7 +75,7 @@ In HTTP mode, all 62 Cesium command tools are enabled by default (no dynamic too
   "mcpServers": {
     "cesium": {
       "command": "npx",
-      "args": ["cesium-mcp-runtime"],
+      "args": ["-y", "cesium-mcp-runtime"],
       "env": {
         "CESIUM_WS_PORT": "9100",
         "DEFAULT_SESSION_ID": "default"
@@ -90,7 +94,7 @@ In `.vscode/mcp.json`:
   "servers": {
     "cesium": {
       "command": "npx",
-      "args": ["cesium-mcp-runtime"],
+      "args": ["-y", "cesium-mcp-runtime"],
       "env": {
         "DEFAULT_SESSION_ID": "default"
       }
@@ -108,7 +112,7 @@ In `.cursor/mcp.json`:
   "mcpServers": {
     "cesium": {
       "command": "npx",
-      "args": ["cesium-mcp-runtime"]
+      "args": ["-y", "cesium-mcp-runtime"]
     }
   }
 }
@@ -142,7 +146,7 @@ Tools are organized into **12 toolsets**. By default, 4 core toolsets are enable
   "mcpServers": {
     "cesium": {
       "command": "npx",
-      "args": ["cesium-mcp-runtime"],
+      "args": ["-y", "cesium-mcp-runtime"],
       "env": {
         "CESIUM_TOOLSETS": "all"
       }
