@@ -10,7 +10,7 @@ and `2026-07-28` clients.
 ## Installation & Run
 
 ```bash
-npx cesium-mcp-dev
+npx -y cesium-mcp-dev
 ```
 
 ## IDE Configuration

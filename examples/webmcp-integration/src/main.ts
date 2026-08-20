@@ -6,7 +6,7 @@ import {
   OpenStreetMapImageryProvider,
   Viewer,
 } from 'cesium'
-import { CesiumBridge } from 'cesium-mcp-bridge'
+import { CesiumBridge } from 'cesium-mcp-webmcp/viewer'
 import {
   registerCesiumWebMcp,
 } from 'cesium-mcp-webmcp'

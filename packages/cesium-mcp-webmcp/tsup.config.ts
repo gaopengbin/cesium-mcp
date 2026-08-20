@@ -2,12 +2,12 @@ import { defineConfig } from 'tsup'
 
 export default defineConfig([
   {
-    entry: ['src/index.ts'],
+    entry: ['src/index.ts', 'src/viewer.ts'],
     format: ['esm', 'cjs'],
     dts: true,
     splitting: false,
     clean: true,
-    external: ['cesium-mcp-contracts'],
+    external: ['cesium', 'cesium-mcp-bridge', 'cesium-mcp-contracts'],
     treeshake: true,
   },
   {

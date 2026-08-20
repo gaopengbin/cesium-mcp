@@ -20,30 +20,34 @@ HTTPS 在线演示还为明确批准的 HTTP 测试数据配置了一个保持�
 ## 接入已有 Cesium 应用
 
 ```bash
-npm install cesium cesium-mcp-bridge cesium-mcp-webmcp
+npm install cesium-mcp-webmcp
 ```
+
+宿主应用已经拥有 `cesium` 和 Viewer。Bridge 与共享契约会作为依赖自动安装，因此已有 CesiumJS 应用只需增加一个包。
 
 创建 Cesium Viewer 后注册工具：
 
 ```ts
-import { CesiumBridge } from 'cesium-mcp-bridge'
-import { registerCesiumWebMcp } from 'cesium-mcp-webmcp'
+import {
+  isWebMcpSupported,
+  registerCesiumViewerWebMcp,
+} from 'cesium-mcp-webmcp/viewer'
 
-const bridge = new CesiumBridge(viewer)
-
-const registration = await registerCesiumWebMcp(bridge, {
-  toolsets: 'all',
-  excludeTools: ['geocode'],
-})
+const registration = isWebMcpSupported()
+  ? await registerCesiumViewerWebMcp(viewer, {
+      toolsets: 'all',
+      excludeTools: ['geocode'],
+    })
+  : undefined
 
 // 页面或组件卸载时调用。
-registration.unregister()
+registration?.unregister()
 ```
 
-`registerCesiumWebMcp()` 默认注册包含 15 个工具的 `core` 选择。使用 `toolsets: 'all'` 可注册全部 61 个浏览器安全工具，也可以只选择页面需要的工具集：
+`registerCesiumViewerWebMcp()` 默认注册包含 15 个工具的 `core` 选择。使用 `toolsets: 'all'` 可注册全部 61 个浏览器安全工具，也可以只选择页面需要的工具集：
 
 ```ts
-await registerCesiumWebMcp(bridge, {
+await registerCesiumViewerWebMcp(viewer, {
   toolsets: ['view', 'entity', 'layer'],
 })
 ```
@@ -55,17 +59,14 @@ await registerCesiumWebMcp(bridge, {
 Bridge 可以直接执行 61 个浏览器安全契约中的 60 个。`geocode` 会访问外部服务，因此需要应用提供处理函数：
 
 ```ts
-const executor = {
-  execute(command) {
-    if (command.action === 'geocode') {
-      return yourGeocoder(command.params)
-    }
-
-    return bridge.execute(command)
+await registerCesiumViewerWebMcp(viewer, {
+  toolsets: 'all',
+  bridgeOptions: {
+    executors: {
+      geocode: params => yourGeocoder(params),
+    },
   },
-}
-
-await registerCesiumWebMcp(executor, { toolsets: 'all' })
+})
 ```
 
 `setIonToken` 有意不作为页面工具暴露。Cesium ion token 和模型服务 API key 都应由应用管理。不要把私钥放入工具 schema、工具结果或浏览器存储中。
@@ -92,13 +93,33 @@ Origin Trial 期间，如果要部署到 HTTPS 生产环境，需要为最终使
 并非所有浏览器都支持 WebMCP。应用应在没有 WebMCP 时仍能正常使用，把工具注册作为渐进增强：
 
 ```ts
-if ('modelContext' in document) {
-  const registration = await registerCesiumWebMcp(bridge)
+if (isWebMcpSupported()) {
+  const registration = await registerCesiumViewerWebMcp(viewer)
   // 保存 registration，并在页面销毁时取消注册。
 }
 ```
 
 该包只面向原生 `document.modelContext` API，不会安装 polyfill。
+
+在 React StrictMode 中，应从组件生命周期传入独立的取消信号。组件清理时，它会立即注销已经注册的工具，并阻止尚未完成的批量注册继续占用同名工具：
+
+```ts
+useEffect(() => {
+  if (!viewer || !isWebMcpSupported()) return
+
+  const controller = new AbortController()
+  void registerCesiumViewerWebMcp(viewer, {
+    toolsets: 'all',
+    signal: controller.signal,
+  }).catch(error => {
+    if (!controller.signal.aborted) console.error(error)
+  })
+
+  return () => controller.abort()
+}, [viewer])
+```
+
+如果只想检查最终生成的工具对象而不立即注册，或者应用需要自行调用 `document.modelContext.registerTool()` 并传入额外选项，可以使用 `buildCesiumWebMcpTools()`。
 
 ## 这个包不包含什么
 

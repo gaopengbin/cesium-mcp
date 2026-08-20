@@ -5,7 +5,7 @@
 ## 环境要求
 
 - Docker Desktop（用于运行 Dify）
-- Node.js 18+
+- Node.js 20+
 - 支持 Function Calling 的 LLM（如 Ollama qwen3、OpenAI GPT-4 等）
 
 ## 架构概览
@@ -25,23 +25,19 @@
 ### 1. 启动 Cesium MCP Runtime
 
 ```bash
-# 安装
-npm install -g cesium-mcp-runtime
-
-# 启动 HTTP 模式
-npx cesium-mcp-runtime --transport http --port 3211
+# 一个包直接启动 HTTP 模式
+npx -y cesium-mcp-runtime --transport http --port 3211
 
 # 输出示例：
 # [cesium-mcp-runtime] HTTP + WebSocket server on http://localhost:9100
-# [cesium-mcp-runtime] MCP Server running (Streamable HTTP), 58 tools available
+# [cesium-mcp-runtime] MCP Server running (Streamable HTTP), 62 tools available
 # [cesium-mcp-runtime] MCP endpoint: http://localhost:3211/mcp
 ```
 
 ### 2. 打开 CesiumJS Demo 页面
 
-1. 在浏览器中打开：`http://localhost:9100/demo/index.html`
-2. 修改 WebSocket URL 为：`ws://localhost:9100?session=default`
-3. 点击「连接」，确认显示"已连接"
+1. 在浏览器中打开内置 Viewer：`http://localhost:9100/?session=default`
+2. 确认页面显示 Runtime 会话已连接
 
 > **重要**：session 必须设为 `default`，这是 MCP 工具的默认会话标识。
 
@@ -139,7 +135,7 @@ Agent 会解析为两个工具调用：
 | `addGeoJsonLayer` | 加载 GeoJSON |
 | `setBasemap` | 切换底图 |
 | `screenshot` | 截取地图图片 |
-| ... | 共 58 个工具 |
+| ... | 共 62 个工具 |
 
 完整工具列表参见 [API 文档](../../docs/api/runtime.md)
 

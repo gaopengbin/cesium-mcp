@@ -20,30 +20,34 @@ The HTTPS demo also contains a narrow, path-preserving proxy for its explicitly 
 ## Install in an existing Cesium app
 
 ```bash
-npm install cesium cesium-mcp-bridge cesium-mcp-webmcp
+npm install cesium-mcp-webmcp
 ```
+
+The host application already owns `cesium` and its Viewer. The Bridge and shared contracts are installed transitively, so an existing CesiumJS application adds only one package.
 
 Register the tools after creating your Cesium viewer:
 
 ```ts
-import { CesiumBridge } from 'cesium-mcp-bridge'
-import { registerCesiumWebMcp } from 'cesium-mcp-webmcp'
+import {
+  isWebMcpSupported,
+  registerCesiumViewerWebMcp,
+} from 'cesium-mcp-webmcp/viewer'
 
-const bridge = new CesiumBridge(viewer)
-
-const registration = await registerCesiumWebMcp(bridge, {
-  toolsets: 'all',
-  excludeTools: ['geocode'],
-})
+const registration = isWebMcpSupported()
+  ? await registerCesiumViewerWebMcp(viewer, {
+      toolsets: 'all',
+      excludeTools: ['geocode'],
+    })
+  : undefined
 
 // Call this when the page or component is unmounted.
-registration.unregister()
+registration?.unregister()
 ```
 
-`registerCesiumWebMcp()` registers the 15-tool `core` selection by default. Use `toolsets: 'all'` for all 61 browser-safe tools, or select only what the page needs:
+`registerCesiumViewerWebMcp()` registers the 15-tool `core` selection by default. Use `toolsets: 'all'` for all 61 browser-safe tools, or select only what the page needs:
 
 ```ts
-await registerCesiumWebMcp(bridge, {
+await registerCesiumViewerWebMcp(viewer, {
   toolsets: ['view', 'entity', 'layer'],
 })
 ```
@@ -55,17 +59,14 @@ The 12 available toolsets are `view`, `entity`, `layer`, `camera`, `entity-ext`,
 The bridge directly executes 60 of the 61 browser-safe contracts. `geocode` needs an application-provided handler because it calls an external service:
 
 ```ts
-const executor = {
-  execute(command) {
-    if (command.action === 'geocode') {
-      return yourGeocoder(command.params)
-    }
-
-    return bridge.execute(command)
+await registerCesiumViewerWebMcp(viewer, {
+  toolsets: 'all',
+  bridgeOptions: {
+    executors: {
+      geocode: params => yourGeocoder(params),
+    },
   },
-}
-
-await registerCesiumWebMcp(executor, { toolsets: 'all' })
+})
 ```
 
 `setIonToken` is intentionally not exposed as a page tool. Cesium ion tokens and model-provider API keys remain application-owned secrets. Do not place private keys in tool schemas, tool results, or browser storage.
@@ -92,13 +93,33 @@ For an HTTPS production origin during the trial period, register that exact orig
 WebMCP is not available in every browser. Keep the application usable without it and treat registration as an enhancement:
 
 ```ts
-if ('modelContext' in document) {
-  const registration = await registerCesiumWebMcp(bridge)
+if (isWebMcpSupported()) {
+  const registration = await registerCesiumViewerWebMcp(viewer)
   // Store registration and unregister it during teardown.
 }
 ```
 
 The package targets the native `document.modelContext` API and does not install a polyfill.
+
+In React StrictMode, pass a component-owned abort signal so cleanup immediately unregisters completed tools and stops an in-progress registration batch before a replacement mount registers the same names:
+
+```ts
+useEffect(() => {
+  if (!viewer || !isWebMcpSupported()) return
+
+  const controller = new AbortController()
+  void registerCesiumViewerWebMcp(viewer, {
+    toolsets: 'all',
+    signal: controller.signal,
+  }).catch(error => {
+    if (!controller.signal.aborted) console.error(error)
+  })
+
+  return () => controller.abort()
+}, [viewer])
+```
+
+Use `buildCesiumWebMcpTools()` when you need to inspect the final tool payloads without registering them, or when the host wants to call `document.modelContext.registerTool()` itself with additional options.
 
 ## What this package does not include
 
