@@ -29,6 +29,9 @@ jobs:
 
       - run: npm run lint
 
+      - name: Validate provider schema compatibility
+        run: npm run test:schema-compat
+
       - run: npx vitest run
 
       # Workspace builds update the tracked browser/runtime bundles and can

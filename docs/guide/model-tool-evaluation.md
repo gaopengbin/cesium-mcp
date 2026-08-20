@@ -7,6 +7,24 @@ Cesium MCP measures two different parts of tool selection independently:
 
 Keeping these scores separate makes a failure diagnosable. A routing miss is not blamed on the model, and a model-choice failure is not hidden by perfect routing coverage.
 
+## Provider schema compatibility gate
+
+Before evaluating model choice, validate that every provider can accept the advertised tools:
+
+```bash
+npm run test:schema-compat
+```
+
+The gate audits all 61 browser-safe tools on four exported surfaces: canonical Contracts, MCP Runtime metadata, WebMCP registration payloads, and OpenAI-format Function Calling definitions. It enforces portability rules exposed by real VS Code and Azure/OpenAI integrations:
+
+- the root input schema is `type: "object"`
+- no root-level `oneOf`, `anyOf`, or `allOf`
+- every array declares `items`, including tuples that also use `prefixItems`
+- no published schema contains a `$schema` meta-schema pointer
+- every schema is JSON serializable
+
+Failures report the surface, tool name, affected providers, rule, and exact JSON Schema path. The same test is part of `npm run test:contracts` and the full Vitest CI suite.
+
 ## Deterministic baseline
 
 ```bash

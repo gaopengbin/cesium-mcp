@@ -28,6 +28,9 @@ jobs:
 
       - run: npm run lint
 
+      - name: Validate provider schema compatibility
+        run: npm run test:schema-compat
+
       - run: npx vitest run
 
       - run: npx playwright install --with-deps chromium

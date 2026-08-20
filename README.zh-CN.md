@@ -217,10 +217,12 @@ npm install
 npm run build
 npm test
 npm run test:contracts
+npm run test:schema-compat
 npm run test:routing
 npm run test:e2e:packed
 ```
 
+`test:contracts` 会检查 MCP Runtime、WebMCP、Function Calling、Provider Schema 兼容性和 Bridge Executor 是否保持一致；`test:schema-compat` 可单独输出 OpenAI、Azure、VS Code MCP 与 WebMCP 的准确 Schema 问题路径。
 `test:routing` 使用中英文及跨领域请求评测全部 12 个工具集，检查必需工具召回率和自动路由的 20 工具预算。
 `test:e2e:packed` 会生成 npm tarball、安装到全新的临时项目、打开真实 Cesium Viewer，并验证 Runtime、WebSocket 与 Bridge 的命令往返。
 
