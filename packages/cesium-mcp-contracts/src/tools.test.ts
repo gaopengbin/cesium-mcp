@@ -31,6 +31,23 @@ describe('cesiumCoreToolContracts', () => {
     ])
   })
 
+  it('publishes items for every input array for strict MCP clients', () => {
+    const missing: string[] = []
+
+    const visit = (value: unknown, path: string): void => {
+      if (!value || typeof value !== 'object') return
+      const schema = value as Record<string, unknown>
+      if (schema.type === 'array' && !('items' in schema)) missing.push(path)
+      for (const [key, child] of Object.entries(schema)) visit(child, `${path}.${key}`)
+    }
+
+    for (const tool of cesiumBrowserToolContracts) {
+      visit(tool.inputSchema, tool.name)
+    }
+
+    expect(missing).toEqual([])
+  })
+
   it('publishes one canonical shared inventory and toolset definition', () => {
     expect(cesiumSharedToolNames).toEqual(cesiumBrowserToolContracts.map(tool => tool.name))
     expect(new Set(cesiumSharedToolNames).size).toBe(cesiumSharedToolNames.length)

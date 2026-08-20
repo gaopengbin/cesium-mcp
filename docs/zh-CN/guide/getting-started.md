@@ -4,56 +4,44 @@
 
 ## 前置条件
 
-- **Node.js** 22 或更高版本
-- 一个 **CesiumJS** 应用（或使用我们提供的最小示例）
+- **Node.js** 20 或更高版本
 - 一个 **兼容 MCP 的 AI 客户端**（Claude Desktop、VS Code Copilot、Cursor 等）
+- 独立的 CesiumJS 应用不是必需项；Runtime 已提供可直接使用的 Viewer
 
-## 安装
+## 一包快速开始
 
 ::: tip MCP SDK v2 已稳定
 npm `latest` 稳定版通过同一个 stdio/HTTP 入口同时支持现有 MCP
 `2025-11-25` 客户端和新的 `2026-07-28` 协议。
 
 ```bash
-npm install cesium-mcp-bridge
-npx cesium-mcp-runtime
+npx -y cesium-mcp-runtime
 ```
 :::
 
-### 1. 在 CesiumJS 应用中添加 Bridge
+普通 MCP 用户只需要 `cesium-mcp-runtime` 一个包。它已经包含 MCP Server、WebSocket 会话路由、浏览器 Bridge bundle，以及位于 `http://localhost:9100/` 的内置 Cesium Viewer。
 
-```bash
-npm install cesium-mcp-bridge
-```
-
-创建 Cesium Viewer 后初始化 Bridge：
-
-```js
-import { CesiumBridge } from 'cesium-mcp-bridge'
-
-const viewer = new Cesium.Viewer('cesiumContainer')
-const bridge = new CesiumBridge(viewer)
-```
-
-### 2. 启动 MCP Runtime
+### 手动启动
 
 **stdio 模式**（适用于 Claude Desktop、VS Code、Cursor）：
 
 ```bash
-npx cesium-mcp-runtime
+npx -y cesium-mcp-runtime
 ```
 
 **HTTP 模式**（适用于 Dify、n8n 等 HTTP 平台）：
 
 ```bash
-npx cesium-mcp-runtime --transport http --port 3211
+npx -y cesium-mcp-runtime --transport http --port 3211
 ```
 
 运行后会启动一个 Node.js 进程，它会：
 - 在所选传输方式（stdio 或 HTTP）上提供 MCP 工具
-- 在 9100 端口开启 **WebSocket 服务器**（与浏览器 Bridge 通信）
+- 在 9100 端口开启 Viewer 会话所需的 **WebSocket 服务器**
+- 在 `http://localhost:9100/` 提供内置 Viewer
+- 通过 `/bridge.js` 提供包内自带的浏览器 Bridge
 
-### 3. 配置 AI 智能体
+## 配置 AI 智能体
 
 #### Claude Desktop
 
@@ -105,7 +93,7 @@ npx cesium-mcp-runtime --transport http --port 3211
 首先以 HTTP 模式启动 Runtime：
 
 ```bash
-npx cesium-mcp-runtime --transport http --port 3211
+npx -y cesium-mcp-runtime --transport http --port 3211
 ```
 
 然后在 Dify 中添加 MCP 工具节点，配置如下：
@@ -123,20 +111,37 @@ npx cesium-mcp-runtime --transport http --port 3211
 > Docker 部署的 Dify 需将 `localhost` 替换为 `host.docker.internal`。
 > 完整指南：[examples/dify-integration/](https://github.com/gaopengbin/cesium-mcp/tree/main/examples/dify-integration)
 
-### 4. 试一试
+## 试一试
 
-在浏览器中打开你的 CesiumJS 应用，然后对 AI 智能体说：
+在浏览器中打开 `http://localhost:9100/`，然后对 AI 智能体说：
 
 > "飞到埃菲尔铁塔"
 
 智能体会调用 `flyTo` 工具，指令通过 Runtime 路由到 Bridge，你的地球将自动飞行到巴黎。
+
+## 自定义 CesiumJS 应用（可选）
+
+只有当你希望 MCP 命令控制自己应用中的 Viewer，而不是内置 Viewer 时，才需要单独安装 `cesium-mcp-bridge`：
+
+```bash
+npm install cesium-mcp-bridge
+```
+
+```js
+import { CesiumBridge } from 'cesium-mcp-bridge'
+
+const viewer = new Cesium.Viewer('cesiumContainer')
+const bridge = new CesiumBridge(viewer)
+```
+
+自定义页面还需要把 Bridge 连接到 Runtime WebSocket。完整实现请参考[最小自定义页面示例](https://github.com/gaopengbin/cesium-mcp/tree/main/examples/minimal)。这是应用开发路径，不是普通 MCP 用户的安装前提。
 
 ## 仅 IDE 模式 (cesium-mcp-dev)
 
 如果你只需要 AI 辅助编写 CesiumJS 代码（不需要实时地球），可以安装 dev 服务器：
 
 ```bash
-npx cesium-mcp-dev
+npx -y cesium-mcp-dev
 ```
 
 它提供：

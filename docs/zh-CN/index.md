@@ -27,16 +27,16 @@ features:
     details: 可直接向兼容浏览器暴露页面工具，也可通过稳定版 SDK v2 Runtime 连接 MCP 客户端，并同时支持 MCP 2025-11-25 与 2026-07-28。
   - icon:
       src: /icons/packages.svg
-    title: 可组合的包，一个生态
-    details: 共享契约、纯 Cesium 执行核心、独立协议适配层与 IDE 工具 — 只安装需要的层。
+    title: 默认路径只装一个包
+    details: 标准 MCP 安装 `cesium-mcp-runtime`，页面原生 WebMCP 安装 `cesium-mcp-webmcp`；自定义应用仍可使用低层包。
   - icon:
       src: /icons/realtime.svg
-    title: 实时 WebSocket 管线
-    details: 亚秒级命令执行。工具调用从 AI 智能体经由 Runtime 到达浏览器 Bridge，结果即时返回。
+    title: 协议无关的执行层
+    details: 浏览器 Agent、WebMCP、Function Calling 与 MCP Runtime 共用同一命令层；只有外部 MCP 到 Viewer 的会话使用 WebSocket。
   - icon:
       src: /icons/terminal.svg
     title: 零配置启动
-    details: '一条命令即可启动：`npx cesium-mcp-runtime`。在 CesiumJS 应用中添加 Bridge。连接 AI 智能体。'
+    details: '一条命令即可启动：`npx -y cesium-mcp-runtime`。浏览器 Bridge 和内置 Viewer 已经包含在包内。'
   - icon:
       src: /icons/version.svg
     title: 版本锁定 CesiumJS
@@ -51,7 +51,7 @@ features:
 
 ## 架构
 
-下图展示 MCP runtime 接入路径。WebMCP 是独立的浏览器原生适配层，兼容的浏览器智能体可以直接连接同一个 Bridge，不需要 Node.js runtime 或 WebSocket 传输层。[查看四种接入模式](/zh-CN/guide/which-mode)。
+下图展示 MCP runtime 接入路径。默认 Runtime 包已经提供 Bridge 和内置 Viewer；只有自定义页面才需要单独使用 Bridge SDK。WebMCP 是浏览器原生适配层，兼容的浏览器智能体可以直接连接同一个命令层，不需要 Node.js runtime 或 WebSocket 传输层。[查看四种接入模式](/zh-CN/guide/which-mode)。
 
 <div class="architecture-diagram">
   <div class="arch-node agent">
@@ -146,7 +146,7 @@ features:
 
 **2.** `cesium-mcp-runtime` 通过 stdio 接收调用，转发为 WebSocket 命令。
 
-**3.** `cesium-mcp-bridge` 在浏览器中的 CesiumJS Viewer 上执行命令。
+**3.** 包内的 `cesium-mcp-bridge` 在内置 Viewer 或自定义 CesiumJS 页面中执行命令。
 
 **4.** 结果通过同一管线返回给 AI 智能体。
 
@@ -158,8 +158,8 @@ features:
 |------|------|------|
 | [`cesium-mcp-contracts`](https://www.npmjs.com/package/cesium-mcp-contracts) | 与传输无关的工具契约与 JSON Schema | [![npm](https://img.shields.io/npm/v/cesium-mcp-contracts?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-contracts) |
 | [`cesium-mcp-bridge`](https://www.npmjs.com/package/cesium-mcp-bridge) | 浏览器 SDK — 嵌入你的 CesiumJS 应用 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [`cesium-mcp-webmcp`](https://www.npmjs.com/package/cesium-mcp-webmcp) | 原生浏览器 WebMCP 适配层 | [![npm](https://img.shields.io/npm/v/cesium-mcp-webmcp?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-webmcp) |
-| [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | MCP 服务器 — 62 个命令工具（12 个工具集）和 2 个资源 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [`cesium-mcp-webmcp`](https://www.npmjs.com/package/cesium-mcp-webmcp) | 一包完成 Viewer 接入，并提供浏览器原生 WebMCP 适配层 | [![npm](https://img.shields.io/npm/v/cesium-mcp-webmcp?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-webmcp) |
+| [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | 一包提供 MCP Server、内置 Viewer、62 个命令工具和 2 个资源 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [`cesium-mcp-dev`](https://www.npmjs.com/package/cesium-mcp-dev) | IDE MCP 服务器 — Cesium API 文档与代码生成 | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 </div>

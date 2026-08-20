@@ -4,56 +4,44 @@ This guide configures the Node.js MCP runtime for desktop clients and workflow p
 
 ## Prerequisites
 
-- **Node.js** 22 or higher
-- A **CesiumJS** application (or use our minimal example)
+- **Node.js** 20 or higher
 - An **MCP-compatible AI client** (Claude Desktop, VS Code Copilot, Cursor, etc.)
+- A separate CesiumJS application is optional; the Runtime includes a ready-to-use Viewer
 
-## Installation
+## One-package quick start
 
 ::: tip MCP SDK v2 is stable
 The npm `latest` release supports existing MCP `2025-11-25` clients and the
 new `2026-07-28` protocol from the same stdio/HTTP entry.
 
 ```bash
-npm install cesium-mcp-bridge
-npx cesium-mcp-runtime
+npx -y cesium-mcp-runtime
 ```
 :::
 
-### 1. Add the Bridge to Your CesiumJS App
+For the default MCP experience, `cesium-mcp-runtime` is the only package. It includes the MCP server, WebSocket session routing, browser Bridge bundle, and a built-in Cesium Viewer at `http://localhost:9100/`.
 
-```bash
-npm install cesium-mcp-bridge
-```
-
-Initialize the bridge after creating your Cesium Viewer:
-
-```js
-import { CesiumBridge } from 'cesium-mcp-bridge'
-
-const viewer = new Cesium.Viewer('cesiumContainer')
-const bridge = new CesiumBridge(viewer)
-```
-
-### 2. Start the MCP Runtime
+### Start manually
 
 **stdio mode** (for Claude Desktop, VS Code, Cursor):
 
 ```bash
-npx cesium-mcp-runtime
+npx -y cesium-mcp-runtime
 ```
 
 **HTTP mode** (for Dify, n8n, and other HTTP-based AI platforms):
 
 ```bash
-npx cesium-mcp-runtime --transport http --port 3211
+npx -y cesium-mcp-runtime --transport http --port 3211
 ```
 
 This starts a Node.js process that:
 - Exposes MCP tools on the selected transport (stdio or HTTP)
-- Opens a **WebSocket server** on port 9100 (for the browser bridge)
+- Opens a **WebSocket server** on port 9100 for Viewer sessions
+- Serves the built-in Viewer at `http://localhost:9100/`
+- Serves its packaged browser Bridge at `/bridge.js`
 
-### 3. Configure Your AI Agent
+## Configure your AI agent
 
 #### Claude Desktop
 
@@ -105,7 +93,7 @@ Create `.cursor/mcp.json`:
 Start the runtime in HTTP mode first:
 
 ```bash
-npx cesium-mcp-runtime --transport http --port 3211
+npx -y cesium-mcp-runtime --transport http --port 3211
 ```
 
 Then in Dify, add an MCP tool node with:
@@ -123,20 +111,37 @@ Then in Dify, add an MCP tool node with:
 > For Docker-hosted Dify, replace `localhost` with `host.docker.internal`.
 > See the full guide: [examples/dify-integration/](https://github.com/gaopengbin/cesium-mcp/tree/main/examples/dify-integration)
 
-### 4. Try It Out
+## Try it out
 
-Open your CesiumJS app in a browser, then ask your AI agent:
+Open `http://localhost:9100/` in a browser, then ask your AI agent:
 
 > "Fly to the Eiffel Tower"
 
 The agent will call the `flyTo` tool, which routes through the runtime to the bridge, and your globe will animate to Paris.
+
+## Custom CesiumJS application (optional)
+
+Only install `cesium-mcp-bridge` when you want MCP commands to control a Viewer inside your own application instead of the built-in Viewer:
+
+```bash
+npm install cesium-mcp-bridge
+```
+
+```js
+import { CesiumBridge } from 'cesium-mcp-bridge'
+
+const viewer = new Cesium.Viewer('cesiumContainer')
+const bridge = new CesiumBridge(viewer)
+```
+
+Your page also needs to connect that Bridge to the Runtime WebSocket. Use the [minimal custom-page example](https://github.com/gaopengbin/cesium-mcp/tree/main/examples/minimal) as the complete reference. This is an application-development path, not a requirement for ordinary MCP users.
 
 ## IDE-Only Setup (cesium-mcp-dev)
 
 If you just want AI-powered CesiumJS code assistance (no live globe), install the dev server:
 
 ```bash
-npx cesium-mcp-dev
+npx -y cesium-mcp-dev
 ```
 
 This provides:

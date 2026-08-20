@@ -1,5 +1,11 @@
 # cesium-mcp-contracts
 
+## 0.6.1
+
+### Patch Changes
+
+- [#37](https://github.com/gaopengbin/cesium-mcp/pull/37) [`fc03921`](https://github.com/gaopengbin/cesium-mcp/commit/fc03921936689e3306aa26fa851a2220e48d8426) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Add `items` to every advertised input array schema for VS Code and other strict MCP clients while preserving tuple constraints through `prefixItems`.
+
 ## 0.6.0
 
 ### Minor Changes

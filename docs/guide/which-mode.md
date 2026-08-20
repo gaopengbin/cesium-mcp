@@ -26,6 +26,7 @@ What are you trying to do?
 |---|---|---|---|---|
 | **Agent runs in** | Compatible browser | Web application | Your web application | Desktop client or workflow platform |
 | **MCP service required** | No | No | No | Yes |
+| **Default package** | `cesium-mcp-webmcp` | None | `cesium-mcp-bridge` | `cesium-mcp-runtime` |
 | **Model required by package** | No | Demo provides one | Yes, application-owned | MCP client-owned |
 | **Tool surface** | 15 core or 61 browser-safe tools | Auto-routed bundles up to 20, or all 61 + 61 WebMCP tools | Application-selected | Runtime toolsets |
 | **Best for** | Agent-ready websites | Evaluation and demonstrations | Product AI assistants | MCP ecosystem integration |
@@ -58,11 +59,11 @@ Choose this when you need full control over prompts, model selection, authentica
 ## Path 4: MCP runtime
 
 ```bash
-npx cesium-mcp-runtime
-npx cesium-mcp-runtime --transport http --port 3211
+npx -y cesium-mcp-runtime
+npx -y cesium-mcp-runtime --transport http --port 3211
 ```
 
-Choose this for Claude Desktop, Cursor, VS Code, Dify, n8n, or any external MCP client. This path runs a Node.js MCP service and connects to the browser bridge over WebSocket.
+Choose this for Claude Desktop, Cursor, VS Code, Dify, n8n, or any external MCP client. The one Runtime package includes the MCP service, browser Bridge bundle, session routing, and built-in Viewer. Install `cesium-mcp-bridge` separately only for a custom CesiumJS page.
 
 ## Still unsure?
 

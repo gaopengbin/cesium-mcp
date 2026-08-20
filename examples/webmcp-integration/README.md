@@ -13,7 +13,12 @@ Enable Chrome's WebMCP testing flag for localhost, then open the page and inspec
 
 ## Integration boundary
 
+An existing CesiumJS application installs only `cesium-mcp-webmcp`. The package's `/viewer` entry includes the Bridge dependency, while the root entry keeps the low-level adapter available for custom executors.
+
 ```ts
+import { CesiumBridge } from 'cesium-mcp-webmcp/viewer'
+import { registerCesiumWebMcp } from 'cesium-mcp-webmcp'
+
 const bridge = new CesiumBridge(viewer)
 const executor = {
   execute(command) {
@@ -27,7 +32,7 @@ const registration = await registerCesiumWebMcp(executor, {
 })
 ```
 
-- `cesium-mcp-bridge` executes Cesium commands.
+- `cesium-mcp-webmcp/viewer` provides the packaged Cesium Bridge.
 - `cesium-mcp-webmcp` registers transport-neutral contracts on `document.modelContext`.
 - The application owns credentials and optional services such as geocoding.
 - Call `registration.unregister()` when the page or component is unmounted.

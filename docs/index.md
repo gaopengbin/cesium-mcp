@@ -27,16 +27,16 @@ features:
     details: Expose page-local tools directly to compatible browsers, or connect MCP clients through the stable SDK v2 runtime with support for MCP 2025-11-25 and 2026-07-28.
   - icon:
       src: /icons/packages.svg
-    title: Composable Packages, One Ecosystem
-    details: Shared contracts, a pure Cesium executor, separate protocol adapters, and IDE tooling — install only the layers you need.
+    title: One Package per Default Path
+    details: Install `cesium-mcp-runtime` for standard MCP or `cesium-mcp-webmcp` for page-native WebMCP. Low-level packages remain available for custom applications.
   - icon:
       src: /icons/realtime.svg
-    title: Real-Time WebSocket Pipeline
-    details: Sub-second command execution. Tool call flows from AI agent through the runtime to the browser bridge, and results return instantly.
+    title: Protocol-Neutral Execution
+    details: Browser Agent, WebMCP, function calling, and MCP Runtime all reach the same command layer; WebSocket is used only for external MCP-to-Viewer sessions.
   - icon:
       src: /icons/terminal.svg
     title: Zero Configuration
-    details: 'One command to start: `npx cesium-mcp-runtime`. Add the bridge to your CesiumJS app. Connect your AI agent. That is it.'
+    details: 'One command to start: `npx -y cesium-mcp-runtime`. The browser Bridge and built-in Viewer are already included.'
   - icon:
       src: /icons/version.svg
     title: Version-Locked to CesiumJS
@@ -51,7 +51,7 @@ features:
 
 ## Architecture
 
-The diagram below shows the MCP runtime path. WebMCP is a separate browser-native adapter that connects a compatible browser agent directly to the same bridge, without the Node.js runtime or WebSocket transport. [Compare the integration modes](/guide/which-mode).
+The diagram below shows the MCP runtime path. The default Runtime package already serves the Bridge and built-in Viewer; the separate Bridge SDK is only needed for a custom page. WebMCP is a browser-native adapter that connects a compatible browser agent directly to the same command layer, without the Node.js runtime or WebSocket transport. [Compare the integration modes](/guide/which-mode).
 
 <div class="architecture-diagram">
   <div class="arch-node agent">
@@ -146,7 +146,7 @@ The diagram below shows the MCP runtime path. WebMCP is a separate browser-nativ
 
 **2.** `cesium-mcp-runtime` receives the call via stdio and forwards it as a WebSocket command.
 
-**3.** `cesium-mcp-bridge` executes the command on the CesiumJS Viewer in the browser.
+**3.** The packaged `cesium-mcp-bridge` executes the command on the built-in Viewer or a custom CesiumJS page.
 
 **4.** Results flow back through the same pipeline to the AI agent.
 
@@ -158,8 +158,8 @@ The diagram below shows the MCP runtime path. WebMCP is a separate browser-nativ
 |---------|-------------|---------|
 | [`cesium-mcp-contracts`](https://www.npmjs.com/package/cesium-mcp-contracts) | Transport-neutral tool contracts and JSON Schemas | [![npm](https://img.shields.io/npm/v/cesium-mcp-contracts?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-contracts) |
 | [`cesium-mcp-bridge`](https://www.npmjs.com/package/cesium-mcp-bridge) | Browser SDK — embed in your CesiumJS application | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-bridge) |
-| [`cesium-mcp-webmcp`](https://www.npmjs.com/package/cesium-mcp-webmcp) | Native browser WebMCP adapter | [![npm](https://img.shields.io/npm/v/cesium-mcp-webmcp?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-webmcp) |
-| [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | MCP Server — 62 command tools (12 toolsets) and 2 resources for AI agents | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
+| [`cesium-mcp-webmcp`](https://www.npmjs.com/package/cesium-mcp-webmcp) | One-package Viewer integration and native browser WebMCP adapter | [![npm](https://img.shields.io/npm/v/cesium-mcp-webmcp?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-webmcp) |
+| [`cesium-mcp-runtime`](https://www.npmjs.com/package/cesium-mcp-runtime) | One-package MCP Server, built-in Viewer, 62 command tools and 2 resources | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-runtime) |
 | [`cesium-mcp-dev`](https://www.npmjs.com/package/cesium-mcp-dev) | IDE MCP Server — Cesium API docs and code generation | [![npm](https://img.shields.io/npm/v/cesium-mcp-dev?color=1a1a2e&labelColor=e2e8f0)](https://www.npmjs.com/package/cesium-mcp-dev) |
 
 </div>

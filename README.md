@@ -1,10 +1,12 @@
 <img width="2172" height="724" alt="ChatGPT Image 2026年7月5日 22_13_19" src="https://github.com/user-attachments/assets/098dcbef-e0bc-4214-8adf-b80a29e50e65" />
 <div align="center">
-  <p><strong>The minimum-overhead way to add AI commands to CesiumJS</strong></p>
+  <p><strong>A protocol-agnostic Cesium AI control runtime for MCP, WebMCP, function calling, and browser agents</strong></p>
 
   <p><a href="packages/cesium-mcp-bridge/">cesium-mcp-bridge</a> is the protocol-agnostic Cesium command executor. Separate adapters expose it to <strong>browser-only agents</strong>, <strong>WebMCP browser agents</strong>, <strong>function calling</strong>, or <strong>MCP</strong> — your choice.</p>
 
   <p>Four integration paths: <a href="examples/browser-agent/">Browser Agent</a> (simplest, zero backend) · WebMCP (page-local browser tools) · function calling (embed in your web app) · <a href="packages/cesium-mcp-runtime/">MCP runtime</a> (Claude Desktop / Cursor / Dify)</p>
+
+  <p>The local Runtime is only required for external MCP hosts. Browser Agent, WebMCP, and function-calling integrations execute the same commands directly in the web application.</p>
 
   <p><a href="https://cesium-browser-agent.pages.dev/"><strong>Try it now</strong></a> — open the live browser demo, no install, no signup.</p>
 
@@ -41,7 +43,7 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 |--------|------|--------|-------|
 | **cesium-mcp-contracts** | Transport-neutral names, descriptions, and JSON Schemas for browser tools | New shared layer | [source](packages/cesium-mcp-contracts/) |
 | **cesium-mcp-bridge** | Protocol- and transport-free Cesium command executor (60+ commands) | Mainline, actively iterated | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) · [source](packages/cesium-mcp-bridge/) |
-| **cesium-mcp-webmcp** | Native `document.modelContext` adapter for Cesium tool contracts | New browser adapter | [source](packages/cesium-mcp-webmcp/) |
+| **cesium-mcp-webmcp** | One-package Viewer integration plus the native `document.modelContext` adapter | Browser integration | [source](packages/cesium-mcp-webmcp/) |
 | **examples/webmcp-integration** | Focused npm + Vite integration without a chat UI or MCP server | Developer example | [example](examples/webmcp-integration/) |
 | **examples/browser-agent** | Browser-only AI agent with automatic WebMCP exposure | Recommended | [example](examples/browser-agent/) · [live demo](https://cesium-browser-agent.pages.dev/) |
 | **cesium-mcp-runtime** | MCP server (stdio + HTTP) | Stable MCP SDK v2 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) · [source](packages/cesium-mcp-runtime/) |
@@ -83,6 +85,14 @@ flowchart LR
 
 The bridge remains the execution core, while contracts and protocol adapters stay separate. Pick whichever driver matches your scenario — they all reach the same Cesium command layer. On WebMCP-capable browsers, `cesium-mcp-webmcp` can expose 61 browser-safe commands in 12 selectable toolsets through `document.modelContext` without adding an MCP transport or backend server.
 
+### Relationship to the CesiumGS AI ecosystem
+
+CesiumGS's newer AI work is split between [`cesiumjs-ai-starter-app`](https://github.com/CesiumGS/cesiumjs-ai-starter-app), a deployable application template, and [`cesiumjs-skills`](https://github.com/CesiumGS/cesiumjs-skills), development-time guidance for coding agents. The earlier [`cesium-ai-integrations`](https://github.com/CesiumGS/cesium-ai-integrations) repository contains the first-generation experiments and community contributions that helped explore this space.
+
+`cesium-mcp` is an independent runtime and integration toolkit, not a continuation of the earlier WebSocket-only reference architecture. Its reusable Bridge and shared contracts work unchanged across browser-only function calling, native WebMCP, standard MCP over stdio/HTTP, and embedded desktop shells. A local WebSocket bridge is used only when an external MCP host needs to reach a live browser Viewer; it is not required for the hosted demo or page-local integrations.
+
+The project author was an early contributor to `CesiumGS/cesium-ai-integrations`, contributing the Imagery server, Terrain server, and unified MCP Gateway. Those experiments informed this project's multi-protocol architecture, while the implementation, release lifecycle, and roadmap remain independent.
+
 ## Quick Start
 
 ### Path 0 — Try in 30 seconds (browser agent, recommended)
@@ -107,15 +117,13 @@ Open `http://localhost:4173/examples/browser-agent/`, click **Start**, then insp
 Application developers install the adapter separately. End users only open the integrated website; they do not install npm packages or run an MCP server.
 
 ```bash
-npm install cesium cesium-mcp-bridge cesium-mcp-webmcp
+npm install cesium-mcp-webmcp
 ```
 
 ```js
-import { CesiumBridge } from 'cesium-mcp-bridge'
-import { registerCesiumWebMcp } from 'cesium-mcp-webmcp'
+import { registerCesiumViewerWebMcp } from 'cesium-mcp-webmcp/viewer'
 
-const bridge = new CesiumBridge(viewer)
-const registration = await registerCesiumWebMcp(bridge, {
+const registration = await registerCesiumViewerWebMcp(viewer, {
   toolsets: 'all',
   excludeTools: ['geocode'], // add your own browser geocoder to expose this tool
 })
@@ -145,14 +153,14 @@ See [examples/browser-agent/index.html](examples/browser-agent/index.html) for a
 
 ### Path 3 — Use from Claude Desktop / Cursor / Dify (MCP)
 
-Install bridge as in Path 2, then start the MCP runtime:
+Ordinary MCP users need only the Runtime package. It includes the browser Bridge bundle and a built-in Viewer at `http://localhost:9100/`; install `cesium-mcp-bridge` separately only when integrating a custom page.
 
 ```bash
 # Stable channel — npm latest, MCP SDK v2
-npx cesium-mcp-runtime
+npx -y cesium-mcp-runtime
 
 # HTTP mode
-npx cesium-mcp-runtime --transport http --port 3000
+npx -y cesium-mcp-runtime --transport http --port 3000
 ```
 
 The stable release serves existing MCP `2025-11-25` clients and the new
@@ -193,8 +201,6 @@ Tools are organized into **12 toolsets**. Default mode enables 4 core toolsets (
 | heatmap | `addHeatmap` |
 | scene | `setSceneOptions`, `setPostProcess`, `setIonToken` (Runtime only) |
 | geolocation | `geocode` |
-
-> **Relationship with CesiumGS official MCP servers**: The `camera`, `entity-ext`, and `animation` toolsets natively fuse capabilities from [CesiumGS/cesium-mcp-server](https://github.com/CesiumGS/cesium-mcp-server) (Camera Server, Entity Server, Animation Server) into this project's unified bridge architecture. This means you get all official functionality plus additional tools — in a single MCP server, without running multiple processes.
 
 ## Examples
 

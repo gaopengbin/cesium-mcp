@@ -7,10 +7,10 @@
 **Symptom**: The browser console shows `WebSocket connection to 'ws://localhost:9100' failed`.
 
 **Solutions**:
-1. Make sure `cesium-mcp-runtime` is running: `npx cesium-mcp-runtime`
+1. Make sure `cesium-mcp-runtime` is running: `npx -y cesium-mcp-runtime`
 2. Check the port — if port 9100 is in use, set a custom port:
    ```bash
-   CESIUM_WS_PORT=9200 npx cesium-mcp-runtime
+   CESIUM_WS_PORT=9200 npx -y cesium-mcp-runtime
    ```
    The runtime will automatically listen on the new port.
 3. If using HTTPS, the browser blocks mixed content (wss:// is required). Use a reverse proxy or tunnel (e.g. ngrok).
@@ -30,8 +30,8 @@
 
 The runtime can't find a connected browser session.
 
-1. Open your CesiumJS app in the browser
-2. Check that the bridge initialization code is running (look for `[CesiumBridge] connected` in browser console)
+1. Open the built-in Viewer at `http://localhost:9100/?session=default`, or open your custom CesiumJS page
+2. For a custom page, check that its Runtime WebSocket connection is initialized
 3. If using multiple tabs, set unique `sessionId` for each
 
 ### Only some tools are available
@@ -39,7 +39,7 @@ The runtime can't find a connected browser session.
 By default, only core toolsets are enabled. To enable all 62 command tools:
 
 ```bash
-CESIUM_TOOLSETS=all npx cesium-mcp-runtime
+CESIUM_TOOLSETS=all npx -y cesium-mcp-runtime
 ```
 
 Or use dynamic discovery — ask your AI agent: *"List available toolsets"*, then *"Enable the animation toolset"*.
@@ -68,7 +68,7 @@ The bridge doesn't handle tokens — they are managed by your CesiumJS applicati
 Set the `CESIUM_WS_PORT` environment variable:
 
 ```bash
-CESIUM_WS_PORT=9200 npx cesium-mcp-runtime
+CESIUM_WS_PORT=9200 npx -y cesium-mcp-runtime
 ```
 
 ### Can I use remote/cloud mode?
@@ -76,7 +76,7 @@ CESIUM_WS_PORT=9200 npx cesium-mcp-runtime
 Yes. The runtime supports Streamable HTTP mode for remote access:
 
 ```bash
-npx cesium-mcp-runtime --mode http --port 3000
+npx -y cesium-mcp-runtime --transport http --port 3000
 ```
 
 Or use the hosted endpoint at `https://mcp.gpb.cc`.

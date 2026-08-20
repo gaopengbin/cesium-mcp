@@ -19,13 +19,13 @@
 cd packages/cesium-mcp-runtime
 npx tsx src/index.ts
 
-# 方式 B: 全局安装
-npx cesium-mcp-runtime
+# 方式 B: 直接使用 npm 稳定版（一包包含内置 Viewer）
+npx -y cesium-mcp-runtime
 ```
 
 ### 2. 打开地图页面
 
-- 使用 `packages/cesium-mcp-runtime/demo/index.html`
+- 普通体验直接打开 `http://localhost:9100/?session=default`
 - 或运行你自己的 Cesium 应用（需集成 cesium-mcp-bridge）
 - 确保 WebSocket 连接状态为 **已连接**（绿点）
 
@@ -37,7 +37,7 @@ VS Code `.vscode/mcp.json`:
   "servers": {
     "cesium-mcp": {
       "command": "npx",
-      "args": ["cesium-mcp-runtime"],
+      "args": ["-y", "cesium-mcp-runtime"],
       "type": "stdio",
       "env": { "CESIUM_TOOLSETS": "all" }
     }

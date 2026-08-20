@@ -3,11 +3,13 @@
 
   <h1>Cesium MCP</h1>
 
-  <p><strong>给 CesiumJS 加 AI 命令的最小代价</strong></p>
+  <p><strong>面向 MCP、WebMCP、Function Calling 与浏览器 Agent 的协议无关 Cesium AI 控制 Runtime</strong></p>
 
   <p><a href="packages/cesium-mcp-bridge/">cesium-mcp-bridge</a> 是协议无关的 Cesium 命令执行核心；独立适配层可将它接入 <strong>纯浏览器 Agent</strong>、<strong>WebMCP 浏览器 Agent</strong>、<strong>function calling</strong> 或 <strong>MCP</strong>。</p>
 
   <p>四种接入方式任选其一：<a href="examples/browser-agent/">浏览器 Agent</a>（最简单，零后端）· WebMCP（页面内浏览器工具）· function calling（自托管 Web 应用嵌入）· <a href="packages/cesium-mcp-runtime/">MCP runtime</a>（接 Claude Desktop / Cursor / Dify）</p>
+
+  <p>只有外部 MCP Host 接入时才需要本地 Runtime；浏览器 Agent、WebMCP 和 Function Calling 都可以在 Web 应用中直接执行同一套命令。</p>
 
   <p><a href="https://cesium-browser-agent.pages.dev/"><strong>立即体验</strong></a> — 在线 Demo，零安装、零注册</p>
 
@@ -44,7 +46,7 @@ https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
 |------|------|------|------|
 | **cesium-mcp-contracts** | 与传输无关的浏览器工具名称、说明和 JSON Schema | 新增共享层 | [源码](packages/cesium-mcp-contracts/) |
 | **cesium-mcp-bridge** | 与协议、传输无关的 Cesium 命令执行核心（60+ 命令） | 主线，持续迭代 | [![npm](https://img.shields.io/npm/v/cesium-mcp-bridge)](https://www.npmjs.com/package/cesium-mcp-bridge) · [源码](packages/cesium-mcp-bridge/) |
-| **cesium-mcp-webmcp** | 基于原生 `document.modelContext` 的 Cesium 工具适配层 | 新增浏览器适配层 | [源码](packages/cesium-mcp-webmcp/) |
+| **cesium-mcp-webmcp** | 一包完成 Viewer 接入，并提供原生 `document.modelContext` 适配层 | 浏览器接入 | [源码](packages/cesium-mcp-webmcp/) |
 | **examples/webmcp-integration** | 不包含聊天 UI 和 MCP 服务的 npm + Vite 接入示例 | 开发者示例 | [示例](examples/webmcp-integration/) |
 | **examples/browser-agent** | 纯浏览器 AI Agent，自动暴露 WebMCP 工具 | 推荐入口 | [示例](examples/browser-agent/) · [在线 demo](https://cesium-browser-agent.pages.dev/) |
 | **cesium-mcp-runtime** | MCP 服务器（stdio + HTTP） | 稳定版 MCP SDK v2 | [![npm](https://img.shields.io/npm/v/cesium-mcp-runtime)](https://www.npmjs.com/package/cesium-mcp-runtime) · [源码](packages/cesium-mcp-runtime/) |
@@ -86,6 +88,14 @@ flowchart LR
 
 bridge 保持为执行核心，工具契约和协议适配层分别独立。四种驱动方最终都调用同一个 Cesium 命令层，按场景选一种即可。在支持 WebMCP 的浏览器中，`cesium-mcp-webmcp` 可通过 `document.modelContext` 按 12 个工具集暴露 61 个浏览器安全命令，无需增加 MCP 传输层或后端服务器。
 
+### 与 CesiumGS 官方 AI 生态的关系
+
+CesiumGS 新一代 AI 工作主要拆分到两个仓库：[`cesiumjs-ai-starter-app`](https://github.com/CesiumGS/cesiumjs-ai-starter-app) 提供可部署的应用模板，[`cesiumjs-skills`](https://github.com/CesiumGS/cesiumjs-skills) 为编码 Agent 提供开发期知识。较早的 [`cesium-ai-integrations`](https://github.com/CesiumGS/cesium-ai-integrations) 则保留了这一方向的第一代实验和社区贡献。
+
+`cesium-mcp` 是独立的 Runtime 与集成工具包，不是早期纯 WebSocket 参考架构的延续。它的 Bridge 和共享工具契约可以原样用于纯浏览器 Function Calling、原生 WebMCP、stdio/HTTP 标准 MCP，以及内嵌桌面应用。只有外部 MCP Host 需要连接浏览器中的实时 Viewer 时才使用本地 WebSocket Bridge；在线 Demo 和页面内接入都不依赖它。
+
+项目作者曾参与 `CesiumGS/cesium-ai-integrations` 的早期建设，贡献 Imagery Server、Terrain Server 和统一 MCP Gateway。这些实验为当前的多协议架构提供了经验，但本项目的实现、发布周期和路线图保持独立。
+
 ## 快速开始
 
 ### 路径 0 — 30 秒体验（浏览器 Agent，推荐）
@@ -110,15 +120,13 @@ npx serve . -l 4173
 应用开发者需要单独安装适配包；普通用户只需打开已经接入的网站，不需要安装 npm 包，也不需要启动 MCP 服务。
 
 ```bash
-npm install cesium cesium-mcp-bridge cesium-mcp-webmcp
+npm install cesium-mcp-webmcp
 ```
 
 ```js
-import { CesiumBridge } from 'cesium-mcp-bridge'
-import { registerCesiumWebMcp } from 'cesium-mcp-webmcp'
+import { registerCesiumViewerWebMcp } from 'cesium-mcp-webmcp/viewer'
 
-const bridge = new CesiumBridge(viewer)
-const registration = await registerCesiumWebMcp(bridge, {
+const registration = await registerCesiumViewerWebMcp(viewer, {
   toolsets: 'all',
   excludeTools: ['geocode'], // 如需该工具，请接入自己的浏览器地理编码处理器
 })
@@ -148,14 +156,14 @@ const bridge = new CesiumBridge(viewer);
 
 ### 路径 3 — 从 Claude Desktop / Cursor / Dify 调用（MCP）
 
-按路径 2 安装 bridge，然后启动 MCP runtime：
+普通 MCP 用户只需要 Runtime 一个包。它已经包含浏览器 Bridge bundle，并在 `http://localhost:9100/` 提供内置 Viewer；只有接入自定义页面时才需要单独安装 `cesium-mcp-bridge`。
 
 ```bash
 # 稳定通道 — npm latest，MCP SDK v2
-npx cesium-mcp-runtime
+npx -y cesium-mcp-runtime
 
 # HTTP 模式
-npx cesium-mcp-runtime --transport http --port 3000
+npx -y cesium-mcp-runtime --transport http --port 3000
 ```
 
 稳定版通过同一个 stdio/HTTP 入口同时支持现有 MCP `2025-11-25`
@@ -195,8 +203,6 @@ MCP 客户端配置：
 | heatmap | `addHeatmap` |
 | scene | `setSceneOptions`, `setPostProcess`, `setIonToken`（仅 Runtime） |
 | geolocation | `geocode` |
-
-> **与 CesiumGS 官方 MCP 服务器的关系**：`camera`、`entity-ext` 和 `animation` 工具集原生融合了 [CesiumGS/cesium-mcp-server](https://github.com/CesiumGS/cesium-mcp-server)（Camera Server、Entity Server、Animation Server）的能力到本项目的统一 Bridge 架构中。一个 MCP 服务器即可获得全部官方功能加更多工具，无需运行多个进程。
 
 ## 示例
 

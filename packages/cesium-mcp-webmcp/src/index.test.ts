@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  buildCesiumWebMcpTools,
   cesiumBrowserToolContracts,
   cesiumCoreToolContracts,
+  isWebMcpSupported,
   registerCesiumWebMcp,
   registerWebMcpTools,
 } from './index.js'
@@ -18,6 +20,31 @@ function createModelContext(): WebMcpModelContext & { registered: Array<{ tool: 
 }
 
 describe('registerCesiumWebMcp', () => {
+  it('detects native WebMCP support without throwing', () => {
+    expect(isWebMcpSupported({ modelContext: createModelContext() })).toBe(true)
+    expect(isWebMcpSupported({})).toBe(false)
+    expect(isWebMcpSupported()).toBe(false)
+  })
+
+  it('builds inspectable tool payloads without registering them', async () => {
+    const execute = vi.fn().mockResolvedValue({ success: true })
+    const tools = buildCesiumWebMcpTools({ execute }, {
+      toolsets: ['camera'],
+    })
+
+    expect(tools.map(tool => tool.name)).toEqual([
+      'lookAtTransform',
+      'startOrbit',
+      'stopOrbit',
+      'setCameraOptions',
+    ])
+    await tools[0]!.execute({ longitude: 116.4, latitude: 39.9 })
+    expect(execute).toHaveBeenCalledWith({
+      action: 'lookAtTransform',
+      params: { longitude: 116.4, latitude: 39.9 },
+    })
+  })
+
   it('registers the shared core contracts and forwards execution', async () => {
     const modelContext = createModelContext()
     const execute = vi.fn().mockResolvedValue({ success: true })
@@ -52,6 +79,41 @@ describe('registerCesiumWebMcp', () => {
     expect(new Set(signals).size).toBe(1)
     registration.unregister()
     expect(signals[0].aborted).toBe(true)
+  })
+
+  it('does not start registration when the caller signal is already aborted', async () => {
+    const modelContext = createModelContext()
+    const controller = new AbortController()
+    controller.abort()
+
+    const registration = await registerCesiumWebMcp({ execute: vi.fn() }, {
+      modelContext,
+      signal: controller.signal,
+    })
+
+    expect(registration.registered).toEqual([])
+    expect(registration.signal.aborted).toBe(true)
+    expect(modelContext.registered).toHaveLength(0)
+  })
+
+  it('stops a registration batch as soon as the caller signal aborts', async () => {
+    const controller = new AbortController()
+    const registered: string[] = []
+    const modelContext: WebMcpModelContext = {
+      async registerTool(tool) {
+        registered.push(tool.name)
+        controller.abort()
+      },
+    }
+
+    const registration = await registerCesiumWebMcp({ execute: vi.fn() }, {
+      modelContext,
+      signal: controller.signal,
+    })
+
+    expect(registered).toEqual(['flyTo'])
+    expect(registration.registered).toEqual(['flyTo'])
+    expect(registration.signal.aborted).toBe(true)
   })
 
   it('registers all browser-safe contracts or selected toolsets on demand', async () => {
