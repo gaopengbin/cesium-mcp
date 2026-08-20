@@ -1,5 +1,11 @@
 # cesium-mcp-webmcp
 
+## 0.2.5
+
+### Patch Changes
+
+- [#36](https://github.com/gaopengbin/cesium-mcp/pull/36) [`5ae55e6`](https://github.com/gaopengbin/cesium-mcp/commit/5ae55e6ed0a38a84efc591428863bb0e7244c5b1) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Add a one-package Viewer integration and harden WebMCP lifecycle registration with feature detection, inspectable tool payloads, and immediate cancellation of superseded batches.
+
 ## 0.2.4
 
 ### Patch Changes
