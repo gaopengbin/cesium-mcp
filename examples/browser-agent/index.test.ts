@@ -57,7 +57,7 @@ describe('browser-agent startup order', () => {
     )
     expect(html).not.toContain('src="/packages/cesium-mcp-webmcp/')
     expect(html).toContain(
-      'https://cdn.jsdelivr.net/npm/cesium-mcp-webmcp@0.2.4/dist/cesium-mcp-webmcp.browser.global.js',
+      'https://cdn.jsdelivr.net/npm/cesium-mcp-webmcp@0.2.5/dist/cesium-mcp-webmcp.browser.global.js',
     )
     expect(html).toContain("await CesiumMcpWebMcp.registerCesiumWebMcp(executor, { toolsets: 'all' })")
     expect(html).not.toContain('document.modelContext.registerTool')
