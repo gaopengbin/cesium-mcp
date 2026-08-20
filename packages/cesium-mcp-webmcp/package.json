@@ -1,6 +1,6 @@
 {
   "name": "cesium-mcp-webmcp",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Native WebMCP adapter for Cesium MCP browser tools",
   "type": "module",
   "main": "./dist/index.cjs",
