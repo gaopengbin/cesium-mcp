@@ -7,6 +7,24 @@ Cesium MCP 将工具选择拆成两层独立评测：
 
 分开统计后，问题更容易定位：路由遗漏不会归咎于模型，模型选错工具也不会被完美的路由覆盖率掩盖。
 
+## Provider Schema 兼容门禁
+
+在评测模型是否选对工具前，先验证各类 Provider 能否接受发布的工具 Schema：
+
+```bash
+npm run test:schema-compat
+```
+
+门禁会审计全部 61 个浏览器安全工具在四个对外入口中的最终结构：规范 Contracts、MCP Runtime 元数据、WebMCP 注册对象，以及 OpenAI 格式的 Function Calling 定义。规则来自 VS Code 与 Azure/OpenAI 的真实兼容问题：
+
+- 输入 Schema 根级必须是 `type: "object"`
+- 根级不能出现 `oneOf`、`anyOf` 或 `allOf`
+- 所有数组必须声明 `items`，包括同时使用 `prefixItems` 的坐标元组
+- 对外 Schema 不能携带 `$schema` 元 Schema 指针
+- Schema 必须可以 JSON 序列化
+
+失败信息会给出入口、工具名称、受影响 Provider、规则和准确的 JSON Schema 路径。该测试同时纳入 `npm run test:contracts` 和全量 Vitest CI。
+
 ## 确定性基线
 
 ```bash
