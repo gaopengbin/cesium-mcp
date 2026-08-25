@@ -97,6 +97,7 @@ function tool(
   const fullDescription = `${description} Returns { success: boolean, data?: unknown, message?: string, error?: string }.`
   return {
     name,
+    action: name,
     description: fullDescription,
     inputSchema: objectSchema(properties, required),
     outputSchema: bridgeResultSchema,

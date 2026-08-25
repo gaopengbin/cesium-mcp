@@ -219,6 +219,7 @@ function contract(
   const fullDescription = `${description} ${resultDescription}`
   return {
     name,
+    action: name,
     description: fullDescription,
     inputSchema,
     outputSchema,

@@ -3,6 +3,7 @@ import {
   cesiumBrowserToolsetDefinitions,
   cesiumBrowserToolsetNames,
   cesiumSharedToolNames,
+  getCesiumToolAction,
 } from 'cesium-mcp-contracts'
 import type {
   CesiumBrowserToolsetName,
@@ -14,6 +15,7 @@ export const cesiumRuntimeOnlyToolNames = ['setIonToken'] as const
 export const cesiumRuntimeMetaToolNames = ['list_toolsets', 'enable_toolset'] as const
 
 export interface CesiumRuntimeToolMetadata {
+  action: string
   description: string
   inputSchema: JsonSchema
   outputSchema: JsonSchema
@@ -40,6 +42,7 @@ export function getCesiumRuntimeToolMetadata(
 
   const localized = contract.localizations[locale]
   return {
+    action: getCesiumToolAction(contract),
     description: localized.description,
     inputSchema: contract.inputSchema,
     outputSchema: contract.outputSchema,
@@ -52,6 +55,11 @@ export function getCesiumRuntimeToolMetadata(
       openWorldHint: contract.annotations.openWorldHint ?? false,
     },
   }
+}
+
+export function getCesiumRuntimeToolAction(name: string): string {
+  const contract = sharedContractByName.get(name)
+  return contract ? getCesiumToolAction(contract) : name
 }
 
 export const cesiumRuntimeToolsets: Readonly<

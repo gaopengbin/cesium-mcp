@@ -147,6 +147,24 @@ describe('registerCesiumWebMcp', () => {
     expect(bridgeRegistration.registered).not.toContain('geocode')
   })
 
+  it('keeps a renamed public tool bound to its stable Bridge action', async () => {
+    const execute = vi.fn().mockResolvedValue({ success: true })
+    const renamed = {
+      ...cesiumCoreToolContracts.find(tool => tool.name === 'addGeoJsonLayer')!,
+      name: 'loadGeoJson',
+      action: 'addGeoJsonLayer',
+    }
+
+    const tool = buildCesiumWebMcpTools({ execute }, { tools: [renamed] })[0]!
+    await tool.execute({ data: { type: 'FeatureCollection', features: [] } })
+
+    expect(tool.name).toBe('loadGeoJson')
+    expect(execute).toHaveBeenCalledWith({
+      action: 'addGeoJsonLayer',
+      params: { data: { type: 'FeatureCollection', features: [] } },
+    })
+  })
+
   it('rolls back earlier registrations when one registration fails', async () => {
     let callCount = 0
     let signal: AbortSignal | undefined

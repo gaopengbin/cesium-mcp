@@ -33,6 +33,7 @@ import type { JsonSchema } from 'cesium-mcp-contracts'
 import {
   cesiumRuntimeToolsetDescriptions,
   cesiumRuntimeToolsets,
+  getCesiumRuntimeToolAction,
   getCesiumRuntimeToolMetadata,
 } from './tool-manifest.js'
 import {
@@ -66,7 +67,7 @@ const DEFAULT_SESSION_ID = process.env.DEFAULT_SESSION_ID ?? 'default'
 /** URL-level session context for MCP HTTP requests (e.g. /mcp?session=xxx) */
 const _httpSessionStore = new AsyncLocalStorage<string>()
 
-function sendToBrowser(action: string, params: Record<string, unknown>, timeoutMs = 30000): Promise<unknown> {
+function sendBridgeAction(action: string, params: Record<string, unknown>, timeoutMs = 30000): Promise<unknown> {
   // Extract sessionId from params for multi-browser routing (transparent to tool handlers)
   const { sessionId: paramSessionId, ...cleanParams } = params as { sessionId?: string; [k: string]: unknown }
   // Priority: tool param > URL query (?session=xxx) > default
@@ -109,6 +110,10 @@ function sendToBrowser(action: string, params: Record<string, unknown>, timeoutM
       params: cleanParams,
     }))
   })
+}
+
+function sendToBrowser(toolName: string, params: Record<string, unknown>, timeoutMs = 30000): Promise<unknown> {
+  return sendBridgeAction(getCesiumRuntimeToolAction(toolName), params, timeoutMs)
 }
 
 /** 将命令推送到指定 session 的浏览器（fire-and-forget，不等待响应） */

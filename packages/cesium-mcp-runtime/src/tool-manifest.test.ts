@@ -13,6 +13,7 @@ import {
   cesiumRuntimeOnlyToolNames,
   cesiumRuntimeToolsetDescriptions,
   cesiumRuntimeToolsets,
+  getCesiumRuntimeToolAction,
   getCesiumRuntimeToolMetadata,
 } from './tool-manifest.js'
 
@@ -32,6 +33,7 @@ describe('runtime tool manifest', () => {
   it('derives localized registration metadata from the canonical contracts', () => {
     for (const contract of cesiumBrowserToolContracts) {
       const metadata = getCesiumRuntimeToolMetadata(contract.name, 'en')!
+      expect(metadata.action).toBe(contract.action)
       expect(metadata.description).toBe(contract.description)
       expect(metadata.inputSchema).toBe(contract.inputSchema)
       expect(metadata.outputSchema).toBe(contract.outputSchema)
@@ -48,6 +50,11 @@ describe('runtime tool manifest', () => {
     expect(chineseGaussian.description).toContain('高斯泼溅')
     expect(chineseGaussian.parameterDescriptions.url).toContain('tileset.json')
     expect(getCesiumRuntimeToolMetadata('setIonToken', 'en')).toBeUndefined()
+  })
+
+  it('resolves stable Bridge actions and leaves runtime-only names unchanged', () => {
+    expect(getCesiumRuntimeToolAction('addGeoJsonLayer')).toBe('addGeoJsonLayer')
+    expect(getCesiumRuntimeToolAction('setIonToken')).toBe('setIonToken')
   })
 
   it('reuses canonical toolset descriptions', () => {

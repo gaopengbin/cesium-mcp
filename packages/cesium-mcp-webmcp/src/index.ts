@@ -1,4 +1,4 @@
-import { selectCesiumToolContracts } from 'cesium-mcp-contracts'
+import { getCesiumToolAction, selectCesiumToolContracts } from 'cesium-mcp-contracts'
 import type {
   CesiumToolContract,
   CesiumToolsetSelection,
@@ -127,7 +127,7 @@ export function buildWebMcpTools(
       inputSchema: tool.inputSchema,
       outputSchema: tool.outputSchema,
       annotations: annotations && Object.keys(annotations).length > 0 ? annotations : undefined,
-      execute: input => executor.execute({ action: tool.name, params: input }),
+      execute: input => executor.execute({ action: getCesiumToolAction(tool), params: input }),
     }
   })
 }
