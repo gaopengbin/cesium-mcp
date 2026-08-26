@@ -242,6 +242,10 @@ CesiumJS 官方发布新版本后，项目会先核对 Bridge API 和契约行�
 - [mapbox-mcp](https://github.com/gaopengbin/mapbox-mcp) — AI 控制 Mapbox GL JS
 - [openlayers-mcp](https://github.com/gaopengbin/openlayers-mcp) — AI 控制 OpenLayers
 
+## 社区
+
+本项目认可 [LINUX DO](https://linux.do/) 社区，感谢其为开源交流、技术讨论和开发者反馈提供空间。
+
 ## Star 趋势
 
 [![Star History Chart](https://raw.githubusercontent.com/gaopengbin/cesium-mcp/star-history-data/.github/star-history/chart.svg)](https://github.com/gaopengbin/cesium-mcp)
