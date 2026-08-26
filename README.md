@@ -243,6 +243,10 @@ Official CesiumJS releases are reviewed before the compatibility baseline is bum
 - [mapbox-mcp](https://github.com/gaopengbin/mapbox-mcp) — AI control for Mapbox GL JS
 - [openlayers-mcp](https://github.com/gaopengbin/openlayers-mcp) — AI control for OpenLayers
 
+## Community
+
+This project recognizes [LINUX DO](https://linux.do/) as a community for open-source exchange, technical discussion, and developer feedback.
+
 ## Star History
 
 [![Star History Chart](https://raw.githubusercontent.com/gaopengbin/cesium-mcp/star-history-data/.github/star-history/chart.svg)](https://github.com/gaopengbin/cesium-mcp)
