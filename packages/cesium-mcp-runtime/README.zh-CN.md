@@ -324,6 +324,14 @@ http://localhost:3216/mcp?session=geoagent
 
 显式路由采用失败关闭策略：工具参数或 MCP URL 指定的会话缺失、断开时，调用会直接返回错误，不会在另一个 Viewer 中执行。只有调用方没有显式选择会话时，才会使用默认会话或首个已连接浏览器。待处理响应也只接受接收命令的浏览器返回；该浏览器断线时，其请求会立即失败。
 
+## 资源句柄
+
+Runtime 始终注册 `storeResource`、`listResources` 和 `deleteResource`。大型 GeoJSON 或 CZML 只需存储一次，随后把返回的 `resourceId` 传给 `addGeoJsonLayer`、`addGeoJsonPrimitive`、`addLabel`、`addHeatmap` 或 `loadCzml`。
+
+资源按照用于命令路由的浏览器 `sessionId` 隔离，默认 30 分钟过期。只有消费工具解析句柄后，资源正文才会发往浏览器；原有内联 `data` 和远程 `url` 调用保持兼容。
+
+详见[资源句柄指南](https://gaopengbin.github.io/cesium-mcp/zh-CN/guide/resource-handles)。
+
 ## HTTP 推送 API
 
 运行时还暴露了 HTTP 端点，用于非 MCP 集成（如 FastAPI 后端）：

@@ -28,11 +28,20 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { readFileSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { normalizeCesiumToolLocale } from 'cesium-mcp-contracts'
-import type { JsonSchema } from 'cesium-mcp-contracts'
+import {
+  createCesiumResourceStore,
+  normalizeCesiumToolLocale,
+  resolveCesiumResourceInput,
+} from 'cesium-mcp-contracts'
+import type {
+  CesiumResourceKind,
+  CesiumResourceStore,
+  JsonSchema,
+} from 'cesium-mcp-contracts'
 import {
   cesiumRuntimeToolsetDescriptions,
   cesiumRuntimeToolsets,
+  cesiumRuntimeResourceToolNames,
   getCesiumRuntimeToolAction,
   getCesiumRuntimeToolMetadata,
 } from './tool-manifest.js'
@@ -66,6 +75,25 @@ const DEFAULT_SESSION_ID = process.env.DEFAULT_SESSION_ID ?? 'default'
 
 /** URL-level session context for MCP HTTP requests (e.g. /mcp?session=xxx) */
 const _httpSessionStore = new AsyncLocalStorage<string>()
+
+/** Resource payloads are isolated by application-level browser session. */
+const _resourceStores = new Map<string, CesiumResourceStore>()
+
+function resourceSessionId(params: Record<string, unknown>): string {
+  return typeof params.sessionId === 'string'
+    ? params.sessionId
+    : _httpSessionStore.getStore() ?? DEFAULT_SESSION_ID
+}
+
+function resourceStoreFor(params: Record<string, unknown>): CesiumResourceStore {
+  const sessionId = resourceSessionId(params)
+  let store = _resourceStores.get(sessionId)
+  if (!store) {
+    store = createCesiumResourceStore()
+    _resourceStores.set(sessionId, store)
+  }
+  return store
+}
 
 function sendBridgeAction(action: string, params: Record<string, unknown>, timeoutMs = 30000): Promise<unknown> {
   // Extract sessionId from params for multi-browser routing (transparent to tool handlers)
@@ -113,7 +141,11 @@ function sendBridgeAction(action: string, params: Record<string, unknown>, timeo
 }
 
 function sendToBrowser(toolName: string, params: Record<string, unknown>, timeoutMs = 30000): Promise<unknown> {
-  return sendBridgeAction(getCesiumRuntimeToolAction(toolName), params, timeoutMs)
+  const action = getCesiumRuntimeToolAction(toolName)
+  const resolvedParams = typeof params.resourceId === 'string'
+    ? resolveCesiumResourceInput(action, params, resourceStoreFor(params))
+    : params
+  return sendBridgeAction(action, resolvedParams, timeoutMs)
 }
 
 /** 将命令推送到指定 session 的浏览器（fire-and-forget，不等待响应） */
@@ -172,7 +204,12 @@ function _pushViaRelay(sessionId: string | undefined, command: { action: string;
 }
 
 // Server-side tools: handlers run on Node.js, NOT forwarded to browser bridge
-const SERVER_SIDE_TOOLS = new Set(['geocode'])
+const SERVER_SIDE_TOOLS = new Set([
+  'geocode',
+  'storeResource',
+  'listResources',
+  'deleteResource',
+])
 
 /** Invoke a server-side tool handler from _toolDefs, return parsed result */
 async function _invokeServerSideTool(action: string, params: Record<string, unknown>): Promise<unknown> {
@@ -2067,6 +2104,54 @@ _registerTool(
   },
 )
 
+// — session-scoped resource handles
+_registerTool(
+  'storeResource',
+  'Store GeoJSON, CZML, or JSON once and return a compact resourceId for later tool calls.',
+  {
+    kind: z.enum(['geojson', 'czml', 'json']),
+    data: z.unknown(),
+    resourceId: z.string().optional(),
+    ttlSeconds: z.number().int().positive().max(86400).optional(),
+  },
+  { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false, title: 'Store Resource' },
+  async (params) => {
+    const result = resourceStoreFor(params).register({
+      kind: params.kind as CesiumResourceKind,
+      data: params.data,
+      resourceId: params.resourceId,
+      ttlMs: params.ttlSeconds ? params.ttlSeconds * 1000 : undefined,
+    })
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
+  },
+)
+
+_registerTool(
+  'listResources',
+  'List resource metadata for the current browser session without returning payloads.',
+  {},
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'List Resources' },
+  async (params) => ({
+    content: [{
+      type: 'text' as const,
+      text: JSON.stringify({ resources: resourceStoreFor(params).list() }),
+    }],
+  }),
+)
+
+_registerTool(
+  'deleteResource',
+  'Delete one session-scoped resource by resourceId.',
+  { resourceId: z.string() },
+  { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false, title: 'Delete Resource' },
+  async (params) => ({
+    content: [{
+      type: 'text' as const,
+      text: JSON.stringify({ removed: resourceStoreFor(params).remove(params.resourceId) }),
+    }],
+  }),
+)
+
 // ==================== Prompts ====================
 
 function registerQuickstartPrompt(s: McpServer): void {
@@ -2243,6 +2328,11 @@ export function buildMcpServer(options: BuildMcpServerOptions = {}): McpServer {
     if (definition) _applyToolDef(s, definition)
   }
 
+  for (const toolName of cesiumRuntimeResourceToolNames) {
+    const definition = _toolDefs.get(toolName)
+    if (definition) _applyToolDef(s, definition)
+  }
+
   if (options.dynamicDiscovery) registerDiscoveryTools(s, state)
   registerSessionTool(s)
   if (options.conformance ?? process.env.CESIUM_MCP_CONFORMANCE === '1') {
@@ -2393,7 +2483,7 @@ export async function main(argv: string[] = []) {
     const port = mcpPortArg || WS_PORT + 100 // default: WS_PORT + 100 (e.g. 9200)
     const mcpHttpServer = createServer(_handleMcpRequest)
     mcpHttpServer.listen(port, () => {
-      const allToolCount = _toolDefs.size
+      const allToolCount = _toolDefs.size + 1
       console.error(`[cesium-mcp-runtime] MCP Server running (Streamable HTTP), ${allToolCount} tools available`)
       console.error(`[cesium-mcp-runtime] MCP endpoint: http://localhost:${port}/mcp`)
       console.error('[cesium-mcp-runtime] All toolsets enabled for HTTP mode')
@@ -2410,7 +2500,8 @@ export async function main(argv: string[] = []) {
     dynamicDiscovery: !_allMode,
   }))
   const metaCount = _allMode ? 0 : 2
-  console.error(`[cesium-mcp-runtime] MCP Server running (stdio), ${_configuredState.enabledTools.size + metaCount} tools registered (toolsets: ${[..._configuredToolsets].join(', ')})`)
+  const alwaysAvailableCount = cesiumRuntimeResourceToolNames.length + 1
+  console.error(`[cesium-mcp-runtime] MCP Server running (stdio), ${_configuredState.enabledTools.size + metaCount + alwaysAvailableCount} tools registered (toolsets: ${[..._configuredToolsets].join(', ')})`)
   if (_relayPort > 0) {
     console.error(`[cesium-mcp-runtime] Relay mode active → commands forwarded to port ${_relayPort}`)
   }

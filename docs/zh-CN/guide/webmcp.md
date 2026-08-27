@@ -6,7 +6,7 @@
 
 ## 在线体验
 
-使用 Chrome 打开 [Cesium Agent Lab](https://cesium-browser-agent.pages.dev/)。状态面板应显示 **WebMCP 已就绪 — 已注册 61 个页面工具**。
+使用 Chrome 打开 [Cesium Agent Lab](https://cesium-browser-agent.pages.dev/)。状态面板应显示 **WebMCP 已就绪 — 已注册 64 个页面工具**：61 个 Cesium 工具加 3 个页面级资源工具。
 
 演示中有两条彼此独立的 AI 路径：
 

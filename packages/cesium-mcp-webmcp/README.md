@@ -59,6 +59,24 @@ const tools = buildCesiumWebMcpTools(bridge, {
 })
 ```
 
+## Resource handles
+
+Enable three page-local resource tools when large GeoJSON or CZML should be stored once and referenced by `resourceId` in later calls:
+
+```typescript
+const registration = await registerCesiumViewerWebMcp(viewer, {
+  toolsets: 'all',
+  enableResources: true,
+})
+
+const stored = registration.resourceStore!.register({
+  kind: 'geojson',
+  data: featureCollection,
+})
+```
+
+Existing applications keep the original tool surface unless `enableResources` or `resourceStore` is provided. See the [resource handle guide](https://gaopengbin.github.io/cesium-mcp/guide/resource-handles).
+
 ## React StrictMode
 
 Pass an external abort signal from the component lifecycle. Cleanup aborts the active batch immediately, unregisters tools that were already added, and prevents a superseded StrictMode mount from continuing with the remaining names:

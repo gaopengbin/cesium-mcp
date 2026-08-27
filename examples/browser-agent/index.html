@@ -10,7 +10,12 @@
   <meta property="og:image" content="https://cesium-browser-agent.pages.dev/favicon.svg">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="shortcut icon" href="/favicon.svg">
-  <script src="https://cdn.jsdelivr.net/npm/cesium-mcp-webmcp@0.2.5/dist/cesium-mcp-webmcp.browser.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cesium-mcp-webmcp@0.3.0/dist/cesium-mcp-webmcp.browser.global.js"></script>
+  <script>
+    if (!globalThis.CesiumMcpWebMcp) {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/cesium-mcp-webmcp@0.2.5/dist/cesium-mcp-webmcp.browser.global.js"><\/script>')
+    }
+  </script>
   <script src="./tool-router.js"></script>
   <script src="./function-tools.js"></script>
   <script src="./agent-response.js"></script>
@@ -798,7 +803,10 @@ function toggleLanguage() {
 // ============================================================
 // Tool Definitions (OpenAI function calling format)
 // ============================================================
-const TOOL_CONTRACTS = CesiumMcpWebMcp.cesiumCoreToolContracts
+const TOOL_CONTRACTS = [
+  ...CesiumMcpWebMcp.cesiumCoreToolContracts,
+  ...(CesiumMcpWebMcp.cesiumResourceToolContracts || []),
+]
 const TOOL_API = {
   cesiumBrowserToolContracts: CesiumMcpWebMcp.cesiumBrowserToolContracts,
   cesiumBrowserToolsets: CesiumMcpWebMcp.cesiumBrowserToolsets,
@@ -838,9 +846,13 @@ const TOOLS = CesiumFunctionTools.toFunctionTools(TOOL_CONTRACTS)
 
 function resolveChatToolSelection(prompt) {
   const selection = CesiumToolRouter.resolveToolSelection(prompt, CONFIG.toolMode, TOOL_API)
+  const selectedTools = [
+    ...selection.tools,
+    ...(CesiumMcpWebMcp.cesiumResourceToolContracts || []),
+  ]
   return {
     ...selection,
-    tools: CesiumFunctionTools.toFunctionTools(selection.tools),
+    tools: CesiumFunctionTools.toFunctionTools(selectedTools),
   }
 }
 const SYSTEM_PROMPTS = {
@@ -884,6 +896,7 @@ let webMcpRegistration = null;
 let activeToolSelection = resolveChatToolSelection('')
 let isProcessing = false;
 let lastAiUsage = null
+const pageResourceStore = CesiumMcpWebMcp.createCesiumResourceStore?.() || null
 let lastWebMcpStatus = {
   state: 'idle',
   titleKey: null,
@@ -1055,7 +1068,10 @@ async function registerPageWebMcpTools() {
     },
   };
 
-  webMcpRegistration = await CesiumMcpWebMcp.registerCesiumWebMcp(executor, { toolsets: 'all' })
+  webMcpRegistration = await CesiumMcpWebMcp.registerCesiumWebMcp(executor, {
+    toolsets: 'all',
+    ...(pageResourceStore ? { resourceStore: pageResourceStore } : {}),
+  })
   setWebMcpStatus('ready', 'webMcpReady', 'pageToolsRegistered', { count: webMcpRegistration.registered.length });
   console.log('[WebMCP] Registered', webMcpRegistration.registered.length, 'page tools');
 }
@@ -1118,11 +1134,28 @@ async function runAgentLoop() {
             if (tc.function.name === 'geocode') {
               result = await clientGeocode(params)
             } else {
-              await initCesium()
-              result = await bridge.execute(CesiumFunctionTools.toBridgeCommand(
+              const command = CesiumFunctionTools.toBridgeCommand(
                 tc.function.name,
-                prepareCommandParams(tc.function.name, params),
-              ))
+                params,
+              )
+              if (pageResourceStore && CesiumMcpWebMcp.createResourceAwareExecutor) {
+                const resourceExecutor = CesiumMcpWebMcp.createResourceAwareExecutor({
+                  async execute({ action, params: resolvedParams }) {
+                    await initCesium()
+                    return bridge.execute({
+                      action,
+                      params: prepareCommandParams(action, resolvedParams),
+                    })
+                  },
+                }, pageResourceStore)
+                result = await resourceExecutor.execute(command)
+              } else {
+                await initCesium()
+                result = await bridge.execute({
+                  action: command.action,
+                  params: prepareCommandParams(command.action, command.params),
+                })
+              }
             }
             updateToolCall(toolEl, 'done', result);
             // Truncate large results (e.g. screenshot base64) to avoid context overflow

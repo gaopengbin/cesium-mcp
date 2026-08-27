@@ -134,6 +134,9 @@ describe('MCP SDK v2 dual-era HTTP handler', () => {
 
     expect(names).toContain('flyTo')
     expect(names).toContain('listSessions')
+    expect(names).toContain('storeResource')
+    expect(names).toContain('listResources')
+    expect(names).toContain('deleteResource')
     expect(names).not.toContain('addMarker')
     expect(names).not.toContain('test_missing_capability')
     expect(names).not.toContain('test_streaming_elicitation')
@@ -159,6 +162,49 @@ describe('MCP SDK v2 dual-era HTTP handler', () => {
     expect(flyTo?.outputSchema).toEqual(
       cesiumBrowserToolContracts.find(contract => contract.name === 'flyTo')?.outputSchema,
     )
+  })
+
+  it('isolates stored resource metadata by browser session', async () => {
+    const handler = createHandler()
+    const geoJson = { type: 'FeatureCollection', features: [] }
+    const stored = await postMcp(handler, {
+      jsonrpc: '2.0',
+      id: 5,
+      method: 'tools/call',
+      params: {
+        name: 'storeResource',
+        arguments: { kind: 'geojson', data: geoJson, sessionId: 'alpha' },
+        _meta: modernMeta(),
+      },
+    }, { modern: true, name: 'storeResource' })
+
+    expect(stored.payload.result?.structuredContent).toMatchObject({ kind: 'geojson' })
+
+    const alpha = await postMcp(handler, {
+      jsonrpc: '2.0',
+      id: 6,
+      method: 'tools/call',
+      params: {
+        name: 'listResources',
+        arguments: { sessionId: 'alpha' },
+        _meta: modernMeta(),
+      },
+    }, { modern: true, name: 'listResources' })
+    const beta = await postMcp(handler, {
+      jsonrpc: '2.0',
+      id: 7,
+      method: 'tools/call',
+      params: {
+        name: 'listResources',
+        arguments: { sessionId: 'beta' },
+        _meta: modernMeta(),
+      },
+    }, { modern: true, name: 'listResources' })
+
+    expect(alpha.payload.result?.structuredContent).toMatchObject({
+      resources: [expect.objectContaining({ kind: 'geojson' })],
+    })
+    expect(beta.payload.result?.structuredContent).toEqual({ resources: [] })
   })
 
   it('validates modern tool calls before reaching the browser bridge', async () => {

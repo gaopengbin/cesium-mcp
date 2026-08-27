@@ -3,6 +3,7 @@ import {
   cesiumBrowserToolsetDefinitions,
   cesiumBrowserToolsetNames,
   cesiumSharedToolNames,
+  cesiumResourceToolContracts,
   getCesiumToolAction,
 } from 'cesium-mcp-contracts'
 import type {
@@ -12,6 +13,11 @@ import type {
 } from 'cesium-mcp-contracts'
 
 export const cesiumRuntimeOnlyToolNames = ['setIonToken'] as const
+export const cesiumRuntimeResourceToolNames = [
+  'storeResource',
+  'listResources',
+  'deleteResource',
+] as const
 export const cesiumRuntimeMetaToolNames = ['list_toolsets', 'enable_toolset'] as const
 
 export interface CesiumRuntimeToolMetadata {
@@ -30,7 +36,8 @@ export interface CesiumRuntimeToolMetadata {
 }
 
 const sharedContractByName = new Map(
-  cesiumBrowserToolContracts.map(contract => [contract.name, contract]),
+  [...cesiumBrowserToolContracts, ...cesiumResourceToolContracts]
+    .map(contract => [contract.name, contract]),
 )
 
 export function getCesiumRuntimeToolMetadata(
@@ -80,4 +87,5 @@ export const cesiumRuntimeToolsetDescriptions: Readonly<Record<CesiumBrowserTool
 export const cesiumRuntimeCommandToolNames: readonly string[] = [
   ...cesiumSharedToolNames,
   ...cesiumRuntimeOnlyToolNames,
+  ...cesiumRuntimeResourceToolNames,
 ]

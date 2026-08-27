@@ -165,6 +165,27 @@ describe('registerCesiumWebMcp', () => {
     })
   })
 
+  it('stores large inputs once and resolves resourceId before Bridge execution', async () => {
+    const modelContext = createModelContext()
+    const execute = vi.fn().mockResolvedValue({ success: true })
+    const registration = await registerCesiumWebMcp({ execute }, {
+      modelContext,
+      enableResources: true,
+    })
+    const geoJson = { type: 'FeatureCollection', features: [] }
+    const storeResource = modelContext.registered.find(item => item.tool.name === 'storeResource')!.tool
+    const addGeoJsonLayer = modelContext.registered.find(item => item.tool.name === 'addGeoJsonLayer')!.tool
+    const stored = await storeResource.execute({ kind: 'geojson', data: geoJson })
+
+    expect(registration.registered).toHaveLength(18)
+    expect(registration.resourceStore?.list()).toHaveLength(1)
+    await addGeoJsonLayer.execute({ resourceId: stored.resourceId, name: 'Cities' })
+    expect(execute).toHaveBeenCalledWith({
+      action: 'addGeoJsonLayer',
+      params: { data: geoJson, name: 'Cities' },
+    })
+  })
+
   it('rolls back earlier registrations when one registration fails', async () => {
     let callCount = 0
     let signal: AbortSignal | undefined

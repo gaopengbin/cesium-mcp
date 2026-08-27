@@ -104,7 +104,7 @@ Fork the [examples/browser-agent](examples/browser-agent/) folder to deploy your
 
 ### Path 1 — Expose Cesium tools through WebMCP (Chrome 149+ experimental)
 
-The browser-agent example automatically registers all 61 browser-safe page tools when `document.modelContext` is available. Its built-in chat uses automatic toolset routing to keep each normal request at 20 tools or fewer, while still offering explicit core, single-toolset, and all-61 modes:
+The browser-agent example automatically registers all 61 browser-safe page tools plus 3 page-local resource tools when `document.modelContext` is available. Its built-in chat uses automatic toolset routing while keeping resource handles available for large GeoJSON/CZML inputs, and still offers explicit core, single-toolset, and all-tools modes:
 
 ```bash
 npm run build -w packages/cesium-mcp-bridge

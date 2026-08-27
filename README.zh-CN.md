@@ -107,7 +107,7 @@ Fork [examples/browser-agent](examples/browser-agent/) 部署你自己的。
 
 ### 路径 1 — 通过 WebMCP 暴露 Cesium 工具（Chrome 149+ 实验功能）
 
-browser-agent 示例会在检测到 `document.modelContext` 时，自动注册全部 61 个浏览器安全页面工具；内置聊天默认通过工具集自动调度，把常规请求控制在 20 个以内，同时保留核心、单工具集和全部 61 个工具模式：
+browser-agent 示例检测到 `document.modelContext` 时，会自动注册全部 61 个浏览器安全页面工具和 3 个页面级资源工具；内置聊天继续按工具集自动调度，同时始终保留用于大型 GeoJSON/CZML 的资源句柄，并提供核心、单工具集和全部工具模式：
 
 ```bash
 npm run build -w packages/cesium-mcp-bridge

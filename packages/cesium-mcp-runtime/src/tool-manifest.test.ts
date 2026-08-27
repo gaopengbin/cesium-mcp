@@ -11,6 +11,7 @@ import {
   cesiumRuntimeCommandToolNames,
   cesiumRuntimeMetaToolNames,
   cesiumRuntimeOnlyToolNames,
+  cesiumRuntimeResourceToolNames,
   cesiumRuntimeToolsetDescriptions,
   cesiumRuntimeToolsets,
   getCesiumRuntimeToolAction,
@@ -74,7 +75,20 @@ describe('runtime tool manifest', () => {
     expect(cesiumRuntimeCommandToolNames).toEqual([
       ...cesiumSharedToolNames,
       'setIonToken',
+      ...cesiumRuntimeResourceToolNames,
     ])
+  })
+
+  it('keeps adapter resource tools separate from browser Bridge toolsets', () => {
+    expect(cesiumRuntimeResourceToolNames).toEqual([
+      'storeResource',
+      'listResources',
+      'deleteResource',
+    ])
+    for (const name of cesiumRuntimeResourceToolNames) {
+      expect(Object.values(cesiumRuntimeToolsets).flat()).not.toContain(name)
+      expect(getCesiumRuntimeToolMetadata(name, 'en')).toBeDefined()
+    }
   })
 
   it('keeps MCP discovery tools outside the Cesium command inventory', () => {

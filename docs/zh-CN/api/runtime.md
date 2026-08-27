@@ -810,6 +810,18 @@ Runtime npm 产物会包含由 `/bridge.js` 提供的浏览器 Bridge bundle，�
 
 **返回：** `{ success, longitude, latitude, displayName, boundingBox }`
 
+## 资源句柄工具（3 个）
+
+这些适配层本地工具用于只存储一次大型输入。它们始终可用，不属于 Cesium 浏览器工具集。
+
+| 工具 | 参数 | 返回值 |
+|------|------|--------|
+| `storeResource` | `kind`（`geojson` \| `czml` \| `json`）、`data`，可选 `resourceId`、`ttlSeconds` | 包含 `resourceId` 的资源元数据 |
+| `listResources` | 可选 `sessionId` | `{ resources: ResourceMetadata[] }`，不包含正文 |
+| `deleteResource` | `resourceId`，可选 `sessionId` | `{ removed: boolean }` |
+
+资源使用命令路由中的同一个浏览器 `sessionId` 进行隔离。支持的消费工具和生命周期限制见[资源句柄](/zh-CN/guide/resource-handles)。
+
 ## MCP 资源（2 个）
 
 | URI | 描述 |

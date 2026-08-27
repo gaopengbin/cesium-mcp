@@ -330,6 +330,14 @@ only when the caller did not explicitly select a session. Pending responses are
 also accepted only from the browser that received the command, and are rejected
 immediately if that browser disconnects.
 
+## Resource Handles
+
+The runtime always registers `storeResource`, `listResources`, and `deleteResource`. Store large GeoJSON or CZML once, then pass the returned `resourceId` to `addGeoJsonLayer`, `addGeoJsonPrimitive`, `addLabel`, `addHeatmap`, or `loadCzml`.
+
+Resources are isolated by the same browser `sessionId` used for command routing. They expire after 30 minutes by default and are never forwarded to the browser until a consuming tool resolves the handle. Existing inline `data` and remote `url` inputs remain compatible.
+
+See the [resource handle guide](https://gaopengbin.github.io/cesium-mcp/guide/resource-handles).
+
 ## HTTP Push API
 
 The runtime also exposes an HTTP endpoint for non-MCP integrations (e.g., FastAPI backend):

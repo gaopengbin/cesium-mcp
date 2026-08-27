@@ -1,5 +1,14 @@
-import { getCesiumToolAction, selectCesiumToolContracts } from 'cesium-mcp-contracts'
+import {
+  cesiumResourceToolContracts,
+  createCesiumResourceStore,
+  getCesiumToolAction,
+  resolveCesiumResourceInput,
+  selectCesiumToolContracts,
+} from 'cesium-mcp-contracts'
 import type {
+  CesiumResourceKind,
+  CesiumResourceStore,
+  CesiumResourceStoreOptions,
   CesiumToolContract,
   CesiumToolsetSelection,
 } from 'cesium-mcp-contracts'
@@ -10,13 +19,19 @@ export {
   cesiumBrowserToolsetNames,
   cesiumBrowserToolsets,
   cesiumCoreToolContracts,
+  cesiumResourceToolContracts,
   cesiumSharedToolNames,
+  createCesiumResourceStore,
   selectCesiumToolContracts,
 } from 'cesium-mcp-contracts'
 export type {
   CesiumBrowserToolset,
   CesiumBrowserToolsetDefinition,
   CesiumBrowserToolsetName,
+  CesiumResourceKind,
+  CesiumResourceMetadata,
+  CesiumResourceStore,
+  CesiumResourceStoreOptions,
   CesiumToolAnnotations,
   CesiumToolContract,
   CesiumToolsetSelection,
@@ -69,17 +84,51 @@ export interface RegisterCesiumWebMcpOptions extends RegisterWebMcpToolsOptions 
   tools?: readonly CesiumToolContract[]
   toolsets?: CesiumToolsetSelection
   excludeTools?: readonly string[]
+  /** Opt in to page-local resource tools and resourceId resolution. */
+  enableResources?: boolean
+  /** Use an application-owned store; also enables resource tools. */
+  resourceStore?: CesiumResourceStore
+  resourceStoreOptions?: CesiumResourceStoreOptions
 }
 
 export type BuildCesiumWebMcpToolsOptions = Pick<
   RegisterCesiumWebMcpOptions,
-  'tools' | 'toolsets' | 'excludeTools'
+  'tools' | 'toolsets' | 'excludeTools' | 'enableResources' | 'resourceStore' | 'resourceStoreOptions'
 >
 
 export interface WebMcpRegistration {
   registered: string[]
   signal: AbortSignal
+  resourceStore?: CesiumResourceStore
   unregister(): void
+}
+
+export function createResourceAwareExecutor(
+  executor: CesiumWebMcpExecutor,
+  resourceStore: CesiumResourceStore,
+): CesiumWebMcpExecutor {
+  return {
+    execute(command) {
+      const { action, params } = command
+      if (action === 'storeResource') {
+        const kind = params.kind as CesiumResourceKind
+        return resourceStore.register({
+          kind,
+          data: params.data,
+          resourceId: typeof params.resourceId === 'string' ? params.resourceId : undefined,
+          ttlMs: typeof params.ttlSeconds === 'number' ? params.ttlSeconds * 1000 : undefined,
+        })
+      }
+      if (action === 'listResources') return { resources: resourceStore.list() }
+      if (action === 'deleteResource') {
+        return { removed: resourceStore.remove(String(params.resourceId ?? '')) }
+      }
+      return executor.execute({
+        action,
+        params: resolveCesiumResourceInput(action, params, resourceStore),
+      })
+    },
+  }
 }
 
 export function isWebMcpSupported(documentRef?: WebMcpDocument): boolean {
@@ -169,7 +218,11 @@ export function buildCesiumWebMcpTools(
   executor: CesiumWebMcpExecutor,
   options: BuildCesiumWebMcpToolsOptions = {},
 ): WebMcpRegisteredTool[] {
-  return buildWebMcpTools(executor, selectWebMcpContracts(options))
+  const resourceStore = resolveResourceStore(options)
+  return buildWebMcpTools(
+    resourceStore ? createResourceAwareExecutor(executor, resourceStore) : executor,
+    selectWebMcpContracts(options),
+  )
 }
 
 export function registerCesiumWebMcp(
@@ -182,11 +235,12 @@ export function registerCesiumWebMcp(
     signal: options.signal,
     exposedTo: options.exposedTo,
   }
+  const resourceStore = resolveResourceStore(options)
   return registerWebMcpTools(
-    executor,
+    resourceStore ? createResourceAwareExecutor(executor, resourceStore) : executor,
     selectWebMcpContracts(options),
     registrationOptions,
-  )
+  ).then(registration => ({ ...registration, resourceStore }))
 }
 
 function selectWebMcpContracts(
@@ -199,7 +253,19 @@ function selectWebMcpContracts(
   } = options
   const selectedTools = tools ?? selectCesiumToolContracts(toolsets)
   const excludedNames = new Set(excludeTools)
-  return selectedTools.filter(tool => !excludedNames.has(tool.name))
+  const resourceTools = options.enableResources || options.resourceStore
+    ? cesiumResourceToolContracts
+    : []
+  return [...selectedTools, ...resourceTools]
+    .filter(tool => !excludedNames.has(tool.name))
+}
+
+function resolveResourceStore(
+  options: BuildCesiumWebMcpToolsOptions,
+): CesiumResourceStore | undefined {
+  if (options.resourceStore) return options.resourceStore
+  if (options.enableResources) return createCesiumResourceStore(options.resourceStoreOptions)
+  return undefined
 }
 
 function annotationValue<K extends 'readOnlyHint' | 'untrustedContentHint'>(
