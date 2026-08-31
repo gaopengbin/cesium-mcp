@@ -13,6 +13,7 @@ export {
   mergeBounds,
   pointInPolygon,
 } from './geometry.js'
+export * from './world-awareness/index.js'
 export {
   COMMUNITY_OBJECT_ID,
   createEmergencyResponseFeatures,
