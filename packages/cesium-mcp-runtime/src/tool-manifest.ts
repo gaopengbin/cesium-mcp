@@ -2,12 +2,17 @@ import {
   cesiumBrowserToolContracts,
   cesiumBrowserToolsetDefinitions,
   cesiumBrowserToolsetNames,
+  cesiumExperimentalToolsetNames,
+  cesiumExperimentalToolsets,
   cesiumSharedToolNames,
   cesiumResourceToolContracts,
+  cesiumObserverToolContracts,
+  cesiumSpatialToolContracts,
   getCesiumToolAction,
 } from 'cesium-mcp-contracts'
 import type {
   CesiumBrowserToolsetName,
+  CesiumExperimentalToolsetName,
   CesiumToolLocale,
   JsonSchema,
 } from 'cesium-mcp-contracts'
@@ -36,7 +41,12 @@ export interface CesiumRuntimeToolMetadata {
 }
 
 const sharedContractByName = new Map(
-  [...cesiumBrowserToolContracts, ...cesiumResourceToolContracts]
+  [
+    ...cesiumBrowserToolContracts,
+    ...cesiumSpatialToolContracts,
+    ...cesiumObserverToolContracts,
+    ...cesiumResourceToolContracts,
+  ]
     .map(contract => [contract.name, contract]),
 )
 
@@ -69,23 +79,44 @@ export function getCesiumRuntimeToolAction(name: string): string {
   return contract ? getCesiumToolAction(contract) : name
 }
 
-export const cesiumRuntimeToolsets: Readonly<
-  Record<CesiumBrowserToolsetName, readonly string[]>
-> = Object.fromEntries(cesiumBrowserToolsetNames.map(name => [
-  name,
-  name === 'scene'
-    ? [...cesiumBrowserToolsetDefinitions[name].names, ...cesiumRuntimeOnlyToolNames]
-    : [...cesiumBrowserToolsetDefinitions[name].names],
-])) as unknown as Readonly<Record<CesiumBrowserToolsetName, readonly string[]>>
+export type CesiumRuntimeToolsetName =
+  | CesiumBrowserToolsetName
+  | CesiumExperimentalToolsetName
 
-export const cesiumRuntimeToolsetDescriptions: Readonly<Record<CesiumBrowserToolsetName, string>> =
-  Object.fromEntries(cesiumBrowserToolsetNames.map(name => [
+export const cesiumRuntimeStableToolsetNames: readonly CesiumBrowserToolsetName[] =
+  cesiumBrowserToolsetNames
+
+export const cesiumRuntimeExperimentalToolsetNames: readonly CesiumExperimentalToolsetName[] =
+  cesiumExperimentalToolsetNames
+
+export const cesiumRuntimeToolsets: Readonly<Record<CesiumRuntimeToolsetName, readonly string[]>> = {
+  ...Object.fromEntries(cesiumBrowserToolsetNames.map(name => [
+    name,
+    name === 'scene'
+      ? [...cesiumBrowserToolsetDefinitions[name].names, ...cesiumRuntimeOnlyToolNames]
+      : [...cesiumBrowserToolsetDefinitions[name].names],
+  ])),
+  ...Object.fromEntries(cesiumExperimentalToolsetNames.map(name => [
+    name,
+    cesiumExperimentalToolsets[name].tools.map(tool => tool.name),
+  ])),
+} as unknown as Readonly<Record<CesiumRuntimeToolsetName, readonly string[]>>
+
+export const cesiumRuntimeToolsetDescriptions: Readonly<Record<CesiumRuntimeToolsetName, string>> = {
+  ...Object.fromEntries(cesiumBrowserToolsetNames.map(name => [
     name,
     cesiumBrowserToolsetDefinitions[name].description,
-  ])) as unknown as Readonly<Record<CesiumBrowserToolsetName, string>>
+  ])),
+  ...Object.fromEntries(cesiumExperimentalToolsetNames.map(name => [
+    name,
+    `[Experimental] ${cesiumExperimentalToolsets[name].description}`,
+  ])),
+} as Readonly<Record<CesiumRuntimeToolsetName, string>>
 
 export const cesiumRuntimeCommandToolNames: readonly string[] = [
   ...cesiumSharedToolNames,
+  ...cesiumSpatialToolContracts.map(tool => tool.name),
+  ...cesiumObserverToolContracts.map(tool => tool.name),
   ...cesiumRuntimeOnlyToolNames,
   ...cesiumRuntimeResourceToolNames,
 ]

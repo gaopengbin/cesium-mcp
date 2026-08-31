@@ -5,13 +5,17 @@ import {
   cesiumBrowserToolContracts,
   cesiumBrowserToolsetDefinitions,
   cesiumBrowserToolsetNames,
+  cesiumObserverToolContracts,
   cesiumSharedToolNames,
+  cesiumSpatialToolContracts,
 } from 'cesium-mcp-contracts'
 import {
   cesiumRuntimeCommandToolNames,
   cesiumRuntimeMetaToolNames,
   cesiumRuntimeOnlyToolNames,
   cesiumRuntimeResourceToolNames,
+  cesiumRuntimeExperimentalToolsetNames,
+  cesiumRuntimeStableToolsetNames,
   cesiumRuntimeToolsetDescriptions,
   cesiumRuntimeToolsets,
   getCesiumRuntimeToolAction,
@@ -74,9 +78,24 @@ describe('runtime tool manifest', () => {
     ])
     expect(cesiumRuntimeCommandToolNames).toEqual([
       ...cesiumSharedToolNames,
+      ...cesiumSpatialToolContracts.map(tool => tool.name),
+      ...cesiumObserverToolContracts.map(tool => tool.name),
       'setIonToken',
       ...cesiumRuntimeResourceToolNames,
     ])
+  })
+
+  it('keeps perception explicit and outside the stable all-toolset selection', () => {
+    expect(cesiumRuntimeStableToolsetNames).toEqual(cesiumBrowserToolsetNames)
+    expect(cesiumRuntimeExperimentalToolsetNames).toEqual(['perception', 'observer'])
+    expect(cesiumRuntimeToolsets.perception).toEqual(
+      cesiumSpatialToolContracts.map(tool => tool.name),
+    )
+    expect(cesiumRuntimeStableToolsetNames).not.toContain('perception')
+    expect(cesiumRuntimeToolsets.observer).toEqual(['captureObserverView'])
+    expect(cesiumRuntimeStableToolsetNames).not.toContain('observer')
+    expect(cesiumRuntimeToolsetDescriptions.perception).toContain('[Experimental]')
+    expect(cesiumRuntimeToolsetDescriptions.observer).toContain('[Experimental]')
   })
 
   it('keeps adapter resource tools separate from browser Bridge toolsets', () => {

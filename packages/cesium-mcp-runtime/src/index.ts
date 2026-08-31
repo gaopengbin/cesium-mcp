@@ -41,6 +41,7 @@ import type {
 import {
   cesiumRuntimeToolsetDescriptions,
   cesiumRuntimeToolsets,
+  cesiumRuntimeStableToolsetNames,
   cesiumRuntimeResourceToolNames,
   getCesiumRuntimeToolAction,
   getCesiumRuntimeToolMetadata,
@@ -49,7 +50,7 @@ import {
   createMcpInputSchema,
   createMcpOutputSchema,
 } from './mcp-schema.js'
-import { attachStructuredContent } from './tool-result.js'
+import { attachStructuredContent, createPngImageToolResult } from './tool-result.js'
 import {
   rejectPendingRequestsForClient,
   resolveBrowserTarget,
@@ -631,7 +632,7 @@ const _tsEnv = process.env.CESIUM_TOOLSETS?.trim()
 const _allMode = _tsEnv === 'all'
 const _configuredToolsets = new Set<string>(
   _allMode
-    ? Object.keys(TOOLSETS)
+    ? cesiumRuntimeStableToolsetNames
     : _tsEnv
       ? _tsEnv.split(',').map(s => s.trim()).filter(s => s in TOOLSETS)
       : DEFAULT_TOOLSETS,
@@ -948,14 +949,11 @@ _registerTool(
     } | null
     const screenshot = structured?.data
     if (screenshot?.dataUrl) {
-      return {
-        content: [{
-          type: 'image' as const,
-          data: screenshot.dataUrl.replace(/^data:image\/\w+;base64,/, ''),
-          mimeType: 'image/png',
-        }],
-        structuredContent: structured as Record<string, unknown>,
-      }
+      const imageResult = createPngImageToolResult(
+        structured as Record<string, unknown>,
+        screenshot.dataUrl,
+      )
+      if (imageResult) return imageResult
     }
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
   },
@@ -1256,6 +1254,174 @@ _registerTool(
   async () => {
     const result = await sendToBrowser('exportScene', {})
     return { content: [{ type: 'text' as const, text: JSON.stringify(result ?? { success: true }) }] }
+  },
+)
+
+// — observeScene (experimental grounded observation)
+_registerTool(
+  'observeScene',
+  'Create one grounded scene observation with readiness, freshness, structured context, and optional independent visual evidence.',
+  {
+    scope: z.enum(['view', 'scene']).optional().default('view'),
+    includeObjects: z.boolean().optional().default(true),
+    limit: z.number().int().min(1).max(500).optional().default(50),
+    imageMode: z.enum(['never', 'auto', 'always']).optional().default('auto'),
+    targetObjectId: z.string().min(1).optional(),
+    targetLongitude: z.number().min(-180).max(180).optional(),
+    targetLatitude: z.number().min(-90).max(90).optional(),
+    targetHeight: z.number().min(-10000).max(1000000).optional(),
+    preset: z.enum(['overview', 'detail', 'eye-level']).optional(),
+    range: z.number().min(50).max(20000000).optional(),
+    heading: z.number().min(0).max(360).optional(),
+    pitch: z.number().min(-89).max(-5).optional(),
+    imageWidth: z.number().int().min(320).max(1600).optional().default(1024),
+    imageHeight: z.number().int().min(180).max(1200).optional().default(576),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Observe Scene' },
+  async (params) => {
+    const result = await sendToBrowser('observeScene', params)
+    const structured = result as {
+      data?: {
+        visual?: {
+          evidence?: { dataUrl?: string }
+        }
+      }
+    } | null
+    const dataUrl = structured?.data?.visual?.evidence?.dataUrl
+    if (dataUrl) {
+      const imageResult = createPngImageToolResult(
+        structured as Record<string, unknown>,
+        dataUrl,
+      )
+      if (imageResult) return imageResult
+    }
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
+  },
+)
+
+// — describeScene (experimental perception)
+_registerTool(
+  'describeScene',
+  'Describe normalized, managed scene objects with evidence quality.',
+  {
+    includeObjects: z.boolean().optional().default(false),
+    limit: z.number().int().min(1).max(500).optional().default(50),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Describe Scene' },
+  async (params) => {
+    const result = await sendToBrowser('describeScene', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
+  },
+)
+
+// — querySpatialObjects (experimental perception)
+_registerTool(
+  'querySpatialObjects',
+  'Query normalized scene objects by semantic, spatial, and provenance filters.',
+  {
+    name: z.string().optional(),
+    types: z.array(z.string()).optional(),
+    sourceTypes: z.array(z.enum(['entity', 'layer', 'geojson', 'czml', 'tileset-feature'])).optional(),
+    layerId: z.string().optional(),
+    bbox: z.array(z.number()).length(4).optional(),
+    near: z.object({
+      longitude: z.number(),
+      latitude: z.number(),
+      radiusMeters: z.number().positive(),
+    }).optional(),
+    propertyEquals: z.record(
+      z.string(),
+      z.union([z.string(), z.number(), z.boolean(), z.null()]),
+    ).optional(),
+    limit: z.number().int().min(1).max(500).optional().default(50),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Query Spatial Objects' },
+  async (params) => {
+    const result = await sendToBrowser('querySpatialObjects', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
+  },
+)
+
+// — getObjectContext (experimental perception)
+_registerTool(
+  'getObjectContext',
+  'Get one normalized scene object and nearby objects ranked by distance.',
+  {
+    objectId: z.string(),
+    nearbyRadiusMeters: z.number().positive().optional().default(1000),
+    nearbyLimit: z.number().int().min(0).max(100).optional().default(10),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Get Object Context' },
+  async (params) => {
+    const result = await sendToBrowser('getObjectContext', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
+  },
+)
+
+// — querySpatialRelation (experimental perception)
+_registerTool(
+  'querySpatialRelation',
+  'Evaluate one evidence-aware spatial relation between two scene objects.',
+  {
+    subjectId: z.string(),
+    objectId: z.string(),
+    relation: z.enum(['distance', 'near', 'intersects', 'within', 'contains', 'overlaps']),
+    nearThresholdMeters: z.number().positive().optional().default(1000),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Query Spatial Relation' },
+  async (params) => {
+    const result = await sendToBrowser('querySpatialRelation', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
+  },
+)
+
+// — getViewContext (experimental perception)
+_registerTool(
+  'getViewContext',
+  'Describe camera bounds and managed scene objects intersecting the current view.',
+  {
+    includeObjects: z.boolean().optional().default(true),
+    limit: z.number().int().min(1).max(500).optional().default(50),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Get View Context' },
+  async (params) => {
+    const result = await sendToBrowser('getViewContext', params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
+  },
+)
+
+// — captureObserverView (experimental observer)
+_registerTool(
+  'captureObserverView',
+  'Capture an independent observer-camera PNG without moving the application camera.',
+  {
+    targetObjectId: z.string().min(1).optional(),
+    targetLongitude: z.number().min(-180).max(180).optional(),
+    targetLatitude: z.number().min(-90).max(90).optional(),
+    targetHeight: z.number().min(-10000).max(1000000).optional(),
+    preset: z.enum(['overview', 'detail', 'eye-level']).optional(),
+    range: z.number().min(50).max(20000000).optional(),
+    heading: z.number().min(0).max(360).optional(),
+    pitch: z.number().min(-89).max(-5).optional(),
+    imageWidth: z.number().int().min(320).max(1600).optional().default(1024),
+    imageHeight: z.number().int().min(180).max(1200).optional().default(576),
+  },
+  { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Capture Observer View' },
+  async (params) => {
+    const result = await sendToBrowser('captureObserverView', params)
+    const structured = result as {
+      success?: boolean
+      data?: { dataUrl?: string }
+    } | null
+    const observerCapture = structured?.data
+    if (observerCapture?.dataUrl) {
+      const imageResult = createPngImageToolResult(
+        structured as Record<string, unknown>,
+        observerCapture.dataUrl,
+      )
+      if (imageResult) return imageResult
+    }
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
   },
 )
 
@@ -2318,7 +2484,7 @@ function registerConformanceTools(s: McpServer): void {
 
 /** Build one isolated MCP server for an HTTP request or stdio connection. */
 export function buildMcpServer(options: BuildMcpServerOptions = {}): McpServer {
-  const state = createToolState(options.toolsets ?? Object.keys(TOOLSETS))
+  const state = createToolState(options.toolsets ?? cesiumRuntimeStableToolsetNames)
   const s = createRuntimeMcpServer()
   registerResources(s)
   registerQuickstartPrompt(s)
@@ -2349,7 +2515,7 @@ export function buildMcpServer(options: BuildMcpServerOptions = {}): McpServer {
  */
 function _createHttpMcpServer(filterToolsets?: Set<string>): McpServer {
   return buildMcpServer({
-    toolsets: filterToolsets ?? Object.keys(TOOLSETS),
+    toolsets: filterToolsets ?? cesiumRuntimeStableToolsetNames,
   })
 }
 
@@ -2465,7 +2631,7 @@ async function _handleMcpRequest(req: IncomingMessage, res: ServerResponse) {
  */
 export function createSandboxServer() {
   return buildMcpServer({
-    toolsets: Object.keys(TOOLSETS),
+    toolsets: cesiumRuntimeStableToolsetNames,
   })
 }
 
@@ -2483,10 +2649,13 @@ export async function main(argv: string[] = []) {
     const port = mcpPortArg || WS_PORT + 100 // default: WS_PORT + 100 (e.g. 9200)
     const mcpHttpServer = createServer(_handleMcpRequest)
     mcpHttpServer.listen(port, () => {
-      const allToolCount = _toolDefs.size + 1
-      console.error(`[cesium-mcp-runtime] MCP Server running (Streamable HTTP), ${allToolCount} tools available`)
+      const stableTools = new Set(
+        cesiumRuntimeStableToolsetNames.flatMap(name => TOOLSETS[name] ?? []),
+      )
+      const defaultToolCount = stableTools.size + cesiumRuntimeResourceToolNames.length + 1
+      console.error(`[cesium-mcp-runtime] MCP Server running (Streamable HTTP), ${defaultToolCount} tools available by default`)
       console.error(`[cesium-mcp-runtime] MCP endpoint: http://localhost:${port}/mcp`)
-      console.error('[cesium-mcp-runtime] All toolsets enabled for HTTP mode')
+      console.error('[cesium-mcp-runtime] Stable toolsets enabled; select ?toolsets=perception to opt in to spatial context')
       if (_relayPort > 0) {
         console.error(`[cesium-mcp-runtime] Relay mode active → commands forwarded to port ${_relayPort}`)
       }

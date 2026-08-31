@@ -1,5 +1,7 @@
 export { cesiumCoreToolContracts } from './tools'
 export { cesiumResourceToolContracts } from './resource-tools'
+export { cesiumSpatialToolContracts } from './spatial-tools'
+export { cesiumObserverToolContracts } from './observer-tools'
 export { normalizeCesiumToolLocale } from './metadata'
 export {
   createCesiumResourceStore,
@@ -18,12 +20,21 @@ export {
   getCesiumToolAction,
   selectCesiumToolContracts,
 } from './toolsets'
+export {
+  cesiumExperimentalToolsetNames,
+  cesiumExperimentalToolsets,
+  selectCesiumExperimentalToolContracts,
+} from './experimental-toolsets'
 export type {
   CesiumBrowserToolset,
   CesiumBrowserToolsetDefinition,
   CesiumBrowserToolsetName,
   CesiumToolsetSelection,
 } from './toolsets'
+export type {
+  CesiumExperimentalToolset,
+  CesiumExperimentalToolsetName,
+} from './experimental-toolsets'
 export type {
   CesiumToolAnnotations,
   CesiumToolContract,

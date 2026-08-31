@@ -45,7 +45,11 @@ describe('Cesium resource store', () => {
     expect(resolveCesiumResourceInput('addGeoJsonLayer', {
       resourceId: 'geojson_1',
       name: 'Boundaries',
-    }, store)).toEqual({ name: 'Boundaries', data })
+    }, store)).toEqual({
+      resourceId: 'geojson_1',
+      name: 'Boundaries',
+      data,
+    })
   })
 
   it('rejects kind mismatches and ambiguous inputs', () => {

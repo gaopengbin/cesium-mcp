@@ -3,9 +3,11 @@ import {
   createCesiumResourceStore,
   getCesiumToolAction,
   resolveCesiumResourceInput,
+  selectCesiumExperimentalToolContracts,
   selectCesiumToolContracts,
 } from 'cesium-mcp-contracts'
 import type {
+  CesiumExperimentalToolsetName,
   CesiumResourceKind,
   CesiumResourceStore,
   CesiumResourceStoreOptions,
@@ -20,14 +22,20 @@ export {
   cesiumBrowserToolsets,
   cesiumCoreToolContracts,
   cesiumResourceToolContracts,
+  cesiumSpatialToolContracts,
   cesiumSharedToolNames,
+  cesiumExperimentalToolsetNames,
+  cesiumExperimentalToolsets,
   createCesiumResourceStore,
   selectCesiumToolContracts,
+  selectCesiumExperimentalToolContracts,
 } from 'cesium-mcp-contracts'
 export type {
   CesiumBrowserToolset,
   CesiumBrowserToolsetDefinition,
   CesiumBrowserToolsetName,
+  CesiumExperimentalToolset,
+  CesiumExperimentalToolsetName,
   CesiumResourceKind,
   CesiumResourceMetadata,
   CesiumResourceStore,
@@ -83,6 +91,8 @@ export interface RegisterWebMcpToolsOptions {
 export interface RegisterCesiumWebMcpOptions extends RegisterWebMcpToolsOptions {
   tools?: readonly CesiumToolContract[]
   toolsets?: CesiumToolsetSelection
+  /** Explicitly opt in to unstable scene-grounding toolsets. */
+  experimentalToolsets?: CesiumExperimentalToolsetName | readonly CesiumExperimentalToolsetName[]
   excludeTools?: readonly string[]
   /** Opt in to page-local resource tools and resourceId resolution. */
   enableResources?: boolean
@@ -93,7 +103,7 @@ export interface RegisterCesiumWebMcpOptions extends RegisterWebMcpToolsOptions 
 
 export type BuildCesiumWebMcpToolsOptions = Pick<
   RegisterCesiumWebMcpOptions,
-  'tools' | 'toolsets' | 'excludeTools' | 'enableResources' | 'resourceStore' | 'resourceStoreOptions'
+  'tools' | 'toolsets' | 'experimentalToolsets' | 'excludeTools' | 'enableResources' | 'resourceStore' | 'resourceStoreOptions'
 >
 
 export interface WebMcpRegistration {
@@ -252,12 +262,18 @@ function selectWebMcpContracts(
     excludeTools = [],
   } = options
   const selectedTools = tools ?? selectCesiumToolContracts(toolsets)
+  const experimentalTools = options.experimentalToolsets
+    ? selectCesiumExperimentalToolContracts(options.experimentalToolsets)
+    : []
   const excludedNames = new Set(excludeTools)
   const resourceTools = options.enableResources || options.resourceStore
     ? cesiumResourceToolContracts
     : []
-  return [...selectedTools, ...resourceTools]
-    .filter(tool => !excludedNames.has(tool.name))
+  const selected = new Map<string, CesiumToolContract>()
+  for (const tool of [...selectedTools, ...experimentalTools, ...resourceTools]) {
+    if (!excludedNames.has(tool.name)) selected.set(tool.name, tool)
+  }
+  return [...selected.values()]
 }
 
 function resolveResourceStore(

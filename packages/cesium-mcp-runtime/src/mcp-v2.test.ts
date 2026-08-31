@@ -164,6 +164,56 @@ describe('MCP SDK v2 dual-era HTTP handler', () => {
     )
   })
 
+  it('exposes perception and observer only through an explicit HTTP toolset selection', async () => {
+    const request = {
+      jsonrpc: '2.0',
+      id: 21,
+      method: 'tools/list',
+      params: { _meta: modernMeta() },
+    }
+    const regular = await postMcp(createHandler(), request, {
+      modern: true,
+      url: 'http://test.local/mcp',
+    })
+    const experimental = await postMcp(createHandler(), request, {
+      modern: true,
+      url: 'http://test.local/mcp?toolsets=perception,observer',
+    })
+    const regularNames = (regular.payload.result?.tools as Array<{ name: string }>)
+      .map(tool => tool.name)
+    const experimentalTools = experimental.payload.result?.tools as Array<{
+      name: string
+      inputSchema: Record<string, unknown>
+    }>
+    const experimentalNames = experimentalTools.map(tool => tool.name)
+    const observer = experimentalTools.find(tool => tool.name === 'captureObserverView')
+
+    expect(regularNames).not.toContain('describeScene')
+    expect(regularNames).not.toContain('observeScene')
+    expect(experimentalNames).toEqual(expect.arrayContaining([
+      'observeScene',
+      'describeScene',
+      'querySpatialObjects',
+      'getObjectContext',
+      'querySpatialRelation',
+      'getViewContext',
+      'captureObserverView',
+    ]))
+    expect(experimentalNames).not.toContain('flyTo')
+    expect(observer?.inputSchema).toMatchObject({
+      type: 'object',
+      properties: {
+        targetObjectId: { type: 'string' },
+        preset: { enum: ['overview', 'detail', 'eye-level'] },
+        sessionId: { type: 'string' },
+      },
+      oneOf: [
+        { required: ['targetObjectId'] },
+        { required: ['targetLongitude', 'targetLatitude'] },
+      ],
+    })
+  })
+
   it('isolates stored resource metadata by browser session', async () => {
     const handler = createHandler()
     const geoJson = { type: 'FeatureCollection', features: [] }

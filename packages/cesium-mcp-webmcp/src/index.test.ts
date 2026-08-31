@@ -147,6 +147,42 @@ describe('registerCesiumWebMcp', () => {
     expect(bridgeRegistration.registered).not.toContain('geocode')
   })
 
+  it('registers perception only through the explicit experimental opt-in', async () => {
+    const regular = buildCesiumWebMcpTools({ execute: vi.fn() }, { toolsets: [] })
+    const experimental = buildCesiumWebMcpTools({ execute: vi.fn() }, {
+      toolsets: [],
+      experimentalToolsets: 'perception',
+    })
+
+    expect(regular).toEqual([])
+    expect(experimental.map(tool => tool.name)).toEqual([
+      'observeScene',
+      'describeScene',
+      'querySpatialObjects',
+      'getObjectContext',
+      'querySpatialRelation',
+      'getViewContext',
+    ])
+
+    const execute = vi.fn().mockResolvedValue({ success: true })
+    const observer = buildCesiumWebMcpTools({ execute }, {
+      toolsets: [],
+      experimentalToolsets: 'observer',
+    })
+    expect(observer.map(tool => tool.name)).toEqual(['captureObserverView'])
+    await observer[0]!.execute({
+      targetObjectId: 'entity:scene:school',
+      preset: 'detail',
+    })
+    expect(execute).toHaveBeenCalledWith({
+      action: 'captureObserverView',
+      params: {
+        targetObjectId: 'entity:scene:school',
+        preset: 'detail',
+      },
+    })
+  })
+
   it('keeps a renamed public tool bound to its stable Bridge action', async () => {
     const execute = vi.fn().mockResolvedValue({ success: true })
     const renamed = {
@@ -182,7 +218,7 @@ describe('registerCesiumWebMcp', () => {
     await addGeoJsonLayer.execute({ resourceId: stored.resourceId, name: 'Cities' })
     expect(execute).toHaveBeenCalledWith({
       action: 'addGeoJsonLayer',
-      params: { data: geoJson, name: 'Cities' },
+      params: { data: geoJson, resourceId: stored.resourceId, name: 'Cities' },
     })
   })
 

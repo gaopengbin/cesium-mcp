@@ -1,4 +1,6 @@
 import { cesiumBrowserToolContracts } from './toolsets.js'
+import { cesiumObserverToolContracts } from './observer-tools.js'
+import { cesiumSpatialToolContracts } from './spatial-tools.js'
 import type { JsonSchema } from './types.js'
 
 export interface CesiumToolValidationIssue {
@@ -13,7 +15,12 @@ export interface CesiumToolValidationResult {
 }
 
 const contractByName = new Map(
-  cesiumBrowserToolContracts.map(contract => [contract.name, contract]),
+  [
+    ...cesiumBrowserToolContracts,
+    ...cesiumSpatialToolContracts,
+    ...cesiumObserverToolContracts,
+  ]
+    .map(contract => [contract.name, contract]),
 )
 
 function addIssue(
@@ -68,15 +75,19 @@ function validateSchema(
       return candidateIssues
     })
     const matches = candidates.filter(candidate => candidate.length === 0)
-    if (matches.length === 1) return
-    if (matches.length > 1) {
+    // JSON Schema keywords are conjunctive: a successful oneOf still needs to
+    // satisfy sibling keywords such as properties and additionalProperties.
+    if (matches.length === 1) {
+      // Continue with the rest of this schema.
+    } else if (matches.length > 1) {
       addIssue(issues, path, 'must match exactly one allowed schema')
       return
+    } else {
+      const closest = [...candidates].sort((left, right) => left.length - right.length)[0]
+      if (closest && closest.length > 0) issues.push(...closest)
+      else addIssue(issues, path, 'does not match any allowed schema')
+      return
     }
-    const closest = [...candidates].sort((left, right) => left.length - right.length)[0]
-    if (closest && closest.length > 0) issues.push(...closest)
-    else addIssue(issues, path, 'does not match any allowed schema')
-    return
   }
 
   if ('const' in schema && !equals(value, schema.const)) {

@@ -159,9 +159,8 @@ export function resolveCesiumResourceInput(
   if (params.data !== undefined || params.url !== undefined) {
     throw new Error('resourceId cannot be combined with data or url')
   }
-  const { resourceId: _resourceId, ...rest } = params
   return {
-    ...rest,
+    ...params,
     data: store.resolve(resourceId, expectedKind),
   }
 }
