@@ -209,7 +209,7 @@ export class LayerManager {
   // ==================== addGeoJsonPrimitive ====================
 
   async addGeoJsonPrimitive(params: AddGeoJsonPrimitiveParams): Promise<LayerInfo> {
-    const { id, name, data, url, allowPicking, show } = params
+    const { id, name, data, url, allowPicking, show, dataRefId } = params
 
     if (!data && !url) throw new Error('Either "data" or "url" must be provided')
 
@@ -243,6 +243,7 @@ export class LayerManager {
       type: 'geojson-primitive',
       visible: show !== false,
       color: '#10B981',
+      dataRefId,
     }
     this._cesiumRefs.set(layerId, { primitive })
     this._layers.push(info)
@@ -258,7 +259,7 @@ export class LayerManager {
 
   async addHeatmap(params: AddHeatmapParams): Promise<LayerInfo> {
     const {
-      id, name, data,
+      id, name, data, dataRefId,
       radius = 30, gradient,
       blur = 0.85,
       maxOpacity = 0.8, minOpacity = 0,
@@ -320,6 +321,7 @@ export class LayerManager {
       type: '热力图',
       visible: true,
       color: '#FF4500',
+      dataRefId,
     }
     this._cesiumRefs.set(layerId, { entity })
     this._layers.push(info)
@@ -789,7 +791,7 @@ export class LayerManager {
   // ==================== CZML DataSource ====================
 
   async loadCzml(params: LoadCzmlParams): Promise<LayerInfo> {
-    const { id, name, data, url, sourceUri, clampToGround } = params
+    const { id, name, data, url, sourceUri, clampToGround, dataRefId } = params
 
     if (!data && !url) throw new Error('Either "data" or "url" must be provided')
 
@@ -834,6 +836,7 @@ export class LayerManager {
       type: 'CZML',
       visible: true,
       color: '#8B5CF6',
+      dataRefId,
     }
     this._cesiumRefs.set(layerId, { dataSource: ds })
     this._layers.push(info)

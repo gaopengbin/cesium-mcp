@@ -3,7 +3,13 @@ import type { AddHeatmapParams } from '../types.js'
 
 export const heatmapExecutors = {
   async addHeatmap(params, bridge) {
-    const info = await bridge.addHeatmap(params as unknown as AddHeatmapParams)
+    const { resourceId, ...input } = params
+    const info = await bridge.addHeatmap({
+      ...input,
+      ...(typeof resourceId === 'string'
+        ? { dataRefId: resourceId }
+        : {}),
+    } as unknown as AddHeatmapParams)
     return {
       success: true,
       data: info,

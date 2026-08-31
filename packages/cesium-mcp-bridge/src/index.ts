@@ -1,6 +1,25 @@
 export { CesiumBridge } from './bridge'
 export type { BridgeExecutor, CesiumBridgeOptions } from './bridge'
 export { LayerManager } from './commands/layer'
+export {
+  createBridgeSpatialSnapshot,
+  nearbySpatialObjects,
+} from './spatial-context'
+export type {
+  BridgeSpatialSnapshot,
+  NearbySpatialObject,
+} from './spatial-context'
+export {
+  buildObserverFeatureCollection,
+  cameraVectorSnapshotsEqual,
+  captureCameraVectorSnapshot,
+} from './observer-renderer'
+export type {
+  CameraVectorSnapshot,
+  ObserverCaptureRenderer,
+  ObserverRenderReadinessResult,
+  ObserverRendererFactory,
+} from './observer-renderer'
 export type {
   BridgeCommand,
   BridgeResult,
@@ -82,5 +101,18 @@ export type {
   // Viewpoint Bookmarks
   SaveViewpointParams,
   LoadViewpointParams,
+  CaptureObserverViewParams,
+  CaptureObserverViewResult,
+  ManagedTilesetReadiness,
+  ObservationFreshnessResult,
+  ObservationImageMode,
+  ObservationScope,
+  ObservationVisualResult,
+  ObserveSceneParams,
+  ObserveSceneResult,
+  ObserverTargetState,
+  ObserverViewPreset,
+  SceneReadinessResult,
+  SceneReadinessState,
 } from './types'
 export type { ColorInput } from './utils'

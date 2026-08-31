@@ -1,3 +1,9 @@
+import type {
+  SpatialBounds,
+  SpatialContextSummary,
+  SpatialEvidenceQuality,
+  SpatialObject,
+} from 'cesium-mcp-spatial'
 import type { ColorInput } from './utils'
 
 // ==================== Command & Result ====================
@@ -42,6 +48,121 @@ export interface ViewState {
   heading: number
   pitch: number
   roll: number
+}
+
+export type ObserverViewPreset = 'overview' | 'detail' | 'eye-level'
+
+export interface CaptureObserverViewParams {
+  targetObjectId?: string
+  targetLongitude?: number
+  targetLatitude?: number
+  targetHeight?: number
+  preset?: ObserverViewPreset
+  range?: number
+  heading?: number
+  pitch?: number
+  imageWidth?: number
+  imageHeight?: number
+}
+
+export interface ObserverTargetState {
+  targetObjectId?: string
+  preset?: ObserverViewPreset
+  longitude: number
+  latitude: number
+  height: number
+  range: number
+  heading: number
+  pitch: number
+}
+
+export interface CaptureObserverViewResult {
+  dataUrl: string
+  width: number
+  height: number
+  camera: ViewState
+  target: ObserverTargetState
+  observedAt: string
+  bounds?: [number, number, number, number]
+  visibleObjectIds: string[]
+  objectCount: number
+  quality: 'derived'
+  basis: 'observer-viewer-spatial-snapshot'
+  readiness: {
+    state: 'ready'
+    framesRendered: number
+    stableFrameCount: number
+    dataSourcesReady: true
+    globeTilesLoaded: true
+    frameHasContent: true
+  }
+  userCameraUnchanged: boolean
+  limitations: string[]
+}
+
+export type ObservationScope = 'view' | 'scene'
+
+export type ObservationImageMode = 'never' | 'auto' | 'always'
+
+export type SceneReadinessState = 'ready' | 'partial' | 'loading' | 'unknown'
+
+export interface ManagedTilesetReadiness {
+  layerId: string
+  name: string
+  visible: boolean
+  tilesLoaded: boolean | null
+}
+
+export interface SceneReadinessResult {
+  state: SceneReadinessState
+  dataSourcesReady: boolean | null
+  globeTilesLoaded: boolean | null
+  terrainProvider: string
+  managedTilesets: ManagedTilesetReadiness[]
+  pendingReasons: string[]
+}
+
+export interface ObserveSceneParams extends CaptureObserverViewParams {
+  scope?: ObservationScope
+  includeObjects?: boolean
+  limit?: number
+  imageMode?: ObservationImageMode
+}
+
+export interface ObservationVisualResult {
+  mode: ObservationImageMode
+  status: 'captured' | 'skipped' | 'unavailable'
+  reason: string
+  evidence?: CaptureObserverViewResult
+}
+
+export interface ObservationFreshnessResult {
+  sceneObservedAt: string
+  completedAt: string
+  ageMs: number
+  snapshotRevision: number
+  changedDuringObservation: boolean
+}
+
+export interface ObserveSceneResult {
+  observationId: string
+  scope: ObservationScope
+  scene: {
+    summary: SpatialContextSummary
+    objects?: SpatialObject[]
+  }
+  view: {
+    camera: ViewState
+    bounds?: SpatialBounds
+    quality: SpatialEvidenceQuality
+    basis: string
+  }
+  readiness: SceneReadinessResult
+  freshness: ObservationFreshnessResult
+  visual: ObservationVisualResult
+  quality: SpatialEvidenceQuality
+  basis: string
+  limitations: string[]
 }
 
 export interface ZoomToExtentParams {
@@ -130,12 +251,14 @@ export interface AddGeoJsonPrimitiveParams {
   url?: string
   allowPicking?: boolean
   show?: boolean
+  dataRefId?: string
 }
 
 export interface AddHeatmapParams {
   id?: string
   name?: string
   data: Record<string, unknown>
+  dataRefId?: string
   radius?: number
   gradient?: Record<number, string>
   blur?: number
@@ -193,6 +316,7 @@ export interface LoadCzmlParams {
   data?: unknown[]
   url?: string
   sourceUri?: string
+  dataRefId?: string
   clampToGround?: boolean
   flyTo?: boolean
 }

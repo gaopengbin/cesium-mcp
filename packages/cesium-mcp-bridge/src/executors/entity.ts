@@ -22,8 +22,14 @@ export const entityExecutors = {
     }
   },
   addLabel(params, bridge) {
+    const { resourceId, ...input } = params
     const count = bridge.addLabel(
-      params as unknown as AddLabelParams & { data: Record<string, unknown> },
+      {
+        ...input,
+        ...(typeof resourceId === 'string'
+          ? { dataRefId: resourceId }
+          : {}),
+      } as unknown as AddLabelParams & { data: Record<string, unknown> },
     )
     return {
       success: true,

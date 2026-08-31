@@ -63,6 +63,8 @@ import type {
   QueryEntitiesParams,
   SaveViewpointParams,
   LoadViewpointParams,
+  CaptureObserverViewParams,
+  CaptureObserverViewResult,
 } from './types'
 import { flyTo, setView, getView, zoomToExtent, saveViewpoint, loadViewpoint, listViewpoints, clearViewpoints } from './commands/view'
 import { LayerManager } from './commands/layer'
@@ -73,8 +75,16 @@ import { lookAtTransform as lookAtTransformCmd, startOrbit as startOrbitCmd, sto
 import { addBillboard as addBillboardCmd, addBox as addBoxCmd, addCorridor as addCorridorCmd, addCylinder as addCylinderCmd, addEllipse as addEllipseCmd, addRectangle as addRectangleCmd, addWall as addWallCmd } from './commands/entity-types'
 import { createAnimation as createAnimationCmd, controlAnimation as controlAnimationCmd, removeAnimation as removeAnimationCmd, listAnimations as listAnimationsCmd, updateAnimationPath as updateAnimationPathCmd, trackEntity as trackEntityCmd, controlClock as controlClockCmd, setGlobeLighting as setGlobeLightingCmd, type AnimationMap } from './commands/animation'
 import { setSceneOptions as setSceneOptionsCmd, setPostProcess as setPostProcessCmd, setEdgeDisplayMode as setEdgeDisplayModeCmd } from './commands/scene'
-import { createDefaultBridgeExecutors } from './executors/executor-registry'
+import {
+  createDefaultBridgeExecutors,
+  createExperimentalBridgeExecutors,
+} from './executors/executor-registry'
 import { internalBridgeExecutors } from './executors/internal'
+import { ObserverRenderer } from './observer-renderer.js'
+import type {
+  ObserverCaptureRenderer,
+  ObserverRendererFactory,
+} from './observer-renderer.js'
 
 export type BridgeExecutor = (
   params: Record<string, unknown>,
@@ -88,6 +98,8 @@ export interface CesiumBridgeOptions {
   validateOutputs?: boolean
   /** Override selected commands without replacing the default dispatcher. */
   executors?: Readonly<Record<string, BridgeExecutor>>
+  /** Experimental factory override for the independent observer renderer. */
+  observerRendererFactory?: ObserverRendererFactory
 }
 
 /**
@@ -107,6 +119,8 @@ export class CesiumBridge {
   private _validateOutputs: boolean
   private _executors: Map<string, BridgeExecutor>
   private _operationAbortController = new AbortController()
+  private _observerRendererFactory: ObserverRendererFactory
+  private _observerRenderer?: ObserverCaptureRenderer
   private _disposed = false
 
   constructor(viewer: Cesium.Viewer, options: CesiumBridgeOptions = {}) {
@@ -114,8 +128,11 @@ export class CesiumBridge {
     this._layerManager = new LayerManager(viewer)
     this._validateInputs = options.validateInputs ?? true
     this._validateOutputs = options.validateOutputs ?? true
+    this._observerRendererFactory = options.observerRendererFactory
+      ?? (bridge => new ObserverRenderer(bridge))
     this._executors = new Map(Object.entries({
       ...createDefaultBridgeExecutors(),
+      ...createExperimentalBridgeExecutors(),
       ...internalBridgeExecutors,
       ...options.executors,
     }))
@@ -228,6 +245,8 @@ export class CesiumBridge {
     if (this._disposed) return
     this._disposed = true
     this._operationAbortController.abort()
+    this._observerRenderer?.dispose()
+    this._observerRenderer = undefined
     this._viewer.camera?.cancelFlight?.()
     this._stopManagedActivity()
     clearViewpoints(this._viewer)
@@ -385,6 +404,7 @@ export class CesiumBridge {
       type: '标注',
       visible: true,
       color: params.style?.fillColor ?? '#FFFFFF',
+      dataRefId: params.dataRefId,
     }
     this._layerManager.setCesiumRefs(layerId, { labelEntities: entities })
     this._layerManager.layers.push(info)
@@ -519,6 +539,15 @@ export class CesiumBridge {
 
   screenshot(): Promise<ScreenshotResult> {
     return screenshot(this._viewer, this._operationAbortController.signal)
+  }
+
+  captureObserverView(params: CaptureObserverViewParams): Promise<CaptureObserverViewResult> {
+    if (this._disposed) return Promise.reject(new Error('CesiumBridge has been disposed'))
+    this._observerRenderer ??= this._observerRendererFactory(this)
+    return this._observerRenderer.capture(
+      params,
+      this._operationAbortController.signal,
+    )
   }
 
   highlight(params: HighlightParams): void {

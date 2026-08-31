@@ -4,7 +4,9 @@ import { describe, expect, it, vi } from 'vitest'
 import type { CesiumBridge } from '../bridge.js'
 import {
   createDefaultBridgeExecutors,
+  createExperimentalBridgeExecutors,
   defaultBridgeExecutorNames,
+  experimentalBridgeExecutorNames,
 } from './executor-registry.js'
 
 function bridgeStub() {
@@ -83,6 +85,9 @@ function bridgeStub() {
       stop: vi.fn(),
     }),
     addHeatmap: vi.fn().mockResolvedValue({ id: 'heatmap-1', name: 'Density' }),
+    captureObserverView: vi.fn().mockResolvedValue({
+      dataUrl: 'data:image/png;base64,test',
+    }),
   } as unknown as CesiumBridge
 }
 
@@ -93,6 +98,23 @@ describe('default Bridge executor registry', () => {
     expect(defaultBridgeExecutorNames).toEqual(expected)
     expect(Object.keys(createDefaultBridgeExecutors())).toEqual(expected)
     expect(new Set(defaultBridgeExecutorNames).size).toBe(expected.length)
+  })
+
+  it('registers perception executors outside the stable shared inventory', () => {
+    expect(experimentalBridgeExecutorNames).toEqual([
+      'observeScene',
+      'describeScene',
+      'querySpatialObjects',
+      'getObjectContext',
+      'querySpatialRelation',
+      'getViewContext',
+      'captureObserverView',
+    ])
+    expect(Object.keys(createExperimentalBridgeExecutors()))
+      .toEqual(experimentalBridgeExecutorNames)
+    expect(experimentalBridgeExecutorNames.some(name =>
+      cesiumSharedToolNames.includes(name),
+    )).toBe(false)
   })
 
   it('preserves the existing view command result shape', async () => {
@@ -166,7 +188,11 @@ describe('default Bridge executor registry', () => {
     const executors = createDefaultBridgeExecutors()
 
     const loaded = await executors.addGeoJsonLayer!(
-      { name: 'Cities', data: { type: 'FeatureCollection', features: [] } },
+      {
+        name: 'Cities',
+        data: { type: 'FeatureCollection', features: [] },
+        resourceId: 'resource_cities',
+      },
       bridge,
     )
     const cleared = await executors.clearAll!({}, bridge)
@@ -175,6 +201,11 @@ describe('default Bridge executor registry', () => {
       success: true,
       data: { id: 'layer-1', name: 'Cities' },
       message: "GeoJSON layer 'Cities' added",
+    })
+    expect(bridge.addGeoJsonLayer).toHaveBeenCalledWith({
+      name: 'Cities',
+      data: { type: 'FeatureCollection', features: [] },
+      dataRefId: 'resource_cities',
     })
     expect(cleared).toEqual({
       success: true,

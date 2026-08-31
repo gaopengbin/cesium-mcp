@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { CesiumBridge } from './bridge.js'
 import type { BridgeExecutor, CesiumBridgeOptions } from './bridge.js'
+import type { ObserverCaptureRenderer } from './observer-renderer.js'
 
 function makeBridge(options: CesiumBridgeOptions = {}) {
   return new CesiumBridge({} as never, options)
@@ -154,6 +155,31 @@ describe('CesiumBridge command boundary', () => {
       ._emit('layerAdded', {})
 
     expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('creates one observer renderer lazily and disposes it with the Bridge', async () => {
+    const renderer = {
+      capture: vi.fn().mockResolvedValue({ dataUrl: 'data:image/png;base64,test' }),
+      dispose: vi.fn(),
+    } as unknown as ObserverCaptureRenderer
+    const observerRendererFactory = vi.fn(() => renderer)
+    const viewer = {
+      camera: { cancelFlight: vi.fn() },
+      dataSources: { length: 0 },
+      entities: { values: [] },
+    }
+    const bridge = new CesiumBridge(viewer as never, { observerRendererFactory })
+    const params = { targetLongitude: 116.4, targetLatitude: 39.9 }
+
+    expect(observerRendererFactory).not.toHaveBeenCalled()
+    await bridge.captureObserverView(params)
+    await bridge.captureObserverView(params)
+
+    expect(observerRendererFactory).toHaveBeenCalledOnce()
+    expect(renderer.capture).toHaveBeenCalledTimes(2)
+    bridge.dispose()
+    bridge.dispose()
+    expect(renderer.dispose).toHaveBeenCalledOnce()
   })
 
   it('cancels viewer activity and rejects commands after disposal', async () => {

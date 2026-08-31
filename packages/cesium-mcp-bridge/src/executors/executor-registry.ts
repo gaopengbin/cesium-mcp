@@ -6,6 +6,8 @@ import { entityExtExecutors } from './entity-ext.js'
 import { heatmapExecutors } from './heatmap.js'
 import { interactionExecutors } from './interaction.js'
 import { layerExecutors } from './layer.js'
+import { observerExecutors } from './observer.js'
+import { perceptionExecutors } from './perception.js'
 import { sceneExecutors } from './scene.js'
 import { tilesExecutors } from './tiles.js'
 import { trajectoryExecutors } from './trajectory.js'
@@ -30,4 +32,16 @@ export const defaultBridgeExecutorNames: readonly string[] =
 
 export function createDefaultBridgeExecutors(): Record<string, BridgeExecutor> {
   return { ...defaultBridgeExecutors }
+}
+
+const experimentalBridgeExecutors = {
+  ...perceptionExecutors,
+  ...observerExecutors,
+}
+
+export const experimentalBridgeExecutorNames: readonly string[] =
+  Object.freeze(Object.keys(experimentalBridgeExecutors))
+
+export function createExperimentalBridgeExecutors(): Record<string, BridgeExecutor> {
+  return { ...experimentalBridgeExecutors }
 }

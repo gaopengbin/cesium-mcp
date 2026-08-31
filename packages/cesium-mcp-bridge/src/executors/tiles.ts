@@ -43,7 +43,13 @@ export const tilesExecutors = {
     }
   },
   async loadCzml(params, bridge) {
-    const info = await bridge.loadCzml(params as unknown as LoadCzmlParams)
+    const { resourceId, ...input } = params
+    const info = await bridge.loadCzml({
+      ...input,
+      ...(typeof resourceId === 'string'
+        ? { dataRefId: resourceId }
+        : {}),
+    } as unknown as LoadCzmlParams)
     return {
       success: true,
       data: info,

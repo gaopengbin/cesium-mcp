@@ -7,10 +7,17 @@ import type {
   UpdateLayerStyleParams,
 } from '../types.js'
 
+function withResourceLineage<T extends object>(params: T): T & { dataRefId?: string } {
+  const { resourceId, ...rest } = params as T & { resourceId?: unknown }
+  return typeof resourceId === 'string'
+    ? { ...rest, dataRefId: resourceId } as T & { dataRefId: string }
+    : params
+}
+
 export const layerExecutors = {
   async addGeoJsonLayer(params, bridge) {
     const info = await bridge.addGeoJsonLayer(
-      params as unknown as AddGeoJsonLayerParams,
+      withResourceLineage(params) as unknown as AddGeoJsonLayerParams,
     )
     return {
       success: true,
@@ -20,7 +27,7 @@ export const layerExecutors = {
   },
   async addGeoJsonPrimitive(params, bridge) {
     const info = await bridge.addGeoJsonPrimitive(
-      params as unknown as AddGeoJsonPrimitiveParams,
+      withResourceLineage(params) as unknown as AddGeoJsonPrimitiveParams,
     )
     return {
       success: true,

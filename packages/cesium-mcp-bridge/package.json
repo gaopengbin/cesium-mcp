@@ -52,6 +52,7 @@
   "license": "MIT",
   "dependencies": {
     "cesium-mcp-contracts": "^0.6.0",
+    "cesium-mcp-spatial": "0.1.0",
     "heatmap.js": "^2.0.5"
   }
 }
