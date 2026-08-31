@@ -6,6 +6,7 @@ dist/
 .turbo/
 .wrangler/
 coverage/
+artifacts/
 .env
 .DS_Store
 Thumbs.db

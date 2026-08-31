@@ -1,0 +1,44 @@
+{
+  "name": "cesium-mcp-spatial",
+  "version": "0.1.0",
+  "description": "Experimental protocol-neutral spatial context core for Cesium MCP",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  },
+  "keywords": [
+    "cesium",
+    "spatial-context",
+    "scene-grounding",
+    "geospatial",
+    "ai-agent"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gaopengbin/cesium-mcp.git",
+    "directory": "packages/cesium-mcp-spatial"
+  },
+  "homepage": "https://github.com/gaopengbin/cesium-mcp/tree/main/packages/cesium-mcp-spatial",
+  "license": "MIT"
+}

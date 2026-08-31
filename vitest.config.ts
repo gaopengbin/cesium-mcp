@@ -6,6 +6,7 @@ export default defineConfig({
   resolve: {
     alias: {
       'cesium-mcp-contracts': fileURLToPath(new URL('./packages/cesium-mcp-contracts/src/index.ts', import.meta.url)),
+      'cesium-mcp-spatial': fileURLToPath(new URL('./packages/cesium-mcp-spatial/src/index.ts', import.meta.url)),
     },
   },
   test: {
@@ -19,6 +20,7 @@ export default defineConfig({
       'examples/browser-agent/tool-router.eval.test.ts',
       'examples/browser-agent/model-tool-eval.test.ts',
       'examples/browser-agent/functions/**/*.test.ts',
+      'examples/spatial-context-experiment/src/**/*.test.ts',
       'scripts/**/*.test.ts',
     ],
   },
