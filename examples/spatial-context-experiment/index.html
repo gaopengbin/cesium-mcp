@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#071118">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d6958'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-family='monospace' font-size='13' font-weight='700' fill='white'%3ESC%3C/text%3E%3C/svg%3E">
+    <title>Cesium Agent</title>
+  </head>
+  <body>
+    <main class="lab-shell product-shell">
+      <section id="globeStage" class="globe-stage" aria-label="Cesium flood-risk assessment scene">
+        <div id="cesiumContainer"></div>
+
+        <header class="map-toolbar">
+          <div class="map-brand">
+            <span class="brand-mark" aria-hidden="true">SC</span>
+            <div>
+              <strong id="mapBrandTitle">应急态势推演</strong>
+              <span id="mapBrandSubtitle">Spatial Context Experiment</span>
+            </div>
+          </div>
+          <div class="live-chip"><i></i> <span id="sceneSourceChip">LIVE SCENE</span></div>
+        </header>
+
+        <section class="map-assessment" aria-live="polite">
+          <p>AI 当前研判</p>
+          <strong id="mapAssessment">学校位于预警边界之外</strong>
+          <span id="mapAssessmentDetail">Spatial Context 当前结论：within = false · exact</span>
+        </section>
+
+        <div id="sceneLegend" class="scene-legend" aria-label="Scene legend">
+          <span><i class="legend-dot facility"></i>关键设施</span>
+          <span><i class="legend-dot response"></i>救援与安置</span>
+          <span><i class="legend-line route"></i>疏散路线</span>
+          <span><i class="legend-line river"></i>河道</span>
+          <span><i class="legend-area flood"></i>洪水预警区</span>
+        </div>
+
+        <div class="scene-meta" aria-label="Scenario metadata">
+          <span id="spatialReference">EPSG:4326</span>
+          <span id="forecastTime">08:30 模型快照</span>
+          <span id="sceneObjectSummary">12 个业务对象</span>
+        </div>
+
+        <section id="flightPovViewport" class="flight-pov-viewport" hidden aria-label="AI 独立观察画面">
+          <header>
+            <div><i></i><span>AI POV / INDEPENDENT CAMERA</span></div>
+            <strong>LIVE</strong>
+          </header>
+          <div id="aiObserverCesiumContainer" class="ai-observer-cesium"></div>
+          <footer id="flightPovStatus">等待 AI 进入飞行走廊</footer>
+        </section>
+
+        <section class="agent-chat" aria-label="Cesium AI 对话">
+          <header class="agent-chat-header">
+            <div>
+              <span>CESIUM AGENT</span>
+              <strong>和场景对话</strong>
+            </div>
+            <span id="chatModelStatus" class="chat-model-status" data-state="loading">
+              <i></i><span>正在准备地图</span>
+            </span>
+          </header>
+
+          <div id="chatMessages" class="chat-messages" role="log" aria-live="polite" aria-relevant="additions">
+            <article class="chat-message assistant">
+              <p>地图加载完成后，直接告诉我想观察哪里或执行什么任务。</p>
+            </article>
+          </div>
+
+          <div class="chat-suggestions" aria-label="快捷指令">
+            <button type="button" data-chat-prompt="去飞行漫游喜马拉雅山脉">飞越喜马拉雅</button>
+            <button type="button" data-chat-prompt="切换到全局路线视角">查看全局路线</button>
+          </div>
+
+          <form id="chatForm" class="chat-composer">
+            <label class="sr-only" for="chatInput">输入地图任务</label>
+            <textarea id="chatInput" rows="1" maxlength="1200" placeholder="例如：去飞行漫游喜马拉雅山脉"></textarea>
+            <button id="chatSendButton" type="submit" aria-label="发送消息">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m4 12 15-7-4.7 14-3-5.2L4 12Z"/>
+                <path d="m11.3 13.8 3.5-3.4"/>
+              </svg>
+            </button>
+          </form>
+          <footer id="chatEvidence">模型调用、工具执行和安全回退都会显示在对话中。</footer>
+        </section>
+      </section>
+
+      <aside class="lab-panel legacy-lab-panel" aria-hidden="true">
+        <header class="panel-header">
+          <div class="title-row">
+            <div>
+              <p id="panelEyebrow" class="eyebrow">Experimental · perception</p>
+              <h1 id="panelTitle">洪水风险研判</h1>
+            </div>
+            <span id="versionChip" class="version-chip">SC / 01</span>
+          </div>
+          <p id="panelIntro" class="intro">验证 Agent 能否基于真实 Viewer，解释场景、证据与风险变化。</p>
+        </header>
+
+        <nav class="mode-switch" aria-label="场景数据源">
+          <button id="scenarioModeButton" class="active" type="button" aria-pressed="true">
+            <span>确定性推演</span>
+            <small>LOCAL FIXTURE</small>
+          </button>
+          <button id="liveModeButton" type="button" aria-pressed="false">
+            <span>实时 GIS</span>
+            <small>USGS + NASA</small>
+          </button>
+          <button id="flightModeButton" type="button" aria-pressed="false">
+            <span>AI 闭环飞行</span>
+            <small>SENSE + REPLAN</small>
+          </button>
+        </nav>
+
+        <section id="flightCommandCard" class="flight-command-card" hidden>
+          <div>
+            <span>USER COMMAND</span>
+            <strong>“去飞行漫游喜马拉雅山脉”</strong>
+          </div>
+          <p>先用真实 DEM 建立基准路线；飞行后以独立视角和 5 条 Cesium 射线持续探测，遇到事先未知的禁飞区再局部绕行。</p>
+          <div class="flight-progress" aria-hidden="true"><i id="flightProgressBar"></i></div>
+          <small id="flightProgressText">等待规划</small>
+          <div class="flight-view-switch" role="group" aria-label="飞行观察视角">
+            <button id="flightViewFollowButton" class="active" type="button">旁观 AI</button>
+            <button id="flightViewPovButton" type="button">AI 第一视角</button>
+            <button id="flightViewOverviewButton" type="button">全局路线</button>
+          </div>
+          <div class="flight-observation-feed">
+            <div>
+              <span>AI OBSERVATION LOG</span>
+              <small id="flightObservationCount">0 observations</small>
+            </div>
+            <ol id="flightObservationLog" aria-live="polite">
+              <li class="empty">开始飞行后，AI 会记录有限视域射线、路线锚点与局部重规划决策。</li>
+            </ol>
+          </div>
+        </section>
+
+        <section id="riskStateCard" class="risk-card" data-risk="watch" data-testid="risk-card">
+          <div class="risk-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img">
+              <path d="M12 3.8 21 19H3L12 3.8Z"/>
+              <path d="M12 9v4.2"/>
+              <path d="M12 16.2h.01"/>
+            </svg>
+          </div>
+          <div class="risk-copy">
+            <div class="risk-heading">
+              <span id="riskLabel">MONITORING</span>
+              <i></i>
+            </div>
+            <strong id="riskTitle">学校暂未进入预警区</strong>
+            <p id="riskDetail">当前预测边界距学校约 400 米，建议持续监测模型更新。</p>
+          </div>
+        </section>
+
+        <section class="status-card" aria-live="polite">
+          <div class="status-row">
+            <span id="phaseDot" class="status-dot"></span>
+            <div>
+              <strong id="phaseTitle">正在初始化场景</strong>
+              <p id="phaseDetail">准备固定设施与洪水预测数据……</p>
+            </div>
+          </div>
+          <div class="metrics" aria-label="Experiment metrics">
+            <div><strong id="toolMetric">0/5</strong><span>工具覆盖</span></div>
+            <div><strong id="checkMetric">0/0</strong><span>断言通过</span></div>
+            <div><strong id="objectMetric">—</strong><span>空间对象</span></div>
+          </div>
+        </section>
+
+        <section class="operations-grid" aria-label="Emergency response capacity">
+          <article>
+            <span id="metricOneLabel">重点转移</span>
+            <strong id="metricOneValue">800</strong>
+            <small id="metricOneDetail">名在校人员</small>
+          </article>
+          <article>
+            <span id="metricTwoLabel">安置能力</span>
+            <strong id="metricTwoValue">1,200</strong>
+            <small id="metricTwoDetail">个避难床位</small>
+          </article>
+          <article>
+            <span id="metricThreeLabel">疏散通道</span>
+            <strong id="metricThreeValue">2</strong>
+            <small id="metricThreeDetail">条候选路线</small>
+          </article>
+          <article>
+            <span id="metricFourLabel">当前水位</span>
+            <strong id="metricFourValue">4.7m</strong>
+            <small id="metricFourDetail">距警戒 0.4m</small>
+          </article>
+        </section>
+
+        <section class="workflow" aria-label="Evaluation workflow">
+          <div class="workflow-step complete"><i>1</i><span>数据入场</span></div>
+          <b></b>
+          <div class="workflow-step complete"><i>2</i><span>场景快照</span></div>
+          <b></b>
+          <div class="workflow-step active"><i>3</i><span>关系研判</span></div>
+        </section>
+
+        <div class="actions">
+          <button id="expandFloodButton" class="primary" type="button">模拟洪水范围扩大</button>
+          <button id="flightPlayButton" class="primary" type="button" hidden>开始 AI 飞行漫游</button>
+          <button id="resetButton" type="button">恢复初始态势</button>
+          <button id="runButton" type="button">重新运行评测</button>
+        </div>
+
+        <section id="observerCard" class="observer-card" data-state="empty" aria-live="polite">
+          <div class="observer-heading">
+            <div>
+              <p class="section-kicker">Independent camera</p>
+              <h2>AI 独立观察视角</h2>
+            </div>
+            <button id="captureObserverButton" type="button">执行一次 AI 现场观察</button>
+          </div>
+          <div class="observer-frame">
+            <img
+              id="observerImage"
+              alt="AI 独立观察相机拍摄的 Cesium GIS 场景"
+              hidden
+            >
+            <div id="observerPlaceholder" class="observer-placeholder">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7.5h3l1.3-2h7.4l1.3 2h3v11H4z"/>
+                <circle cx="12" cy="13" r="3.2"/>
+              </svg>
+              <strong>不移动你的地图视角</strong>
+              <span>统一 Observation 会先读取结构化场景事实，再等待隐藏 Observer Viewer 返回就绪 PNG。</span>
+            </div>
+            <div class="observer-overlay" aria-hidden="true">
+              <span>OBSERVER / 01</span>
+              <span id="observerProof">CAMERA ISOLATED</span>
+            </div>
+          </div>
+          <div class="observer-meta">
+            <strong id="observerStatus">尚未拍摄</strong>
+            <span id="observerMeta">1024 × 576 · 派生空间快照</span>
+          </div>
+        </section>
+
+        <section class="checks-section">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Live assertions</p>
+              <h2>场景理解检查</h2>
+            </div>
+            <span id="scenarioBadge" class="scenario-badge">初始预警范围</span>
+          </div>
+          <div id="checks" class="check-list" data-testid="spatial-checks"></div>
+        </section>
+
+        <details class="evidence-panel">
+          <summary><span>原始工具证据</span><small>JSON</small></summary>
+          <pre id="evidenceOutput">等待评测结果……</pre>
+        </details>
+
+        <footer>
+          <span id="gisServiceStatus">确定性场景使用本地 GeoJSON，不依赖外部服务。</span>
+          <span id="webMcpStatus">正在检测浏览器 WebMCP 支持……</span>
+          <span class="resource-lineage">resourceId → layerId → objectId</span>
+        </footer>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

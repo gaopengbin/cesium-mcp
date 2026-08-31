@@ -50,6 +50,12 @@ export default defineConfig({
                 { text: '常见问题', link: '/zh-CN/guide/faq' },
               ],
             },
+            {
+              text: '实验功能',
+              items: [
+                { text: '空间上下文', link: '/zh-CN/guide/spatial-context-experiment' },
+              ],
+            },
           ],
           '/zh-CN/api/': [
             {
@@ -201,6 +207,12 @@ export default defineConfig({
             { text: 'Resource Handles', link: '/guide/resource-handles' },
             { text: 'Architecture', link: '/guide/architecture' },
             { text: 'FAQ', link: '/guide/faq' },
+          ],
+        },
+        {
+          text: 'Experimental',
+          items: [
+            { text: 'Spatial Context', link: '/guide/spatial-context-experiment' },
           ],
         },
       ],
