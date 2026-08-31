@@ -45,6 +45,43 @@ export type {
   SpatialQueryEvaluationCase,
   SpatialRelationEvaluationCase,
 } from './evals/emergency-response.js'
+export {
+  HIDDEN_CORRIDOR_FIXTURES,
+  HIDDEN_CORRIDOR_REGION_IDS,
+  createHiddenCorridorFixtures,
+} from './evals/hidden-corridor-fixtures.js'
+export type {
+  HiddenCorridorActualCandidateCoverage,
+  HiddenCorridorActualObservationAttempt,
+  HiddenCorridorActualRegionCoverage,
+  HiddenCorridorCaseId,
+  HiddenCorridorCell,
+  HiddenCorridorExpectedOutcome,
+  HiddenCorridorFixture,
+  HiddenCorridorId,
+  HiddenCorridorOracleFixture,
+  HiddenCorridorPlannerFixture,
+  HiddenCorridorRevisionEvent,
+  HiddenCorridorRoute,
+} from './evals/hidden-corridor-fixtures.js'
+export {
+  buildHiddenCorridorTopology,
+  createHiddenCorridorPolicyBelief,
+  createHiddenCorridorPolicyContext,
+  runHiddenCorridorCase,
+  runHiddenCorridorEvaluation,
+  selectHiddenCorridorObservation,
+} from './evals/hidden-corridor.js'
+export type {
+  HiddenCorridorCaseReport,
+  HiddenCorridorEvaluationReport,
+  HiddenCorridorEvaluationSummary,
+  HiddenCorridorPolicyContext,
+  HiddenCorridorRoutePlanRecord,
+  HiddenCorridorRunMetrics,
+  HiddenCorridorRunReport,
+  HiddenCorridorStrategyId,
+} from './evals/hidden-corridor.js'
 export type {
   FlightRouteCoordinate,
   FlightTerrainSample,

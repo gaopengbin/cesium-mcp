@@ -16,6 +16,34 @@ export {
   spatialKnowledgeState,
 } from './belief-state.js'
 export {
+  DEFAULT_CORRIDOR_PLANNING_POLICY,
+  evaluateCorridorEdge,
+  planCorridorRoute,
+} from './corridor-planning.js'
+export type {
+  CorridorBlockedEdge,
+  CorridorEdgeEvaluation,
+  CorridorPlanningPolicy,
+  CorridorRouteRequest,
+  CorridorRouteResult,
+  CorridorRouteSegment,
+  CorridorRouteStatus,
+  CorridorTopology,
+  CorridorTopologyEdge,
+  CorridorTraversalReason,
+  UnknownCorridorPolicy,
+} from './corridor-planning.js'
+export {
+  extractPolicyReplayObservationEvents,
+  projectExactWorldAwarenessReplay,
+  replayWorldAwarenessBeliefTrace,
+  validateWorldAwarenessReplayTrace,
+} from './replay.js'
+export type {
+  ExactReplayEventProjection,
+  ExactWorldAwarenessReplayProjection,
+} from './replay.js'
+export {
   appendWorldAwarenessTraceEvent,
   completeWorldAwarenessTrace,
   createWorldAwarenessTrace,

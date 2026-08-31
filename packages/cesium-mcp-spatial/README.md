@@ -27,3 +27,30 @@ reported explicitly instead of being treated as a complete observation.
 The package also exports the deterministic two-stage urban-flood fixture used by
 the live experiment and CI. Run `npm run eval:spatial-context` from the
 repository root to generate `artifacts/spatial-context-eval.json`.
+
+## World Awareness experiment
+
+The opt-in World Awareness core keeps evaluator truth separate from the Agent's
+belief. Unknown space stays unknown until a ready, complete observation supports
+a free-space claim; occupied evidence remains conservative; stale knowledge is
+preserved with an explicit freshness state. The package also provides:
+
+- deterministic belief updates and revision invalidation;
+- next-best-view scoring under an observation budget;
+- belief-only corridor planning with safe aborts;
+- semantic traces with event-state validation, exact belief reconstruction, and
+  replay-ready structured observations;
+- an eight-case Hidden Corridor Harness comparing an oracle upper bound, a fixed
+  forward sensor, and active next-best-view selection.
+
+Run `npm run eval:world-awareness` from the repository root to generate
+`artifacts/world-awareness-eval.json`. The evaluation and its test suite reject
+policy inputs that expose case identifiers, low-confidence free-space claims,
+occupied-corridor traversal, false-free updates from incomplete coverage,
+missed revision replans, budget overruns, inferior information gain, route or
+next-best-view regret, and non-repeatable traces.
+
+The Harness executes a deterministic, segment-checked corridor simulation over
+versioned fixture state. It validates sensing, belief, planning, replanning, and
+action trace semantics; it is not yet a rendered Cesium or live visual-model
+end-to-end test.

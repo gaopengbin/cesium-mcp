@@ -6,6 +6,7 @@ export type WorldAwarenessOutcome =
 
 export type WorldAwarenessTraceEventType =
   | 'run.started'
+  | 'world.revised'
   | 'belief.initialized'
   | 'route.candidates-generated'
   | 'route.planned'

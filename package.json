@@ -26,6 +26,8 @@
     "test:model-tools": "vitest run scripts/model-tool-eval-core.test.ts examples/browser-agent/model-tool-eval.test.ts --reporter=verbose",
     "test:spatial-context": "npm run eval:spatial-context && npm run build -w examples/spatial-context-experiment",
     "eval:spatial-context": "npm run build -w packages/cesium-mcp-spatial && node scripts/run-spatial-context-eval.mjs",
+    "test:world-awareness": "vitest run packages/cesium-mcp-spatial/src/world-awareness packages/cesium-mcp-spatial/src/evals/hidden-corridor-fixtures.test.ts packages/cesium-mcp-spatial/src/evals/hidden-corridor.test.ts && npm run eval:world-awareness",
+    "eval:world-awareness": "npm run build -w packages/cesium-mcp-spatial && node scripts/run-world-awareness-eval.mjs",
     "eval:model-tools": "npm run build -w packages/cesium-mcp-contracts && node scripts/run-model-tool-eval.mjs",
     "test:e2e:packed": "npm run build && node scripts/run-packed-runtime-e2e.mjs",
     "test:e2e:published": "node scripts/run-packed-runtime-e2e.mjs --runtime cesium-mcp-runtime@latest",
