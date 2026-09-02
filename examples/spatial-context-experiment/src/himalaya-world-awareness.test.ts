@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import type { HimalayaFlightDecisionRequest } from './himalaya-flight.js'
 import {
   applyHimalayaVisualGrounding,
+  createHimalayaVisualResources,
   HIMALAYA_RISK_ENVELOPE_ID,
+  HIMALAYA_WORLD_REVISION,
 } from './himalaya-world-awareness.js'
 
 const digest = 'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
@@ -207,6 +209,39 @@ describe('Himalaya visual world-awareness update', () => {
     expect(second.corridor.occupancy).toBe('occupied')
     expect(JSON.stringify(second.belief)).not.toContain('data:image')
     expect(JSON.stringify(second.belief)).not.toContain('aGVsbG8=')
+  })
+
+  it('keeps world evidence revisions independent from flight plan revisions', () => {
+    const firstRequest = decisionRequest(1)
+    firstRequest.planRevision = 3
+    firstRequest.sensor.readings = [{
+      headingOffsetDegrees: 0,
+      pitchDegrees: -2,
+      hitType: 'no-fly-zone',
+      hitDistanceMeters: 8_000,
+      objectId: 'himalaya-flight-dynamic-no-fly-zone',
+    }]
+    const resources = createHimalayaVisualResources(firstRequest)
+    const first = applyHimalayaVisualGrounding(
+      firstRequest,
+      result('unknown', 'visible'),
+    )
+    const secondRequest = decisionRequest(2)
+    secondRequest.planRevision = 9
+    const second = applyHimalayaVisualGrounding(
+      secondRequest,
+      result('clear'),
+      first.belief,
+    )
+
+    expect(resources.object.revision).toBe(HIMALAYA_WORLD_REVISION)
+    expect(first.observation.worldRevision).toBe(HIMALAYA_WORLD_REVISION)
+    expect(first.fusionObservation?.worldRevision).toBe(HIMALAYA_WORLD_REVISION)
+    expect(second.observation.worldRevision).toBe(HIMALAYA_WORLD_REVISION)
+    expect(second.corridor.lastWorldRevision).toBe(HIMALAYA_WORLD_REVISION)
+    expect(second.belief.appliedObservationIds).toContain(
+      'flight-run-1:awareness-2',
+    )
   })
 
   it('ages earlier occupied evidence instead of treating it as permanently current', () => {

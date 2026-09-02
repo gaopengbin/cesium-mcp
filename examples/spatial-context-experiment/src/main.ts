@@ -642,7 +642,7 @@ async function requestModelAvoidanceDecision(
       endpoint: hostedVisionEndpoint,
       observationId: request.requestId,
       worldId: HIMALAYA_WORLD_ID,
-      worldRevision: HIMALAYA_WORLD_REVISION + request.planRevision,
+      worldRevision: HIMALAYA_WORLD_REVISION,
       frame: request.visualFrame,
       objects: [{
         objectId: request.obstacle.objectId,

@@ -48,7 +48,7 @@ export function applyHimalayaVisualGrounding(
     createdAt: request.visualFrame.startedAt,
     regions: [resources.region],
   })
-  const worldRevision = HIMALAYA_WORLD_REVISION + request.planRevision
+  const worldRevision = HIMALAYA_WORLD_REVISION
   const observation = createVisualGroundingObservation({
     observationId: request.requestId,
     worldId: HIMALAYA_WORLD_ID,
@@ -140,7 +140,7 @@ function createVisualRayFusionObservation(
     schemaVersion: 1,
     observationId: `${request.requestId}:visual-ray-fusion`,
     worldId: HIMALAYA_WORLD_ID,
-    worldRevision: HIMALAYA_WORLD_REVISION + request.planRevision,
+    worldRevision: HIMALAYA_WORLD_REVISION,
     startedAt: request.visualFrame.startedAt,
     completedAt: request.visualFrame.completedAt,
     changedDuringObservation: request.visualFrame.changedDuringObservation,
@@ -211,7 +211,7 @@ export function createHimalayaVisualResources(
       },
       geometryQuality: 'derived',
       observedAt,
-      revision: HIMALAYA_WORLD_REVISION + request.planRevision,
+      revision: HIMALAYA_WORLD_REVISION,
       provenance: {
         source: 'cesium-flight-scene',
         method: 'runtime-entity-snapshot',
