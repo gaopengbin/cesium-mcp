@@ -21,6 +21,7 @@ export interface FlightAvoidanceDecision {
 
 export interface FlightAvoidanceManeuver extends FlightAvoidanceDecision {
   startProgress: number
+  startOffsetMeters: number
   peakProgress: number
   endProgress: number
   maximumOffsetMeters: number
@@ -29,6 +30,24 @@ export interface FlightAvoidanceManeuver extends FlightAvoidanceDecision {
 export interface GeographicCoordinate {
   longitude: number
   latitude: number
+}
+
+export type NoFlyZoneClearanceOutcomeStatus = 'pending' | 'verified' | 'violated'
+
+export interface NoFlyZoneClearanceOutcome {
+  scope: 'no-fly-zone-clearance'
+  status: NoFlyZoneClearanceOutcomeStatus
+  reason: string
+  minimumBoundaryClearanceMeters?: number
+  requiredSafetyMarginMeters: number
+  unsafeSampleCount: number
+}
+
+export interface EvaluateNoFlyZoneClearanceOutcomeInput {
+  completed: boolean
+  minimumBoundaryClearanceMeters?: number
+  requiredSafetyMarginMeters: number
+  unsafeSampleCount: number
 }
 
 export interface FlightAwarenessCycleInput {
@@ -99,6 +118,7 @@ export function createAvoidanceManeuver(
     progressSpan?: number
     peakProgress?: number
     maximumOffsetMeters?: number
+    startOffsetMeters?: number
   } = {},
 ): FlightAvoidanceManeuver {
   const startProgress = clamp(currentProgress, 0, 1)
@@ -112,6 +132,7 @@ export function createAvoidanceManeuver(
   return {
     ...decision,
     startProgress,
+    startOffsetMeters: options.startOffsetMeters ?? 0,
     peakProgress,
     endProgress,
     maximumOffsetMeters: options.maximumOffsetMeters ?? 5_500,
@@ -133,17 +154,21 @@ export function maneuverLateralOffsetMeters(
   maneuver: FlightAvoidanceManeuver | undefined,
   progress: number,
 ): number {
-  if (!maneuver || progress <= maneuver.startProgress || progress >= maneuver.endProgress) return 0
+  if (!maneuver || progress < maneuver.startProgress || progress >= maneuver.endProgress) return 0
+  if (progress === maneuver.startProgress) return maneuver.startOffsetMeters
   const beforePeak = progress <= maneuver.peakProgress
   const phase = beforePeak
     ? (progress - maneuver.startProgress)
       / Math.max(Number.EPSILON, maneuver.peakProgress - maneuver.startProgress)
     : (progress - maneuver.peakProgress)
       / Math.max(Number.EPSILON, maneuver.endProgress - maneuver.peakProgress)
-  const magnitude = beforePeak
-    ? Math.sin(Math.PI / 2 * phase) * maneuver.maximumOffsetMeters
-    : Math.cos(Math.PI / 2 * phase) * maneuver.maximumOffsetMeters
-  return maneuver.direction === 'left' ? -magnitude : magnitude
+  const maximumOffset = maneuver.direction === 'left'
+    ? -maneuver.maximumOffsetMeters
+    : maneuver.maximumOffsetMeters
+  return beforePeak
+    ? maneuver.startOffsetMeters
+      + (maximumOffset - maneuver.startOffsetMeters) * Math.sin(Math.PI / 2 * phase)
+    : maximumOffset * Math.cos(Math.PI / 2 * phase)
 }
 
 export function offsetCoordinateLaterally(
@@ -159,6 +184,33 @@ export function offsetCoordinateLaterally(
   return {
     longitude: coordinate.longitude + eastMeters / metersPerLongitudeDegree,
     latitude: coordinate.latitude + northMeters / 111_320,
+  }
+}
+
+export function evaluateNoFlyZoneClearanceOutcome(
+  input: EvaluateNoFlyZoneClearanceOutcomeInput,
+): NoFlyZoneClearanceOutcome {
+  const base = {
+    scope: 'no-fly-zone-clearance' as const,
+    requiredSafetyMarginMeters: input.requiredSafetyMarginMeters,
+    unsafeSampleCount: input.unsafeSampleCount,
+    ...(input.minimumBoundaryClearanceMeters !== undefined
+      ? { minimumBoundaryClearanceMeters: input.minimumBoundaryClearanceMeters }
+      : {}),
+  }
+  if (!input.completed || input.minimumBoundaryClearanceMeters === undefined) {
+    return { ...base, status: 'pending', reason: 'no-fly-zone-clearance-execution-incomplete' }
+  }
+  if (input.unsafeSampleCount > 0 || input.minimumBoundaryClearanceMeters < 0) {
+    return { ...base, status: 'violated', reason: 'entered-no-fly-volume' }
+  }
+  if (input.minimumBoundaryClearanceMeters < input.requiredSafetyMarginMeters) {
+    return { ...base, status: 'violated', reason: 'required-safety-margin-not-met' }
+  }
+  return {
+    ...base,
+    status: 'verified',
+    reason: 'executed-route-maintained-no-fly-zone-safety-margin',
   }
 }
 

@@ -47,7 +47,7 @@ import {
 } from './flight-animation.js'
 import {
   createAvoidanceManeuver,
-  isAvoidanceDirectionSafe,
+  evaluateNoFlyZoneClearanceOutcome,
   maneuverLateralOffsetMeters,
   offsetCoordinateLaterally,
   selectAvoidanceDecision,
@@ -59,7 +59,15 @@ import type {
   FlightAvoidanceManeuver,
   FlightAwarenessCycleKind,
   FlightRayReading,
+  NoFlyZoneClearanceOutcome,
 } from './flight-awareness.js'
+import {
+  createHimalayaCorridorCertificate,
+} from './himalaya-corridor-awareness.js'
+import type {
+  HimalayaCorridorCertificate,
+  HimalayaCorridorTrajectorySample,
+} from './himalaya-corridor-awareness.js'
 
 export const ARCGIS_WORLD_ELEVATION_URL = 'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer'
 export const ESRI_WORLD_IMAGERY_TILE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
@@ -76,21 +84,31 @@ const OBSERVER_FLIGHT_TILE_CACHE_SIZE = 240
 const SENSOR_HEADING_OFFSETS_DEGREES = [-30, -16, 0, 16, 30] as const
 const SENSOR_PITCH_DEGREES = -5
 const SENSOR_RANGE_METERS = 15_000
-const SENSOR_TRIGGER_DISTANCE_METERS = 9_000
+const SENSOR_TRIGGER_DISTANCE_METERS = 12_000
 const SENSOR_UPDATE_INTERVAL_MS = 250
 const VISUAL_CAPTURE_READY_FRAME_COUNT = 3
 const VISUAL_CAPTURE_TIMEOUT_MS = 5_000
 const VISUAL_CAPTURE_JPEG_QUALITY = 0.82
+const LIVE_TRAJECTORY_REBASE_TIMEOUT_MS = 8_000
+const MAX_LIVE_TRAJECTORY_HANDOFF_DISTANCE_METERS = 1_000
 const MAX_VISUAL_AWARENESS_CYCLES = 3
 const MIN_VISUAL_CYCLE_PROGRESS_DELTA = 0.025
 const OBSTACLE_INJECTION_PROGRESS = 0.24
 const OBSTACLE_ROUTE_PROGRESS = 0.42
 const OBSTACLE_RADIUS_METERS = 3_800
 const OBSTACLE_VERTICAL_RADIUS_METERS = 2_600
-const AVOIDANCE_PROGRESS_SPAN = 0.26
+const AVOIDANCE_PROGRESS_SPAN = 0.72
+const CORRIDOR_CANDIDATE_PROGRESS_SPAN = 0.72
 const AVOIDANCE_OFFSET_METERS = 6_500
 const NO_FLY_ZONE_SAFETY_MARGIN_METERS = 1_200
 const EXECUTED_ROUTE_SAMPLE_DISTANCE_METERS = 180
+const CORRIDOR_TRAJECTORY_RADIUS_METERS = 60
+const REQUIRED_TERRAIN_CLEARANCE_METERS = 1_200
+const CORRIDOR_TERRAIN_LONGITUDINAL_SPACING_METERS = 150
+const CORRIDOR_TERRAIN_LATERAL_SPACING_METERS = 60
+const CORRIDOR_TERRAIN_VERTICAL_UNCERTAINTY_METERS = 120
+const CORRIDOR_BUILD_YIELD_INTERVAL = 64
+const CORRIDOR_TERRAIN_SAMPLE_CHUNK_SIZE = 450
 export const HIMALAYA_DYNAMIC_NO_FLY_ZONE_ID = 'himalaya-flight-dynamic-no-fly-zone'
 const EXECUTED_ROUTE_ID = 'himalaya-flight-executed-route'
 const SENSOR_RAY_ENTITY_IDS = SENSOR_HEADING_OFFSETS_DEGREES.map((_, index) =>
@@ -159,6 +177,30 @@ export interface HimalayaFlightObstacleSnapshot {
   verticalRadiusMeters: number
 }
 
+export interface HimalayaFlightObservationView {
+  candidateId: string
+  beliefRevision: number
+  reason: string
+  relativeHeadingDegrees: number
+  pitchDegrees: number
+  rangeMeters: number
+  target?: readonly [number, number, number]
+}
+
+export interface HimalayaFlightCorridorCandidate {
+  trajectoryId: string
+  direction: FlightAvoidanceDirection
+  maneuver: FlightAvoidanceManeuver
+  certificate: HimalayaCorridorCertificate
+  samples: readonly HimalayaFlightCorridorCandidateSample[]
+}
+
+export interface HimalayaFlightCorridorCandidateSample {
+  progress: number
+  sample: TerrainAwareFlightSample
+  corridorTerrainHeightMeters?: number
+}
+
 export interface HimalayaFlightDecisionRequest {
   requestId: string
   runId: string
@@ -167,10 +209,15 @@ export interface HimalayaFlightDecisionRequest {
   planRevision: number
   requestedAt: string
   progress: number
+  sceneReady: boolean
+  routeHeadingDegrees: number
+  activeObservationCount: number
   sample: TerrainAwareFlightSample
   sensor: HimalayaFlightSensorFrame
   safetySuggestion: FlightAvoidanceDecision
   obstacle: HimalayaFlightObstacleSnapshot
+  corridorCandidates: readonly HimalayaFlightCorridorCandidate[]
+  observationView?: HimalayaFlightObservationView
   visualFrame?: HimalayaFlightVisualFrame
 }
 
@@ -190,7 +237,7 @@ export interface HimalayaFlightDecisionEvidence {
 }
 
 export interface HimalayaFlightDecisionEvent {
-  state: 'safety-committed' | 'requesting' | 'observed' | 'accepted' | 'fallback'
+  state: 'safety-committed' | 'requesting' | 'skipped' | 'observed' | 'accepted' | 'fallback'
   request: HimalayaFlightDecisionRequest
   evidence?: HimalayaFlightDecisionEvidence
   error?: string
@@ -211,6 +258,7 @@ export interface HimalayaFlightDiagnostics {
   awarenessCycleCount: number
   planRevision: number
   perceptionPending: boolean
+  noFlyZoneOutcome: NoFlyZoneClearanceOutcome
 }
 
 interface FlightSensorRaySegment {
@@ -247,6 +295,9 @@ export interface HimalayaFlightCallbacks {
     request: HimalayaFlightDecisionRequest,
     signal: AbortSignal,
   ) => Promise<HimalayaFlightModelDecision | undefined>
+  selectObservationView?: (
+    request: HimalayaFlightDecisionRequest,
+  ) => HimalayaFlightObservationView | undefined
   onDecision?: (event: HimalayaFlightDecisionEvent) => void
   onCameraChange?: (event: HimalayaFlightCameraEvent) => void
   observerContainer?: HTMLElement
@@ -306,7 +357,8 @@ export async function prepareHimalayaFlight(
     }
   })
   const plan = buildTerrainAwareFlightPlan(terrainSamples, {
-    clearanceMeters: 1_200,
+    clearanceMeters: REQUIRED_TERRAIN_CLEARANCE_METERS
+      + CORRIDOR_TERRAIN_VERTICAL_UNCERTAINTY_METERS,
     maxClimbAngleDegrees: 9,
     maxDescentAngleDegrees: 10,
   })
@@ -457,9 +509,12 @@ export async function prepareHimalayaFlight(
   let observerNoFlyZone: Entity | undefined
   let noFlyZoneSphere: BoundingSphere | undefined
   let avoidance: FlightAvoidanceManeuver | undefined
+  let activeCorridorCandidate: HimalayaFlightCorridorCandidate | undefined
   let decisionPending = false
+  let trajectoryCommitPending = false
   let perceptionAbortController: AbortController | undefined
   let awarenessCycleCount = 0
+  let activeObservationCount = 0
   let lastAwarenessProgress: number | undefined
   let planRevision = 0
   let minimumNoFlyZoneClearanceMeters = Number.POSITIVE_INFINITY
@@ -473,6 +528,9 @@ export async function prepareHimalayaFlight(
   const isObserverSceneReady = (): boolean => observerViewer
     ? observerRenderCount >= 2 && observerViewer.scene.globe.tilesLoaded
     : viewer.scene.globe.tilesLoaded
+  const isExecutionSceneReady = (): boolean => (
+    viewer.scene.globe.tilesLoaded && viewer.dataSourceDisplay.ready
+  )
 
   const stop = (): void => {
     activeRun += 1
@@ -516,7 +574,7 @@ export async function prepareHimalayaFlight(
   const play = async (options: { durationSeconds?: number } = {}): Promise<void> => {
     stop()
     const run = activeRun
-    const durationSeconds = options.durationSeconds ?? 52
+    const durationSeconds = options.durationSeconds ?? 75
     if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
       throw new Error('Flight duration must be a positive finite number')
     }
@@ -542,9 +600,12 @@ export async function prepareHimalayaFlight(
       })
     }
     avoidance = undefined
+    activeCorridorCandidate = undefined
     decisionPending = false
+    trajectoryCommitPending = false
     perceptionAbortController = undefined
     awarenessCycleCount = 0
+    activeObservationCount = 0
     lastAwarenessProgress = undefined
     planRevision = 0
     latestSensorFrame = undefined
@@ -608,17 +669,24 @@ export async function prepareHimalayaFlight(
         const commitAvoidance = (
           request: HimalayaFlightDecisionRequest,
           evidence: HimalayaFlightDecisionEvidence,
+          candidate?: HimalayaFlightCorridorCandidate,
         ): void => {
           planRevision = request.planRevision
-          const decision: FlightAvoidanceDecision = {
-            ...request.safetySuggestion,
-            direction: evidence.direction,
+          if (candidate && candidate.direction === evidence.direction) {
+            avoidance = candidate.maneuver
+            activeCorridorCandidate = candidate
+          } else {
+            const decision: FlightAvoidanceDecision = {
+              ...request.safetySuggestion,
+              direction: evidence.direction,
+            }
+            avoidance = createAvoidanceManeuver(decision, request.progress, {
+              progressSpan: AVOIDANCE_PROGRESS_SPAN,
+              peakProgress: OBSTACLE_ROUTE_PROGRESS,
+              maximumOffsetMeters: AVOIDANCE_OFFSET_METERS,
+            })
+            activeCorridorCandidate = undefined
           }
-          avoidance = createAvoidanceManeuver(decision, request.progress, {
-            progressSpan: AVOIDANCE_PROGRESS_SPAN,
-            peakProgress: OBSTACLE_ROUTE_PROGRESS,
-            maximumOffsetMeters: AVOIDANCE_OFFSET_METERS,
-          })
           callbacks.onObservation?.({
             id: `himalaya-avoidance-${Date.now()}`,
             kind: 'avoidance',
@@ -644,7 +712,8 @@ export async function prepareHimalayaFlight(
           progress: number,
         ): void => {
           const cycle = awarenessCycleCount + 1
-          const request: HimalayaFlightDecisionRequest = {
+          const startOffsetMeters = maneuverLateralOffsetMeters(avoidance, progress)
+          const baseRequest: HimalayaFlightDecisionRequest = {
             requestId: `flight-run-${run}:awareness-${cycle}`,
             runId: `flight-run-${run}`,
             cycle,
@@ -654,24 +723,27 @@ export async function prepareHimalayaFlight(
               : planRevision,
             requestedAt: new Date().toISOString(),
             progress,
+            sceneReady: isExecutionSceneReady(),
+            routeHeadingDegrees: CesiumMath.toDegrees(bearingRadians(sample, lookAhead)),
+            activeObservationCount,
             sample: { ...sample },
             sensor,
             safetySuggestion,
             obstacle: createObstacleSnapshot(plan),
+            corridorCandidates: [],
           }
-          awarenessCycleCount = cycle
           lastAwarenessProgress = progress
 
           if (cycleKind === 'detect' && !avoidance) {
             const evidence: HimalayaFlightDecisionEvidence = {
               source: 'local-rule',
               direction: safetySuggestion.direction,
-              reason: 'The fast ray-safety loop committed the clearer corridor without waiting for visual AI.',
+              reason: 'The fast ray-safety loop committed a conservative adaptive maneuver while the fixed terrain provider sampled both candidate grids asynchronously.',
             }
-            commitAvoidance(request, evidence)
+            commitAvoidance(baseRequest, evidence)
             callbacks.onDecision?.({
               state: 'safety-committed',
-              request,
+              request: baseRequest,
               evidence,
             })
             decisionCameraActive = true
@@ -684,45 +756,118 @@ export async function prepareHimalayaFlight(
           }
 
           if (!callbacks.requestAvoidanceDecision || !observerViewer) return
-
+          awarenessCycleCount = cycle
           decisionPending = true
           const controller = new AbortController()
           perceptionAbortController = controller
-          callbacks.onDecision?.({ state: 'requesting', request })
-          setObserverCamera(observerViewer.camera, sample, lookAhead)
-          observerViewer.scene.requestRender()
-          let activeRequest = request
-          void captureFlightVisualFrame(
-            observerViewer,
-            observerRenderCount,
-            () => observerRenderCount,
-            () => run !== activeRun || controller.signal.aborted,
+          const corridorCandidatesPromise = Promise.all(
+            (['left', 'right'] as const).map(direction => (
+              createFlightCorridorCandidate({
+                viewer,
+                terrainProvider,
+                plan,
+                safetySuggestion,
+                direction,
+                progress,
+                startSample: sample,
+                startOffsetMeters,
+                progressSpan: CORRIDOR_CANDIDATE_PROGRESS_SPAN,
+                noFlyZoneSphere,
+                sceneVolumeExclusions: rayExclusions,
+                trajectoryId: `flight-run-${run}:cycle-${cycle}:${direction}:candidate`,
+                signal: controller.signal,
+              })
+            )),
           )
+          let activeRequest = baseRequest
+          let observationRequested = false
+          void corridorCandidatesPromise
+            .then((corridorCandidates) => {
+              if (run !== activeRun || controller.signal.aborted) return undefined
+              const candidateRequest: HimalayaFlightDecisionRequest = {
+                ...baseRequest,
+                corridorCandidates,
+              }
+              const observationView = callbacks.selectObservationView
+                ? callbacks.selectObservationView(candidateRequest)
+                : defaultObservationView(candidateRequest)
+              if (!observationView) {
+                callbacks.onDecision?.({ state: 'skipped', request: candidateRequest })
+                return undefined
+              }
+              activeRequest = {
+                ...candidateRequest,
+                observationView,
+              }
+              observationRequested = true
+              activeObservationCount += 1
+              callbacks.onDecision?.({ state: 'requesting', request: activeRequest })
+              setObservationCamera(observerViewer.camera, activeRequest)
+              observerViewer.scene.requestRender()
+              return captureFlightVisualFrame(
+                observerViewer,
+                observerRenderCount,
+                () => observerRenderCount,
+                () => run !== activeRun || controller.signal.aborted,
+                `himalaya-independent-camera:${observationView.candidateId}`,
+              )
+            })
             .then((visualFrame) => {
               if (run !== activeRun || controller.signal.aborted) return undefined
-              activeRequest = { ...request, visualFrame }
+              if (!visualFrame || !observationRequested) return undefined
+              activeRequest = { ...activeRequest, visualFrame }
               return callbacks.requestAvoidanceDecision!(activeRequest, controller.signal)
             })
-            .then(modelDecision => {
+            .then(async (modelDecision) => {
               if (
                 run !== activeRun
                 || controller.signal.aborted
                 || activeRequest.planRevision !== planRevision
               ) return
               if (!modelDecision) {
-                callbacks.onDecision?.({ state: 'observed', request: activeRequest })
+                if (observationRequested) {
+                  callbacks.onDecision?.({ state: 'observed', request: activeRequest })
+                }
                 return
               }
-              const selectedClearance = modelDecision.direction === 'left'
-                ? safetySuggestion.leftClearanceMeters
-                : safetySuggestion.rightClearanceMeters
-              const clearanceSafe = isAvoidanceDirectionSafe(
-                safetySuggestion,
-                modelDecision.direction,
-              )
-              const directionPreservesCommittedTrajectory = !avoidance
-                || modelDecision.direction === avoidance.direction
-              const accepted = clearanceSafe && directionPreservesCommittedTrajectory
+              const effectiveProgress = easeInOut(currentProgress)
+              const sourceCandidate = activeRequest.corridorCandidates.find(candidate => (
+                candidate.direction === modelDecision.direction
+              ))
+              const routeStillActionable = sourceCandidate !== undefined
+                && effectiveProgress < sourceCandidate.maneuver.endProgress - 0.005
+              let replannedCandidate: HimalayaFlightCorridorCandidate | undefined
+              if (sourceCandidate) {
+                trajectoryCommitPending = true
+                try {
+                  replannedCandidate = await waitForLiveTrajectoryRebase(
+                    rebaseFlightCorridorCandidate({
+                      candidate: sourceCandidate,
+                      viewer,
+                      terrainProvider,
+                      progress: effectiveProgress,
+                      startSample: { ...currentSample },
+                      requiredTerrainClearanceMeters: REQUIRED_TERRAIN_CLEARANCE_METERS,
+                      noFlyZoneSphere,
+                      sceneVolumeExclusions: rayExclusions,
+                      trajectoryId: `${activeRequest.requestId}:plan-${planRevision + 1}:${modelDecision.direction}`,
+                      signal: controller.signal,
+                    }),
+                    controller.signal,
+                    LIVE_TRAJECTORY_REBASE_TIMEOUT_MS,
+                  )
+                } finally {
+                  trajectoryCommitPending = false
+                }
+              }
+              if (
+                run !== activeRun
+                || controller.signal.aborted
+                || activeRequest.planRevision !== planRevision
+              ) return
+              const certificateSafe = replannedCandidate?.certificate.complete === true
+                && replannedCandidate.certificate.status === 'free'
+              const accepted = certificateSafe && routeStillActionable
               const evidence: HimalayaFlightDecisionEvidence = accepted
                 ? {
                     source: 'model',
@@ -736,14 +881,25 @@ export async function prepareHimalayaFlight(
                 : {
                     source: 'safety-fallback',
                     direction: avoidance?.direction ?? safetySuggestion.direction,
-                    reason: clearanceSafe
-                      ? 'The visual planner proposed reversing an active maneuver; the fast safety loop preserved trajectory continuity.'
-                      : `The visual planner selected a corridor with only ${Math.round(selectedClearance)} m clearance; the fast safety loop preserved the safer corridor.`,
+                    reason: !routeStillActionable
+                      ? 'The slow plan arrived after the directional maneuver handoff window; the completed fast-safety trajectory was preserved.'
+                      : `The proposed executable trajectory did not receive a complete free certificate: ${replannedCandidate?.certificate.reasons.join(' ') ?? 'No matching sampled corridor candidate was available.'}`,
                     model: modelDecision.model,
                   }
+              let eventRequest = activeRequest
+              if (accepted && evidence.source === 'model' && replannedCandidate) {
+                eventRequest = {
+                  ...activeRequest,
+                  planRevision: planRevision + 1,
+                  progress: effectiveProgress,
+                  sample: { ...currentSample },
+                  corridorCandidates: [replannedCandidate],
+                }
+                commitAvoidance(eventRequest, evidence, replannedCandidate)
+              }
               callbacks.onDecision?.({
                 state: accepted ? 'accepted' : 'fallback',
-                request: activeRequest,
+                request: eventRequest,
                 evidence,
               })
             })
@@ -776,7 +932,7 @@ export async function prepareHimalayaFlight(
 
           const timeline = advanceFlightTimeline(
             activeElapsedMs,
-            now - previousAt,
+            trajectoryCommitPending ? 0 : now - previousAt,
             durationSeconds * 1_000,
           )
           previousAt = now
@@ -804,7 +960,10 @@ export async function prepareHimalayaFlight(
             viewer.scene.requestRender()
           }
 
-          const sample = applyAvoidanceToSample(
+          const sample = applyCommittedCorridorCandidate(
+            activeCorridorCandidate,
+            easedProgress,
+          ) ?? applyAvoidanceToSample(
             viewer,
             baseSample,
             baseLookAhead,
@@ -813,7 +972,10 @@ export async function prepareHimalayaFlight(
             plan.options.clearanceMeters,
             noFlyZoneSphere,
           )
-          const lookAhead = applyAvoidanceToSample(
+          const lookAhead = applyCommittedCorridorCandidate(
+            activeCorridorCandidate,
+            lookAheadProgress,
+          ) ?? applyAvoidanceToSample(
             viewer,
             baseLookAhead,
             interpolatePlanSample(plan, Math.min(1, lookAheadProgress + 0.012)),
@@ -881,7 +1043,14 @@ export async function prepareHimalayaFlight(
           if (
             decisionCameraActive
             && avoidance
-            && easedProgress >= avoidance.endProgress
+            && (
+              easedProgress >= avoidance.endProgress
+              || (
+                easedProgress >= avoidance.peakProgress
+                && noFlyZoneClearanceMeters !== undefined
+                && noFlyZoneClearanceMeters >= NO_FLY_ZONE_SAFETY_MARGIN_METERS
+              )
+            )
           ) {
             decisionCameraActive = false
             setCameraIntent(
@@ -974,6 +1143,14 @@ export async function prepareHimalayaFlight(
       awarenessCycleCount,
       planRevision,
       perceptionPending: decisionPending,
+      noFlyZoneOutcome: evaluateNoFlyZoneClearanceOutcome({
+        completed: currentProgress >= 1,
+        ...(Number.isFinite(minimumNoFlyZoneClearanceMeters)
+          ? { minimumBoundaryClearanceMeters: minimumNoFlyZoneClearanceMeters }
+          : {}),
+        requiredSafetyMarginMeters: NO_FLY_ZONE_SAFETY_MARGIN_METERS,
+        unsafeSampleCount,
+      }),
       ...(Number.isFinite(minimumNoFlyZoneClearanceMeters)
         ? { minimumNoFlyZoneClearanceMeters }
         : {}),
@@ -1159,6 +1336,51 @@ function setObserverCamera(
   })
 }
 
+function defaultObservationView(
+  request: HimalayaFlightDecisionRequest,
+): HimalayaFlightObservationView {
+  return {
+    candidateId: 'forward-confirmation',
+    beliefRevision: 0,
+    reason: 'No active-perception adapter was provided, so the independent camera uses its conservative forward confirmation view.',
+    relativeHeadingDegrees: 180,
+    pitchDegrees: -32,
+    rangeMeters: Math.max(16_000, request.obstacle.horizontalRadiusMeters * 4.2),
+  }
+}
+
+function setObservationCamera(
+  camera: Camera,
+  request: HimalayaFlightDecisionRequest,
+): void {
+  const view = request.observationView ?? defaultObservationView(request)
+  const target = view.target ?? [
+    request.obstacle.longitude,
+    request.obstacle.latitude,
+    request.obstacle.height,
+  ]
+  const center = Cartesian3.fromDegrees(
+    target[0],
+    target[1],
+    target[2],
+  )
+  const frame = new BoundingSphere(
+    center,
+    Math.max(
+      request.obstacle.horizontalRadiusMeters,
+      request.obstacle.verticalRadiusMeters,
+    ),
+  )
+  camera.viewBoundingSphere(frame, new HeadingPitchRange(
+    CesiumMath.toRadians(
+      request.routeHeadingDegrees + view.relativeHeadingDegrees,
+    ),
+    CesiumMath.toRadians(view.pitchDegrees),
+    view.rangeMeters,
+  ))
+  camera.lookAtTransform(Matrix4.IDENTITY)
+}
+
 function applyFlightView(
   viewer: Viewer,
   sample: TerrainAwareFlightSample,
@@ -1310,6 +1532,7 @@ async function captureFlightVisualFrame(
   initialRenderCount: number,
   getRenderCount: () => number,
   isCancelled: () => boolean,
+  sensorId = 'himalaya-independent-camera',
 ): Promise<HimalayaFlightVisualFrame> {
   const startedAt = new Date().toISOString()
   const ready = await waitForVisualCaptureReadiness(
@@ -1343,7 +1566,7 @@ async function captureFlightVisualFrame(
     ? CesiumMath.toDegrees(frustum.fovy)
     : undefined
   const sensor: ObservationSensor = {
-    sensorId: 'himalaya-independent-camera',
+    sensorId,
     kind: 'camera',
     pose: {
       position: [
@@ -1536,6 +1759,602 @@ function sensorRayColor(hitType: FlightRayReading['hitType']): Color {
   return Color.fromCssColorString('#5cd9ff').withAlpha(0.62)
 }
 
+interface CreateFlightCorridorCandidateInput {
+  viewer: Viewer
+  terrainProvider: TerrainProvider
+  plan: TerrainAwareFlightPlan
+  safetySuggestion: FlightAvoidanceDecision
+  direction: FlightAvoidanceDirection
+  progress: number
+  startSample: TerrainAwareFlightSample
+  startOffsetMeters: number
+  noFlyZoneSphere?: BoundingSphere
+  sceneVolumeExclusions: readonly object[]
+  trajectoryId: string
+  progressSpan?: number
+  peakProgress?: number
+  maximumOffsetMeters?: number
+  signal?: AbortSignal
+}
+
+async function createFlightCorridorCandidate(
+  input: CreateFlightCorridorCandidateInput,
+): Promise<HimalayaFlightCorridorCandidate> {
+  input.signal?.throwIfAborted()
+  await yieldToBrowserTask()
+  input.signal?.throwIfAborted()
+  const decision: FlightAvoidanceDecision = {
+    ...input.safetySuggestion,
+    direction: input.direction,
+  }
+  const maneuver = createAvoidanceManeuver(decision, input.progress, {
+    progressSpan: input.progressSpan ?? AVOIDANCE_PROGRESS_SPAN,
+    peakProgress: input.peakProgress ?? OBSTACLE_ROUTE_PROGRESS,
+    maximumOffsetMeters: input.maximumOffsetMeters ?? AVOIDANCE_OFFSET_METERS,
+    startOffsetMeters: input.startOffsetMeters,
+  })
+  const candidateEndProgress = 1
+  const estimatedDistanceMeters = input.plan.metrics.distanceMeters
+    * Math.max(Number.EPSILON, candidateEndProgress - maneuver.startProgress)
+  const segmentCount = Math.max(1, Math.ceil(
+    estimatedDistanceMeters / CORRIDOR_TERRAIN_LONGITUDINAL_SPACING_METERS,
+  ))
+  const sceneVolumes = collectSceneRayVolumes(input.viewer, input.sceneVolumeExclusions)
+  const trajectoryRadiusMeters = CORRIDOR_TRAJECTORY_RADIUS_METERS
+  const targetSampleSpacingMeters = CORRIDOR_TERRAIN_LONGITUDINAL_SPACING_METERS
+  const terrainCrossSectionSampleCount = Math.floor(
+    trajectoryRadiusMeters * 2 / CORRIDOR_TERRAIN_LATERAL_SPACING_METERS,
+  ) + 1
+  const samples: HimalayaFlightCorridorCandidateSample[] = []
+  const certificateSamples: HimalayaCorridorTrajectorySample[] = []
+  const buildSample = (progress: number): {
+    progress: number
+    sample: TerrainAwareFlightSample
+    position: Cartesian3
+    maximumTerrainHeight?: number
+  } => {
+    const isStartSample = Math.abs(progress - maneuver.startProgress) <= Number.EPSILON * 16
+    const lookAheadProgress = Math.min(1, progress + 0.004)
+    const baseSample = interpolatePlanSample(input.plan, progress)
+    const baseLookAhead = interpolatePlanSample(input.plan, lookAheadProgress)
+    const sample = isStartSample
+      ? { ...input.startSample }
+      : progress > maneuver.endProgress
+        ? { ...baseSample }
+        : applyAvoidanceToSample(
+          input.viewer,
+          baseSample,
+          baseLookAhead,
+          maneuver,
+          progress,
+          input.plan.options.clearanceMeters,
+          input.noFlyZoneSphere,
+        )
+    return {
+      progress,
+      sample,
+      position: samplePosition(sample),
+    }
+  }
+  const progressValues = Array.from({ length: segmentCount + 1 }, (_, index) => (
+    maneuver.startProgress
+      + (candidateEndProgress - maneuver.startProgress) * (index / segmentCount)
+  ))
+  progressValues.push(maneuver.peakProgress, maneuver.endProgress)
+  const uniqueProgressValues = [...new Set(progressValues)]
+    .sort((left, right) => left - right)
+  let builtSamples: ReturnType<typeof buildSample>[] = []
+  for (let index = 0; index < uniqueProgressValues.length; index++) {
+    builtSamples.push(buildSample(uniqueProgressValues[index]!))
+    if ((index + 1) % CORRIDOR_BUILD_YIELD_INTERVAL === 0) {
+      await yieldToBrowserTask()
+    }
+  }
+  for (let pass = 0; pass < 10; pass++) {
+    const refined = [builtSamples[0]!]
+    let inserted = false
+    for (let index = 1; index < builtSamples.length; index++) {
+      const previous = builtSamples[index - 1]!
+      const current = builtSamples[index]!
+      if (
+        Cartesian3.distance(previous.position, current.position) > targetSampleSpacingMeters
+        && current.progress - previous.progress > Number.EPSILON * 16
+      ) {
+        refined.push(buildSample((previous.progress + current.progress) / 2))
+        inserted = true
+      }
+      refined.push(current)
+      if (index % CORRIDOR_BUILD_YIELD_INTERVAL === 0) {
+        await yieldToBrowserTask()
+      }
+    }
+    builtSamples = refined
+    if (!inserted) break
+  }
+
+  const terrainCartographics: Cartographic[] = []
+  for (let index = 0; index < builtSamples.length; index++) {
+    const built = builtSamples[index]!
+    const previous = builtSamples[Math.max(0, index - 1)]!.sample
+    const next = builtSamples[Math.min(builtSamples.length - 1, index + 1)]!.sample
+    const heading = bearingRadians(previous, next)
+    for (
+      let lateralOffsetMeters = -trajectoryRadiusMeters;
+      lateralOffsetMeters <= trajectoryRadiusMeters;
+      lateralOffsetMeters += CORRIDOR_TERRAIN_LATERAL_SPACING_METERS
+    ) {
+      const coordinate = offsetCoordinateLaterally(
+        built.sample,
+        heading,
+        lateralOffsetMeters,
+      )
+      terrainCartographics.push(
+        Cartographic.fromDegrees(coordinate.longitude, coordinate.latitude),
+      )
+    }
+    if ((index + 1) % CORRIDOR_BUILD_YIELD_INTERVAL === 0) {
+      await yieldToBrowserTask()
+    }
+  }
+  const sampledTerrainHeights = await sampleMostDetailedTerrainHeights(
+    input.terrainProvider,
+    terrainCartographics,
+    input.signal,
+  )
+  input.signal?.throwIfAborted()
+  const terrainSampledBuilds: typeof builtSamples = []
+  for (let index = 0; index < builtSamples.length; index++) {
+    const built = builtSamples[index]!
+    const startIndex = index * terrainCrossSectionSampleCount
+    const terrainHeights = sampledTerrainHeights
+      .slice(startIndex, startIndex + terrainCrossSectionSampleCount)
+    const terrainComplete = terrainHeights.length === terrainCrossSectionSampleCount
+      && terrainHeights.every((height): height is number => (
+        height !== undefined && Number.isFinite(height)
+      ))
+    terrainSampledBuilds.push({
+      ...built,
+      ...(terrainComplete ? { maximumTerrainHeight: Math.max(...terrainHeights) } : {}),
+    })
+    if ((index + 1) % CORRIDOR_BUILD_YIELD_INTERVAL === 0) {
+      await yieldToBrowserTask()
+    }
+  }
+  builtSamples = terrainSampledBuilds
+
+  const terrainEnvelopedBuilds: typeof builtSamples = []
+  for (let index = 0; index < builtSamples.length; index++) {
+    const built = builtSamples[index]!
+    if (index === 0 || built.maximumTerrainHeight === undefined) {
+      terrainEnvelopedBuilds.push(built)
+      continue
+    }
+    const nearbyTerrainHeights = [
+      builtSamples[index - 1]?.maximumTerrainHeight,
+      built.maximumTerrainHeight,
+      builtSamples[index + 1]?.maximumTerrainHeight,
+    ].filter((height): height is number => height !== undefined)
+    const terrainEnvelopeHeight = Math.max(...nearbyTerrainHeights)
+    const flightHeight = Math.max(
+      built.sample.flightHeight,
+      terrainEnvelopeHeight + input.plan.options.clearanceMeters,
+    )
+    const sample = {
+      ...built.sample,
+      flightHeight,
+      clearanceMeters: flightHeight - built.maximumTerrainHeight,
+    }
+    terrainEnvelopedBuilds.push({
+      ...built,
+      sample,
+      position: samplePosition(sample),
+    })
+    if ((index + 1) % CORRIDOR_BUILD_YIELD_INTERVAL === 0) {
+      await yieldToBrowserTask()
+    }
+  }
+  builtSamples = terrainEnvelopedBuilds
+
+  let previousPosition: Cartesian3 | undefined
+  for (const built of builtSamples) {
+    const { progress, sample, position, maximumTerrainHeight } = built
+    const distanceFromPreviousMeters = previousPosition
+      ? Cartesian3.distance(previousPosition, position)
+      : undefined
+    const noFlyZoneBoundaryClearanceMeters = input.noFlyZoneSphere
+      ? distanceFromPointToSegment(
+          input.noFlyZoneSphere.center,
+          previousPosition ?? position,
+          position,
+        ) - input.noFlyZoneSphere.radius - trajectoryRadiusMeters
+      : undefined
+    const sceneBlocked = sceneVolumes.some(volume => (
+      distanceFromPointToSegment(
+        volume.boundingSphere.center,
+        previousPosition ?? position,
+        position,
+      ) <= volume.boundingSphere.radius + trajectoryRadiusMeters
+    ))
+    samples.push({
+      progress,
+      sample: { ...sample },
+      ...(maximumTerrainHeight !== undefined
+        ? { corridorTerrainHeightMeters: maximumTerrainHeight }
+        : {}),
+    })
+    certificateSamples.push({
+      progress,
+      longitude: sample.longitude,
+      latitude: sample.latitude,
+      flightHeight: sample.flightHeight,
+      ...(maximumTerrainHeight !== undefined ? { terrainHeight: maximumTerrainHeight } : {}),
+      ...(noFlyZoneBoundaryClearanceMeters !== undefined
+        ? { noFlyZoneBoundaryClearanceMeters }
+        : {}),
+      ...(distanceFromPreviousMeters !== undefined ? { distanceFromPreviousMeters } : {}),
+      sceneBlocked,
+    })
+    previousPosition = position
+    if (samples.length % CORRIDOR_BUILD_YIELD_INTERVAL === 0) {
+      await yieldToBrowserTask()
+    }
+  }
+
+  const certificate = createHimalayaCorridorCertificate({
+    trajectoryId: input.trajectoryId,
+    direction: input.direction,
+    sampledAt: new Date().toISOString(),
+    sceneReady: input.viewer.dataSourceDisplay.ready,
+    samples: certificateSamples,
+    requiredTerrainClearanceMeters: REQUIRED_TERRAIN_CLEARANCE_METERS,
+    requiredNoFlyZoneMarginMeters: NO_FLY_ZONE_SAFETY_MARGIN_METERS,
+    maximumSampleSpacingMeters: EXECUTED_ROUTE_SAMPLE_DISTANCE_METERS,
+    trajectoryRadiusMeters,
+    terrainSampling: {
+      source: `most-detailed-terrain-provider:${ARCGIS_WORLD_ELEVATION_URL}`,
+      longitudinalSpacingMeters: CORRIDOR_TERRAIN_LONGITUDINAL_SPACING_METERS,
+      lateralSpacingMeters: CORRIDOR_TERRAIN_LATERAL_SPACING_METERS,
+      verticalUncertaintyMeters: CORRIDOR_TERRAIN_VERTICAL_UNCERTAINTY_METERS,
+    },
+  })
+  return {
+    trajectoryId: input.trajectoryId,
+    direction: input.direction,
+    maneuver,
+    certificate,
+    samples,
+  }
+}
+
+async function sampleMostDetailedTerrainHeights(
+  terrainProvider: TerrainProvider,
+  cartographics: readonly Cartographic[],
+  signal?: AbortSignal,
+): Promise<Array<number | undefined>> {
+  const heights: Array<number | undefined> = []
+  for (let start = 0; start < cartographics.length; start += CORRIDOR_TERRAIN_SAMPLE_CHUNK_SIZE) {
+    signal?.throwIfAborted()
+    const chunk = cartographics.slice(
+      start,
+      start + CORRIDOR_TERRAIN_SAMPLE_CHUNK_SIZE,
+    )
+    try {
+      const sampled = await sampleTerrainMostDetailed(
+        terrainProvider,
+        [...chunk],
+        true,
+      )
+      heights.push(...sampled.map(position => (
+        Number.isFinite(position.height) ? position.height : undefined
+      )))
+    } catch {
+      heights.push(...chunk.map(() => undefined))
+    }
+    await yieldToBrowserTask()
+    signal?.throwIfAborted()
+  }
+  return heights
+}
+
+export function waitForLiveTrajectoryRebase<T>(
+  promise: Promise<T>,
+  signal: AbortSignal,
+  timeoutMs: number,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const settle = (callback: () => void): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
+      signal.removeEventListener('abort', abort)
+      callback()
+    }
+    const abort = (): void => settle(() => reject(
+      signal.reason instanceof Error
+        ? signal.reason
+        : new Error('Live trajectory rebase was aborted'),
+    ))
+    const timeout = setTimeout(() => settle(() => reject(
+      new Error(`Live trajectory rebase exceeded ${timeoutMs} ms`),
+    )), timeoutMs)
+    signal.addEventListener('abort', abort, { once: true })
+    promise.then(
+      value => settle(() => resolve(value)),
+      error => settle(() => reject(error)),
+    )
+    if (signal.aborted) abort()
+  })
+}
+
+export interface RebaseFlightCorridorCandidateInput {
+  candidate: HimalayaFlightCorridorCandidate
+  viewer: Viewer
+  terrainProvider: TerrainProvider
+  progress: number
+  startSample: TerrainAwareFlightSample
+  requiredTerrainClearanceMeters: number
+  noFlyZoneSphere?: BoundingSphere
+  sceneVolumeExclusions: readonly object[]
+  trajectoryId: string
+  signal?: AbortSignal
+  terrainHeightSampler?: (
+    terrainProvider: TerrainProvider,
+    cartographics: readonly Cartographic[],
+    signal?: AbortSignal,
+  ) => Promise<Array<number | undefined>>
+}
+
+export async function rebaseFlightCorridorCandidate(
+  input: RebaseFlightCorridorCandidateInput,
+): Promise<HimalayaFlightCorridorCandidate> {
+  const progressEpsilon = Number.EPSILON * 32
+  const remainingSamples = input.candidate.samples
+    .filter(item => item.progress > input.progress + progressEpsilon)
+    .map(item => ({
+      ...item,
+      sample: { ...item.sample },
+    }))
+  const nextSample = remainingSamples[0]
+  const samples: HimalayaFlightCorridorCandidateSample[] = []
+  let handoffDistanceMeters: number | undefined
+
+  if (nextSample) {
+    const startPosition = samplePosition(input.startSample)
+    const nextPosition = samplePosition(nextSample.sample)
+    handoffDistanceMeters = Cartesian3.distance(startPosition, nextPosition)
+    const connectionSegmentCount = Math.max(1, Math.ceil(
+      handoffDistanceMeters
+        / CORRIDOR_TERRAIN_LONGITUDINAL_SPACING_METERS,
+    ))
+    const connectionSamples: HimalayaFlightCorridorCandidateSample[] = []
+    for (let index = 0; index < connectionSegmentCount; index++) {
+      const phase = index / connectionSegmentCount
+      const progress = input.progress
+        + (nextSample.progress - input.progress) * phase
+      const interpolated = index === 0
+        ? { ...input.startSample }
+        : interpolateTerrainAwareSample(input.startSample, nextSample.sample, phase)
+      connectionSamples.push({ progress, sample: interpolated })
+    }
+    const terrainCartographics: Cartographic[] = []
+    for (let index = 0; index < connectionSamples.length; index++) {
+      const item = connectionSamples[index]!
+      const previous = connectionSamples[Math.max(0, index - 1)]!.sample
+      const next = connectionSamples[index + 1]?.sample ?? nextSample.sample
+      const heading = bearingRadians(previous, next)
+      for (
+        let lateralOffsetMeters = -CORRIDOR_TRAJECTORY_RADIUS_METERS;
+        lateralOffsetMeters <= CORRIDOR_TRAJECTORY_RADIUS_METERS;
+        lateralOffsetMeters += CORRIDOR_TERRAIN_LATERAL_SPACING_METERS
+      ) {
+        const coordinate = offsetCoordinateLaterally(
+          item.sample,
+          heading,
+          lateralOffsetMeters,
+        )
+        terrainCartographics.push(
+          Cartographic.fromDegrees(coordinate.longitude, coordinate.latitude),
+        )
+      }
+    }
+    const terrainHeights = await (
+      input.terrainHeightSampler ?? sampleMostDetailedTerrainHeights
+    )(
+      input.terrainProvider,
+      terrainCartographics,
+      input.signal,
+    )
+    const crossSectionSampleCount = Math.floor(
+      CORRIDOR_TRAJECTORY_RADIUS_METERS * 2
+        / CORRIDOR_TERRAIN_LATERAL_SPACING_METERS,
+    ) + 1
+    for (let index = 0; index < connectionSamples.length; index++) {
+      const item = connectionSamples[index]!
+      const crossSectionHeights = terrainHeights.slice(
+        index * crossSectionSampleCount,
+        (index + 1) * crossSectionSampleCount,
+      )
+      const terrainComplete = crossSectionHeights.length === crossSectionSampleCount
+        && crossSectionHeights.every((height): height is number => (
+          height !== undefined && Number.isFinite(height)
+        ))
+      const maximumTerrainHeight = terrainComplete
+        ? Math.max(...crossSectionHeights)
+        : undefined
+      const sample = index === 0 || maximumTerrainHeight === undefined
+        ? item.sample
+        : elevateCorridorSample(
+            item.sample,
+            maximumTerrainHeight,
+            input.requiredTerrainClearanceMeters,
+          )
+      samples.push({
+        progress: item.progress,
+        sample,
+        ...(maximumTerrainHeight !== undefined
+          ? { corridorTerrainHeightMeters: maximumTerrainHeight }
+          : {}),
+      })
+    }
+  } else {
+    samples.push({
+      progress: input.progress,
+      sample: { ...input.startSample },
+    })
+  }
+  samples.push(...remainingSamples)
+
+  const sceneVolumes = collectSceneRayVolumes(
+    input.viewer,
+    input.sceneVolumeExclusions,
+  )
+  const certificateSamples: HimalayaCorridorTrajectorySample[] = []
+  let previousPosition: Cartesian3 | undefined
+  for (const item of samples) {
+    const position = samplePosition(item.sample)
+    const segmentStart = previousPosition ?? position
+    const distanceFromPreviousMeters = previousPosition
+      ? Cartesian3.distance(previousPosition, position)
+      : undefined
+    const noFlyZoneBoundaryClearanceMeters = input.noFlyZoneSphere
+      ? distanceFromPointToSegment(
+          input.noFlyZoneSphere.center,
+          segmentStart,
+          position,
+        ) - input.noFlyZoneSphere.radius - CORRIDOR_TRAJECTORY_RADIUS_METERS
+      : undefined
+    const sceneBlocked = sceneVolumes.some(volume => (
+      distanceFromPointToSegment(
+        volume.boundingSphere.center,
+        segmentStart,
+        position,
+      ) <= volume.boundingSphere.radius + CORRIDOR_TRAJECTORY_RADIUS_METERS
+    ))
+    certificateSamples.push({
+      progress: item.progress,
+      longitude: item.sample.longitude,
+      latitude: item.sample.latitude,
+      flightHeight: item.sample.flightHeight,
+      ...(item.corridorTerrainHeightMeters !== undefined
+        ? { terrainHeight: item.corridorTerrainHeightMeters }
+        : {}),
+      ...(noFlyZoneBoundaryClearanceMeters !== undefined
+        ? { noFlyZoneBoundaryClearanceMeters }
+        : {}),
+      ...(distanceFromPreviousMeters !== undefined ? { distanceFromPreviousMeters } : {}),
+      sceneBlocked,
+    })
+    previousPosition = position
+  }
+
+  const certificate = createHimalayaCorridorCertificate({
+    trajectoryId: input.trajectoryId,
+    direction: input.candidate.direction,
+    sampledAt: new Date().toISOString(),
+    sceneReady: input.viewer.dataSourceDisplay.ready,
+    samples: certificateSamples,
+    requiredTerrainClearanceMeters: input.requiredTerrainClearanceMeters,
+    requiredNoFlyZoneMarginMeters: NO_FLY_ZONE_SAFETY_MARGIN_METERS,
+    maximumSampleSpacingMeters: EXECUTED_ROUTE_SAMPLE_DISTANCE_METERS,
+    trajectoryRadiusMeters: CORRIDOR_TRAJECTORY_RADIUS_METERS,
+    terrainSampling: {
+      source: `most-detailed-terrain-provider:${ARCGIS_WORLD_ELEVATION_URL}`,
+      longitudinalSpacingMeters: CORRIDOR_TERRAIN_LONGITUDINAL_SPACING_METERS,
+      lateralSpacingMeters: CORRIDOR_TERRAIN_LATERAL_SPACING_METERS,
+      verticalUncertaintyMeters: CORRIDOR_TERRAIN_VERTICAL_UNCERTAINTY_METERS,
+    },
+    ...(handoffDistanceMeters !== undefined ? {
+      kinematicHandoff: {
+        distanceMeters: handoffDistanceMeters,
+        maximumDistanceMeters: MAX_LIVE_TRAJECTORY_HANDOFF_DISTANCE_METERS,
+      },
+    } : {}),
+  })
+  return {
+    ...input.candidate,
+    trajectoryId: input.trajectoryId,
+    certificate,
+    samples,
+  }
+}
+
+function elevateCorridorSample(
+  sample: TerrainAwareFlightSample,
+  maximumTerrainHeight: number,
+  requiredTerrainClearanceMeters: number,
+): TerrainAwareFlightSample {
+  const flightHeight = Math.max(
+    sample.flightHeight,
+    maximumTerrainHeight
+      + requiredTerrainClearanceMeters
+      + CORRIDOR_TERRAIN_VERTICAL_UNCERTAINTY_METERS,
+  )
+  return {
+    ...sample,
+    flightHeight,
+    clearanceMeters: flightHeight - maximumTerrainHeight,
+  }
+}
+
+function applyCommittedCorridorCandidate(
+  candidate: HimalayaFlightCorridorCandidate | undefined,
+  progress: number,
+): TerrainAwareFlightSample | undefined {
+  if (!candidate || candidate.samples.length === 0) return undefined
+  const first = candidate.samples[0]!
+  const last = candidate.samples.at(-1)!
+  if (progress < first.progress || progress > last.progress) return undefined
+  const upperIndex = candidate.samples.findIndex(item => item.progress >= progress)
+  if (upperIndex < 0) return undefined
+  if (upperIndex === 0) return { ...first.sample }
+  const lower = candidate.samples[upperIndex - 1]!
+  const upper = candidate.samples[upperIndex]!
+  const phase = (progress - lower.progress)
+    / Math.max(Number.EPSILON, upper.progress - lower.progress)
+  return interpolateTerrainAwareSample(lower.sample, upper.sample, phase)
+}
+
+function interpolateTerrainAwareSample(
+  start: TerrainAwareFlightSample,
+  end: TerrainAwareFlightSample,
+  phase: number,
+): TerrainAwareFlightSample {
+  const mix = (left: number, right: number): number => left + (right - left) * phase
+  return {
+    longitude: mix(start.longitude, end.longitude),
+    latitude: mix(start.latitude, end.latitude),
+    terrainHeight: mix(start.terrainHeight, end.terrainHeight),
+    flightHeight: mix(start.flightHeight, end.flightHeight),
+    clearanceMeters: mix(start.clearanceMeters, end.clearanceMeters),
+    distanceMeters: mix(start.distanceMeters, end.distanceMeters),
+    naiveFlightHeight: mix(start.naiveFlightHeight, end.naiveFlightHeight),
+    naiveClearanceMeters: mix(start.naiveClearanceMeters, end.naiveClearanceMeters),
+  }
+}
+
+function distanceFromPointToSegment(
+  point: Cartesian3,
+  start: Cartesian3,
+  end: Cartesian3,
+): number {
+  const segment = Cartesian3.subtract(end, start, new Cartesian3())
+  const segmentLengthSquared = Cartesian3.magnitudeSquared(segment)
+  if (segmentLengthSquared <= Number.EPSILON) return Cartesian3.distance(point, start)
+  const pointOffset = Cartesian3.subtract(point, start, new Cartesian3())
+  const phase = CesiumMath.clamp(
+    Cartesian3.dot(pointOffset, segment) / segmentLengthSquared,
+    0,
+    1,
+  )
+  const nearest = Cartesian3.add(
+    start,
+    Cartesian3.multiplyByScalar(segment, phase, new Cartesian3()),
+    new Cartesian3(),
+  )
+  return Cartesian3.distance(point, nearest)
+}
+
 function applyAvoidanceToSample(
   viewer: Viewer,
   sample: TerrainAwareFlightSample,
@@ -1613,7 +2432,10 @@ function createOffsetFlightSample(
   const terrainHeight = loadedTerrainHeight !== undefined && Number.isFinite(loadedTerrainHeight)
     ? loadedTerrainHeight
     : sample.terrainHeight
-  const flightHeight = Math.max(sample.flightHeight, terrainHeight + requiredClearanceMeters)
+  const flightHeight = Math.max(
+    sample.flightHeight,
+    terrainHeight + requiredClearanceMeters,
+  )
   return {
     ...sample,
     ...coordinate,
@@ -1642,22 +2464,35 @@ function collectSceneRayVolumes(
   const volumes: Array<{ objectId: string; boundingSphere: BoundingSphere }> = []
   for (let index = 0; index < viewer.scene.primitives.length; index++) {
     const primitive = viewer.scene.primitives.get(index) as unknown as {
-      id?: string
+      id?: unknown
       boundingSphere?: BoundingSphere
       constructor?: { name?: string }
     }
     const constructorName = primitive.constructor?.name ?? ''
     if (
       excluded.has(primitive)
+      || (primitive.id !== undefined && excluded.has(primitive.id as object))
       || !primitive.boundingSphere
       || (!constructorName.includes('Tileset') && !constructorName.includes('Model'))
     ) continue
     volumes.push({
-      objectId: primitive.id ?? `primitive:${index}`,
+      objectId: primitiveObjectId(primitive.id, index),
       boundingSphere: BoundingSphere.clone(primitive.boundingSphere),
     })
   }
   return volumes
+}
+
+function primitiveObjectId(value: unknown, index: number): string {
+  if (typeof value === 'string' && value.trim()) return value
+  if (
+    typeof value === 'object'
+    && value !== null
+    && 'id' in value
+    && typeof value.id === 'string'
+    && value.id.trim()
+  ) return value.id
+  return `primitive:${index}`
 }
 
 async function waitForInitialSceneReadiness(
@@ -1899,4 +2734,8 @@ function easeInOut(value: number): number {
 
 function interpolate(start: number, end: number, fraction: number): number {
   return start + (end - start) * fraction
+}
+
+function yieldToBrowserTask(): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, 0))
 }

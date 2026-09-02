@@ -23,6 +23,9 @@ function decisionRequest(cycle = 1): HimalayaFlightDecisionRequest {
     planRevision: 1,
     requestedAt: at(0),
     progress: 0.34,
+    sceneReady: true,
+    routeHeadingDegrees: 36,
+    activeObservationCount: cycle - 1,
     sample: {
       longitude: 86.86,
       latitude: 27.9,
@@ -46,6 +49,7 @@ function decisionRequest(cycle = 1): HimalayaFlightDecisionRequest {
       leftClearanceMeters: 12000,
       rightClearanceMeters: 6000,
     },
+    corridorCandidates: [],
     obstacle: {
       objectId: 'himalaya-flight-dynamic-no-fly-zone',
       longitude: 86.9,

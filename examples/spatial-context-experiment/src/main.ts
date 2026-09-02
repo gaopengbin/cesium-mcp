@@ -26,7 +26,8 @@ import {
 } from 'cesium-mcp-webmcp'
 import type { WebMcpRegistration } from 'cesium-mcp-webmcp'
 import { CesiumBridge } from 'cesium-mcp-webmcp/viewer'
-import type { AgentBeliefState } from 'cesium-mcp-spatial'
+import { ageAgentBeliefState } from 'cesium-mcp-spatial'
+import type { AgentBeliefState, SpatialRegion } from 'cesium-mcp-spatial'
 import {
   emergencyResponseGeoJson,
   FLOOD_BASELINE_RING,
@@ -62,15 +63,24 @@ import type {
   HimalayaFlightExperience,
   HimalayaFlightModelDecision,
   HimalayaFlightObservation,
+  HimalayaFlightObservationView,
   HimalayaFlightProgress,
   HimalayaFlightViewMode,
 } from './himalaya-flight.js'
 import {
   applyHimalayaVisualGrounding,
+  createHimalayaInitialBelief,
   HIMALAYA_RISK_ENVELOPE_ID,
   HIMALAYA_WORLD_ID,
   HIMALAYA_WORLD_REVISION,
 } from './himalaya-world-awareness.js'
+import { selectFlightActivePerception } from './flight-active-perception.js'
+import {
+  applyHimalayaCorridorCertificateObservation,
+  HIMALAYA_LEFT_BYPASS_REGION_ID,
+  HIMALAYA_RIGHT_BYPASS_REGION_ID,
+  planHimalayaCorridorRoute,
+} from './himalaya-corridor-awareness.js'
 import {
   DEFAULT_HOSTED_AGENT_ENDPOINT,
   requestHostedAgent,
@@ -355,7 +365,7 @@ const chatTools: HostedAgentTool[] = [
             type: 'number',
             minimum: 20,
             maximum: 120,
-            description: '完整飞行播放时长，默认 52 秒。',
+            description: '完整飞行播放时长，默认 75 秒，为真实视觉模型和中程重规划保留响应窗口。',
           },
         },
         additionalProperties: false,
@@ -582,7 +592,7 @@ async function executeChatTool(toolCall: HostedAgentToolCall): Promise<unknown> 
     if (flightPlaying) return { success: true, state: 'already-flying' }
     const requestedDuration = typeof params.duration_seconds === 'number'
       ? params.duration_seconds
-      : 52
+      : 75
     const durationSeconds = Math.min(120, Math.max(20, requestedDuration))
     flightCompletionAnnounced = false
     void playHimalayaFlight({ durationSeconds }).catch(error => {
@@ -622,6 +632,126 @@ async function executeChatTool(toolCall: HostedAgentToolCall): Promise<unknown> 
   throw new Error(`不支持的地图工具：${toolCall.function.name}`)
 }
 
+function selectHimalayaObservationView(
+  request: HimalayaFlightDecisionRequest,
+): HimalayaFlightObservationView | undefined {
+  if (himalayaAwarenessRunId !== request.runId) {
+    himalayaAwarenessRunId = request.runId
+    himalayaAwarenessBelief = createHimalayaInitialBelief(request)
+  }
+  let currentBelief = ageAgentBeliefState(
+    himalayaAwarenessBelief ?? createHimalayaInitialBelief(request),
+    request.requestedAt,
+  ).state
+  for (const candidate of request.corridorCandidates) {
+    const certificateUpdate = applyHimalayaCorridorCertificateObservation(currentBelief, {
+      observationId: `${request.requestId}:${candidate.trajectoryId}:certificate`,
+      worldRevision: HIMALAYA_WORLD_REVISION,
+      certificate: candidate.certificate,
+    })
+    currentBelief = certificateUpdate.belief
+  }
+  if (request.cycleKind === 'detect') {
+    appendChatMessage(
+      'event',
+      `TRAJECTORY CERT · ${request.corridorCandidates.map(candidate => (
+        `${candidate.direction}=${candidate.certificate.status}/${candidate.certificate.sampleCount}`
+          + `/max ${Math.round(candidate.certificate.maximumSampleSpacingMeters ?? 0)}m`
+          + ` (${candidate.certificate.reasons[0] ?? 'no reason'})`
+      )).join(' · ')}`,
+    )
+  }
+  himalayaAwarenessBelief = currentBelief
+  const currentRoute = planHimalayaCorridorRoute(currentBelief)
+  const unresolvedBypass = currentRoute.shouldProceed
+    ? undefined
+    : currentBelief.regions.find(region => (
+        (region.region.regionId === HIMALAYA_LEFT_BYPASS_REGION_ID
+          || region.region.regionId === HIMALAYA_RIGHT_BYPASS_REGION_ID)
+        && (region.occupancy === 'unknown' || region.freshness === 'stale')
+      ))
+  const activeRegionId = unresolvedBypass?.region.regionId
+    ?? HIMALAYA_RISK_ENVELOPE_ID
+  const lowerExposureSide = activeRegionId === HIMALAYA_LEFT_BYPASS_REGION_ID
+    ? 'left'
+    : activeRegionId === HIMALAYA_RIGHT_BYPASS_REGION_ID
+      ? 'right'
+      : request.safetySuggestion.direction
+  const activeRegion = currentBelief.regions.find(region => (
+    region.region.regionId === activeRegionId
+  ))
+  const observationTarget: [number, number, number] = activeRegionId === HIMALAYA_RISK_ENVELOPE_ID
+    ? [
+        request.obstacle.longitude,
+        request.obstacle.latitude,
+        request.obstacle.height,
+      ]
+    : activeRegion
+      ? spatialRegionCenter(activeRegion.region)
+      : [
+          request.obstacle.longitude,
+          request.obstacle.latitude,
+          request.obstacle.height,
+        ]
+  const selection = selectFlightActivePerception({
+    belief: currentBelief,
+    riskEnvelopeRegionId: activeRegionId,
+    target: observationTarget,
+    routeHeadingDegrees: request.routeHeadingDegrees,
+    lowerExposureSide,
+    activeObservationCount: request.activeObservationCount,
+  })
+  if (!selection.decision.shouldObserve || !selection.selectedExecutionPose) {
+    return undefined
+  }
+  const score = selection.decision.scores.find(item => (
+    item.candidateId === selection.decision.selectedCandidateId
+  ))
+  appendChatMessage(
+    'event',
+    `ACTIVE VIEW · Belief r${currentBelief.revision} 主动选择 ${selection.decision.selectedCandidateId} · information gain ${Math.round((score?.expectedInformationGain ?? 0) * 100)}%`,
+  )
+  return {
+    candidateId: selection.decision.selectedCandidateId!,
+    beliefRevision: currentBelief.revision,
+    reason: selection.decision.reason,
+    relativeHeadingDegrees: selection.selectedExecutionPose.relativeHeadingDegrees,
+    pitchDegrees: selection.selectedExecutionPose.pitchDegrees,
+    rangeMeters: selection.selectedExecutionPose.rangeMeters,
+    target: selection.selectedExecutionPose.target.length === 3
+      ? [
+          selection.selectedExecutionPose.target[0],
+          selection.selectedExecutionPose.target[1],
+          selection.selectedExecutionPose.target[2],
+        ]
+      : [
+          selection.selectedExecutionPose.target[0],
+          selection.selectedExecutionPose.target[1],
+          request.obstacle.height,
+        ],
+  }
+}
+
+function spatialRegionCenter(
+  region: SpatialRegion,
+): [number, number, number] {
+  const ring = region.footprint.coordinates[0] ?? []
+  if (ring.length === 0) throw new Error(`Spatial region ${region.regionId} has no footprint`)
+  const unique = ring.length > 1
+    && ring[0]![0] === ring.at(-1)![0]
+    && ring[0]![1] === ring.at(-1)![1]
+    ? ring.slice(0, -1)
+    : ring
+  const longitude = unique.reduce((total, coordinate) => total + coordinate[0]!, 0)
+    / unique.length
+  const latitude = unique.reduce((total, coordinate) => total + coordinate[1]!, 0)
+    / unique.length
+  const height = region.minHeight !== undefined && region.maxHeight !== undefined
+    ? (region.minHeight + region.maxHeight) / 2
+    : region.minHeight ?? region.maxHeight ?? 0
+  return [longitude, latitude, height]
+}
+
 async function requestModelAvoidanceDecision(
   request: HimalayaFlightDecisionRequest,
   signal: AbortSignal,
@@ -634,8 +764,8 @@ async function requestModelAvoidanceDecision(
   if (signal.aborted) abortFromFlight()
   else signal.addEventListener('abort', abortFromFlight, { once: true })
   const timeout = window.setTimeout(
-    () => controller.abort(new Error('视觉接地与规划决策超过 45 秒')),
-    45_000,
+    () => controller.abort(new Error('视觉接地与规划决策超过 60 秒')),
+    60_000,
   )
   try {
     const visual = await requestVisualGrounding({
@@ -646,13 +776,13 @@ async function requestModelAvoidanceDecision(
       frame: request.visualFrame,
       objects: [{
         objectId: request.obstacle.objectId,
-        label: '临时禁飞区',
-        summary: '飞行过程中动态出现的红色半透明限制空域。',
+        label: 'Temporary no-fly zone / 临时禁飞区',
+        summary: 'A large bright red translucent wireframe sphere labeled UNEXPECTED NO-FLY ZONE in the center of the image.',
       }],
       regions: [{
         regionId: HIMALAYA_RISK_ENVELOPE_ID,
-        label: '当前任务风险包络',
-        summary: '围绕临时禁飞区、用于持续验证已提交绕行计划的空间风险包络。',
+        label: 'Current no-fly risk envelope / 当前任务风险包络',
+        summary: 'The image region occupied by the visible red no-fly sphere. Report occupied only when the red sphere is positively visible.',
       }],
       signal: controller.signal,
     })
@@ -698,6 +828,26 @@ async function requestModelAvoidanceDecision(
       )
       return undefined
     }
+    const corridorPlan = planHimalayaCorridorRoute(awareness.belief)
+    if (!corridorPlan.shouldProceed) {
+      appendChatMessage(
+        'event',
+        `BELIEF ROUTER · r${corridorPlan.beliefRevision} 暂无可证明安全的中程绕行走廊；保留快安全动作并等待下一主动观察。`,
+      )
+      return undefined
+    }
+    const plannedDirection = corridorPlan.nodeIds.includes('left-bypass')
+      ? 'left'
+      : corridorPlan.nodeIds.includes('right-bypass')
+        ? 'right'
+        : undefined
+    if (!plannedDirection) {
+      throw new Error('Belief corridor planner returned a route without a bypass direction')
+    }
+    appendChatMessage(
+      'event',
+      `BELIEF ROUTER · r${corridorPlan.beliefRevision} 选择 ${plannedDirection}-bypass · ${corridorPlan.segments.map(segment => segment.regionId).join(' → ')}`,
+    )
     if (request.cycleKind === 'verify') {
       appendChatMessage(
         'event',
@@ -706,49 +856,76 @@ async function requestModelAvoidanceDecision(
       return undefined
     }
 
-    const choice = await requestHostedAgent({
+    const plannerMessages: HostedAgentMessage[] = [
+      {
+        role: 'system',
+        content: [
+          '你是低频局部飞行规划模型。',
+          '输入包含独立观察相机经视觉模型接地后的世界信念，以及 Cesium 5 条有限视域射线。',
+          'Belief 路由器已经从可证明 free 的走廊生成了约束方向。',
+          '你必须调用 choose_flight_maneuver，并选择 beliefCorridorPlan.direction；在 reason 中引用走廊证据和左右净空。',
+          '只能引用 visualGrounding 和 rayReadings 中的证据，不得虚构图像细节。',
+        ].join('\n'),
+      },
+      {
+        role: 'user',
+        content: JSON.stringify({
+          requestId: request.requestId,
+          routeProgress: request.progress,
+          sensorRangeMeters: request.sensor.rangeMeters,
+          rayReadings: request.sensor.readings,
+          visualGrounding: {
+            model: visual.model,
+            imageDigest: visual.imageDigest,
+            beliefRevision: awareness.belief.revision,
+            corridor: {
+              regionId: awareness.corridor.region.regionId,
+              occupancy: awareness.corridor.occupancy,
+              freshness: awareness.corridor.freshness,
+              confidence: awareness.corridor.confidence,
+              blockingObjectIds: awareness.corridor.blockingObjectIds,
+            },
+            limitations: awareness.observation.limitations,
+          },
+          localSafetySuggestion: request.safetySuggestion,
+          beliefCorridorPlan: {
+            beliefRevision: corridorPlan.beliefRevision,
+            direction: plannedDirection,
+            nodeIds: corridorPlan.nodeIds,
+            segments: corridorPlan.segments,
+          },
+        }),
+      },
+    ]
+    let choice = await requestHostedAgent({
       endpoint: hostedAgentEndpoint,
       signal: controller.signal,
-      messages: [
-        {
-          role: 'system',
-          content: [
-            '你是低频局部飞行规划模型。',
-            '输入包含独立观察相机经视觉模型接地后的世界信念，以及 Cesium 5 条有限视域射线。',
-            '你必须调用 choose_flight_maneuver 选择 left 或 right，并在 reason 中引用左右净空。',
-            '只能引用 visualGrounding 和 rayReadings 中的证据，不得虚构图像细节。',
-          ].join('\n'),
-        },
-        {
-          role: 'user',
-          content: JSON.stringify({
-            requestId: request.requestId,
-            routeProgress: request.progress,
-            sensorRangeMeters: request.sensor.rangeMeters,
-            rayReadings: request.sensor.readings,
-            visualGrounding: {
-              model: visual.model,
-              imageDigest: visual.imageDigest,
-              beliefRevision: awareness.belief.revision,
-              corridor: {
-                regionId: awareness.corridor.region.regionId,
-                occupancy: awareness.corridor.occupancy,
-                freshness: awareness.corridor.freshness,
-                confidence: awareness.corridor.confidence,
-                blockingObjectIds: awareness.corridor.blockingObjectIds,
-              },
-              limitations: awareness.observation.limitations,
-            },
-            localSafetySuggestion: request.safetySuggestion,
-          }),
-        },
-      ],
+      messages: plannerMessages,
       tools: [avoidanceDecisionTool],
     })
-    chatEvidence.textContent = `最近飞行视觉 / 规划模型：${visual.model} → ${choice.model} · ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}`
-    const toolCall = choice.message.tool_calls?.find(call =>
+    let toolCall = choice.message.tool_calls?.find(call =>
       call.function.name === avoidanceDecisionTool.function.name,
     )
+    if (!toolCall) {
+      appendChatMessage('event', 'PLANNER RETRY · 首次响应未调用单一工具契约，要求模型按同一 Belief 证据重试。')
+      choice = await requestHostedAgent({
+        endpoint: hostedAgentEndpoint,
+        signal: controller.signal,
+        messages: [
+          ...plannerMessages,
+          choice.message,
+          {
+            role: 'user',
+            content: `Your response must be exactly one ${avoidanceDecisionTool.function.name} tool call. Use direction '${plannedDirection}' from beliefCorridorPlan.`,
+          },
+        ],
+        tools: [avoidanceDecisionTool],
+      })
+      toolCall = choice.message.tool_calls?.find(call =>
+        call.function.name === avoidanceDecisionTool.function.name,
+      )
+    }
+    chatEvidence.textContent = `最近飞行视觉 / 规划模型：${visual.model} → ${choice.model} · ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}`
     if (!toolCall) throw new Error('模型没有调用 choose_flight_maneuver')
     const params = parseToolArguments(toolCall)
     if (params.direction !== 'left' && params.direction !== 'right') {
@@ -757,9 +934,12 @@ async function requestModelAvoidanceDecision(
     if (typeof params.reason !== 'string' || params.reason.trim().length === 0) {
       throw new Error('模型没有返回决策理由')
     }
+    const modelDirection = params.direction
     return {
-      direction: params.direction,
-      reason: params.reason.trim(),
+      direction: plannedDirection,
+      reason: modelDirection === plannedDirection
+        ? params.reason.trim()
+        : `Belief-space router constrained the maneuver to ${plannedDirection}; the language model proposed ${modelDirection} and was not allowed to override verified corridor evidence. ${params.reason.trim()}`,
       model: `${visual.model} → ${choice.model}`,
       ...(typeof params.confidence === 'number'
         ? { confidence: Math.min(1, Math.max(0, params.confidence)) }
@@ -794,12 +974,18 @@ function handleFlightDecisionEvent(event: HimalayaFlightDecisionEvent): void {
   }
   if (event.state === 'requesting') {
     setChatStatus('thinking', `视觉感知循环 ${event.request.cycle}/${3}`)
+    const activeView = event.request.observationView?.candidateId ?? 'forward-confirmation'
     appendChatMessage(
       'event',
       event.request.cycleKind === 'detect'
-        ? `SLOW LOOP ${event.request.cycle} DETECT · SENSE → VISION → BELIEF → PLAN · obstacle ${Math.round(event.request.safetySuggestion.obstacleDistanceMeters)} m`
-        : `SLOW LOOP ${event.request.cycle} VERIFY · SENSE → VISION → BELIEF → VERIFY · plan r${event.request.planRevision} risk envelope`,
+        ? `SLOW LOOP ${event.request.cycle} DETECT · ${activeView} · SENSE → VISION → BELIEF → PLAN · obstacle ${Math.round(event.request.safetySuggestion.obstacleDistanceMeters)} m`
+        : `SLOW LOOP ${event.request.cycle} VERIFY · ${activeView} · SENSE → VISION → BELIEF → VERIFY · plan r${event.request.planRevision} risk envelope`,
     )
+    return
+  }
+
+  if (event.state === 'skipped') {
+    setChatStatus('ready', '当前信念无需重复观察')
     return
   }
 
@@ -815,10 +1001,10 @@ function handleFlightDecisionEvent(event: HimalayaFlightDecisionEvent): void {
   const evidence = event.evidence
   if (!evidence) return
   if (event.state === 'accepted' && evidence.source === 'model') {
-    setChatStatus('ready', '视觉规划与安全轨迹一致')
+    setChatStatus('ready', 'Belief 中程路线已接管')
     appendChatMessage(
       'assistant',
-      `第 ${event.request.cycle} 轮观察后，模型 ${evidence.model ?? ''} 确认向${evidence.direction === 'left' ? '左' : '右'}绕行：${evidence.reason}`,
+      `第 ${event.request.cycle} 轮主动观察后，Belief 路由器与模型 ${evidence.model ?? ''} 提交了 plan r${event.request.planRevision}：向${evidence.direction === 'left' ? '左' : '右'}的中程路线从当前实际位置平滑接管。${evidence.reason}`,
     )
     return
   }
@@ -1050,6 +1236,7 @@ async function activateHimalayaFlightMode(): Promise<LabSnapshot> {
       himalayaFlight = await prepareHimalayaFlight(viewer, {
         onProgress: updateHimalayaFlightProgress,
         onObservation: recordHimalayaFlightObservation,
+        selectObservationView: selectHimalayaObservationView,
         requestAvoidanceDecision: requestModelAvoidanceDecision,
         onDecision: handleFlightDecisionEvent,
         onCameraChange: handleFlightCameraEvent,
@@ -1137,7 +1324,7 @@ function updateHimalayaFlightProgress(progress: HimalayaFlightProgress): void {
       'assistant',
       clearance === undefined
         ? '飞行已完成。蓝色轨迹是实际执行路径；对话中保留了模型决策与镜头调度记录。'
-        : `飞行已完成。实际轨迹距禁飞区边界最近 ${Math.round(clearance)} 米，禁飞体内采样 ${diagnostics?.unsafeSampleCount ?? 0} 次；风险解除后镜头已恢复先前的任务观察偏好。`,
+        : `飞行已完成。禁飞区净空验证 ${diagnostics?.noFlyZoneOutcome.status ?? 'pending'}：实际轨迹距禁飞区边界最近 ${Math.round(clearance)} 米，禁飞体内采样 ${diagnostics?.unsafeSampleCount ?? 0} 次；该结果不代表尚未验证的地形或其他场景风险。`,
     )
   } else if (progress.phase === 'stopped' && flightPlaying) {
     setChatStatus('ready', '飞行已停止')

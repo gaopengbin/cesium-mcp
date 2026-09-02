@@ -13,6 +13,10 @@ import type {
 import type {
   HimalayaFlightDecisionRequest,
 } from './himalaya-flight.js'
+import {
+  HIMALAYA_LEFT_BYPASS_REGION,
+  HIMALAYA_RIGHT_BYPASS_REGION,
+} from './himalaya-corridor-awareness.js'
 import type { VisualGroundingResult } from './visual-grounding-client.js'
 
 export const HIMALAYA_WORLD_ID = 'himalaya-flight-world'
@@ -30,6 +34,22 @@ export interface HimalayaVisualGroundingUpdate {
   summary: string
 }
 
+export function createHimalayaInitialBelief(
+  request: HimalayaFlightDecisionRequest,
+): AgentBeliefState {
+  const resources = createHimalayaVisualResources(request)
+  return createAgentBeliefState({
+    beliefId: `himalaya-belief-${request.runId}`,
+    worldId: HIMALAYA_WORLD_ID,
+    createdAt: request.requestedAt,
+    regions: [
+      resources.region,
+      HIMALAYA_LEFT_BYPASS_REGION,
+      HIMALAYA_RIGHT_BYPASS_REGION,
+    ],
+  })
+}
+
 export function applyHimalayaVisualGrounding(
   request: HimalayaFlightDecisionRequest,
   result: VisualGroundingResult,
@@ -42,12 +62,7 @@ export function applyHimalayaVisualGrounding(
   if (previousBelief && previousBelief.worldId !== HIMALAYA_WORLD_ID) {
     throw new Error('Previous Himalaya belief belongs to a different world')
   }
-  const belief = previousBelief ?? createAgentBeliefState({
-    beliefId: `himalaya-belief-${request.runId}`,
-    worldId: HIMALAYA_WORLD_ID,
-    createdAt: request.visualFrame.startedAt,
-    regions: [resources.region],
-  })
+  const belief = previousBelief ?? createHimalayaInitialBelief(request)
   const worldRevision = HIMALAYA_WORLD_REVISION
   const observation = createVisualGroundingObservation({
     observationId: request.requestId,
@@ -62,9 +77,13 @@ export function applyHimalayaVisualGrounding(
     imageDigest: result.imageDigest,
     artifactRef: result.artifactRef,
     requestedObjectIds: [resources.object.objectId],
-    requestedRegionIds: [resources.region.regionId],
+    requestedRegionIds: [
+      resources.region.regionId,
+    ],
     spatialObjects: [resources.object],
-    spatialRegions: [resources.region],
+    spatialRegions: [
+      resources.region,
+    ],
     report: result.report,
     limitations: request.visualFrame.readiness === 'ready'
       ? []

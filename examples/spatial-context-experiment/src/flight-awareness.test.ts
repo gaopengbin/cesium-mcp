@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createAvoidanceManeuver,
+  evaluateNoFlyZoneClearanceOutcome,
   isAvoidanceDirectionSafe,
   maneuverLateralOffsetMeters,
   offsetCoordinateLaterally,
@@ -76,6 +77,20 @@ describe('rolling flight awareness', () => {
     expect(maneuverLateralOffsetMeters(maneuver, 0.42)).toBeCloseTo(-6_500)
     expect(maneuverLateralOffsetMeters(maneuver, 0.48)).toBeLessThan(-1_000)
     expect(maneuverLateralOffsetMeters(maneuver, 0.57)).toBeCloseTo(0)
+  })
+
+  it('preserves lateral continuity when a belief-driven route revision takes over', () => {
+    const decision = selectAvoidanceDecision(readings, 15_000, 9_000)!
+    const revised = createAvoidanceManeuver(decision, 0.36, {
+      progressSpan: 0.24,
+      peakProgress: 0.44,
+      maximumOffsetMeters: 6_800,
+      startOffsetMeters: -3_200,
+    })
+
+    expect(maneuverLateralOffsetMeters(revised, 0.36)).toBe(-3_200)
+    expect(maneuverLateralOffsetMeters(revised, 0.44)).toBeCloseTo(-6_800)
+    expect(maneuverLateralOffsetMeters(revised, 0.6)).toBe(0)
   })
 
   it('rejects a model direction that violates the local clearance floor', () => {
@@ -159,5 +174,32 @@ describe('rolling flight awareness', () => {
       hasBlockingSuggestion: true,
       avoidance: createAvoidanceManeuver(decision, 0.3),
     })).toBeUndefined()
+  })
+
+  it('verifies only no-fly-zone clearance against actual route samples', () => {
+    expect(evaluateNoFlyZoneClearanceOutcome({
+      completed: true,
+      minimumBoundaryClearanceMeters: 1_430,
+      requiredSafetyMarginMeters: 1_200,
+      unsafeSampleCount: 0,
+    })).toMatchObject({
+      scope: 'no-fly-zone-clearance',
+      status: 'verified',
+      reason: 'executed-route-maintained-no-fly-zone-safety-margin',
+    })
+    expect(evaluateNoFlyZoneClearanceOutcome({
+      completed: true,
+      minimumBoundaryClearanceMeters: 820,
+      requiredSafetyMarginMeters: 1_200,
+      unsafeSampleCount: 0,
+    })).toMatchObject({
+      status: 'violated',
+      reason: 'required-safety-margin-not-met',
+    })
+    expect(evaluateNoFlyZoneClearanceOutcome({
+      completed: false,
+      requiredSafetyMarginMeters: 1_200,
+      unsafeSampleCount: 0,
+    }).status).toBe('pending')
   })
 })
