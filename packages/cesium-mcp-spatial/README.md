@@ -38,6 +38,8 @@ preserved with an explicit freshness state. The package also provides:
 - deterministic belief updates and revision invalidation;
 - next-best-view scoring under an observation budget;
 - belief-only corridor planning with safe aborts;
+- strict visual-grounding reports that bind evidence to an image digest, reject
+  invented object IDs, and keep clear or incomplete imagery unknown;
 - semantic traces with event-state validation, exact belief reconstruction, and
   replay-ready structured observations;
 - an eight-case Hidden Corridor Harness comparing an oracle upper bound, a fixed
@@ -52,5 +54,9 @@ next-best-view regret, and non-repeatable traces.
 
 The Harness executes a deterministic, segment-checked corridor simulation over
 versioned fixture state. It validates sensing, belief, planning, replanning, and
-action trace semantics; it is not yet a rendered Cesium or live visual-model
-end-to-end test.
+action trace semantics. The separate Himalaya experiment now exercises a live
+visual-model path: a fast ray loop commits a safe maneuver immediately, while
+up to three independent observer frames revise one persistent belief. Cesium
+forward rays can corroborate corridor occupancy, positive first-contact evidence
+may invoke a planning model, short-lived evidence becomes stale, and invalid
+visual output safely degrades to unknown.

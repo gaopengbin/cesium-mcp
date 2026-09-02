@@ -56,6 +56,19 @@ export {
   validateAuthoritativeWorldState,
 } from './world-state.js'
 export type { CreateAuthoritativeWorldStateInput } from './world-state.js'
+export {
+  createVisualGroundingObservation,
+  parseVisualGroundingReport,
+} from './visual-grounding.js'
+export type {
+  CreateVisualGroundingObservationInput,
+  NormalizedImageBoundingBox,
+  VisualGroundingReport,
+  VisualObjectGrounding,
+  VisualObjectVisibility,
+  VisualRegionGrounding,
+  VisualRegionOccupancy,
+} from './visual-grounding.js'
 export type {
   ActivePerceptionDecision,
   ActivePerceptionGoal,

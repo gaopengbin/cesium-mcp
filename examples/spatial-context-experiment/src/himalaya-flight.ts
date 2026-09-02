@@ -36,6 +36,8 @@ import {
 } from 'cesium-mcp-spatial'
 import type {
   FlightRouteCoordinate,
+  ObservationReadiness,
+  ObservationSensor,
   TerrainAwareFlightPlan,
   TerrainAwareFlightSample,
 } from 'cesium-mcp-spatial'
@@ -49,11 +51,13 @@ import {
   maneuverLateralOffsetMeters,
   offsetCoordinateLaterally,
   selectAvoidanceDecision,
+  selectFlightAwarenessCycle,
 } from './flight-awareness.js'
 import type {
   FlightAvoidanceDecision,
   FlightAvoidanceDirection,
   FlightAvoidanceManeuver,
+  FlightAwarenessCycleKind,
   FlightRayReading,
 } from './flight-awareness.js'
 
@@ -74,6 +78,11 @@ const SENSOR_PITCH_DEGREES = -5
 const SENSOR_RANGE_METERS = 15_000
 const SENSOR_TRIGGER_DISTANCE_METERS = 9_000
 const SENSOR_UPDATE_INTERVAL_MS = 250
+const VISUAL_CAPTURE_READY_FRAME_COUNT = 3
+const VISUAL_CAPTURE_TIMEOUT_MS = 5_000
+const VISUAL_CAPTURE_JPEG_QUALITY = 0.82
+const MAX_VISUAL_AWARENESS_CYCLES = 3
+const MIN_VISUAL_CYCLE_PROGRESS_DELTA = 0.025
 const OBSTACLE_INJECTION_PROGRESS = 0.24
 const OBSTACLE_ROUTE_PROGRESS = 0.42
 const OBSTACLE_RADIUS_METERS = 3_800
@@ -82,7 +91,7 @@ const AVOIDANCE_PROGRESS_SPAN = 0.26
 const AVOIDANCE_OFFSET_METERS = 6_500
 const NO_FLY_ZONE_SAFETY_MARGIN_METERS = 1_200
 const EXECUTED_ROUTE_SAMPLE_DISTANCE_METERS = 180
-const DYNAMIC_NO_FLY_ZONE_ID = 'himalaya-flight-dynamic-no-fly-zone'
+export const HIMALAYA_DYNAMIC_NO_FLY_ZONE_ID = 'himalaya-flight-dynamic-no-fly-zone'
 const EXECUTED_ROUTE_ID = 'himalaya-flight-executed-route'
 const SENSOR_RAY_ENTITY_IDS = SENSOR_HEADING_OFFSETS_DEGREES.map((_, index) =>
   `himalaya-flight-sensor-ray-${index + 1}`,
@@ -101,7 +110,7 @@ const ROUTE_ENTITY_IDS = [
   'himalaya-flight-planned-route',
   'himalaya-flight-aircraft',
   EXECUTED_ROUTE_ID,
-  DYNAMIC_NO_FLY_ZONE_ID,
+  HIMALAYA_DYNAMIC_NO_FLY_ZONE_ID,
   ...SENSOR_RAY_ENTITY_IDS,
 ]
 
@@ -129,13 +138,40 @@ export interface HimalayaFlightSensorFrame {
   nearestHitType?: FlightRayReading['hitType']
 }
 
+export interface HimalayaFlightVisualFrame {
+  dataUrl: string
+  width: number
+  height: number
+  startedAt: string
+  capturedAt: string
+  completedAt: string
+  readiness: ObservationReadiness
+  changedDuringObservation: boolean
+  sensor: ObservationSensor
+}
+
+export interface HimalayaFlightObstacleSnapshot {
+  objectId: string
+  longitude: number
+  latitude: number
+  height: number
+  horizontalRadiusMeters: number
+  verticalRadiusMeters: number
+}
+
 export interface HimalayaFlightDecisionRequest {
   requestId: string
+  runId: string
+  cycle: number
+  cycleKind: FlightAwarenessCycleKind
+  planRevision: number
   requestedAt: string
   progress: number
   sample: TerrainAwareFlightSample
   sensor: HimalayaFlightSensorFrame
   safetySuggestion: FlightAvoidanceDecision
+  obstacle: HimalayaFlightObstacleSnapshot
+  visualFrame?: HimalayaFlightVisualFrame
 }
 
 export interface HimalayaFlightModelDecision {
@@ -154,7 +190,7 @@ export interface HimalayaFlightDecisionEvidence {
 }
 
 export interface HimalayaFlightDecisionEvent {
-  state: 'requesting' | 'accepted' | 'fallback'
+  state: 'safety-committed' | 'requesting' | 'observed' | 'accepted' | 'fallback'
   request: HimalayaFlightDecisionRequest
   evidence?: HimalayaFlightDecisionEvidence
   error?: string
@@ -172,6 +208,9 @@ export interface HimalayaFlightDiagnostics {
   safetyMarginMeters: number
   minimumNoFlyZoneClearanceMeters?: number
   unsafeSampleCount: number
+  awarenessCycleCount: number
+  planRevision: number
+  perceptionPending: boolean
 }
 
 interface FlightSensorRaySegment {
@@ -206,7 +245,8 @@ export interface HimalayaFlightCallbacks {
   onObservation?: (observation: HimalayaFlightObservation) => void
   requestAvoidanceDecision?: (
     request: HimalayaFlightDecisionRequest,
-  ) => Promise<HimalayaFlightModelDecision>
+    signal: AbortSignal,
+  ) => Promise<HimalayaFlightModelDecision | undefined>
   onDecision?: (event: HimalayaFlightDecisionEvent) => void
   onCameraChange?: (event: HimalayaFlightCameraEvent) => void
   observerContainer?: HTMLElement
@@ -385,8 +425,11 @@ export async function prepareHimalayaFlight(
   const routeOverviewSphere = BoundingSphere.fromPoints(
     routePositions(plan.samples, sample => sample.flightHeight),
   )
-  const observerViewer = callbacks.observerContainer
-    ? createObserverViewer(callbacks.observerContainer, terrainProvider)
+  const observerRenderHost = callbacks.observerContainer
+    ? createObserverRenderHost()
+    : undefined
+  const observerViewer = observerRenderHost
+    ? createObserverViewer(observerRenderHost, terrainProvider)
     : undefined
   const observerCamera = createObserverCamera(viewer, plan.samples[0]!, plan.samples[1]!)
   const raySensorCamera = createObserverCamera(viewer, plan.samples[0]!, plan.samples[1]!)
@@ -411,9 +454,14 @@ export async function prepareHimalayaFlight(
   let currentProgress = 0
   let currentSample = plan.samples[0]!
   let noFlyZone: Entity | undefined
+  let observerNoFlyZone: Entity | undefined
   let noFlyZoneSphere: BoundingSphere | undefined
   let avoidance: FlightAvoidanceManeuver | undefined
   let decisionPending = false
+  let perceptionAbortController: AbortController | undefined
+  let awarenessCycleCount = 0
+  let lastAwarenessProgress: number | undefined
+  let planRevision = 0
   let minimumNoFlyZoneClearanceMeters = Number.POSITIVE_INFINITY
   let unsafeSampleCount = 0
   let latestSensorFrame: HimalayaFlightSensorFrame | undefined
@@ -428,6 +476,8 @@ export async function prepareHimalayaFlight(
 
   const stop = (): void => {
     activeRun += 1
+    perceptionAbortController?.abort(new Error('Flight run stopped'))
+    perceptionAbortController = undefined
     decisionPending = false
     viewer.camera.cancelFlight()
     if (animationFrame !== undefined) cancelAnimationFrame(animationFrame)
@@ -479,7 +529,9 @@ export async function prepareHimalayaFlight(
     unsafeSampleCount = 0
     setCameraIntent(viewMode, '飞行开始，自动进入当前任务观察偏好。', 0, true)
     if (noFlyZone) viewer.entities.remove(noFlyZone)
+    if (observerNoFlyZone) observerViewer?.entities.remove(observerNoFlyZone)
     noFlyZone = undefined
+    observerNoFlyZone = undefined
     noFlyZoneSphere = undefined
     plannedRoute.name = '地形感知飞行基准路线'
     if (plannedRoute.polyline) {
@@ -491,6 +543,10 @@ export async function prepareHimalayaFlight(
     }
     avoidance = undefined
     decisionPending = false
+    perceptionAbortController = undefined
+    awarenessCycleCount = 0
+    lastAwarenessProgress = undefined
+    planRevision = 0
     latestSensorFrame = undefined
     latestSensorSegments = []
     sensorRayEntities.forEach(entity => {
@@ -542,6 +598,9 @@ export async function prepareHimalayaFlight(
         let lastObserverViewUpdateAt = Number.NEGATIVE_INFINITY
         let lastSensorUpdateAt = Number.NEGATIVE_INFINITY
         const finish = (): void => {
+          perceptionAbortController?.abort(new Error('Flight run completed'))
+          perceptionAbortController = undefined
+          decisionPending = false
           animationFrame = undefined
           resolveAnimation = undefined
           resolve()
@@ -550,6 +609,7 @@ export async function prepareHimalayaFlight(
           request: HimalayaFlightDecisionRequest,
           evidence: HimalayaFlightDecisionEvidence,
         ): void => {
+          planRevision = request.planRevision
           const decision: FlightAvoidanceDecision = {
             ...request.safetySuggestion,
             direction: evidence.direction,
@@ -575,6 +635,139 @@ export async function prepareHimalayaFlight(
             decision: evidence,
           })
         }
+        const launchAwarenessCycle = (
+          cycleKind: FlightAwarenessCycleKind,
+          safetySuggestion: FlightAvoidanceDecision,
+          sensor: HimalayaFlightSensorFrame,
+          sample: TerrainAwareFlightSample,
+          lookAhead: TerrainAwareFlightSample,
+          progress: number,
+        ): void => {
+          const cycle = awarenessCycleCount + 1
+          const request: HimalayaFlightDecisionRequest = {
+            requestId: `flight-run-${run}:awareness-${cycle}`,
+            runId: `flight-run-${run}`,
+            cycle,
+            cycleKind,
+            planRevision: cycleKind === 'detect' && !avoidance
+              ? planRevision + 1
+              : planRevision,
+            requestedAt: new Date().toISOString(),
+            progress,
+            sample: { ...sample },
+            sensor,
+            safetySuggestion,
+            obstacle: createObstacleSnapshot(plan),
+          }
+          awarenessCycleCount = cycle
+          lastAwarenessProgress = progress
+
+          if (cycleKind === 'detect' && !avoidance) {
+            const evidence: HimalayaFlightDecisionEvidence = {
+              source: 'local-rule',
+              direction: safetySuggestion.direction,
+              reason: 'The fast ray-safety loop committed the clearer corridor without waiting for visual AI.',
+            }
+            commitAvoidance(request, evidence)
+            callbacks.onDecision?.({
+              state: 'safety-committed',
+              request,
+              evidence,
+            })
+            decisionCameraActive = true
+            setCameraIntent(
+              'decision',
+              '前向射线发现临时禁飞区，本地安全环立即绕行，同时启动独立视觉复核。',
+              progress,
+              true,
+            )
+          }
+
+          if (!callbacks.requestAvoidanceDecision || !observerViewer) return
+
+          decisionPending = true
+          const controller = new AbortController()
+          perceptionAbortController = controller
+          callbacks.onDecision?.({ state: 'requesting', request })
+          setObserverCamera(observerViewer.camera, sample, lookAhead)
+          observerViewer.scene.requestRender()
+          let activeRequest = request
+          void captureFlightVisualFrame(
+            observerViewer,
+            observerRenderCount,
+            () => observerRenderCount,
+            () => run !== activeRun || controller.signal.aborted,
+          )
+            .then((visualFrame) => {
+              if (run !== activeRun || controller.signal.aborted) return undefined
+              activeRequest = { ...request, visualFrame }
+              return callbacks.requestAvoidanceDecision!(activeRequest, controller.signal)
+            })
+            .then(modelDecision => {
+              if (
+                run !== activeRun
+                || controller.signal.aborted
+                || activeRequest.planRevision !== planRevision
+              ) return
+              if (!modelDecision) {
+                callbacks.onDecision?.({ state: 'observed', request: activeRequest })
+                return
+              }
+              const selectedClearance = modelDecision.direction === 'left'
+                ? safetySuggestion.leftClearanceMeters
+                : safetySuggestion.rightClearanceMeters
+              const clearanceSafe = isAvoidanceDirectionSafe(
+                safetySuggestion,
+                modelDecision.direction,
+              )
+              const directionPreservesCommittedTrajectory = !avoidance
+                || modelDecision.direction === avoidance.direction
+              const accepted = clearanceSafe && directionPreservesCommittedTrajectory
+              const evidence: HimalayaFlightDecisionEvidence = accepted
+                ? {
+                    source: 'model',
+                    direction: modelDecision.direction,
+                    reason: modelDecision.reason,
+                    model: modelDecision.model,
+                    ...(modelDecision.confidence !== undefined
+                      ? { confidence: modelDecision.confidence }
+                      : {}),
+                  }
+                : {
+                    source: 'safety-fallback',
+                    direction: avoidance?.direction ?? safetySuggestion.direction,
+                    reason: clearanceSafe
+                      ? 'The visual planner proposed reversing an active maneuver; the fast safety loop preserved trajectory continuity.'
+                      : `The visual planner selected a corridor with only ${Math.round(selectedClearance)} m clearance; the fast safety loop preserved the safer corridor.`,
+                    model: modelDecision.model,
+                  }
+              callbacks.onDecision?.({
+                state: accepted ? 'accepted' : 'fallback',
+                request: activeRequest,
+                evidence,
+              })
+            })
+            .catch(error => {
+              if (run !== activeRun || controller.signal.aborted) return
+              const message = error instanceof Error ? error.message : String(error)
+              callbacks.onDecision?.({
+                state: 'fallback',
+                request: activeRequest,
+                evidence: {
+                  source: 'safety-fallback',
+                  direction: avoidance?.direction ?? safetySuggestion.direction,
+                  reason: 'The slow visual loop failed; the independent ray-safety maneuver remains active.',
+                },
+                error: message,
+              })
+            })
+            .finally(() => {
+              if (perceptionAbortController === controller) {
+                perceptionAbortController = undefined
+                decisionPending = false
+              }
+            })
+        }
         const tick = (now: number): void => {
           if (run !== activeRun) {
             finish()
@@ -583,7 +776,7 @@ export async function prepareHimalayaFlight(
 
           const timeline = advanceFlightTimeline(
             activeElapsedMs,
-            decisionPending ? 0 : now - previousAt,
+            now - previousAt,
             durationSeconds * 1_000,
           )
           previousAt = now
@@ -597,6 +790,10 @@ export async function prepareHimalayaFlight(
             const injected = addDynamicNoFlyZone(viewer, plan)
             noFlyZone = injected.entity
             noFlyZoneSphere = injected.boundingSphere
+            if (observerViewer) {
+              observerNoFlyZone = addDynamicNoFlyZone(observerViewer, plan).entity
+              observerViewer.scene.requestRender()
+            }
             if (plannedRoute.polyline) {
               plannedRoute.name = '原始基准路线（临时禁飞区出现后已作废）'
               plannedRoute.polyline.material = new PolylineDashMaterialProperty({
@@ -649,92 +846,34 @@ export async function prepareHimalayaFlight(
             latestSensorSegments = sensing.segments
             updateRaySensorEntities(sensorRayEntities, latestSensorSegments, cameraIntent !== 'pov')
             lastSensorUpdateAt = now
-            if (!avoidance && !decisionPending) {
-              const safetySuggestion = selectAvoidanceDecision(
-                latestSensorFrame.readings,
-                SENSOR_RANGE_METERS,
-                SENSOR_TRIGGER_DISTANCE_METERS,
+            const safetySuggestion = selectAvoidanceDecision(
+              latestSensorFrame.readings,
+              SENSOR_RANGE_METERS,
+              SENSOR_TRIGGER_DISTANCE_METERS,
+            )
+            const cycleKind = selectFlightAwarenessCycle({
+              decisionPending,
+              cyclesStarted: awarenessCycleCount,
+              maxCycles: MAX_VISUAL_AWARENESS_CYCLES,
+              progress: easedProgress,
+              ...(lastAwarenessProgress !== undefined
+                ? { lastCycleProgress: lastAwarenessProgress }
+                : {}),
+              minimumProgressDelta: MIN_VISUAL_CYCLE_PROGRESS_DELTA,
+              maximumVerificationProgress: 0.98,
+              hasBlockingSuggestion: safetySuggestion !== undefined,
+              ...(avoidance ? { avoidance } : {}),
+            })
+            const cycleSuggestion = safetySuggestion ?? avoidance
+            if (cycleKind && cycleSuggestion) {
+              launchAwarenessCycle(
+                cycleKind,
+                cycleSuggestion,
+                latestSensorFrame,
+                sample,
+                lookAhead,
+                easedProgress,
               )
-              if (safetySuggestion) {
-                const request: HimalayaFlightDecisionRequest = {
-                  requestId: `flight-decision-${Date.now()}`,
-                  requestedAt: new Date().toISOString(),
-                  progress: easedProgress,
-                  sample: { ...sample },
-                  sensor: latestSensorFrame,
-                  safetySuggestion,
-                }
-                decisionCameraActive = true
-                setCameraIntent(
-                  'decision',
-                  '前向射线发现临时禁飞区，自动构图以同时显示飞行器、障碍体和绕行走廊。',
-                  easedProgress,
-                  true,
-                )
-                if (!callbacks.requestAvoidanceDecision) {
-                  const evidence: HimalayaFlightDecisionEvidence = {
-                    source: 'local-rule',
-                    direction: safetySuggestion.direction,
-                    reason: 'No model decision provider is configured; local clearance rule selected the safer side.',
-                  }
-                  callbacks.onDecision?.({ state: 'fallback', request, evidence })
-                  commitAvoidance(request, evidence)
-                } else {
-                  decisionPending = true
-                  callbacks.onDecision?.({ state: 'requesting', request })
-                  void callbacks.requestAvoidanceDecision(request)
-                    .then(modelDecision => {
-                      if (run !== activeRun) return
-                      const selectedClearance = modelDecision.direction === 'left'
-                        ? safetySuggestion.leftClearanceMeters
-                        : safetySuggestion.rightClearanceMeters
-                      const accepted = isAvoidanceDirectionSafe(
-                        safetySuggestion,
-                        modelDecision.direction,
-                      )
-                      const evidence: HimalayaFlightDecisionEvidence = accepted
-                        ? {
-                            source: 'model',
-                            direction: modelDecision.direction,
-                            reason: modelDecision.reason,
-                            model: modelDecision.model,
-                            ...(modelDecision.confidence !== undefined
-                              ? { confidence: modelDecision.confidence }
-                              : {}),
-                          }
-                        : {
-                            source: 'safety-fallback',
-                            direction: safetySuggestion.direction,
-                            reason: `Model selected a corridor with only ${Math.round(selectedClearance)} m clearance; local safety validation used the clearer side.`,
-                            model: modelDecision.model,
-                          }
-                      decisionPending = false
-                      callbacks.onDecision?.({
-                        state: accepted ? 'accepted' : 'fallback',
-                        request,
-                        evidence,
-                      })
-                      commitAvoidance(request, evidence)
-                    })
-                    .catch(error => {
-                      if (run !== activeRun) return
-                      const message = error instanceof Error ? error.message : String(error)
-                      const evidence: HimalayaFlightDecisionEvidence = {
-                        source: 'safety-fallback',
-                        direction: safetySuggestion.direction,
-                        reason: 'Model request failed; local safety validation selected the clearer side.',
-                      }
-                      decisionPending = false
-                      callbacks.onDecision?.({
-                        state: 'fallback',
-                        request,
-                        evidence,
-                        error: message,
-                      })
-                      commitAvoidance(request, evidence)
-                    })
-                }
-              }
             }
           }
           currentProgress = progress
@@ -757,6 +896,7 @@ export async function prepareHimalayaFlight(
           setObserverCamera(observerCamera, sample, lookAhead)
           if (
             observerViewer
+            && !decisionPending
             && (progress >= 1 || now - lastObserverViewUpdateAt >= OBSERVER_VIEW_UPDATE_INTERVAL_MS)
           ) {
             setObserverCamera(observerViewer.camera, sample, lookAhead)
@@ -831,6 +971,9 @@ export async function prepareHimalayaFlight(
     getDiagnostics: () => ({
       cameraIntent,
       safetyMarginMeters: NO_FLY_ZONE_SAFETY_MARGIN_METERS,
+      awarenessCycleCount,
+      planRevision,
+      perceptionPending: decisionPending,
       ...(Number.isFinite(minimumNoFlyZoneClearanceMeters)
         ? { minimumNoFlyZoneClearanceMeters }
         : {}),
@@ -844,10 +987,12 @@ export async function prepareHimalayaFlight(
       viewer.entities.remove(executedRoute)
       sensorRayEntities.forEach(entity => viewer.entities.remove(entity))
       if (noFlyZone) viewer.entities.remove(noFlyZone)
+      if (observerNoFlyZone) observerViewer?.entities.remove(observerNoFlyZone)
       anchorEntities.forEach(entity => viewer.entities.remove(entity))
       viewer.scene.primitives.remove(observerFrustum)
       removeObserverPostRender?.()
       observerViewer?.destroy()
+      observerRenderHost?.remove()
     },
   }
 }
@@ -858,6 +1003,24 @@ function createHimalayaImageryProvider(): UrlTemplateImageryProvider {
     maximumLevel: 19,
     credit: ESRI_WORLD_IMAGERY_CREDIT,
   })
+}
+
+function createObserverRenderHost(): HTMLDivElement {
+  const container = document.createElement('div')
+  container.setAttribute('aria-hidden', 'true')
+  Object.assign(container.style, {
+    position: 'fixed',
+    left: '-10000px',
+    top: '0',
+    width: '768px',
+    height: '432px',
+    overflow: 'hidden',
+    pointerEvents: 'none',
+    opacity: '0.001',
+    zIndex: '-2147483647',
+  })
+  document.body.append(container)
+  return container
 }
 
 function createObserverViewer(container: HTMLElement, terrainProvider: TerrainProvider): Viewer {
@@ -874,12 +1037,19 @@ function createObserverViewer(container: HTMLElement, terrainProvider: TerrainPr
     fullscreenButton: false,
     selectionIndicator: false,
     infoBox: false,
+    contextOptions: {
+      webgl: {
+        preserveDrawingBuffer: true,
+        antialias: true,
+      },
+    },
   })
   observerViewer.scene.terrainProvider = terrainProvider
   observerViewer.scene.globe.depthTestAgainstTerrain = true
   observerViewer.scene.globe.baseColor = Color.fromCssColorString('#102d3b')
   observerViewer.scene.backgroundColor = Color.fromCssColorString('#040b10')
   observerViewer.scene.screenSpaceCameraController.enableInputs = false
+  observerViewer.resolutionScale = Math.min(1, 1 / Math.max(1, window.devicePixelRatio))
   return observerViewer
 }
 
@@ -1087,7 +1257,7 @@ function addDynamicNoFlyZone(
   const obstacleSample = interpolatePlanSample(plan, OBSTACLE_ROUTE_PROGRESS)
   const center = samplePosition(obstacleSample)
   const entity = viewer.entities.add({
-    id: DYNAMIC_NO_FLY_ZONE_ID,
+    id: HIMALAYA_DYNAMIC_NO_FLY_ZONE_ID,
     name: '动态出现的临时禁飞区',
     position: center,
     ellipsoid: {
@@ -1121,6 +1291,116 @@ function addDynamicNoFlyZone(
     entity,
     boundingSphere: new BoundingSphere(center, OBSTACLE_RADIUS_METERS),
   }
+}
+
+function createObstacleSnapshot(plan: TerrainAwareFlightPlan): HimalayaFlightObstacleSnapshot {
+  const sample = interpolatePlanSample(plan, OBSTACLE_ROUTE_PROGRESS)
+  return {
+    objectId: HIMALAYA_DYNAMIC_NO_FLY_ZONE_ID,
+    longitude: sample.longitude,
+    latitude: sample.latitude,
+    height: sample.flightHeight,
+    horizontalRadiusMeters: OBSTACLE_RADIUS_METERS,
+    verticalRadiusMeters: OBSTACLE_VERTICAL_RADIUS_METERS,
+  }
+}
+
+async function captureFlightVisualFrame(
+  viewer: Viewer,
+  initialRenderCount: number,
+  getRenderCount: () => number,
+  isCancelled: () => boolean,
+): Promise<HimalayaFlightVisualFrame> {
+  const startedAt = new Date().toISOString()
+  const ready = await waitForVisualCaptureReadiness(
+    viewer,
+    initialRenderCount,
+    getRenderCount,
+    isCancelled,
+  )
+  if (isCancelled()) throw new Error('Independent camera capture cancelled')
+
+  viewer.resize()
+  viewer.scene.requestRender()
+  await waitForAnimationFrame()
+  const canvas = viewer.scene.canvas
+  if (canvas.width < 1 || canvas.height < 1) {
+    throw new Error('Independent camera canvas has no renderable size')
+  }
+  const capturedAt = new Date().toISOString()
+  const dataUrl = canvas.toDataURL('image/jpeg', VISUAL_CAPTURE_JPEG_QUALITY)
+  if (!dataUrl.startsWith('data:image/jpeg;base64,')) {
+    throw new Error('Independent camera did not produce a JPEG frame')
+  }
+  const cartographic = Cartographic.fromCartesian(viewer.camera.positionWC)
+  const frustum = viewer.camera.frustum
+  const horizontalFovDegrees = frustum instanceof PerspectiveFrustum
+    && frustum.fov !== undefined
+    ? CesiumMath.toDegrees(frustum.fov)
+    : undefined
+  const verticalFovDegrees = frustum instanceof PerspectiveFrustum
+    && frustum.fovy !== undefined
+    ? CesiumMath.toDegrees(frustum.fovy)
+    : undefined
+  const sensor: ObservationSensor = {
+    sensorId: 'himalaya-independent-camera',
+    kind: 'camera',
+    pose: {
+      position: [
+        CesiumMath.toDegrees(cartographic.longitude),
+        CesiumMath.toDegrees(cartographic.latitude),
+        cartographic.height,
+      ],
+      headingDegrees: CesiumMath.toDegrees(viewer.camera.heading),
+      pitchDegrees: CesiumMath.toDegrees(viewer.camera.pitch),
+      rollDegrees: CesiumMath.toDegrees(viewer.camera.roll),
+    },
+    rangeMeters: SENSOR_RANGE_METERS,
+    ...(horizontalFovDegrees !== undefined
+      ? { horizontalFieldOfViewDegrees: horizontalFovDegrees }
+      : {}),
+    ...(verticalFovDegrees !== undefined
+      ? { verticalFieldOfViewDegrees: verticalFovDegrees }
+      : {}),
+  }
+  return {
+    dataUrl,
+    width: canvas.width,
+    height: canvas.height,
+    startedAt,
+    capturedAt,
+    completedAt: new Date().toISOString(),
+    readiness: ready ? 'ready' : 'partial',
+    changedDuringObservation: false,
+    sensor,
+  }
+}
+
+async function waitForVisualCaptureReadiness(
+  viewer: Viewer,
+  initialRenderCount: number,
+  getRenderCount: () => number,
+  isCancelled: () => boolean,
+): Promise<boolean> {
+  const startedAt = performance.now()
+  let stableFrames = 0
+  while (performance.now() - startedAt < VISUAL_CAPTURE_TIMEOUT_MS) {
+    if (isCancelled()) return false
+    viewer.resize()
+    viewer.scene.requestRender()
+    await waitForAnimationFrame()
+    const renderedAfterCameraUpdate = getRenderCount() > initialRenderCount
+    const ready = renderedAfterCameraUpdate
+      && viewer.scene.globe.tilesLoaded
+      && viewer.dataSourceDisplay.ready
+    stableFrames = ready ? stableFrames + 1 : 0
+    if (stableFrames >= VISUAL_CAPTURE_READY_FRAME_COUNT) return true
+  }
+  return false
+}
+
+function waitForAnimationFrame(): Promise<void> {
+  return new Promise(resolve => requestAnimationFrame(() => resolve()))
 }
 
 function senseFlightCorridor(
@@ -1166,7 +1446,7 @@ function senseFlightCorridor(
         candidates.push({
           hitType: 'no-fly-zone',
           distanceMeters,
-          objectId: DYNAMIC_NO_FLY_ZONE_ID,
+          objectId: HIMALAYA_DYNAMIC_NO_FLY_ZONE_ID,
         })
       }
     }

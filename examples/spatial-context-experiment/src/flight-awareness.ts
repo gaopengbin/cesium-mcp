@@ -1,5 +1,6 @@
 export type FlightRayHitType = 'none' | 'terrain' | 'scene' | 'no-fly-zone'
 export type FlightAvoidanceDirection = 'left' | 'right'
+export type FlightAwarenessCycleKind = 'detect' | 'verify'
 
 export interface FlightRayReading {
   headingOffsetDegrees: number
@@ -28,6 +29,39 @@ export interface FlightAvoidanceManeuver extends FlightAvoidanceDecision {
 export interface GeographicCoordinate {
   longitude: number
   latitude: number
+}
+
+export interface FlightAwarenessCycleInput {
+  decisionPending: boolean
+  cyclesStarted: number
+  maxCycles: number
+  progress: number
+  lastCycleProgress?: number
+  minimumProgressDelta: number
+  maximumVerificationProgress?: number
+  hasBlockingSuggestion: boolean
+  avoidance?: FlightAvoidanceManeuver
+}
+
+/**
+ * Gates the slow visual-awareness loop independently from the fast ray-safety
+ * loop. The first cycle requires a current blocking ray. Later cycles verify
+ * the already committed maneuver without requiring another positive hit.
+ */
+export function selectFlightAwarenessCycle(
+  input: FlightAwarenessCycleInput,
+): FlightAwarenessCycleKind | undefined {
+  if (input.decisionPending || input.cyclesStarted >= input.maxCycles) return undefined
+  if (input.cyclesStarted === 0) {
+    return input.hasBlockingSuggestion ? 'detect' : undefined
+  }
+  if (!input.avoidance) return undefined
+  const maximumVerificationProgress = input.maximumVerificationProgress
+    ?? input.avoidance.endProgress
+  if (input.progress >= maximumVerificationProgress) return undefined
+  const lastProgress = input.lastCycleProgress ?? input.avoidance.startProgress
+  if (input.progress - lastProgress < input.minimumProgressDelta) return undefined
+  return 'verify'
 }
 
 export function selectAvoidanceDecision(

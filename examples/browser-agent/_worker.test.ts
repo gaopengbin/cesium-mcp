@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import worker, { handleAssetProxy, handleChatRequest, handleUsageRequest } from './_worker.js'
+import worker, {
+  handleAssetProxy,
+  handleChatRequest,
+  handleUsageRequest,
+  handleVisionGroundingRequest,
+} from './_worker.js'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -10,6 +15,7 @@ function createEnv(options: {
   rateLimitSuccess?: boolean
   usageNeurons?: number
   dailyBudget?: number
+  aiResult?: unknown
 } = {}) {
   const usage = {
     request_count: 3,
@@ -38,7 +44,7 @@ function createEnv(options: {
   }))
   return {
     AI: {
-      run: vi.fn().mockResolvedValue({
+      run: vi.fn().mockResolvedValue(options.aiResult ?? {
         choices: [{ message: { role: 'assistant', content: 'Done' } }],
         usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 },
       }),
@@ -48,6 +54,90 @@ function createEnv(options: {
     },
     AI_DAILY_NEURON_BUDGET: options.dailyBudget?.toString(),
   }
+}
+
+const visionImageDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZC6QAAAAASUVORK5CYII='
+const visionImageDigest = 'sha256:9d76ce7c59822d3b4dea7ef3d13ec084283be4fbc840205c7dc9cedb48d65de3'
+
+function createVisionBody(overrides: Record<string, unknown> = {}) {
+  return {
+    schemaVersion: 1,
+    image: {
+      dataUrl: visionImageDataUrl,
+      width: 1,
+      height: 1,
+      digest: visionImageDigest,
+    },
+    observation: {
+      observationId: 'himalaya-vision-1',
+      worldId: 'himalaya-flight',
+      worldRevision: 2,
+      capturedAt: '2026-09-02T01:00:00.000Z',
+      sensor: {
+        sensorId: 'observer-camera',
+        kind: 'camera',
+        pose: {
+          position: [86.8, 27.9, 7600],
+          headingDegrees: 45,
+          pitchDegrees: -5,
+          rollDegrees: 0,
+        },
+        rangeMeters: 15000,
+        horizontalFieldOfViewDegrees: 54,
+      },
+    },
+    candidates: {
+      objects: [{
+        objectId: 'dynamic-no-fly-zone',
+        label: '临时禁飞区',
+        summary: 'Red translucent flight restriction volume ahead.',
+      }],
+      regions: [{
+        regionId: 'forward-flight-corridor',
+        label: '前向飞行走廊',
+        summary: 'The immediate forward corridor used by the current route.',
+      }],
+    },
+    ...overrides,
+  }
+}
+
+function createVisionReport(overrides: Record<string, unknown> = {}) {
+  return {
+    schemaVersion: 1,
+    imageDigest: visionImageDigest,
+    objects: [{
+      objectId: 'dynamic-no-fly-zone',
+      visibility: 'visible',
+      confidence: 0.96,
+      bbox: { x: 0.35, y: 0.2, width: 0.3, height: 0.42 },
+    }],
+    regions: [{
+      regionId: 'forward-flight-corridor',
+      occupancy: 'occupied',
+      coverage: 'partial',
+      confidence: 0.91,
+      bbox: { x: 0.2, y: 0.3, width: 0.6, height: 0.5 },
+      blockingObjectIds: ['dynamic-no-fly-zone'],
+    }],
+    limitations: ['Terrain and imagery may still be streaming.'],
+    ...overrides,
+  }
+}
+
+function createVisionRequest(
+  body: unknown,
+  headers: Record<string, string> = {},
+) {
+  return new Request('https://cesium-browser-agent.pages.dev/api/vision-grounding', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'https://cesium-browser-agent.pages.dev',
+      ...headers,
+    },
+    body: JSON.stringify(body),
+  })
 }
 
 function createRequest(body: unknown, headers: Record<string, string> = {}) {
@@ -184,6 +274,176 @@ describe('browser-agent hosted AI worker', () => {
       '@cf/zai-org/glm-4.7-flash',
       expect.objectContaining({ tools }),
     )
+  })
+
+  it('grounds a bounded image with the fixed vision model without echoing pixels', async () => {
+    const report = createVisionReport()
+    const env = createEnv({
+      aiResult: {
+        choices: [{ message: { role: 'assistant', content: JSON.stringify(report) } }],
+        usage: { prompt_tokens: 300, completion_tokens: 80, total_tokens: 380 },
+      },
+    })
+    const response = await handleVisionGroundingRequest(
+      createVisionRequest(createVisionBody()),
+      env,
+    )
+    const body = await response.json() as Record<string, unknown>
+
+    expect(response.status).toBe(200)
+    expect(body).toEqual({ report, model: '@cf/meta/llama-4-scout-17b-16e-instruct' })
+    expect(JSON.stringify(body)).not.toContain(visionImageDataUrl)
+    expect(response.headers.get('X-AI-Model')).toBe('@cf/meta/llama-4-scout-17b-16e-instruct')
+    expect(env.AI.run).toHaveBeenCalledWith(
+      '@cf/meta/llama-4-scout-17b-16e-instruct',
+      expect.objectContaining({
+        max_completion_tokens: 1600,
+        temperature: 0,
+      }),
+    )
+    const messages = env.AI.run.mock.calls[0][1].messages
+    expect(messages[1].content).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'image_url',
+        image_url: { url: visionImageDataUrl, detail: 'high' },
+      }),
+    ]))
+  })
+
+  it('rejects a mismatched image digest before invoking the vision model', async () => {
+    const env = createEnv()
+    const response = await handleVisionGroundingRequest(
+      createVisionRequest(createVisionBody({
+        image: {
+          dataUrl: visionImageDataUrl,
+          width: 1,
+          height: 1,
+          digest: `sha256:${'0'.repeat(64)}`,
+        },
+      })),
+      env,
+    )
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({
+      error: 'Image digest does not match the submitted image bytes',
+    })
+    expect(env.AI.run).not.toHaveBeenCalled()
+  })
+
+  it('rejects declared dimensions that do not match the encoded image', async () => {
+    const env = createEnv()
+    const response = await handleVisionGroundingRequest(
+      createVisionRequest(createVisionBody({
+        image: {
+          dataUrl: visionImageDataUrl,
+          width: 2,
+          height: 1,
+          digest: visionImageDigest,
+        },
+      })),
+      env,
+    )
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({
+      error: 'Image dimensions do not match the submitted image bytes',
+    })
+    expect(env.AI.run).not.toHaveBeenCalled()
+  })
+
+  it('fails closed to unknown when the vision model invents a candidate ID', async () => {
+    const env = createEnv({
+      aiResult: {
+        response: createVisionReport({
+          objects: [{
+            objectId: 'invented-object',
+            visibility: 'visible',
+            confidence: 1,
+            bbox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+          }],
+        }),
+        usage: { prompt_tokens: 300, completion_tokens: 80 },
+      },
+    })
+    const response = await handleVisionGroundingRequest(
+      createVisionRequest(createVisionBody()),
+      env,
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('X-AI-Evidence-State')).toBe('unknown-fallback')
+    expect(await response.json()).toMatchObject({
+      report: {
+        imageDigest: visionImageDigest,
+        objects: [{
+          objectId: 'dynamic-no-fly-zone',
+          visibility: 'uncertain',
+          confidence: 0,
+        }],
+        regions: [{
+          regionId: 'forward-flight-corridor',
+          occupancy: 'unknown',
+          coverage: 'unavailable',
+          confidence: 0,
+        }],
+      },
+    })
+  })
+
+  it('accepts text-part output with hidden reasoning and binds the trusted image digest', async () => {
+    const modelReport = createVisionReport()
+    delete modelReport.imageDigest
+    const env = createEnv({
+      aiResult: {
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: [{
+              type: 'text',
+              text: `<think>Inspect candidate geometry carefully.</think>\n\`\`\`json\n${JSON.stringify(modelReport)}\n\`\`\``,
+            }],
+          },
+        }],
+        usage: { prompt_tokens: 300, completion_tokens: 80 },
+      },
+    })
+    const response = await handleVisionGroundingRequest(
+      createVisionRequest(createVisionBody()),
+      env,
+    )
+    const body = await response.json() as { report: Record<string, unknown> }
+
+    expect(response.status).toBe(200)
+    expect(body.report.imageDigest).toBe(visionImageDigest)
+  })
+
+  it('distinguishes inference failures from invalid model evidence', async () => {
+    const env = createEnv()
+    env.AI.run.mockRejectedValueOnce(new Error('upstream timeout'))
+    const response = await handleVisionGroundingRequest(
+      createVisionRequest(createVisionBody()),
+      env,
+    )
+
+    expect(response.status).toBe(502)
+    expect(await response.json()).toEqual({
+      error: 'Visual grounding inference failed',
+      code: 'VISION_INFERENCE_FAILED',
+    })
+  })
+
+  it('rejects oversized vision requests before reading or inference', async () => {
+    const env = createEnv()
+    const response = await handleVisionGroundingRequest(
+      createVisionRequest(createVisionBody(), {
+        'Content-Length': String(1024 * 1024 + 1),
+      }),
+      env,
+    )
+
+    expect(response.status).toBe(413)
+    expect(env.AI.run).not.toHaveBeenCalled()
   })
 
   it('streams allowlisted assets through the HTTPS worker origin', async () => {

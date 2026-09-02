@@ -23,12 +23,15 @@ The user-facing surface is intentionally only a full-screen Cesium map and one
 conversation panel. The older assertion dashboard remains hidden as an
 automation fixture. Chat requests use the existing hosted Workers AI endpoint;
 every model-selected map tool is shown in the conversation. During the flight,
-the first blocking ray event creates a separate model request for a left/right
-maneuver. Local clearance validation accepts or rejects that answer, and an
-explicit safety-fallback message appears if the model times out or fails.
-
-The current model decision consumes structured ray measurements, not the POV
-pixels. The UI therefore does not claim visual-model perception yet.
+the fast 250 ms ray-safety loop commits the clearer detour immediately and never
+waits for a model. A slower event-driven loop captures up to three bounded JPEGs
+from a separate Cesium observer camera: first contact, maneuver verification,
+and exit verification. One belief persists for the whole flight, so revisions
+increase across observations and short-lived occupied evidence can become
+`stale`. A fixed Workers AI vision model grounds only supplied local IDs. The
+first positive visual + ray fusion may call the planning model; verification
+cycles update belief without repeatedly planning. Invalid model JSON fails
+closed to `unknown`, never to free space.
 
 The page automatically checks:
 
@@ -58,8 +61,13 @@ way. The sensor uses public Cesium APIs: `Globe.pick` for currently loaded
 terrain and `IntersectionTests.raySphere` for the injected zone and loaded
 3D Tiles/Model bounding volumes. The observation log records the hit distance,
 left/right clearance, chosen detour, and eventual return to the baseline route.
-This is intentionally bounded perception: it does not claim to see unloaded
-content or infer arbitrary semantics from pixels.
+The chat exposes the fast `SENSE -> ACT` safety path beside the slower
+`SENSE -> VISION -> BELIEF -> PLAN/VERIFY` path. Image pixels are submitted only
+for bounded event-driven cycles under strict byte and dimension limits, while
+the belief and planner retain only SHA-256 artifact references. A visual
+`clear`, missing object, partial load, or unmatched ray remains `unknown`; it is
+never promoted to free space. This is intentionally bounded perception: it does
+not claim to see unloaded content or infer arbitrary semantics from pixels.
 
 Use **Expand flood warning area** to keep the school and hospital fixed while
 mutating the forecast polygon. The next spatial snapshot changes the exact

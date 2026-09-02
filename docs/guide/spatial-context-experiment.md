@@ -26,10 +26,13 @@ current-view context, and
 The interactive product surface now keeps only the full-screen map and one chat
 panel. Dashboard assertions remain available to automated tests but are hidden
 from normal users. The chat calls the hosted model and exposes each resulting
-map-tool execution. A blocking flight ray also triggers a real, separate model
-decision; the local controller validates the selected corridor and reports any
-safety fallback in the same conversation. This decision currently uses
-structured ray telemetry rather than image pixels.
+map-tool execution. A fast 250 ms ray-safety loop commits a detour immediately;
+the flight never waits for visual inference. A separate event-driven loop then
+captures up to three bounded JPEGs for detection and route verification. It
+keeps one belief across the flight, fuses only requested visual candidates with
+matching rays, and lets occupied evidence expire to `stale`. Only the initial
+positive fusion invokes the slower planning model. Invalid visual-model output
+degrades to `unknown` instead of becoming a spatial claim.
 
 Switch to **Live GIS** to run a separate, non-deterministic integration path.
 The page fetches the [USGS M2.5+ past-day GeoJSON feed](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php)
@@ -52,8 +55,13 @@ rejoin the baseline. The green route remains the plan; the blue line is the
 actual closed-loop trajectory.
 
 The flight path deliberately demonstrates bounded world awareness rather than
-omniscience. It reports its 15 km sensor range and evidence, cannot discover
-unloaded geometry, and does not treat pixel interpretation as a solved problem.
+omniscience. The visible trace separates `SENSE -> ACT` safety from
+`SENSE -> VISION -> BELIEF -> PLAN/VERIFY`. Observer pixels are sent only for
+bounded event-driven cycles under strict size limits and are retained only as
+SHA-256 artifact references. A visual clear result, missing object, partial
+load, or unmatched ray remains unknown. The system reports its 15 km sensor
+range, cannot discover unloaded geometry, and does not treat pixel
+interpretation as world truth.
 
 The same two-stage scenario also has a machine-readable evaluation:
 
@@ -187,6 +195,10 @@ Cesium Viewer
   -> cesium-mcp-spatial object model and index
   -> unified observeScene contract with readiness and snapshot revision
   -> optional lazy independent Observer Viewer and PNG evidence
+  -> strict visual grounding of local candidate IDs
+  -> belief fusion: visible object + matching forward Cesium ray
+  -> persistent belief revisions with short evidence validity
+  -> immediate local safety actuation + slower planning/verification
   -> WebMCP or MCP Runtime (explicit opt-in)
 ```
 
@@ -208,12 +220,13 @@ The first slice supports:
 - a deterministic emergency-response evaluation fixture.
 - a live NASA GIBS WMS + USGS GeoJSON browser integration with safe fallback;
 - managed imagery reuse in the independent Observer Viewer.
-- a grounded flight loop with an independent POV, five finite Cesium rays,
-  dynamic-obstacle detection, local replanning, and a separate executed path.
+- a two-speed grounded flight loop with an independent POV, five finite Cesium
+  rays, immediate local safety actuation, up to three visual belief revisions,
+  conservative multimodal fusion, and a separate executed path.
 
 It does not yet claim:
 
-- pixel-perfect visibility or occlusion;
+- pixel-perfect visibility or occlusion beyond the grounded candidate boxes;
 - unloaded 3D Tiles feature discovery;
 - exact line/polygon and polygon/polygon topology;
 - persistent identity across arbitrary external scene mutations;
@@ -227,6 +240,7 @@ It does not yet claim:
 2. ✅ Add an isolated Observer Viewer for independent, camera-safe PNG evidence.
 3. ✅ Add readiness, stable snapshot revisions, and change detection to the unified observation loop; next add incremental invalidation and measure refresh cost on large scenes.
 4. ✅ Reuse managed imagery providers in observer captures; next mirror loaded 3D Tiles and terrain.
-5. ✅ Add a grounded flight loop that combines the independent view, public
-   Cesium ray intersections, rolling replanning, and visible execution evidence.
+5. ✅ Add a two-speed grounded flight loop that combines immediate ray safety,
+   persistent multi-observation belief, public Cesium intersections, bounded
+   visual planning/verification, and visible execution evidence.
 6. Consider a persistent world graph only when real use cases require cross-scene memory.

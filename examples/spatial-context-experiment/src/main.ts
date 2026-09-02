@@ -26,6 +26,7 @@ import {
 } from 'cesium-mcp-webmcp'
 import type { WebMcpRegistration } from 'cesium-mcp-webmcp'
 import { CesiumBridge } from 'cesium-mcp-webmcp/viewer'
+import type { AgentBeliefState } from 'cesium-mcp-spatial'
 import {
   emergencyResponseGeoJson,
   FLOOD_BASELINE_RING,
@@ -65,6 +66,12 @@ import type {
   HimalayaFlightViewMode,
 } from './himalaya-flight.js'
 import {
+  applyHimalayaVisualGrounding,
+  HIMALAYA_RISK_ENVELOPE_ID,
+  HIMALAYA_WORLD_ID,
+  HIMALAYA_WORLD_REVISION,
+} from './himalaya-world-awareness.js'
+import {
   DEFAULT_HOSTED_AGENT_ENDPOINT,
   requestHostedAgent,
 } from './hosted-agent.js'
@@ -73,6 +80,7 @@ import type {
   HostedAgentTool,
   HostedAgentToolCall,
 } from './hosted-agent.js'
+import { requestVisualGrounding } from './visual-grounding-client.js'
 
 interface ToolEnvelope<T = Record<string, unknown>> {
   success: boolean
@@ -326,9 +334,13 @@ let himalayaFlight: HimalayaFlightExperience | undefined
 let flightSceneLoading: Promise<LabSnapshot> | undefined
 let flightPlaying = false
 let flightObservations: HimalayaFlightObservation[] = []
+let himalayaAwarenessBelief: AgentBeliefState | undefined
+let himalayaAwarenessRunId: string | undefined
 let chatBusy = false
 let flightCompletionAnnounced = false
 const hostedAgentEndpoint = import.meta.env.VITE_CHAT_API_URL || DEFAULT_HOSTED_AGENT_ENDPOINT
+const hostedVisionEndpoint = import.meta.env.VITE_VISION_API_URL
+  || visualGroundingEndpoint(hostedAgentEndpoint)
 const chatHistory: HostedAgentMessage[] = []
 const chatTools: HostedAgentTool[] = [
   {
@@ -612,13 +624,88 @@ async function executeChatTool(toolCall: HostedAgentToolCall): Promise<unknown> 
 
 async function requestModelAvoidanceDecision(
   request: HimalayaFlightDecisionRequest,
-): Promise<HimalayaFlightModelDecision> {
+  signal: AbortSignal,
+): Promise<HimalayaFlightModelDecision | undefined> {
+  if (!request.visualFrame) {
+    throw new Error('独立观察相机没有提供可供视觉模型分析的画面')
+  }
   const controller = new AbortController()
+  const abortFromFlight = (): void => controller.abort(signal.reason)
+  if (signal.aborted) abortFromFlight()
+  else signal.addEventListener('abort', abortFromFlight, { once: true })
   const timeout = window.setTimeout(
-    () => controller.abort(new Error('模型决策超过 25 秒')),
-    25_000,
+    () => controller.abort(new Error('视觉接地与规划决策超过 45 秒')),
+    45_000,
   )
   try {
+    const visual = await requestVisualGrounding({
+      endpoint: hostedVisionEndpoint,
+      observationId: request.requestId,
+      worldId: HIMALAYA_WORLD_ID,
+      worldRevision: HIMALAYA_WORLD_REVISION + request.planRevision,
+      frame: request.visualFrame,
+      objects: [{
+        objectId: request.obstacle.objectId,
+        label: '临时禁飞区',
+        summary: '飞行过程中动态出现的红色半透明限制空域。',
+      }],
+      regions: [{
+        regionId: HIMALAYA_RISK_ENVELOPE_ID,
+        label: '当前任务风险包络',
+        summary: '围绕临时禁飞区、用于持续验证已提交绕行计划的空间风险包络。',
+      }],
+      signal: controller.signal,
+    })
+    if (controller.signal.aborted) throw controller.signal.reason
+    if (himalayaAwarenessRunId !== request.runId) {
+      himalayaAwarenessRunId = request.runId
+      himalayaAwarenessBelief = undefined
+    }
+    const awareness = applyHimalayaVisualGrounding(
+      request,
+      visual,
+      himalayaAwarenessBelief,
+    )
+    himalayaAwarenessBelief = awareness.belief
+    appendChatMessage(
+      'event',
+      `CYCLE ${request.cycle} ${request.cycleKind.toUpperCase()} · VISION → BELIEF r${awareness.belief.revision} · ${visual.model} · ${awareness.summary}`,
+    )
+    const groundedObject = visual.report.objects.find(item => (
+      item.objectId === request.obstacle.objectId
+    ))
+    const groundedCorridor = visual.report.regions.find(item => (
+      item.regionId === HIMALAYA_RISK_ENVELOPE_ID
+    ))
+    appendChatMessage(
+      'event',
+      [
+        groundedObject
+          ? `VISION OBJECT ${groundedObject.visibility} ${Math.round(groundedObject.confidence * 100)}%`
+          : 'VISION OBJECT missing',
+        groundedCorridor
+          ? `CORRIDOR ${groundedCorridor.occupancy}/${groundedCorridor.coverage} ${Math.round(groundedCorridor.confidence * 100)}%`
+          : 'CORRIDOR missing',
+        awareness.rayCorroborated
+          ? 'FUSION visual + forward-ray => occupied'
+          : 'FUSION not established',
+      ].join(' · '),
+    )
+    if (!awareness.positivelyGroundedObstacle) {
+      appendChatMessage(
+        'event',
+        '本轮没有新的“可见障碍 + 匹配射线”正向证据；只更新信念，不调用低频规划模型。',
+      )
+      return undefined
+    }
+    if (request.cycleKind === 'verify') {
+      appendChatMessage(
+        'event',
+        '复核轮只更新持续信念；当前障碍身份和已提交计划未变化，不重复调用低频规划模型。',
+      )
+      return undefined
+    }
+
     const choice = await requestHostedAgent({
       endpoint: hostedAgentEndpoint,
       signal: controller.signal,
@@ -627,9 +714,9 @@ async function requestModelAvoidanceDecision(
           role: 'system',
           content: [
             '你是低频局部飞行规划模型。',
-            '输入是 Cesium 当前已加载场景中 5 条有限视域射线的结构化测量。',
+            '输入包含独立观察相机经视觉模型接地后的世界信念，以及 Cesium 5 条有限视域射线。',
             '你必须调用 choose_flight_maneuver 选择 left 或 right，并在 reason 中引用左右净空。',
-            '不要声称看到了图像；本次只读取结构化射线证据。',
+            '只能引用 visualGrounding 和 rayReadings 中的证据，不得虚构图像细节。',
           ].join('\n'),
         },
         {
@@ -638,14 +725,27 @@ async function requestModelAvoidanceDecision(
             requestId: request.requestId,
             routeProgress: request.progress,
             sensorRangeMeters: request.sensor.rangeMeters,
-            readings: request.sensor.readings,
+            rayReadings: request.sensor.readings,
+            visualGrounding: {
+              model: visual.model,
+              imageDigest: visual.imageDigest,
+              beliefRevision: awareness.belief.revision,
+              corridor: {
+                regionId: awareness.corridor.region.regionId,
+                occupancy: awareness.corridor.occupancy,
+                freshness: awareness.corridor.freshness,
+                confidence: awareness.corridor.confidence,
+                blockingObjectIds: awareness.corridor.blockingObjectIds,
+              },
+              limitations: awareness.observation.limitations,
+            },
             localSafetySuggestion: request.safetySuggestion,
           }),
         },
       ],
       tools: [avoidanceDecisionTool],
     })
-    chatEvidence.textContent = `最近飞行决策模型：${choice.model} · ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}`
+    chatEvidence.textContent = `最近飞行视觉 / 规划模型：${visual.model} → ${choice.model} · ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}`
     const toolCall = choice.message.tool_calls?.find(call =>
       call.function.name === avoidanceDecisionTool.function.name,
     )
@@ -660,22 +760,54 @@ async function requestModelAvoidanceDecision(
     return {
       direction: params.direction,
       reason: params.reason.trim(),
-      model: choice.model,
+      model: `${visual.model} → ${choice.model}`,
       ...(typeof params.confidence === 'number'
         ? { confidence: Math.min(1, Math.max(0, params.confidence)) }
         : {}),
     }
   } finally {
     window.clearTimeout(timeout)
+    signal.removeEventListener('abort', abortFromFlight)
   }
 }
 
+function visualGroundingEndpoint(chatEndpoint: string): string {
+  const url = new URL(chatEndpoint, window.location.href)
+  url.pathname = url.pathname.endsWith('/chat')
+    ? `${url.pathname.slice(0, -'/chat'.length)}/vision-grounding`
+    : '/api/vision-grounding'
+  url.search = ''
+  url.hash = ''
+  return url.toString()
+}
+
 function handleFlightDecisionEvent(event: HimalayaFlightDecisionEvent): void {
-  if (event.state === 'requesting') {
-    setChatStatus('thinking', '模型判断障碍')
+  if (event.state === 'safety-committed') {
+    const evidence = event.evidence
+    if (!evidence) return
+    setChatStatus('ready', '射线安全环已绕行')
     appendChatMessage(
       'event',
-      `SENSOR → MODEL REQUEST · obstacle ${Math.round(event.request.safetySuggestion.obstacleDistanceMeters)} m · left ${Math.round(event.request.safetySuggestion.leftClearanceMeters)} m · right ${Math.round(event.request.safetySuggestion.rightClearanceMeters)} m`,
+      `FAST SAFETY · plan r${event.request.planRevision} · 向${evidence.direction === 'left' ? '左' : '右'}绕行已立即执行；飞机不会等待视觉模型。`,
+    )
+    return
+  }
+  if (event.state === 'requesting') {
+    setChatStatus('thinking', `视觉感知循环 ${event.request.cycle}/${3}`)
+    appendChatMessage(
+      'event',
+      event.request.cycleKind === 'detect'
+        ? `SLOW LOOP ${event.request.cycle} DETECT · SENSE → VISION → BELIEF → PLAN · obstacle ${Math.round(event.request.safetySuggestion.obstacleDistanceMeters)} m`
+        : `SLOW LOOP ${event.request.cycle} VERIFY · SENSE → VISION → BELIEF → VERIFY · plan r${event.request.planRevision} risk envelope`,
+    )
+    return
+  }
+
+  if (event.state === 'observed') {
+    setChatStatus('ready', '视觉复核完成')
+    appendChatMessage(
+      'event',
+      `CYCLE ${event.request.cycle} 完成：信念已更新，本轮证据不足以触发重规划，射线安全轨迹继续执行。`,
     )
     return
   }
@@ -683,10 +815,10 @@ function handleFlightDecisionEvent(event: HimalayaFlightDecisionEvent): void {
   const evidence = event.evidence
   if (!evidence) return
   if (event.state === 'accepted' && evidence.source === 'model') {
-    setChatStatus('ready', '模型决策已执行')
+    setChatStatus('ready', '视觉规划与安全轨迹一致')
     appendChatMessage(
       'assistant',
-      `模型 ${evidence.model ?? ''} 选择向${evidence.direction === 'left' ? '左' : '右'}绕行：${evidence.reason}`,
+      `第 ${event.request.cycle} 轮观察后，模型 ${evidence.model ?? ''} 确认向${evidence.direction === 'left' ? '左' : '右'}绕行：${evidence.reason}`,
     )
     return
   }
@@ -921,6 +1053,7 @@ async function activateHimalayaFlightMode(): Promise<LabSnapshot> {
         requestAvoidanceDecision: requestModelAvoidanceDecision,
         onDecision: handleFlightDecisionEvent,
         onCameraChange: handleFlightCameraEvent,
+        observerContainer: aiObserverCesiumContainer,
       })
       sceneMode = 'flight'
       liveDataset = undefined
@@ -975,6 +1108,8 @@ async function playHimalayaFlight(
   const experience = himalayaFlight
   if (!experience) throw new Error('Himalaya flight experience is unavailable')
 
+  himalayaAwarenessBelief = undefined
+  himalayaAwarenessRunId = undefined
   flightPlaying = true
   flightPlayButton.textContent = '停止飞行漫游'
   try {
