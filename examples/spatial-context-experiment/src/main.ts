@@ -1388,7 +1388,9 @@ function handleFlightCameraEvent(event: HimalayaFlightCameraEvent): void {
     'event',
     event.mode === 'decision'
       ? `WORLD STATE → AUTO VIEW · 已切到避障决策视角：${event.reason}`
-      : `WORLD STATE → AUTO VIEW · 已切换为${event.mode === 'follow' ? '跟随' : event.mode}视角：${event.reason}`,
+      : event.mode === 'terrain-pass'
+        ? `WORLD STATE → AUTO VIEW · 已进入贴地穿梭镜头：${event.reason}`
+        : `WORLD STATE → AUTO VIEW · 已切换为${event.mode === 'follow' ? '跟随' : event.mode}视角：${event.reason}`,
   )
 }
 

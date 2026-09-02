@@ -1,6 +1,15 @@
 // CesiumAir's authored nose points 90 degrees right of our route-bearing frame.
 export const AIRCRAFT_MODEL_HEADING_OFFSET_RADIANS = -Math.PI / 2
 export const MAX_FLIGHT_FRAME_DELTA_MS = 50
+export const CAMERA_TRACKING_HALF_LIFE_MS = 180
+
+export type CinematicFlightViewMode = 'follow' | 'pov' | 'overview'
+export type CinematicFlightCameraIntent = CinematicFlightViewMode | 'decision' | 'terrain-pass'
+
+const TERRAIN_PASS_WINDOWS = [
+  { start: 0.05, end: 0.23 },
+  { start: 0.70, end: 0.92 },
+] as const
 
 export interface FlightTimelineStep {
   elapsedMs: number
@@ -28,6 +37,39 @@ export function advanceFlightTimeline(
 
 export function aircraftModelHeadingRadians(routeHeadingRadians: number): number {
   return normalizeRadians(routeHeadingRadians + AIRCRAFT_MODEL_HEADING_OFFSET_RADIANS)
+}
+
+export function cameraTrackingAlpha(
+  frameDeltaMs: number,
+  halfLifeMs = CAMERA_TRACKING_HALF_LIFE_MS,
+): number {
+  if (!Number.isFinite(frameDeltaMs) || frameDeltaMs <= 0) return 0
+  if (!Number.isFinite(halfLifeMs) || halfLifeMs <= 0) return 1
+  return 1 - 2 ** (-frameDeltaMs / halfLifeMs)
+}
+
+export function interpolateCameraAngleRadians(
+  from: number,
+  to: number,
+  alpha: number,
+): number {
+  const safeAlpha = Number.isFinite(alpha) ? Math.min(1, Math.max(0, alpha)) : 0
+  return normalizeRadians(from + normalizeRadians(to - from) * safeAlpha)
+}
+
+export function cinematicFlightCameraIntent(
+  viewMode: CinematicFlightViewMode,
+  progress: number,
+  decisionActive: boolean,
+): CinematicFlightCameraIntent {
+  if (decisionActive) return 'decision'
+  if (viewMode !== 'follow') return viewMode
+  const safeProgress = Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 0
+  return TERRAIN_PASS_WINDOWS.some(window => (
+    safeProgress >= window.start && safeProgress <= window.end
+  ))
+    ? 'terrain-pass'
+    : 'follow'
 }
 
 function normalizeRadians(value: number): number {

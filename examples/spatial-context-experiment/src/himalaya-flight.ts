@@ -44,6 +44,9 @@ import type {
 import {
   advanceFlightTimeline,
   aircraftModelHeadingRadians,
+  cameraTrackingAlpha,
+  cinematicFlightCameraIntent,
+  interpolateCameraAngleRadians,
 } from './flight-animation.js'
 import {
   createAvoidanceManeuver,
@@ -109,6 +112,12 @@ const CORRIDOR_TERRAIN_LATERAL_SPACING_METERS = 60
 const CORRIDOR_TERRAIN_VERTICAL_UNCERTAINTY_METERS = 120
 const CORRIDOR_BUILD_YIELD_INTERVAL = 64
 const CORRIDOR_TERRAIN_SAMPLE_CHUNK_SIZE = 450
+const CAMERA_INTENT_TRANSITION_MS = 1_600
+const CAMERA_TRANSITION_HALF_LIFE_MS = 360
+const CAMERA_CRUISE_HALF_LIFE_MS = 110
+const FOLLOW_CAMERA_DISTANCE_METERS = 3_200
+const FOLLOW_CAMERA_HEIGHT_METERS = 1_150
+const TERRAIN_PASS_CLEARANCE_METERS = 520
 export const HIMALAYA_DYNAMIC_NO_FLY_ZONE_ID = 'himalaya-flight-dynamic-no-fly-zone'
 const EXECUTED_ROUTE_ID = 'himalaya-flight-executed-route'
 const SENSOR_RAY_ENTITY_IDS = SENSOR_HEADING_OFFSETS_DEGREES.map((_, index) =>
@@ -134,7 +143,20 @@ const ROUTE_ENTITY_IDS = [
 
 export type HimalayaFlightPhase = 'transition' | 'loading' | 'flying' | 'completed' | 'stopped'
 export type HimalayaFlightViewMode = 'follow' | 'pov' | 'overview'
-export type HimalayaFlightCameraIntent = HimalayaFlightViewMode | 'decision'
+export type HimalayaFlightCameraIntent = HimalayaFlightViewMode | 'decision' | 'terrain-pass'
+
+interface FlightCameraPose {
+  destination: Cartesian3
+  heading: number
+  pitch: number
+  roll: number
+}
+
+interface FlightCameraDirectorState {
+  intent?: HimalayaFlightCameraIntent
+  pose?: FlightCameraPose
+  transitionUntilMs: number
+}
 
 export interface HimalayaFlightProgress {
   phase: HimalayaFlightPhase
@@ -501,6 +523,10 @@ export async function prepareHimalayaFlight(
   let activeRun = 0
   let viewMode: HimalayaFlightViewMode = 'follow'
   let cameraIntent: HimalayaFlightCameraIntent = 'overview'
+  const cameraDirectorCamera = new Camera(viewer.scene)
+  const cameraDirectorState: FlightCameraDirectorState = {
+    transitionUntilMs: 0,
+  }
   let decisionCameraActive = false
   let observerRenderCount = 0
   let currentProgress = 0
@@ -531,6 +557,14 @@ export async function prepareHimalayaFlight(
   const isExecutionSceneReady = (): boolean => (
     viewer.scene.globe.tilesLoaded && viewer.dataSourceDisplay.ready
   )
+  const setRouteOverlayVisibility = (show: boolean): void => {
+    plannedRoute.show = show
+    naiveRoute.show = show
+    executedRoute.show = show
+    anchorEntities.forEach(entity => {
+      entity.show = show
+    })
+  }
 
   const stop = (): void => {
     activeRun += 1
@@ -538,6 +572,10 @@ export async function prepareHimalayaFlight(
     perceptionAbortController = undefined
     decisionPending = false
     viewer.camera.cancelFlight()
+    cameraDirectorState.intent = undefined
+    cameraDirectorState.pose = undefined
+    cameraDirectorState.transitionUntilMs = 0
+    setRouteOverlayVisibility(true)
     if (animationFrame !== undefined) cancelAnimationFrame(animationFrame)
     animationFrame = undefined
     const resolve = resolveAnimation
@@ -662,6 +700,7 @@ export async function prepareHimalayaFlight(
           perceptionAbortController?.abort(new Error('Flight run completed'))
           perceptionAbortController = undefined
           decisionPending = false
+          setRouteOverlayVisibility(true)
           animationFrame = undefined
           resolveAnimation = undefined
           resolve()
@@ -930,9 +969,10 @@ export async function prepareHimalayaFlight(
             return
           }
 
+          const frameDeltaMs = now - previousAt
           const timeline = advanceFlightTimeline(
             activeElapsedMs,
-            trajectoryCommitPending ? 0 : now - previousAt,
+            trajectoryCommitPending ? 0 : frameDeltaMs,
             durationSeconds * 1_000,
           )
           previousAt = now
@@ -1006,7 +1046,11 @@ export async function prepareHimalayaFlight(
             )
             latestSensorFrame = sensing.frame
             latestSensorSegments = sensing.segments
-            updateRaySensorEntities(sensorRayEntities, latestSensorSegments, cameraIntent !== 'pov')
+            updateRaySensorEntities(
+              sensorRayEntities,
+              latestSensorSegments,
+              showsFlightDebugSensors(cameraIntent),
+            )
             lastSensorUpdateAt = now
             const safetySuggestion = selectAvoidanceDecision(
               latestSensorFrame.readings,
@@ -1060,6 +1104,24 @@ export async function prepareHimalayaFlight(
               true,
             )
           }
+          if (!decisionCameraActive) {
+            const directedIntent = cinematicFlightCameraIntent(
+              viewMode,
+              easedProgress,
+              false,
+            )
+            if (directedIntent !== cameraIntent) {
+              setCameraIntent(
+                directedIntent,
+                directedIntent === 'terrain-pass'
+                  ? '进入贴近真实地形的山谷穿梭段，场景导演平滑接管观察视角。'
+                  : '离开山谷穿梭段，场景导演平滑恢复任务观察偏好。',
+                easedProgress,
+                true,
+              )
+            }
+          }
+          setRouteOverlayVisibility(cameraIntent !== 'terrain-pass')
           appendExecutedRoutePosition(executedRoutePositions, sample)
           updateObserverEntity(aircraft, sample, lookAhead)
           setObserverCamera(observerCamera, sample, lookAhead)
@@ -1072,8 +1134,19 @@ export async function prepareHimalayaFlight(
             observerViewer.scene.requestRender()
             lastObserverViewUpdateAt = now
           }
-          observerFrustum.show = cameraIntent !== 'pov'
-          applyFlightView(viewer, sample, lookAhead, cameraIntent, noFlyZoneSphere)
+          observerFrustum.show = showsFlightDebugSensors(cameraIntent)
+          applyFlightView(
+            viewer,
+            cameraDirectorCamera,
+            cameraDirectorState,
+            sample,
+            lookAhead,
+            cameraIntent,
+            routeOverviewSphere,
+            now,
+            frameDeltaMs,
+            noFlyZoneSphere,
+          )
           emitPassedObservations(
             plan,
             easedProgress,
@@ -1127,11 +1200,11 @@ export async function prepareHimalayaFlight(
       if (!decisionCameraActive) {
         setCameraIntent(mode, '用户或 Agent 更新了任务观察偏好。', currentProgress, false)
       }
-      observerFrustum.show = cameraIntent !== 'pov'
+      observerFrustum.show = showsFlightDebugSensors(cameraIntent)
       sensorRayEntities.forEach(entity => {
-        entity.show = cameraIntent !== 'pov' && latestSensorSegments.length > 0
+        entity.show = showsFlightDebugSensors(cameraIntent) && latestSensorSegments.length > 0
       })
-      if (mode === 'overview' && !decisionCameraActive) {
+      if (mode === 'overview' && !decisionCameraActive && animationFrame === undefined) {
         void flyCameraToOverview(viewer, routeOverviewSphere)
       }
     },
@@ -1383,76 +1456,157 @@ function setObservationCamera(
 
 function applyFlightView(
   viewer: Viewer,
+  directorCamera: Camera,
+  directorState: FlightCameraDirectorState,
   sample: TerrainAwareFlightSample,
   lookAhead: TerrainAwareFlightSample,
   cameraIntent: HimalayaFlightCameraIntent,
+  routeOverviewSphere: BoundingSphere,
+  now: number,
+  frameDeltaMs: number,
   noFlyZoneSphere?: BoundingSphere,
 ): void {
+  const target = flightCameraTargetPose(
+    directorCamera,
+    sample,
+    lookAhead,
+    cameraIntent,
+    routeOverviewSphere,
+    noFlyZoneSphere,
+  )
+  if (!directorState.pose) {
+    directorState.pose = captureCameraPose(viewer.camera)
+  }
+  if (directorState.intent !== cameraIntent) {
+    directorState.intent = cameraIntent
+    directorState.pose = captureCameraPose(viewer.camera)
+    directorState.transitionUntilMs = now + CAMERA_INTENT_TRANSITION_MS
+  }
+  const halfLifeMs = now < directorState.transitionUntilMs
+    ? CAMERA_TRANSITION_HALF_LIFE_MS
+    : CAMERA_CRUISE_HALF_LIFE_MS
+  const alpha = cameraTrackingAlpha(Math.min(50, Math.max(0, frameDeltaMs)), halfLifeMs)
+  const pose = interpolateFlightCameraPose(directorState.pose, target, alpha)
+  directorState.pose = pose
+  viewer.camera.setView({
+    destination: pose.destination,
+    orientation: {
+      heading: pose.heading,
+      pitch: pose.pitch,
+      roll: pose.roll,
+    },
+  })
+  viewer.scene.requestRender()
+}
+
+function showsFlightDebugSensors(cameraIntent: HimalayaFlightCameraIntent): boolean {
+  return cameraIntent !== 'pov' && cameraIntent !== 'terrain-pass'
+}
+
+function flightCameraTargetPose(
+  directorCamera: Camera,
+  sample: TerrainAwareFlightSample,
+  lookAhead: TerrainAwareFlightSample,
+  cameraIntent: HimalayaFlightCameraIntent,
+  routeOverviewSphere: BoundingSphere,
+  noFlyZoneSphere?: BoundingSphere,
+): FlightCameraPose {
   if (cameraIntent === 'decision' && noFlyZoneSphere) {
-    setDecisionCamera(viewer, sample, lookAhead, noFlyZoneSphere)
-    return
+    const frame = BoundingSphere.fromPoints([
+      samplePosition(sample),
+      samplePosition(lookAhead),
+      noFlyZoneSphere.center,
+    ])
+    frame.radius = Math.max(frame.radius, noFlyZoneSphere.radius * 1.35)
+    return boundingSphereCameraPose(
+      directorCamera,
+      frame,
+      new HeadingPitchRange(
+        bearingRadians(sample, lookAhead) + CesiumMath.toRadians(105),
+        CesiumMath.toRadians(-48),
+        Math.max(25_000, frame.radius * 3.8),
+      ),
+    )
   }
   if (cameraIntent === 'overview') {
-    viewer.scene.requestRender()
-    return
+    return boundingSphereCameraPose(
+      directorCamera,
+      routeOverviewSphere,
+      new HeadingPitchRange(
+        CesiumMath.toRadians(18),
+        CesiumMath.toRadians(-48),
+        Math.max(82_000, routeOverviewSphere.radius * 2.8),
+      ),
+    )
   }
   if (cameraIntent === 'follow' || cameraIntent === 'decision') {
-    setFollowCamera(viewer, sample, lookAhead)
-    return
+    const heading = bearingRadians(sample, lookAhead)
+    return {
+      destination: followCameraPosition(sample, heading),
+      heading,
+      pitch: CesiumMath.toRadians(-14),
+      roll: 0,
+    }
+  }
+  if (cameraIntent === 'terrain-pass') {
+    const heading = bearingRadians(sample, lookAhead)
+    return {
+      destination: cinematicTerrainPassCameraPosition(sample, heading),
+      heading,
+      pitch: CesiumMath.toRadians(-6),
+      roll: 0,
+    }
   }
   const horizontalDistance = Math.max(1, lookAhead.distanceMeters - sample.distanceMeters)
-  viewer.camera.setView({
-    destination: samplePosition(sample),
-    orientation: {
-      heading: bearingRadians(sample, lookAhead),
-      pitch: CesiumMath.clamp(
-        Math.atan2(lookAhead.flightHeight - sample.flightHeight, horizontalDistance)
-          - CesiumMath.toRadians(7),
-        CesiumMath.toRadians(-24),
-        CesiumMath.toRadians(12),
-      ),
-      roll: 0,
-    },
-  })
-  viewer.scene.requestRender()
-}
-
-function setDecisionCamera(
-  viewer: Viewer,
-  sample: TerrainAwareFlightSample,
-  lookAhead: TerrainAwareFlightSample,
-  noFlyZoneSphere: BoundingSphere,
-): void {
-  const frame = BoundingSphere.fromPoints([
-    samplePosition(sample),
-    samplePosition(lookAhead),
-    noFlyZoneSphere.center,
-  ])
-  frame.radius = Math.max(frame.radius, noFlyZoneSphere.radius * 1.35)
-  viewer.camera.viewBoundingSphere(frame, new HeadingPitchRange(
-    bearingRadians(sample, lookAhead) + CesiumMath.toRadians(105),
-    CesiumMath.toRadians(-48),
-    Math.max(25_000, frame.radius * 3.8),
-  ))
-  viewer.camera.lookAtTransform(Matrix4.IDENTITY)
-  viewer.scene.requestRender()
-}
-
-function setFollowCamera(
-  viewer: Viewer,
-  sample: TerrainAwareFlightSample,
-  lookAhead: TerrainAwareFlightSample,
-): void {
   const heading = bearingRadians(sample, lookAhead)
-  viewer.camera.setView({
-    destination: followCameraPosition(sample, heading),
-    orientation: {
-      heading,
-      pitch: CesiumMath.toRadians(-20),
-      roll: 0,
-    },
-  })
-  viewer.scene.requestRender()
+  return {
+    destination: aircraftPovCameraPosition(sample, heading),
+    heading,
+    pitch: CesiumMath.clamp(
+      Math.atan2(lookAhead.flightHeight - sample.flightHeight, horizontalDistance)
+        - CesiumMath.toRadians(14),
+      CesiumMath.toRadians(-22),
+      CesiumMath.toRadians(-5),
+    ),
+    roll: 0,
+  }
+}
+
+function boundingSphereCameraPose(
+  camera: Camera,
+  sphere: BoundingSphere,
+  offset: HeadingPitchRange,
+): FlightCameraPose {
+  camera.viewBoundingSphere(sphere, offset)
+  camera.lookAtTransform(Matrix4.IDENTITY)
+  return captureCameraPose(camera)
+}
+
+function captureCameraPose(camera: Camera): FlightCameraPose {
+  return {
+    destination: Cartesian3.clone(camera.positionWC),
+    heading: camera.heading,
+    pitch: camera.pitch,
+    roll: camera.roll,
+  }
+}
+
+function interpolateFlightCameraPose(
+  from: FlightCameraPose,
+  to: FlightCameraPose,
+  alpha: number,
+): FlightCameraPose {
+  return {
+    destination: Cartesian3.lerp(
+      from.destination,
+      to.destination,
+      alpha,
+      new Cartesian3(),
+    ),
+    heading: interpolateCameraAngleRadians(from.heading, to.heading, alpha),
+    pitch: interpolateCameraAngleRadians(from.pitch, to.pitch, alpha),
+    roll: interpolateCameraAngleRadians(from.roll, to.roll, alpha),
+  }
 }
 
 function updateObserverEntity(
@@ -2574,7 +2728,7 @@ function flyCameraToFollow(
       destination: followCameraPosition(sample, heading),
       orientation: {
         heading,
-        pitch: CesiumMath.toRadians(-20),
+        pitch: CesiumMath.toRadians(-14),
         roll: 0,
       },
       duration: 2.2,
@@ -2590,12 +2744,13 @@ function flyCameraToSample(
   lookAhead: TerrainAwareFlightSample,
   duration: number,
 ): Promise<void> {
+  const heading = bearingRadians(sample, lookAhead)
   return new Promise(resolve => {
     viewer.camera.flyTo({
-      destination: samplePosition(sample),
+      destination: aircraftPovCameraPosition(sample, heading),
       orientation: {
-        heading: bearingRadians(sample, lookAhead),
-        pitch: CesiumMath.toRadians(-12),
+        heading,
+        pitch: CesiumMath.toRadians(-4),
         roll: 0,
       },
       duration,
@@ -2630,9 +2785,40 @@ function followCameraPosition(
 ): Cartesian3 {
   const transform = Transforms.eastNorthUpToFixedFrame(samplePosition(sample))
   const offset = new Cartesian3(
-    -Math.sin(heading) * 5_200,
-    -Math.cos(heading) * 5_200,
-    2_350,
+    -Math.sin(heading) * FOLLOW_CAMERA_DISTANCE_METERS,
+    -Math.cos(heading) * FOLLOW_CAMERA_DISTANCE_METERS,
+    FOLLOW_CAMERA_HEIGHT_METERS,
+  )
+  return Matrix4.multiplyByPoint(transform, offset, new Cartesian3())
+}
+
+function aircraftPovCameraPosition(
+  sample: TerrainAwareFlightSample,
+  heading: number,
+): Cartesian3 {
+  const transform = Transforms.eastNorthUpToFixedFrame(samplePosition(sample))
+  const offset = new Cartesian3(
+    Math.sin(heading) * 140,
+    Math.cos(heading) * 140,
+    28,
+  )
+  return Matrix4.multiplyByPoint(transform, offset, new Cartesian3())
+}
+
+function cinematicTerrainPassCameraPosition(
+  sample: TerrainAwareFlightSample,
+  heading: number,
+): Cartesian3 {
+  const terrainPosition = Cartesian3.fromDegrees(
+    sample.longitude,
+    sample.latitude,
+    sample.terrainHeight + TERRAIN_PASS_CLEARANCE_METERS,
+  )
+  const transform = Transforms.eastNorthUpToFixedFrame(terrainPosition)
+  const offset = new Cartesian3(
+    Math.sin(heading) * 180,
+    Math.cos(heading) * 180,
+    35,
   )
   return Matrix4.multiplyByPoint(transform, offset, new Cartesian3())
 }

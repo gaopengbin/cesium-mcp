@@ -61,6 +61,12 @@ way. The sensor uses public Cesium APIs: `Globe.pick` for currently loaded
 terrain and `IntersectionTests.raySphere` for the injected zone and loaded
 3D Tiles/Model bounding volumes. The observation log records the hit distance,
 left/right clearance, chosen detour, and eventual return to the baseline route.
+The application camera is a separate presentation track: automatic follow,
+terrain-pass, and decision views use damped position and shortest-angle
+interpolation instead of hard cuts. During two low-risk route windows, the
+director lowers only the presentation camera to a DEM-relative terrain pass and
+hides route-debug overlays; the aircraft and safety-certified trajectory retain
+their original clearance.
 The chat exposes the fast `SENSE -> ACT` safety path beside the slower
 `SENSE -> VISION -> BELIEF -> PLAN/VERIFY` path. Image pixels are submitted only
 for bounded event-driven cycles under strict byte and dimension limits, while
