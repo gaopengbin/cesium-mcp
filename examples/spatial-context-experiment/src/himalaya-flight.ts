@@ -23,6 +23,7 @@ import {
   PolylineDashMaterialProperty,
   PolylineGlowMaterialProperty,
   Ray,
+  sampleTerrain,
   sampleTerrainMostDetailed,
   Transforms,
   UrlTemplateImageryProvider,
@@ -33,6 +34,7 @@ import type { Entity, TerrainProvider } from 'cesium'
 import {
   buildTerrainAwareFlightPlan,
   densifyFlightRoute,
+  WorldTaskRuntime,
 } from 'cesium-mcp-spatial'
 import type {
   FlightRouteCoordinate,
@@ -40,6 +42,7 @@ import type {
   ObservationSensor,
   TerrainAwareFlightPlan,
   TerrainAwareFlightSample,
+  WorldTaskContext,
 } from 'cesium-mcp-spatial'
 import {
   advanceFlightTimeline,
@@ -110,8 +113,9 @@ const REQUIRED_TERRAIN_CLEARANCE_METERS = 1_200
 const CORRIDOR_TERRAIN_LONGITUDINAL_SPACING_METERS = 150
 const CORRIDOR_TERRAIN_LATERAL_SPACING_METERS = 60
 const CORRIDOR_TERRAIN_VERTICAL_UNCERTAINTY_METERS = 120
+const CORRIDOR_TERRAIN_LEVEL = 12
 const CORRIDOR_BUILD_YIELD_INTERVAL = 64
-const CORRIDOR_TERRAIN_SAMPLE_CHUNK_SIZE = 450
+const CORRIDOR_TERRAIN_SAMPLE_CHUNK_SIZE = 16
 const CAMERA_INTENT_TRANSITION_MS = 1_600
 const CAMERA_TRANSITION_HALF_LIFE_MS = 360
 const CAMERA_CRUISE_HALF_LIFE_MS = 110
@@ -547,6 +551,7 @@ export async function prepareHimalayaFlight(
   let unsafeSampleCount = 0
   let latestSensorFrame: HimalayaFlightSensorFrame | undefined
   let latestSensorSegments: FlightSensorRaySegment[] = []
+  const worldTaskRuntime = new WorldTaskRuntime({ frameBudgetMs: 8 })
   const removeObserverPostRender = observerViewer?.scene.postRender.addEventListener(() => {
     observerRenderCount += 1
   })
@@ -568,6 +573,7 @@ export async function prepareHimalayaFlight(
 
   const stop = (): void => {
     activeRun += 1
+    worldTaskRuntime.clear(new Error('Flight run stopped'))
     perceptionAbortController?.abort(new Error('Flight run stopped'))
     perceptionAbortController = undefined
     decisionPending = false
@@ -697,6 +703,7 @@ export async function prepareHimalayaFlight(
         let lastObserverViewUpdateAt = Number.NEGATIVE_INFINITY
         let lastSensorUpdateAt = Number.NEGATIVE_INFINITY
         const finish = (): void => {
+          worldTaskRuntime.clear(new Error('Flight run completed'))
           perceptionAbortController?.abort(new Error('Flight run completed'))
           perceptionAbortController = undefined
           decisionPending = false
@@ -799,25 +806,34 @@ export async function prepareHimalayaFlight(
           decisionPending = true
           const controller = new AbortController()
           perceptionAbortController = controller
-          const corridorCandidatesPromise = Promise.all(
-            (['left', 'right'] as const).map(direction => (
-              createFlightCorridorCandidate({
-                viewer,
-                terrainProvider,
-                plan,
-                safetySuggestion,
-                direction,
-                progress,
-                startSample: sample,
-                startOffsetMeters,
-                progressSpan: CORRIDOR_CANDIDATE_PROGRESS_SPAN,
-                noFlyZoneSphere,
-                sceneVolumeExclusions: rayExclusions,
-                trajectoryId: `flight-run-${run}:cycle-${cycle}:${direction}:candidate`,
-                signal: controller.signal,
-              })
-            )),
-          )
+          const corridorCandidatesPromise = worldTaskRuntime.run({
+            taskKey: `flight-run-${run}:corridor-candidates`,
+            revision: baseRequest.planRevision,
+            signal: controller.signal,
+            execute: async (task) => {
+              const candidates: HimalayaFlightCorridorCandidate[] = []
+              for (const direction of ['left', 'right'] as const) {
+                candidates.push(await createFlightCorridorCandidate({
+                  viewer,
+                  terrainProvider,
+                  plan,
+                  safetySuggestion,
+                  direction,
+                  progress,
+                  startSample: sample,
+                  startOffsetMeters,
+                  progressSpan: CORRIDOR_CANDIDATE_PROGRESS_SPAN,
+                  noFlyZoneSphere,
+                  sceneVolumeExclusions: rayExclusions,
+                  trajectoryId: `flight-run-${run}:plan-${baseRequest.planRevision}:${direction}:candidate`,
+                  signal: task.signal,
+                  checkpoint: task.checkpoint,
+                }))
+                await task.checkpoint(true)
+              }
+              return candidates
+            },
+          })
           let activeRequest = baseRequest
           let observationRequested = false
           void corridorCandidatesPromise
@@ -1929,14 +1945,14 @@ interface CreateFlightCorridorCandidateInput {
   peakProgress?: number
   maximumOffsetMeters?: number
   signal?: AbortSignal
+  checkpoint?: WorldTaskContext['checkpoint']
 }
 
 async function createFlightCorridorCandidate(
   input: CreateFlightCorridorCandidateInput,
 ): Promise<HimalayaFlightCorridorCandidate> {
   input.signal?.throwIfAborted()
-  await yieldToBrowserTask()
-  input.signal?.throwIfAborted()
+  await checkpointCorridorTask(input, true)
   const decision: FlightAvoidanceDecision = {
     ...input.safetySuggestion,
     direction: input.direction,
@@ -2001,7 +2017,7 @@ async function createFlightCorridorCandidate(
   for (let index = 0; index < uniqueProgressValues.length; index++) {
     builtSamples.push(buildSample(uniqueProgressValues[index]!))
     if ((index + 1) % CORRIDOR_BUILD_YIELD_INTERVAL === 0) {
-      await yieldToBrowserTask()
+      await checkpointCorridorTask(input)
     }
   }
   for (let pass = 0; pass < 10; pass++) {
@@ -2019,7 +2035,7 @@ async function createFlightCorridorCandidate(
       }
       refined.push(current)
       if (index % CORRIDOR_BUILD_YIELD_INTERVAL === 0) {
-        await yieldToBrowserTask()
+        await checkpointCorridorTask(input)
       }
     }
     builtSamples = refined
@@ -2047,13 +2063,14 @@ async function createFlightCorridorCandidate(
       )
     }
     if ((index + 1) % CORRIDOR_BUILD_YIELD_INTERVAL === 0) {
-      await yieldToBrowserTask()
+      await checkpointCorridorTask(input)
     }
   }
-  const sampledTerrainHeights = await sampleMostDetailedTerrainHeights(
+  const sampledTerrainHeights = await sampleCorridorTerrainHeights(
     input.terrainProvider,
     terrainCartographics,
     input.signal,
+    input.checkpoint,
   )
   input.signal?.throwIfAborted()
   const terrainSampledBuilds: typeof builtSamples = []
@@ -2071,7 +2088,7 @@ async function createFlightCorridorCandidate(
       ...(terrainComplete ? { maximumTerrainHeight: Math.max(...terrainHeights) } : {}),
     })
     if ((index + 1) % CORRIDOR_BUILD_YIELD_INTERVAL === 0) {
-      await yieldToBrowserTask()
+      await checkpointCorridorTask(input)
     }
   }
   builtSamples = terrainSampledBuilds
@@ -2104,7 +2121,7 @@ async function createFlightCorridorCandidate(
       position: samplePosition(sample),
     })
     if ((index + 1) % CORRIDOR_BUILD_YIELD_INTERVAL === 0) {
-      await yieldToBrowserTask()
+      await checkpointCorridorTask(input)
     }
   }
   builtSamples = terrainEnvelopedBuilds
@@ -2150,7 +2167,7 @@ async function createFlightCorridorCandidate(
     })
     previousPosition = position
     if (samples.length % CORRIDOR_BUILD_YIELD_INTERVAL === 0) {
-      await yieldToBrowserTask()
+      await checkpointCorridorTask(input)
     }
   }
 
@@ -2165,7 +2182,7 @@ async function createFlightCorridorCandidate(
     maximumSampleSpacingMeters: EXECUTED_ROUTE_SAMPLE_DISTANCE_METERS,
     trajectoryRadiusMeters,
     terrainSampling: {
-      source: `most-detailed-terrain-provider:${ARCGIS_WORLD_ELEVATION_URL}`,
+      source: `terrain-provider-level-${CORRIDOR_TERRAIN_LEVEL}:${ARCGIS_WORLD_ELEVATION_URL}`,
       longitudinalSpacingMeters: CORRIDOR_TERRAIN_LONGITUDINAL_SPACING_METERS,
       lateralSpacingMeters: CORRIDOR_TERRAIN_LATERAL_SPACING_METERS,
       verticalUncertaintyMeters: CORRIDOR_TERRAIN_VERTICAL_UNCERTAINTY_METERS,
@@ -2180,10 +2197,11 @@ async function createFlightCorridorCandidate(
   }
 }
 
-async function sampleMostDetailedTerrainHeights(
+async function sampleCorridorTerrainHeights(
   terrainProvider: TerrainProvider,
   cartographics: readonly Cartographic[],
   signal?: AbortSignal,
+  checkpoint?: WorldTaskContext['checkpoint'],
 ): Promise<Array<number | undefined>> {
   const heights: Array<number | undefined> = []
   for (let start = 0; start < cartographics.length; start += CORRIDOR_TERRAIN_SAMPLE_CHUNK_SIZE) {
@@ -2193,8 +2211,9 @@ async function sampleMostDetailedTerrainHeights(
       start + CORRIDOR_TERRAIN_SAMPLE_CHUNK_SIZE,
     )
     try {
-      const sampled = await sampleTerrainMostDetailed(
+      const sampled = await sampleTerrain(
         terrainProvider,
+        CORRIDOR_TERRAIN_LEVEL,
         [...chunk],
         true,
       )
@@ -2204,10 +2223,20 @@ async function sampleMostDetailedTerrainHeights(
     } catch {
       heights.push(...chunk.map(() => undefined))
     }
-    await yieldToBrowserTask()
+    if (checkpoint) await checkpoint(true)
+    else await yieldToBrowserTask()
     signal?.throwIfAborted()
   }
   return heights
+}
+
+async function checkpointCorridorTask(
+  input: Pick<CreateFlightCorridorCandidateInput, 'checkpoint' | 'signal'>,
+  force = false,
+): Promise<void> {
+  if (input.checkpoint) await input.checkpoint(force)
+  else await yieldToBrowserTask()
+  input.signal?.throwIfAborted()
 }
 
 export function waitForLiveTrajectoryRebase<T>(
@@ -2313,7 +2342,7 @@ export async function rebaseFlightCorridorCandidate(
       }
     }
     const terrainHeights = await (
-      input.terrainHeightSampler ?? sampleMostDetailedTerrainHeights
+      input.terrainHeightSampler ?? sampleCorridorTerrainHeights
     )(
       input.terrainProvider,
       terrainCartographics,
@@ -2413,7 +2442,7 @@ export async function rebaseFlightCorridorCandidate(
     maximumSampleSpacingMeters: EXECUTED_ROUTE_SAMPLE_DISTANCE_METERS,
     trajectoryRadiusMeters: CORRIDOR_TRAJECTORY_RADIUS_METERS,
     terrainSampling: {
-      source: `most-detailed-terrain-provider:${ARCGIS_WORLD_ELEVATION_URL}`,
+      source: `terrain-provider-level-${CORRIDOR_TERRAIN_LEVEL}:${ARCGIS_WORLD_ELEVATION_URL}`,
       longitudinalSpacingMeters: CORRIDOR_TERRAIN_LONGITUDINAL_SPACING_METERS,
       lateralSpacingMeters: CORRIDOR_TERRAIN_LATERAL_SPACING_METERS,
       verticalUncertaintyMeters: CORRIDOR_TERRAIN_VERTICAL_UNCERTAINTY_METERS,

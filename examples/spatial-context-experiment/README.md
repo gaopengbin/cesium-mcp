@@ -33,6 +33,15 @@ first positive visual + ray fusion may call the planning model; verification
 cycles update belief without repeatedly planning. Invalid model JSON fails
 closed to `unknown`, never to free space.
 
+Slow corridor construction now runs through the shared `WorldTaskRuntime`.
+Each plan revision builds its left/right candidates once and reuses that result
+for later verification cycles. The flight adapter samples the real ArcGIS DEM
+at fixed level 12 in 16-position batches, builds the two directions
+sequentially, and cooperatively yields between batches. The fast flight and ray
+safety loop therefore continues while the slow evidence task is pending. This
+is cooperative scheduling on the browser thread; terrain decoding has not yet
+been moved to a Web Worker.
+
 The page automatically checks:
 
 1. the six perception tools are available without changing the stable tool inventory;

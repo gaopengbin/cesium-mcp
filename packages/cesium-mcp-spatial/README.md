@@ -60,3 +60,19 @@ up to three independent observer frames revise one persistent belief. Cesium
 forward rays can corroborate corridor occupancy, positive first-contact evidence
 may invoke a planning model, short-lived evidence becomes stale, and invalid
 visual output safely degrades to unknown.
+
+### Background world tasks
+
+`WorldTaskRuntime` is the protocol- and domain-neutral scheduler used by the
+live experiment for slow world updates. A task is identified by a stable key
+and a world/plan revision. Consumers of the same revision share one in-flight
+or completed result; a newer revision aborts the obsolete task before its
+result can commit. Callers receive a cooperative `checkpoint()` so CPU-side
+work can yield within a configurable frame budget, while each caller may stop
+waiting without cancelling work still needed by another consumer.
+
+This first version is a same-thread cooperative runtime, not a Web Worker. It
+does not contain Cesium, terrain, flight, or model semantics. Adapters remain
+responsible for their own sampling policy, safety constraints, and evidence
+quality. Work that cannot be split at checkpoints, such as some third-party
+decoder completion paths, is a candidate for a future Worker executor.

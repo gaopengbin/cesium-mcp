@@ -57,6 +57,17 @@ export {
 } from './world-state.js'
 export type { CreateAuthoritativeWorldStateInput } from './world-state.js'
 export {
+  WorldTaskRuntime,
+  WorldTaskSupersededError,
+} from './world-task-runtime.js'
+export type {
+  RunWorldTaskInput,
+  WorldTaskContext,
+  WorldTaskRuntimeOptions,
+  WorldTaskSnapshot,
+  WorldTaskState,
+} from './world-task-runtime.js'
+export {
   createVisualGroundingObservation,
   parseVisualGroundingReport,
 } from './visual-grounding.js'
