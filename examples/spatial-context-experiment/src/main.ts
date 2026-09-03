@@ -82,8 +82,8 @@ import {
   planHimalayaCorridorRoute,
 } from './himalaya-corridor-awareness.js'
 import {
-  DEFAULT_HOSTED_AGENT_ENDPOINT,
   requestHostedAgent,
+  resolveHostedAgentEndpoint,
 } from './hosted-agent.js'
 import type {
   HostedAgentMessage,
@@ -348,7 +348,8 @@ let himalayaAwarenessBelief: AgentBeliefState | undefined
 let himalayaAwarenessRunId: string | undefined
 let chatBusy = false
 let flightCompletionAnnounced = false
-const hostedAgentEndpoint = import.meta.env.VITE_CHAT_API_URL || DEFAULT_HOSTED_AGENT_ENDPOINT
+const hostedAgentEndpoint = import.meta.env.VITE_CHAT_API_URL
+  || resolveHostedAgentEndpoint(window.location.href)
 const hostedVisionEndpoint = import.meta.env.VITE_VISION_API_URL
   || visualGroundingEndpoint(hostedAgentEndpoint)
 const chatHistory: HostedAgentMessage[] = []

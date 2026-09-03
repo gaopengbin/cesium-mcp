@@ -1,6 +1,27 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { requestHostedAgent } from './hosted-agent.js'
+import {
+  requestHostedAgent,
+  resolveHostedAgentEndpoint,
+} from './hosted-agent.js'
+
+describe('resolveHostedAgentEndpoint', () => {
+  it('uses the same-origin worker on the production Pages hostname', () => {
+    expect(resolveHostedAgentEndpoint('https://cesium-browser-agent.pages.dev/demo'))
+      .toBe('https://cesium-browser-agent.pages.dev/api/chat')
+  })
+
+  it('uses the same-origin worker on a Pages preview hostname', () => {
+    expect(resolveHostedAgentEndpoint(
+      'https://spatial-v0-1-preview.cesium-browser-agent.pages.dev/',
+    )).toBe('https://spatial-v0-1-preview.cesium-browser-agent.pages.dev/api/chat')
+  })
+
+  it('keeps local development on the public hosted endpoint', () => {
+    expect(resolveHostedAgentEndpoint('http://127.0.0.1:4175/'))
+      .toBe('https://cesium-browser-agent.pages.dev/api/chat')
+  })
+})
 
 describe('requestHostedAgent', () => {
   it('returns a validated tool call and model evidence', async () => {

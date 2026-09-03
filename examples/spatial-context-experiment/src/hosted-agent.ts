@@ -1,5 +1,22 @@
 export const DEFAULT_HOSTED_AGENT_ENDPOINT = 'https://cesium-browser-agent.pages.dev/api/chat'
 
+export function resolveHostedAgentEndpoint(pageUrl: string): string {
+  try {
+    const url = new URL(pageUrl)
+    const isHostedPagesOrigin = url.protocol === 'https:'
+      && (url.hostname === 'cesium-browser-agent.pages.dev'
+        || url.hostname.endsWith('.cesium-browser-agent.pages.dev'))
+
+    if (isHostedPagesOrigin) {
+      return `${url.origin}/api/chat`
+    }
+  } catch {
+    // Keep the public endpoint as the safe fallback for malformed URLs.
+  }
+
+  return DEFAULT_HOSTED_AGENT_ENDPOINT
+}
+
 export type HostedAgentRole = 'system' | 'user' | 'assistant' | 'tool'
 
 export interface HostedAgentToolCall {
