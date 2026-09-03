@@ -54,6 +54,15 @@ the flight must sense it, choose the clearer side, execute a local detour, and
 rejoin the baseline. The green route remains the plan; the blue line is the
 actual closed-loop trajectory.
 
+Slow corridor evidence is revision-bound through the generic
+`WorldTaskRuntime`, so repeated verification cycles reuse one candidate result
+and a newer plan cannot accept stale work. CPU-side corridor construction yields
+cooperatively. The ArcGIS level-12 tile fetches, LERC decoding, and height
+interpolation run in a dedicated Worker through `WorldWorkerExecutor`, using
+transferable typed buffers in both directions. The ArcGIS protocol and flight
+safety certificate remain adapter concerns; Worker lifecycle, request
+correlation, cancellation, and stale-result prevention remain domain-neutral.
+
 The flight path deliberately demonstrates bounded world awareness rather than
 omniscience. The visible trace separates `SENSE -> ACT` safety from
 `SENSE -> VISION -> BELIEF -> PLAN/VERIFY`. Observer pixels are sent only for

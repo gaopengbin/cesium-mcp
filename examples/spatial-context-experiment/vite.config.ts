@@ -9,6 +9,7 @@ const cesiumBuild = join(dirname(require.resolve('cesium/package.json')), 'Build
 export default defineConfig({
   define: {
     CESIUM_BASE_URL: JSON.stringify('/'),
+    global: 'globalThis',
   },
   publicDir: cesiumBuild,
   server: {

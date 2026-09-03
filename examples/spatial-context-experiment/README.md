@@ -35,12 +35,14 @@ closed to `unknown`, never to free space.
 
 Slow corridor construction now runs through the shared `WorldTaskRuntime`.
 Each plan revision builds its left/right candidates once and reuses that result
-for later verification cycles. The flight adapter samples the real ArcGIS DEM
-at fixed level 12 in 16-position batches, builds the two directions
-sequentially, and cooperatively yields between batches. The fast flight and ray
-safety loop therefore continues while the slow evidence task is pending. This
-is cooperative scheduling on the browser thread; terrain decoding has not yet
-been moved to a Web Worker.
+for later verification cycles. The flight adapter builds the two directions
+sequentially and cooperatively yields during CPU-side corridor construction.
+Real ArcGIS DEM tiles at fixed level 12 are fetched, LERC-decoded, and
+interpolated inside a dedicated Worker through the generic
+`WorldWorkerExecutor`; typed coordinate and height buffers are transferred
+instead of copied. Cancelling or superseding the world revision terminates the
+Worker before stale terrain results can commit. The fast flight and ray-safety
+loop therefore continues while the slow evidence task is pending.
 
 The page automatically checks:
 

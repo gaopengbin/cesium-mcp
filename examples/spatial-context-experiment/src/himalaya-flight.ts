@@ -35,6 +35,7 @@ import {
   buildTerrainAwareFlightPlan,
   densifyFlightRoute,
   WorldTaskRuntime,
+  WorldWorkerExecutor,
 } from 'cesium-mcp-spatial'
 import type {
   FlightRouteCoordinate,
@@ -70,6 +71,10 @@ import type {
 import {
   createHimalayaCorridorCertificate,
 } from './himalaya-corridor-awareness.js'
+import type {
+  HimalayaTerrainWorkerInput,
+  HimalayaTerrainWorkerOutput,
+} from './himalaya-terrain-worker-protocol.js'
 import type {
   HimalayaCorridorCertificate,
   HimalayaCorridorTrajectorySample,
@@ -552,6 +557,15 @@ export async function prepareHimalayaFlight(
   let latestSensorFrame: HimalayaFlightSensorFrame | undefined
   let latestSensorSegments: FlightSensorRaySegment[] = []
   const worldTaskRuntime = new WorldTaskRuntime({ frameBudgetMs: 8 })
+  const terrainWorkerExecutor = createHimalayaTerrainWorkerExecutor()
+  const terrainHeightSampler: FlightTerrainHeightSampler = (
+    provider,
+    cartographics,
+    signal,
+    checkpoint,
+  ) => terrainWorkerExecutor
+    ? sampleCorridorTerrainHeightsInWorker(terrainWorkerExecutor, cartographics, signal)
+    : sampleCorridorTerrainHeights(provider, cartographics, signal, checkpoint)
   const removeObserverPostRender = observerViewer?.scene.postRender.addEventListener(() => {
     observerRenderCount += 1
   })
@@ -828,6 +842,7 @@ export async function prepareHimalayaFlight(
                   trajectoryId: `flight-run-${run}:plan-${baseRequest.planRevision}:${direction}:candidate`,
                   signal: task.signal,
                   checkpoint: task.checkpoint,
+                  terrainHeightSampler,
                 }))
                 await task.checkpoint(true)
               }
@@ -907,6 +922,7 @@ export async function prepareHimalayaFlight(
                       sceneVolumeExclusions: rayExclusions,
                       trajectoryId: `${activeRequest.requestId}:plan-${planRevision + 1}:${modelDecision.direction}`,
                       signal: controller.signal,
+                      terrainHeightSampler,
                     }),
                     controller.signal,
                     LIVE_TRAJECTORY_REBASE_TIMEOUT_MS,
@@ -1247,6 +1263,7 @@ export async function prepareHimalayaFlight(
     }),
     dispose: () => {
       stop()
+      terrainWorkerExecutor?.dispose()
       viewer.entities.remove(plannedRoute)
       viewer.entities.remove(naiveRoute)
       viewer.entities.remove(aircraft)
@@ -1929,6 +1946,13 @@ function sensorRayColor(hitType: FlightRayReading['hitType']): Color {
   return Color.fromCssColorString('#5cd9ff').withAlpha(0.62)
 }
 
+type FlightTerrainHeightSampler = (
+  terrainProvider: TerrainProvider,
+  cartographics: readonly Cartographic[],
+  signal?: AbortSignal,
+  checkpoint?: WorldTaskContext['checkpoint'],
+) => Promise<Array<number | undefined>>
+
 interface CreateFlightCorridorCandidateInput {
   viewer: Viewer
   terrainProvider: TerrainProvider
@@ -1946,6 +1970,7 @@ interface CreateFlightCorridorCandidateInput {
   maximumOffsetMeters?: number
   signal?: AbortSignal
   checkpoint?: WorldTaskContext['checkpoint']
+  terrainHeightSampler?: FlightTerrainHeightSampler
 }
 
 async function createFlightCorridorCandidate(
@@ -2066,7 +2091,9 @@ async function createFlightCorridorCandidate(
       await checkpointCorridorTask(input)
     }
   }
-  const sampledTerrainHeights = await sampleCorridorTerrainHeights(
+  const sampledTerrainHeights = await (
+    input.terrainHeightSampler ?? sampleCorridorTerrainHeights
+  )(
     input.terrainProvider,
     terrainCartographics,
     input.signal,
@@ -2230,6 +2257,45 @@ async function sampleCorridorTerrainHeights(
   return heights
 }
 
+function createHimalayaTerrainWorkerExecutor(): WorldWorkerExecutor<
+  HimalayaTerrainWorkerInput,
+  HimalayaTerrainWorkerOutput
+> | undefined {
+  if (typeof Worker === 'undefined') return undefined
+  return new WorldWorkerExecutor({
+    createWorker: () => new Worker(
+      new URL('./himalaya-terrain-worker.ts', import.meta.url),
+      { type: 'module', name: 'himalaya-terrain-sampler' },
+    ),
+  })
+}
+
+async function sampleCorridorTerrainHeightsInWorker(
+  executor: WorldWorkerExecutor<HimalayaTerrainWorkerInput, HimalayaTerrainWorkerOutput>,
+  cartographics: readonly Cartographic[],
+  signal?: AbortSignal,
+): Promise<Array<number | undefined>> {
+  const cartographicRadians = new Float64Array(cartographics.length * 2)
+  cartographics.forEach((position, index) => {
+    cartographicRadians[index * 2] = position.longitude
+    cartographicRadians[index * 2 + 1] = position.latitude
+  })
+  const result = await executor.run({
+    terrainUrl: ARCGIS_WORLD_ELEVATION_URL,
+    level: CORRIDOR_TERRAIN_LEVEL,
+    cartographicRadians,
+  }, {
+    ...(signal ? { signal } : {}),
+    transfer: [cartographicRadians.buffer],
+  })
+  if (result.heights.length !== cartographics.length) {
+    throw new Error('Terrain Worker returned an unexpected height count')
+  }
+  return Array.from(result.heights, height => (
+    Number.isFinite(height) ? height : undefined
+  ))
+}
+
 async function checkpointCorridorTask(
   input: Pick<CreateFlightCorridorCandidateInput, 'checkpoint' | 'signal'>,
   force = false,
@@ -2281,11 +2347,7 @@ export interface RebaseFlightCorridorCandidateInput {
   sceneVolumeExclusions: readonly object[]
   trajectoryId: string
   signal?: AbortSignal
-  terrainHeightSampler?: (
-    terrainProvider: TerrainProvider,
-    cartographics: readonly Cartographic[],
-    signal?: AbortSignal,
-  ) => Promise<Array<number | undefined>>
+  terrainHeightSampler?: FlightTerrainHeightSampler
 }
 
 export async function rebaseFlightCorridorCandidate(

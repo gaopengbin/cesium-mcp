@@ -71,8 +71,14 @@ result can commit. Callers receive a cooperative `checkpoint()` so CPU-side
 work can yield within a configurable frame budget, while each caller may stop
 waiting without cancelling work still needed by another consumer.
 
-This first version is a same-thread cooperative runtime, not a Web Worker. It
-does not contain Cesium, terrain, flight, or model semantics. Adapters remain
-responsible for their own sampling policy, safety constraints, and evidence
-quality. Work that cannot be split at checkpoints, such as some third-party
-decoder completion paths, is a candidate for a future Worker executor.
+`WorldTaskRuntime` remains a same-thread cooperative scheduler. For work that
+cannot be split at checkpoints, `WorldWorkerExecutor` adds an optional real
+Worker boundary with request correlation, transferable payloads, error
+serialization, disposal, and revision cancellation. Cancellation terminates
+the owned Worker before it can publish stale results and recreates it lazily for
+the next request. `executeWorldWorkerMessage` implements the matching
+Worker-side protocol.
+
+Neither runtime contains Cesium, terrain, flight, or model semantics. Adapters
+remain responsible for selecting the Worker module, sampling policy, safety
+constraints, and evidence quality.

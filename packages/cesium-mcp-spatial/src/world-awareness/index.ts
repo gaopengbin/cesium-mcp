@@ -68,6 +68,19 @@ export type {
   WorldTaskState,
 } from './world-task-runtime.js'
 export {
+  executeWorldWorkerMessage,
+  WorldWorkerExecutor,
+} from './world-worker-executor.js'
+export type {
+  RunWorldWorkerInputOptions,
+  WorldWorkerEndpoint,
+  WorldWorkerExecutorOptions,
+  WorldWorkerFailureMessage,
+  WorldWorkerRequestMessage,
+  WorldWorkerResultMessage,
+  WorldWorkerSuccessMessage,
+} from './world-worker-executor.js'
+export {
   createVisualGroundingObservation,
   parseVisualGroundingReport,
 } from './visual-grounding.js'

@@ -52,13 +52,16 @@ ArcGIS World Elevation，建立满足地形净空的基准路线；实际播放�
 
 慢速走廊构建现在通过通用 `WorldTaskRuntime` 调度。任务由稳定 key 与规划 revision
 共同标识：同一 revision 的首次探测和后续复核共享一份进行中或已完成的结果，新
-revision 会取消已过期任务，阻止旧结果提交。喜马拉雅适配器使用 ArcGIS 真实 DEM
-的固定 Level 12，以每批 16 个位置、左右候选串行的方式渐进采样，并在批次之间
-主动让出主线程。快速飞行与射线安全环不会等待这项慢任务。
+revision 会取消已过期任务，阻止旧结果提交。喜马拉雅适配器串行构建左右候选，
+并在 CPU 侧走廊构建过程中主动让出主线程；固定 Level 12 的 ArcGIS 真实 DEM
+切片获取、LERC 解码与高程插值则通过通用 `WorldWorkerExecutor` 在独立 Worker
+中执行。坐标与高程使用可转移 TypedArray 传递，避免大数组复制。快速飞行与射线
+安全环不会等待这项慢任务。
 
-这套任务生命周期、revision 失效和协作式时间预算属于通用世界感知运行时；DEM
-层级、飞行走廊、禁飞区和证书规则仍属于飞行适配器。当前版本尚未把第三方地形
-解码迁入 Web Worker，因此它降低主线程争用，但不宣称已经完全消除所有短帧停顿。
+这套任务生命周期、revision 失效、协作式时间预算和 Worker 请求关联属于通用世界
+感知运行时；DEM 层级、ArcGIS 切片协议、飞行走廊、禁飞区和证书规则仍属于飞行
+适配器。revision 取消会终止正在运行的 Worker，防止不支持协作取消的第三方解码器
+继续发布过期结果；下次任务再惰性创建 Worker。
 
 同一套两阶段场景还提供机器可读评测：
 
@@ -228,6 +231,7 @@ perception 契约、1 个 observer 契约和稳定 Bridge action。
 4. ✅ 已在观察视图复用受管影像 Provider；下一步镜像 3D Tiles 与地形。
 5. ✅ 增加由立即射线安全、持续多观察信念、独立视角、Cesium 公共射线相交、
    有界视觉规划/复核和可见执行证据组成的双速 Grounded Flight Loop。
-6. ✅ 增加通用 `WorldTaskRuntime`，支持同 revision 去重、更新失效、调用方取消与
-   协作式时间预算；下一步为不可切分的地形解码增加可插拔 Worker executor。
+6. ✅ 增加通用 `WorldTaskRuntime` 与可插拔 `WorldWorkerExecutor`，支持同 revision
+   去重、更新失效、调用方取消、协作式时间预算，以及不可切分任务的独立 Worker
+   执行；喜马拉雅适配器已将 ArcGIS LERC 地形解码接入该执行器。
 7. 只有真实场景需要跨场景记忆时，再考虑持久化 World Graph。
