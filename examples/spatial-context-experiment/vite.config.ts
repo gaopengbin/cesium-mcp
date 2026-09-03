@@ -7,6 +7,9 @@ const require = createRequire(import.meta.url)
 const cesiumBuild = join(dirname(require.resolve('cesium/package.json')), 'Build', 'Cesium')
 
 export default defineConfig({
+  build: {
+    assetsDir: 'app-assets',
+  },
   define: {
     CESIUM_BASE_URL: JSON.stringify('/'),
     global: 'globalThis',
