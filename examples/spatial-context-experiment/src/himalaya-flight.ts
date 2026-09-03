@@ -51,6 +51,7 @@ import {
   cameraTrackingAlpha,
   cinematicFlightCameraIntent,
   interpolateCameraAngleRadians,
+  shouldPublishFlightProgress,
 } from './flight-animation.js'
 import {
   createAvoidanceManeuver,
@@ -87,7 +88,6 @@ export const CESIUM_AI_OBSERVER_MODEL_URL = 'https://cesium.com/downloads/cesium
 
 const INITIAL_READY_FRAME_COUNT = 3
 const INITIAL_READINESS_TIMEOUT_MS = 6_000
-const OBSERVER_VIEW_UPDATE_INTERVAL_MS = 50
 const MAIN_FLIGHT_MAXIMUM_SCREEN_SPACE_ERROR = 3.5
 const OBSERVER_FLIGHT_MAXIMUM_SCREEN_SPACE_ERROR = 5
 const MAIN_FLIGHT_TILE_CACHE_SIZE = 400
@@ -97,6 +97,7 @@ const SENSOR_PITCH_DEGREES = -5
 const SENSOR_RANGE_METERS = 15_000
 const SENSOR_TRIGGER_DISTANCE_METERS = 12_000
 const SENSOR_UPDATE_INTERVAL_MS = 250
+const PROGRESS_PUBLICATION_INTERVAL_MS = 100
 const VISUAL_CAPTURE_READY_FRAME_COUNT = 3
 const VISUAL_CAPTURE_TIMEOUT_MS = 5_000
 const VISUAL_CAPTURE_JPEG_QUALITY = 0.82
@@ -119,7 +120,7 @@ const CORRIDOR_TERRAIN_LONGITUDINAL_SPACING_METERS = 150
 const CORRIDOR_TERRAIN_LATERAL_SPACING_METERS = 60
 const CORRIDOR_TERRAIN_VERTICAL_UNCERTAINTY_METERS = 120
 const CORRIDOR_TERRAIN_LEVEL = 12
-const CORRIDOR_BUILD_YIELD_INTERVAL = 64
+const CORRIDOR_BUILD_YIELD_INTERVAL = 8
 const CORRIDOR_TERRAIN_SAMPLE_CHUNK_SIZE = 16
 const CAMERA_INTENT_TRANSITION_MS = 1_600
 const CAMERA_TRANSITION_HALF_LIFE_MS = 360
@@ -714,8 +715,8 @@ export async function prepareHimalayaFlight(
         resolveAnimation = resolve
         let previousAt = performance.now()
         let activeElapsedMs = 0
-        let lastObserverViewUpdateAt = Number.NEGATIVE_INFINITY
         let lastSensorUpdateAt = Number.NEGATIVE_INFINITY
+        let lastProgressPublicationAt = Number.NEGATIVE_INFINITY
         const finish = (): void => {
           worldTaskRuntime.clear(new Error('Flight run completed'))
           perceptionAbortController?.abort(new Error('Flight run completed'))
@@ -1157,15 +1158,6 @@ export async function prepareHimalayaFlight(
           appendExecutedRoutePosition(executedRoutePositions, sample)
           updateObserverEntity(aircraft, sample, lookAhead)
           setObserverCamera(observerCamera, sample, lookAhead)
-          if (
-            observerViewer
-            && !decisionPending
-            && (progress >= 1 || now - lastObserverViewUpdateAt >= OBSERVER_VIEW_UPDATE_INTERVAL_MS)
-          ) {
-            setObserverCamera(observerViewer.camera, sample, lookAhead)
-            observerViewer.scene.requestRender()
-            lastObserverViewUpdateAt = now
-          }
           observerFrustum.show = showsFlightDebugSensors(cameraIntent)
           applyFlightView(
             viewer,
@@ -1185,19 +1177,27 @@ export async function prepareHimalayaFlight(
             observedCheckpoints,
             callbacks.onObservation,
           )
-          callbacks.onProgress?.({
-            phase: progress >= 1 ? 'completed' : 'flying',
-            progress,
-            sample,
-            sceneReady: isObserverSceneReady(),
-            cameraIntent,
-            ...(latestSensorFrame ? { sensor: latestSensorFrame } : {}),
-            ...(avoidance && easedProgress < avoidance.endProgress ? { avoidance } : {}),
-            ...(noFlyZoneClearanceMeters !== undefined ? { noFlyZoneClearanceMeters } : {}),
-            ...(Number.isFinite(minimumNoFlyZoneClearanceMeters)
-              ? { minimumNoFlyZoneClearanceMeters }
-              : {}),
-          })
+          if (shouldPublishFlightProgress(
+            now,
+            lastProgressPublicationAt,
+            PROGRESS_PUBLICATION_INTERVAL_MS,
+            progress >= 1,
+          )) {
+            callbacks.onProgress?.({
+              phase: progress >= 1 ? 'completed' : 'flying',
+              progress,
+              sample,
+              sceneReady: isObserverSceneReady(),
+              cameraIntent,
+              ...(latestSensorFrame ? { sensor: latestSensorFrame } : {}),
+              ...(avoidance && easedProgress < avoidance.endProgress ? { avoidance } : {}),
+              ...(noFlyZoneClearanceMeters !== undefined ? { noFlyZoneClearanceMeters } : {}),
+              ...(Number.isFinite(minimumNoFlyZoneClearanceMeters)
+                ? { minimumNoFlyZoneClearanceMeters }
+                : {}),
+            })
+            lastProgressPublicationAt = now
+          }
 
           if (progress >= 1) {
             finish()
@@ -1320,6 +1320,8 @@ function createObserverViewer(container: HTMLElement, terrainProvider: TerrainPr
     fullscreenButton: false,
     selectionIndicator: false,
     infoBox: false,
+    requestRenderMode: true,
+    maximumRenderTimeChange: Number.POSITIVE_INFINITY,
     contextOptions: {
       webgl: {
         preserveDrawingBuffer: true,

@@ -44,6 +44,13 @@ instead of copied. Cancelling or superseding the world revision terminates the
 Worker before stale terrain results can commit. The fast flight and ray-safety
 loop therefore continues while the slow evidence task is pending.
 
+The hidden Observer Viewer is render-on-demand: it stays idle during ordinary
+flight frames and renders only when an event-driven visual observation needs a
+fresh artifact. Corridor construction checks the shared frame budget in small
+batches, while UI progress is published at 10 Hz instead of on every render
+frame. These scheduling choices keep slow perception and diagnostic updates off
+the fast camera/flight path without weakening the local safety controller.
+
 The page automatically checks:
 
 1. the six perception tools are available without changing the stable tool inventory;

@@ -35,6 +35,17 @@ export function advanceFlightTimeline(
   }
 }
 
+export function shouldPublishFlightProgress(
+  nowMs: number,
+  lastPublishedAtMs: number,
+  intervalMs: number,
+  force: boolean,
+): boolean {
+  if (force) return true
+  if (!Number.isFinite(intervalMs) || intervalMs <= 0) return true
+  return nowMs - lastPublishedAtMs >= intervalMs
+}
+
 export function aircraftModelHeadingRadians(routeHeadingRadians: number): number {
   return normalizeRadians(routeHeadingRadians + AIRCRAFT_MODEL_HEADING_OFFSET_RADIANS)
 }

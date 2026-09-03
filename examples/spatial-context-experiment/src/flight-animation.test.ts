@@ -6,6 +6,7 @@ import {
   cinematicFlightCameraIntent,
   interpolateCameraAngleRadians,
   MAX_FLIGHT_FRAME_DELTA_MS,
+  shouldPublishFlightProgress,
 } from './flight-animation.js'
 
 describe('flight animation', () => {
@@ -54,5 +55,11 @@ describe('flight animation', () => {
     expect(cinematicFlightCameraIntent('overview', 0.14, false)).toBe('overview')
     expect(cinematicFlightCameraIntent('pov', 0.5, false)).toBe('pov')
     expect(cinematicFlightCameraIntent('follow', 0.14, true)).toBe('decision')
+  })
+
+  it('decouples UI progress publication from the render frame rate', () => {
+    expect(shouldPublishFlightProgress(1_000, 950, 100, false)).toBe(false)
+    expect(shouldPublishFlightProgress(1_050, 950, 100, false)).toBe(true)
+    expect(shouldPublishFlightProgress(951, 950, 100, true)).toBe(true)
   })
 })

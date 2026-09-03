@@ -63,6 +63,12 @@ transferable typed buffers in both directions. The ArcGIS protocol and flight
 safety certificate remain adapter concerns; Worker lifecycle, request
 correlation, cancellation, and stale-result prevention remain domain-neutral.
 
+The independent Observer uses Cesium's request-render mode and stays dormant
+between event-driven captures. CPU corridor work checks the cooperative frame
+budget in small batches, and UI progress is published at 10 Hz rather than once
+per render frame. The fast camera and local ray-safety loop therefore do not
+wait for hidden rendering, visual inference, or diagnostic DOM updates.
+
 The flight path deliberately demonstrates bounded world awareness rather than
 omniscience. The visible trace separates `SENSE -> ACT` safety from
 `SENSE -> VISION -> BELIEF -> PLAN/VERIFY`. Observer pixels are sent only for
