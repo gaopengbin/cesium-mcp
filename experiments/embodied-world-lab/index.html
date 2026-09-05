@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#061015">
+    <title>Cesium 具身世界感知实验</title>
+  </head>
+  <body>
+    <main class="world-shell">
+      <section class="map-stage" aria-label="南池市场山地自主巡检场景">
+        <div id="cesiumContainer"></div>
+
+        <header class="map-header">
+          <div class="brand">
+            <span class="brand-mark" aria-hidden="true">WA</span>
+            <div>
+              <strong>具身世界感知</strong>
+              <small>NAMCHE TERRAIN PATROL</small>
+            </div>
+          </div>
+          <span id="worldStatus" class="world-status" data-state="loading">
+            <i></i><span>加载真实地形</span>
+          </span>
+        </header>
+
+        <section class="map-evidence" aria-live="polite">
+          <span id="phaseLabel">BOOT</span>
+          <strong id="phaseTitle">正在建立执行器与局部世界</strong>
+          <p id="phaseDetail">AI 尚未开始移动。</p>
+        </section>
+
+        <footer class="map-footer">
+          <a id="foxCredits" class="asset-credit" target="_blank" rel="noreferrer">Fox asset credits</a>
+          <span>ArcGIS World Elevation</span>
+          <span>Esri World Imagery</span>
+          <span id="distanceMetric">目标距离 --</span>
+        </footer>
+      </section>
+
+      <aside class="agent-chat" aria-label="具身世界感知对话">
+        <header>
+          <div>
+            <span>CESIUM AGENT</span>
+            <strong>和场景中的 AI 对话</strong>
+          </div>
+          <span id="modelStatus" class="model-status">LOCAL SAFETY READY</span>
+        </header>
+
+        <div id="chatMessages" class="chat-messages" role="log" aria-live="polite">
+          <article class="message assistant">
+            <p>地形和执行器就绪后，让我自主前往山坡观察点。我会分别说明真实模型决策、本地安全接管和环境新发现。</p>
+          </article>
+        </div>
+
+        <div class="suggestions" aria-label="快捷任务">
+          <button type="button" data-command="start">自主前往观察点</button>
+          <button type="button" data-command="view">切换观察视角</button>
+          <button type="button" data-command="stop">停止任务</button>
+        </div>
+
+        <form id="chatForm" class="composer">
+          <label class="sr-only" for="chatInput">输入场景任务</label>
+          <textarea id="chatInput" rows="1" maxlength="500" placeholder="例如：自主前往观察点"></textarea>
+          <button id="sendButton" type="submit" aria-label="发送任务">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m4 12 15-7-4.7 14-3-5.2L4 12Z"/>
+              <path d="m11.3 13.8 3.5-3.4"/>
+            </svg>
+          </button>
+        </form>
+
+        <footer>
+          <span id="loopStatus">SENSE → BELIEF → PLAN → ACT</span>
+          <span id="revisionStatus">WORLD r0</span>
+        </footer>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -21,6 +21,7 @@ export default defineConfig({
       'examples/browser-agent/model-tool-eval.test.ts',
       'examples/browser-agent/functions/**/*.test.ts',
       'examples/spatial-context-experiment/src/**/*.test.ts',
+      'experiments/embodied-world-lab/src/**/*.test.ts',
       'scripts/**/*.test.ts',
     ],
   },
