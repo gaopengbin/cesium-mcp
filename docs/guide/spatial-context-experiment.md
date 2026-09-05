@@ -88,6 +88,99 @@ It writes `artifacts/spatial-context-eval.json` and fails when either the
 baseline or expanded forecast stage violates the expected contracts. CI runs
 the same command.
 
+## Run the isolated embodied-world lab
+
+The walking lab requires Node.js 22 or newer. From the repository root:
+
+```bash
+cd experiments/embodied-world-lab
+npm ci
+npm run dev
+```
+
+Open <http://127.0.0.1:4185/>. Vite binds that exact address with
+`strictPort: true`, so startup fails instead of silently choosing another port
+when 4185 is occupied. Internet access is required for ArcGIS elevation, Esri
+imagery, and the hosted planning endpoint. If ArcGIS elevation fails, the lab
+explicitly degrades to ellipsoid rendering plus a zero-height field. If the
+hosted planner fails or times out, local fallback control remains available.
+Esri imagery is presentation input only and is not planner evidence.
+
+The lab is intentionally absent from the root `workspaces` list and keeps an
+independent `package-lock.json`. Consequently, root `npm run build` and
+`npm run typecheck` do not cover it. Verify it from its own directory:
+
+```bash
+npm run typecheck
+npm run build
+```
+
+The root Vitest configuration does include the lab's unit tests:
+
+```bash
+cd ../..
+npx vitest run experiments/embodied-world-lab/src
+```
+
+Those tests use fake controllers and synthetic snapshots. They do not launch a
+Cesium browser scene, contact the hosted model, or prove end-to-end arrival.
+Although dependencies are lockfile-isolated, the lab imports
+`packages/cesium-mcp-spatial/src` directly, so it is not a standalone release.
+
+### Evidence, planner, and fallback boundaries
+
+- The live evidence is the controller pose, ENU velocity, grounding state,
+  actor-space Rapier ray fan, and executed trail. ArcGIS terrain contributes a
+  startup 13 x 13 grid sampled at 35 m spacing; later height and slope candidates
+  are bilinear interpolation from that bounded grid, not fresh remote samples on
+  every control pass.
+- Start, goal, landslide center, 22 m radius, and 105 m sensor range are
+  deterministic fixture configuration. The landslide becomes visible through a
+  bearing/range calculation against that known geometry. Rapier can constrain
+  candidate clearance, but it does not discover the fixture. No image is sent to
+  a visual model.
+- The fast pass runs from Cesium `preUpdate` and is throttled to at most once
+  every 50 ms, so "20 Hz" is an upper-rate description rather than a fixed
+  scheduling guarantee. The automatic high/near camera is a presentation view,
+  not the independent Observer used by the flight experiment.
+- The hosted endpoint receives only the bounded `EmbodiedWorldSnapshot` and one
+  `commit_motion_intent` tool schema. The service selects the actual model and
+  reports its name when available; the lab does not pin a model name. Chat text
+  and screenshots are not sent to this endpoint.
+- Before each hosted request, the lab activates a local fallback as a 16-second
+  provisional plan so movement does not wait for the network. A matching hosted
+  result may replace it only while the revision still matches and pose-derived
+  goal distance/bearing stay within bounded drift; stale results are dropped. Requests time out
+  after 15 seconds. Errors commit an 8-second local fallback and start a
+  30-second hosted retry cooldown. The local safety loop can override both
+  hosted and fallback intent.
+
+### Dependency and audit boundary
+
+The isolated lock uses `cesium@~1.143.0`,
+`cesium-player-controller@0.2.1`, and
+`@dimforge/rapier3d-compat@^0.14.0`. Its overrides pin
+`@cesium/engine@26.1.0` and `@cesium/widgets@16.1.0` because
+`cesium@1.143.0` declares caret ranges for those subpackages. The controller's
+peer range is only `cesium >=1.120.0`; the overrides are a lab compatibility
+lock, not controller requirements.
+
+On 2026-09-04, `npm audit --omit=dev` in the lab reported five high-severity
+findings and `No fix available`. The resolved path is
+`cesium-player-controller -> @loaders.gl/gltf -> @loaders.gl/textures ->
+texture-compressor -> image-size@0.7.5`, covered by
+[GHSA-w3rx-r6r6-pgpr](https://github.com/advisories/GHSA-w3rx-r6r6-pgpr)
+and [GHSA-5p2g-fcmc-qvqq](https://github.com/advisories/GHSA-5p2g-fcmc-qvqq).
+This is a transitive dependency audit result, not proof of a direct controller
+exploit. Loading only the bundled Fox binary reduces the current input surface
+but does not clear the advisories. The controller's `streaming-terrain` path
+uses Cesium private internals; the current lab uses static `terrain` mode.
+
+> Manual verification record, 2026-09-04: one browser run reached the target,
+> reported a rounded closest landslide-boundary clearance of 6 m, and showed no
+> browser errors. This records one observed run; it is not a promise that every
+> run, network condition, or future dependency state will arrive successfully.
+
 ## Try it with WebMCP
 
 The one-package Viewer API can opt in to the experimental `perception` and
@@ -214,6 +307,7 @@ Cesium Viewer
   -> belief fusion: visible object + matching forward Cesium ray
   -> persistent belief revisions with short evidence validity
   -> immediate local safety actuation + slower planning/verification
+  -> optional EmbodiedActuator for continuous character/vehicle control
   -> WebMCP or MCP Runtime (explicit opt-in)
 ```
 
@@ -238,6 +332,24 @@ The first slice supports:
 - a two-speed grounded flight loop with an independent POV, five finite Cesium
   rays, immediate local safety actuation, up to three visual belief revisions,
   conservative multimodal fusion, and a separate executed path.
+- an engine-neutral embodied-actuation contract with normalized movement/look
+  axes, plus an experimental structural adapter for `cesium-player-controller`
+  input, pose, velocity, grounding, and physics-world center-ray evidence. The
+  adapter is structurally tested with fake controller state; the example page
+  does not instantiate the external controller.
+- an isolated embodied mountain-walking lab that uses ArcGIS elevation when
+  available, Esri presentation imagery, an up-to-20 Hz local safety pass,
+  actor-space Rapier ray evidence, revision-bound hosted planning with a local
+  provisional plan, presentation-camera selection, and executed-path clearance
+  reporting. Its exact run, dependency, audit, fallback, and fixture boundaries
+  are documented above.
+
+The embodied lab deliberately mixes bounded scene evidence with deterministic
+fixture geometry. Terrain candidates are interpolated from a startup sample,
+while pose, velocity, grounding, Rapier hits, and the executed trail come from
+the running scene. The composer handles stop/view locally and treats any other
+non-empty text as the same fixed start command; it does not send arbitrary chat
+text to the hosted model. No arbitrary visual understanding is claimed.
 
 It does not yet claim:
 
@@ -258,4 +370,11 @@ It does not yet claim:
 5. ✅ Add a two-speed grounded flight loop that combines immediate ray safety,
    persistent multi-observation belief, public Cesium intersections, bounded
    visual planning/verification, and visible execution evidence.
-6. Consider a persistent world graph only when real use cases require cross-scene memory.
+6. ✅ Add continuous embodied control in an isolated walking scene and record
+   one successful 2026-09-04 browser run, while keeping third-party physics and
+   controller dependencies outside the core package. This does not establish a
+   repeatable end-to-end guarantee.
+7. Stabilize a public actor-space sensor contract, bounded scan policy, and a
+   second vehicle/aircraft actuator before promoting experiment code into the
+   package runtime.
+8. Consider a persistent world graph only when real use cases require cross-scene memory.

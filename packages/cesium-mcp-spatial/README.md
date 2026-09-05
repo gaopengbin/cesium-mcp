@@ -1,5 +1,26 @@
 # cesium-mcp-spatial
 
+## 共享世界记忆（实验）
+
+`WorldMemory` 复用现有 `WorldObservation` / Belief 更新规则，保存可解析的证据记录，并向不同任务提供同一份认知。可以接收场景查询、射线或 `createVisualGroundingObservation()` 的输出。
+
+```ts
+const memory = new WorldMemory({
+  beliefId: 'agent-1', worldId: 'scene-1', createdAt: new Date().toISOString(), regions: [],
+})
+memory.observe(observation)
+memory.checkpoint('before', observation.completedAt)
+const result = memory.execute({
+  kind: 'find', query: { name: '桥' }, at: new Date().toISOString(),
+})
+// 同一入口还支持 describe，以及 changes + checkpointId。
+// result.citations 可追溯到传感器、时间、basis 和 evidence reference。
+```
+
+这是结构化任务接口，不是自然语言理解模型。`supported` 仅表示所返回匹配对象有当前可解析证据，不代表场景已完整覆盖或模型结论已校准。缺少目标返回 `insufficient-evidence`；变化比较描述认知变化，不推定对象生成或删除。
+
+当前为会话内内存：由调用方控制会话生命周期，尚无磁盘持久化、自动裁剪或跨 ID 的身份关联。图像只保存引用，不保存 base64；图片本身不自动成为对象事实。查询时间不得早于当前认知更新时间，历史比较请使用检查点。
+
 Experimental, protocol-neutral spatial context core for Cesium MCP.
 
 The package normalizes scene objects, provides compact scene summaries, filters objects by spatial context, and returns relation results with explicit evidence and quality. It does not depend on CesiumJS, MCP, WebMCP, or an AI model.
@@ -82,3 +103,54 @@ Worker-side protocol.
 Neither runtime contains Cesium, terrain, flight, or model semantics. Adapters
 remain responsible for selecting the Worker module, sampling policy, safety
 constraints, and evidence quality.
+
+### Embodied actuation boundary
+
+`EmbodiedActuator` is the protocol- and engine-neutral boundary between world
+awareness and a continuously controlled character, vehicle, or aircraft. It
+accepts normalized movement and look axes, exposes a serializable pose/velocity/grounding
+observation with an optional physics-world center-ray hit, and provides an explicit neutral
+stop. The core does not own a render loop, physics engine, input listener, or
+vehicle implementation.
+
+The spatial-context experiment contains a structural adapter for the public
+`cesium-player-controller` input and state surface. The example page does not
+instantiate that controller; its adapter tests use a fake controller and
+synthetic observations. The third-party package is deliberately absent from the
+root npm workspace, so the protocol-neutral core does not acquire Rapier,
+Cesium, or controller dependencies.
+
+The executable consumer is
+[`experiments/embodied-world-lab`](../../experiments/embodied-world-lab/README.md).
+It is outside the root workspace and keeps its own package and lockfile, while
+still importing this package's source directly. It pins `cesium@~1.143.0`,
+`cesium-player-controller@0.2.1`, and Cesium's engine/widget subpackages inside
+that isolated lock. The controller only declares `cesium >=1.120.0`; the
+engine/widget overrides prevent Cesium's own caret ranges from floating and
+must not be presented as controller-required versions.
+
+On 2026-09-04, `npm audit --omit=dev` in the lab reported five high-severity
+findings with no available fix in the transitive loader path
+`cesium-player-controller -> @loaders.gl/gltf -> @loaders.gl/textures ->
+texture-compressor -> image-size@0.7.5`. This is a lockfile dependency finding,
+not evidence that the controller itself is directly exploitable. The current
+lab loads only the bundled Fox asset, which narrows the input surface but does
+not resolve those advisories. The controller's separate `streaming-terrain`
+path also reads Cesium private internals; this lab uses its bounded static
+`terrain` mode and does not exercise that path.
+
+At runtime, the lab throttles its local safety pass to at most once every 50 ms
+from Cesium `preUpdate` (up to about 20 Hz). ArcGIS elevation is sampled once
+into a 13 x 13 grid and interpolated; terrain failure degrades to an ellipsoid
+and a flat height field. Pose, velocity, grounding, actor-space Rapier ray hits,
+and the executed path come from the running scene. Start, goal, and landslide
+geometry are deterministic fixture configuration, and landslide discovery is a
+bearing/range test against that known fixture, not Rapier or visual-model
+detection. The hosted planner receives only a bounded structured snapshot; a
+local fallback plan is active provisionally while the request is pending, and
+the local safety loop may override either plan.
+
+A manual browser run on 2026-09-04 reached the target, reported a rounded closest
+landslide-boundary clearance of 6 m, and produced no observed browser errors.
+That is one verification record, not a guarantee that every run or environment
+will reach the target.

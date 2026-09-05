@@ -51,6 +51,27 @@ batches, while UI progress is published at 10 Hz instead of on every render
 frame. These scheduling choices keep slow perception and diagnostic updates off
 the fast camera/flight path without weakening the local safety controller.
 
+The experiment also includes `CesiumPlayerEmbodiment`, a structural adapter for
+the public `cesium-player-controller` control surface. It translates normalized
+world movement/look axes into the controller's movement axes and mouse-delta
+units, then translates controller pose, ENU velocity, grounding, flight mode,
+and physics-world center-ray hits into serializable world observations. This
+page does not instantiate the controller; the adapter tests use a fake
+controller and synthetic state. The controller package is intentionally not
+installed in the root workspace.
+
+The runnable walking consumer lives in
+[`experiments/embodied-world-lab`](../../experiments/embodied-world-lab/README.md)
+with its own package and lockfile. It still imports repository source, so this
+is dependency isolation rather than a standalone distribution. On 2026-09-04,
+`npm audit --omit=dev` in that lock reported five high-severity findings with no
+available fix through `cesium-player-controller -> @loaders.gl/gltf ->
+@loaders.gl/textures -> texture-compressor -> image-size@0.7.5`. That describes
+the resolved dependency tree, not a demonstrated exploit in the controller.
+The controller's `streaming-terrain` mode also reaches Cesium private internals;
+the walking lab instead supplies a bounded static `terrain` configuration and
+does not exercise the streaming path.
+
 The page automatically checks:
 
 1. the six perception tools are available without changing the stable tool inventory;
