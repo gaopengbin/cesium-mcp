@@ -8,6 +8,13 @@ export {
   scoreObservationCandidate,
   shouldObserve,
 } from './active-perception.js'
+export { WorldMemory } from './world-memory.js'
+export type {
+  WorldMemoryTask,
+  WorldMemoryCitation,
+  WorldMemoryChange,
+  WorldMemoryResult,
+} from './world-memory.js'
 export {
   ageAgentBeliefState,
   applyWorldObservation,
@@ -39,6 +46,18 @@ export {
   replayWorldAwarenessBeliefTrace,
   validateWorldAwarenessReplayTrace,
 } from './replay.js'
+export {
+  normalizeEmbodiedMotionInput,
+} from './embodiment.js'
+export type {
+  EmbodiedActuator,
+  EmbodiedPhysicsRayHit,
+  EmbodiedMotionInput,
+  EmbodiedStateObservation,
+  EmbodiedVector3,
+  EmbodiedVelocityEnu,
+  NormalizedEmbodiedMotionInput,
+} from './embodiment.js'
 export type {
   ExactReplayEventProjection,
   ExactWorldAwarenessReplayProjection,
