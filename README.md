@@ -1,3 +1,10 @@
+> [!TIP]
+> **📣 Built with Cesium MCP? / 谁在使用 Cesium MCP？**
+>
+> Share your project, screenshots, or feedback—work in progress is welcome! / 欢迎分享项目、截图和使用反馈，开发中的作品也欢迎！
+>
+> **[Share / 分享 → Issue #44](https://github.com/gaopengbin/cesium-mcp/issues/44)** · [Discussion / 讨论区](https://github.com/gaopengbin/cesium-mcp/discussions/43)
+
 <img width="2172" height="724" alt="ChatGPT Image 2026年7月5日 22_13_19" src="https://github.com/user-attachments/assets/098dcbef-e0bc-4214-8adf-b80a29e50e65" />
 <div align="center">
   <p><strong>A protocol-agnostic Cesium AI control runtime for MCP, WebMCP, function calling, and browser agents</strong></p>
