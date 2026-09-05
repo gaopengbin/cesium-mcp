@@ -1,3 +1,10 @@
+> [!TIP]
+> **📣 谁在使用 Cesium MCP？ / Built with Cesium MCP?**
+>
+> 欢迎分享项目、截图和使用反馈，开发中的作品也欢迎！ / Share your project, screenshots, or feedback—work in progress is welcome!
+>
+> **[分享 / Share → Issue #44](https://github.com/gaopengbin/cesium-mcp/issues/44)** · [讨论区 / Discussion](https://github.com/gaopengbin/cesium-mcp/discussions/43)
+
 <div align="center">
   <img src="docs/public/logo.svg" alt="Cesium MCP" width="120">
 
