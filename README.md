@@ -1,3 +1,14 @@
+> [!IMPORTANT]
+> ## 📣 Author open to work · Beijing
+>
+> **AI Application Development · Agent Engineering · Full-Stack Development**
+>
+> I'm Pengbin Gao, a software developer with about 6 years of experience. Hiring enquiries, referrals, and sharing are welcome!
+>
+> ### [📄 Resume (Chinese PDF)](https://laogao.xyz/platform-api/public/resume/gaopengbin-ai-20260906.pdf)　·　[✉️ Contact me](mailto:1804287165@qq.com)
+>
+> [Explore my projects →](https://github.com/gaopengbin) · Email: **1804287165@qq.com**
+
 > [!TIP]
 > **📣 Built with Cesium MCP? / 谁在使用 Cesium MCP？**
 >
@@ -39,8 +50,6 @@
 </div>
 
 ---
-
-> **Open to work in Beijing:** The author is seeking AI application, agent engineering, and full-stack roles. Hiring enquiries and referrals are welcome. [Resume (Chinese PDF)](https://laogao.xyz/platform-api/public/resume/gaopengbin-ai-20260906.pdf) · [Portfolio](https://github.com/gaopengbin) · [Email](mailto:1804287165@qq.com)
 
 ## Demo
 
