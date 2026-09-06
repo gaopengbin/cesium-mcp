@@ -40,6 +40,8 @@
 
 ---
 
+> **Open to work in Beijing:** The author is seeking AI application, agent engineering, and full-stack roles. Hiring enquiries and referrals are welcome. [Resume (Chinese PDF)](https://laogao.xyz/platform-api/public/resume/gaopengbin-ai-20260906.pdf) · [Portfolio](https://github.com/gaopengbin) · [Email](mailto:1804287165@qq.com)
+
 ## Demo
 
 https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908

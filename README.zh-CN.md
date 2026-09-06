@@ -43,6 +43,8 @@
 
 ---
 
+> **作者求职 · 北京**：正在寻找 AI 应用开发 / Agent / 全栈岗位，欢迎招聘与内推。[简历 PDF](https://laogao.xyz/platform-api/public/resume/gaopengbin-ai-20260906.pdf) · [项目与个人介绍](https://github.com/gaopengbin) · [邮件联系](mailto:1804287165@qq.com)
+
 ## 演示
 
 https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
