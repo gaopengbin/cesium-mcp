@@ -197,7 +197,7 @@ export class LayerManager {
       type: geomType,
       visible: true,
       color,
-      dataRefId,
+      ...(dataRefId !== undefined ? { dataRefId } : {}),
     }
     this._cesiumRefs.set(layerId, { dataSource: ds, styleEntities, polygonOutlines })
     this._layers.push(info)
@@ -500,7 +500,14 @@ export class LayerManager {
   }
 
   listLayers(): LayerInfo[] {
-    return this._layers.map(({ id, name, type, visible, color, dataRefId }) => ({ id, name, type, visible, color, dataRefId }))
+    return this._layers.map(({ id, name, type, visible, color, dataRefId }) => ({
+      id,
+      name,
+      type,
+      visible,
+      color,
+      ...(dataRefId !== undefined ? { dataRefId } : {}),
+    }))
   }
 
   getLayerSchema(params: GetLayerSchemaParams): LayerSchemaResult {

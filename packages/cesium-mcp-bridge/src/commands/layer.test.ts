@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const mockCesium = vi.hoisted(() => {
   class MockColor {
@@ -193,6 +193,7 @@ vi.mock('../utils', () => ({
   parseColor: mockCesium.parseColor,
 }))
 
+import { validateCesiumToolOutput } from 'cesium-mcp-contracts'
 import { detectGeometryType, LayerManager } from './layer.js'
 
 function makeViewer() {
@@ -283,6 +284,45 @@ describe('detectGeometryType', () => {
 
   it('should return 未知 for no features property', () => {
     expect(detectGeometryType({})).toBe('未知')
+  })
+})
+
+describe('LayerManager optional dataRefId', () => {
+  beforeEach(() => {
+    mockDsEntities.length = 0
+    vi.stubGlobal('window', { devicePixelRatio: 1 })
+    vi.stubGlobal('document', {
+      createElement: () => ({
+        getContext: () => ({ beginPath: vi.fn(), arc: vi.fn(), fill: vi.fn(), stroke: vi.fn() }),
+      }),
+    })
+  })
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  it.each([undefined, '', 'natural-data'])('returns valid GeoJSON layer info with dataRefId %s', async (dataRefId) => {
+    const mgr = new LayerManager(makeViewer())
+    const info = await mgr.addGeoJsonLayer({
+      id: 'natural_surface',
+      url: 'https://example.com/features.geojson',
+      dataRefId,
+    })
+
+    expect(validateCesiumToolOutput('addGeoJsonLayer', { success: true, data: info }).valid).toBe(true)
+    if (dataRefId === undefined) {
+      expect(info).not.toHaveProperty('dataRefId')
+      expect(mgr.listLayers()[0]).not.toHaveProperty('dataRefId')
+    } else {
+      expect(info.dataRefId).toBe(dataRefId)
+      expect(mgr.listLayers()[0]?.dataRefId).toBe(dataRefId)
+    }
+  })
+
+  it('omits absent dataRefId when listing other layer types', () => {
+    const mgr = new LayerManager(makeViewer())
+    registerLayer(mgr, 'other-layer')
+
+    expect(mgr.listLayers()[0]).not.toHaveProperty('dataRefId')
   })
 })
 
