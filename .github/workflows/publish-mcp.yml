@@ -1,0 +1,159 @@
+name: Publish to MCP Registry
+
+on:
+  workflow_run:
+    workflows: [Release]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-registry-runtime
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Never publish from forks, PRs, or a manually selected non-main branch.
+    if: >-
+      github.repository == 'gaopengbin/cesium-mcp' &&
+      github.ref == 'refs/heads/main' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'workflow_run' &&
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository
+        )
+      )
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out the released revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Verify npm publication and check for an existing Registry version
+        id: preflight
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import { appendFileSync, readFileSync } from 'node:fs'
+          import { setTimeout as sleep } from 'node:timers/promises'
+
+          const directory = 'packages/cesium-mcp-runtime'
+          const pkg = JSON.parse(readFileSync(`${directory}/package.json`, 'utf8'))
+          const server = JSON.parse(readFileSync(`${directory}/server.json`, 'utf8'))
+          assert.equal(pkg.name, 'cesium-mcp-runtime')
+          assert.notEqual(pkg.private, true)
+          assert.equal(server.name, 'io.github.gaopengbin/cesium-mcp-runtime')
+          assert.equal(pkg.mcpName, server.name, 'package.json mcpName must match server.json')
+          assert.match(pkg.version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/)
+          assert.equal(server.version, pkg.version, 'Run scripts/sync-version.mjs before releasing')
+          assert.equal(server.packages?.length, 1)
+          assert.equal(server.packages[0].registryType, 'npm')
+          assert.equal(server.packages[0].identifier, pkg.name)
+          assert.equal(server.packages[0].version, pkg.version)
+          assert.equal(server.packages[0].transport?.type, 'stdio')
+          assert.equal(typeof server.description, 'string')
+          assert.ok([...server.description].length > 0 && [...server.description].length <= 100,
+            'The MCP Registry description must be between 1 and 100 characters')
+
+          // Retry transient failures and allow npm's freshly published version to propagate.
+          // Only a Registry 404 means "not published"; auth/network/server errors must fail.
+          async function request(url, retryNotFound = false) {
+            for (let attempt = 1; attempt <= 6; attempt++) {
+              try {
+                const response = await fetch(url, {
+                  headers: { Accept: 'application/json' },
+                  signal: AbortSignal.timeout(15000),
+                })
+                const retryable = response.status === 429 || response.status >= 500 ||
+                  (retryNotFound && response.status === 404)
+                if (!retryable || attempt === 6) return response
+                await response.body?.cancel()
+              } catch (error) {
+                if (attempt === 6) throw error
+              }
+              console.log(`Retrying ${url} (${attempt}/6) in 10 seconds`)
+              await sleep(10000)
+            }
+          }
+
+          const npmUrl = `https://registry.npmjs.org/${encodeURIComponent(pkg.name)}/${encodeURIComponent(pkg.version)}`
+          const npmResponse = await request(npmUrl, true)
+          assert.equal(npmResponse.status, 200,
+            `npm version ${pkg.name}@${pkg.version} is not available (HTTP ${npmResponse.status})`)
+          const published = await npmResponse.json()
+          assert.equal(published.name, pkg.name)
+          assert.equal(published.version, pkg.version)
+          assert.equal(published.mcpName, server.name, 'The published npm package must contain the matching mcpName')
+
+          const registryUrl = `https://registry.modelcontextprotocol.io/v0.1/servers/${encodeURIComponent(server.name)}/versions/${encodeURIComponent(server.version)}`
+          const registryResponse = await request(registryUrl)
+          let shouldPublish = true
+          if (registryResponse.status === 200) {
+            const existing = (await registryResponse.json()).server
+            assert.equal(existing?.name, server.name, 'Unexpected Registry response')
+            assert.equal(existing?.version, server.version, 'Unexpected Registry version')
+            assert.ok(existing.packages?.some(entry => entry.registryType === 'npm' &&
+              entry.identifier === pkg.name && entry.version === pkg.version),
+            'Existing Registry version points to a different package; refusing to overwrite it')
+            shouldPublish = false
+          } else {
+            assert.equal(registryResponse.status, 404,
+              `MCP Registry lookup failed (HTTP ${registryResponse.status})`)
+          }
+
+          appendFileSync(process.env.GITHUB_OUTPUT, `publish=${shouldPublish}\nversion=${server.version}\n`)
+          const message = shouldPublish
+            ? `Ready to register ${server.name}@${server.version}; npm publication verified.`
+            : `${server.name}@${server.version} is already registered; skipping publication.`
+          console.log(message)
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## MCP Registry\n\n${message}\n`)
+          NODE
+
+      - name: Install a pinned, checksum-verified mcp-publisher
+        if: steps.preflight.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          publisher_dir="$(mktemp -d "$RUNNER_TEMP/mcp-publisher.XXXXXX")"
+          archive="$publisher_dir/mcp-publisher.tar.gz"
+          curl --fail --show-error --location --retry 3 --connect-timeout 15 --max-time 120 \
+            'https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz' \
+            --output "$archive"
+          echo "a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc  $archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$publisher_dir" mcp-publisher
+          echo "$publisher_dir" >> "$GITHUB_PATH"
+
+      - name: Validate server metadata
+        if: steps.preflight.outputs.publish == 'true'
+        run: mcp-publisher validate packages/cesium-mcp-runtime/server.json
+
+      - name: Authenticate with GitHub OIDC
+        if: steps.preflight.outputs.publish == 'true'
+        run: mcp-publisher login github-oidc
+
+      - name: Publish the runtime to MCP Registry
+        if: steps.preflight.outputs.publish == 'true'
+        env:
+          SERVER_VERSION: ${{ steps.preflight.outputs.version }}
+        run: |
+          mcp-publisher publish packages/cesium-mcp-runtime/server.json
+          printf '\nPublished `io.github.gaopengbin/cesium-mcp-runtime@%s` successfully.\n' "$SERVER_VERSION" >> "$GITHUB_STEP_SUMMARY"
