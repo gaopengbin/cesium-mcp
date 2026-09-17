@@ -85,7 +85,7 @@ npx -y cesium-mcp-runtime --transport http --port 3000
 
 ### 支持哪些 CesiumJS 版本？
 
-cesium-mcp v1.143.x 基于 CesiumJS ~1.143.0 构建和测试。Bridge 的 peer 依赖是权威兼容范围；CesiumJS 官方发布新版本后，会先核对 Bridge API 和相关工具契约，再更新该范围。
+cesium-mcp v1.145.x 基于 CesiumJS ~1.145.0 构建和测试。Bridge 的 peer 依赖是权威兼容范围；CesiumJS 官方发布新版本后，会先核对 Bridge API 和相关工具契约，再更新该范围。
 
 ### 哪些 AI 客户端可以使用？
 

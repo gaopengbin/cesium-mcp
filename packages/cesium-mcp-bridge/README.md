@@ -23,7 +23,7 @@ AI Agent --> SSE / MCP / WebSocket --> cesium-mcp-bridge --> Cesium Viewer
 npm install cesium-mcp-bridge cesium
 ```
 
-> `cesium` is a peer dependency (compatible with `~1.143.0`).
+> `cesium` is a peer dependency (compatible with `~1.143.0 || ~1.145.0`).
 
 ## Quick Start
 
@@ -214,7 +214,7 @@ import type {
 
 | cesium-mcp-bridge | Cesium |
 |-------------------|--------|
-| 1.143.x | ~1.143.0 |
+| 1.145.x | ~1.143.0 / ~1.145.0 |
 
 ## License
 

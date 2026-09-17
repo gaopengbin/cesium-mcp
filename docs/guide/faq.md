@@ -85,7 +85,7 @@ Or use the hosted endpoint at `https://mcp.gpb.cc`.
 
 ### Which CesiumJS versions are supported?
 
-cesium-mcp v1.143.x is built and tested against CesiumJS ~1.143.0. The Bridge peer dependency is the authoritative compatibility range. New official CesiumJS releases are reviewed before that range and affected tool contracts are updated.
+cesium-mcp v1.145.x is built and tested against CesiumJS ~1.145.0. The Bridge peer dependency is the authoritative compatibility range. New official CesiumJS releases are reviewed before that range and affected tool contracts are updated.
 
 ### Which AI clients work?
 

@@ -40,7 +40,7 @@ features:
   - icon:
       src: /icons/version.svg
     title: Version-Locked to CesiumJS
-    details: Major.minor tracks the verified CesiumJS baseline (1.143.x targets Cesium ~1.143.0). Patch versions iterate independently for MCP features.
+    details: Major.minor tracks the verified CesiumJS baseline (1.145.x targets Cesium ~1.145.0). Patch versions iterate independently for MCP features.
 ---
 
 <div class="home-content">

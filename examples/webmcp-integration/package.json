@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "cesium": "~1.143.0",
+    "cesium": "~1.145.0",
     "cesium-mcp-webmcp": "^0.2.0"
   },
   "devDependencies": {
