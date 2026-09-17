@@ -31,7 +31,7 @@ const registration = isWebMcpSupported()
 registration?.unregister()
 ```
 
-The returned object includes `registration.bridge` for direct commands. `unregister()` removes the page tools and disposes the package-owned Bridge while leaving the application-owned Viewer intact.
+The returned object includes `registration.bridge` for direct commands. `unregister()` removes the page tools immediately, lets in-flight calls finish, and then disposes the package-owned Bridge. Use `registration.dispose()` to unregister and cancel pending Bridge work immediately, before destroying the application-owned Viewer.
 
 `registerCesiumViewerWebMcp()` defaults to the 15-contract `core` selection. Pass `toolsets: 'all'` for all 61 browser-safe tools, one toolset name, or an array such as `['view', 'entity', 'layer']`. To register a custom contract subset, pass `tools`.
 
@@ -57,6 +57,22 @@ const bridge = new CesiumBridge(viewer)
 const tools = buildCesiumWebMcpTools(bridge, {
   toolsets: ['view', 'entity'],
 })
+```
+
+## Execution cancellation
+
+The browser calls each tool with `execute(input, { signal })`. The adapter forwards this execution signal to `executor.execute(command, { signal })`; custom executors should pass it to their network requests and check it before changing application state. It is independent of the registration signal, which only removes tools.
+
+The built-in Bridge cancels camera flights and screenshots, and prevents cancelled asynchronous layer or terrain loads from being attached to the Viewer. Cesium loaders may still finish their internal network requests; late disposable resources are released. Cancellation does not undo changes already committed to the scene. `loadTerrain()` now returns a promise and reports load failures to the caller.
+
+```typescript
+const controller = new AbortController()
+const pending = registration.bridge.execute({
+  action: 'flyTo',
+  params: { longitude: 116.4, latitude: 39.9, duration: 5 },
+}, { signal: controller.signal })
+controller.abort()
+await pending // BridgeResult with success: false
 ```
 
 ## React StrictMode

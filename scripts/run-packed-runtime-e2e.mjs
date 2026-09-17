@@ -323,6 +323,25 @@ try {
     throw new Error(`Packed GeoJSON regression: ${JSON.stringify({ layerResult, layersResult })}`)
   }
 
+  if (!requestedRuntime) {
+    await page.addScriptTag({ content: await readFile(join(root,
+      'packages/cesium-mcp-webmcp/dist/cesium-mcp-webmcp.browser.global.js'), 'utf8') })
+    const cancelled = await page.evaluate(async () => {
+      const controller = new AbortController()
+      const tool = window.CesiumMcpWebMcp.buildCesiumWebMcpTools(window.b)
+        .find(tool => tool.name === 'flyTo')
+      const pending = tool.execute({ longitude: 10, latitude: 20, duration: 30 }, { signal: controller.signal })
+      controller.abort()
+      try {
+        await pending
+        return false
+      } catch (error) {
+        return error.name === 'AbortError'
+      }
+    })
+    if (!cancelled) throw new Error('WebMCP execution did not honor cancellation in the browser')
+  }
+
   console.log(JSON.stringify({
     runtime: runtimePackage.version,
     source: requestedRuntime ?? 'local npm pack',
@@ -330,6 +349,7 @@ try {
     bridge: 'local bundle',
     tools: toolsPayload.tools.length,
     authenticated: Boolean(authToken),
+    cancellation: requestedRuntime ? 'not checked' : 'passed',
     command: 'setView -> getView; addGeoJsonLayer -> listLayers',
   }))
 } catch (error) {

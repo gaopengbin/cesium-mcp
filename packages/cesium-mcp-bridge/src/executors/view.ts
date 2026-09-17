@@ -8,8 +8,8 @@ import type {
 } from '../types.js'
 
 export const viewExecutors = {
-  async flyTo(params, bridge) {
-    await bridge.flyTo(params as unknown as FlyToParams)
+  async flyTo(params, bridge, context = {}) {
+    await bridge.flyTo(params as unknown as FlyToParams, context.signal)
     return { success: true, message: 'Camera flew to target position' }
   },
   setView(params, bridge) {
@@ -23,8 +23,8 @@ export const viewExecutors = {
       message: 'Current view state retrieved',
     }
   },
-  async zoomToExtent(params, bridge) {
-    await bridge.zoomToExtent(params as unknown as ZoomToExtentParams)
+  async zoomToExtent(params, bridge, context = {}) {
+    await bridge.zoomToExtent(params as unknown as ZoomToExtentParams, context.signal)
     return { success: true, message: 'Zoomed to extent' }
   },
   saveViewpoint(params, bridge) {

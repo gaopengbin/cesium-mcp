@@ -12,7 +12,50 @@ function _heightToRange(height: number, pitchDeg: number): number {
   return absSin > 0.05 ? height / absSin : height * 10
 }
 
-export function flyTo(viewer: Cesium.Viewer, params: FlyToParams): Promise<void> {
+const activeFlights = new WeakMap<Cesium.Viewer, symbol>()
+
+function cameraFlight(
+  viewer: Cesium.Viewer,
+  duration: number,
+  start: (done: () => void) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  signal?.throwIfAborted()
+  return new Promise((resolve, reject) => {
+    const id = Symbol('flight')
+    let settled = false
+    const cleanup = () => {
+      clearTimeout(fallback)
+      signal?.removeEventListener('abort', abort)
+      if (activeFlights.get(viewer) === id) activeFlights.delete(viewer)
+    }
+    const done = () => {
+      if (settled) return
+      settled = true
+      cleanup()
+      resolve()
+    }
+    const abort = () => {
+      if (settled) return
+      settled = true
+      const ownsFlight = activeFlights.get(viewer) === id
+      cleanup()
+      if (ownsFlight) viewer.camera.cancelFlight()
+      reject(signal?.reason)
+    }
+    // Some Cesium flights do not call complete/cancel when already at the destination.
+    const fallback = setTimeout(done, (duration + 1) * 1000)
+    activeFlights.set(viewer, id)
+    signal?.addEventListener('abort', abort, { once: true })
+    try { start(done) } catch (error) {
+      settled = true
+      cleanup()
+      reject(error)
+    }
+  })
+}
+
+export function flyTo(viewer: Cesium.Viewer, params: FlyToParams, signal?: AbortSignal): Promise<void> {
   const {
     longitude,
     latitude,
@@ -27,18 +70,7 @@ export function flyTo(viewer: Cesium.Viewer, params: FlyToParams): Promise<void>
   const target = Cesium.Cartesian3.fromDegrees(longitude, latitude, 0)
   const range = _heightToRange(height, pitch)
 
-  return new Promise((resolve) => {
-    let settled = false
-    const done = () => {
-      if (settled) return
-      settled = true
-      clearTimeout(fallback)
-      resolve()
-    }
-    // 兜底：Cesium 在"目标已在相机附近"或"被下一个 fly 打断"等场景下
-    // 可能既不触发 complete 也不触发 cancel，避免调用者永远 pending
-    const fallback = setTimeout(done, (duration + 1) * 1000)
-
+  return cameraFlight(viewer, duration, done => {
     viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 0), {
       duration,
       offset: new Cesium.HeadingPitchRange(
@@ -49,7 +81,7 @@ export function flyTo(viewer: Cesium.Viewer, params: FlyToParams): Promise<void>
       complete: done,
       cancel: done,
     })
-  })
+  }, signal)
 }
 
 export function setView(viewer: Cesium.Viewer, params: SetViewParams): void {
@@ -92,27 +124,18 @@ export function getView(viewer: Cesium.Viewer): ViewState {
   }
 }
 
-export function zoomToExtent(viewer: Cesium.Viewer, params: ZoomToExtentParams): Promise<void> {
+export function zoomToExtent(viewer: Cesium.Viewer, params: ZoomToExtentParams, signal?: AbortSignal): Promise<void> {
   const { bbox, duration = 1.5 } = params
   const [west, south, east, north] = bbox
 
-  return new Promise((resolve) => {
-    let settled = false
-    const done = () => {
-      if (settled) return
-      settled = true
-      clearTimeout(fallback)
-      resolve()
-    }
-    const fallback = setTimeout(done, (duration + 1) * 1000)
-
+  return cameraFlight(viewer, duration, done => {
     viewer.camera.flyTo({
       destination: Cesium.Rectangle.fromDegrees(west, south, east, north),
       duration,
       complete: done,
       cancel: done,
     })
-  })
+  }, signal)
 }
 
 // ==================== Viewpoint Bookmarks ====================

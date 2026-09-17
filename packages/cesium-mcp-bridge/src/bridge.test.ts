@@ -9,6 +9,16 @@ function makeBridge(options: CesiumBridgeOptions = {}) {
 }
 
 describe('CesiumBridge command boundary', () => {
+  it('does not dispatch a cancelled execution', async () => {
+    const execute = vi.fn().mockResolvedValue({ success: true })
+    const bridge = makeBridge({ executors: { getView: execute } })
+    const controller = new AbortController()
+    controller.abort()
+    const result = await bridge.execute({ action: 'getView', params: {} }, { signal: controller.signal })
+    expect(result.success).toBe(false)
+    expect(execute).not.toHaveBeenCalled()
+  })
+
   it('rejects invalid shared-contract input before dispatch', async () => {
     const bridge = makeBridge()
     const result = await bridge.execute({
@@ -54,6 +64,7 @@ describe('CesiumBridge command boundary', () => {
     expect(executor).toHaveBeenCalledWith(
       { longitude: 116.4, latitude: 39.9 },
       bridge,
+      { signal: expect.any(AbortSignal) },
     )
   })
 

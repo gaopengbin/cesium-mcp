@@ -41,7 +41,7 @@ const registration = isWebMcpSupported()
   : undefined
 
 // Call this when the page or component is unmounted.
-registration?.unregister()
+registration?.dispose()
 ```
 
 `registerCesiumViewerWebMcp()` registers the 15-tool `core` selection by default. Use `toolsets: 'all'` for all 61 browser-safe tools, or select only what the page needs:
@@ -90,12 +90,16 @@ For an HTTPS production origin during the trial period, register that exact orig
 
 ## Capability detection and cleanup
 
+Execution cancellation and registration cleanup are separate. The browser's `execute(input, { signal })` signal is forwarded to `executor.execute(command, { signal })`. Custom executors should pass it to `fetch` and check it before changing the scene. Built-in Bridge commands stop camera flights and screenshots and prevent cancelled layer/terrain loads from attaching late; Cesium's underlying network request may still finish. Cancellation does not roll back completed scene changes.
+
+`unregister()` removes tools immediately and releases the owned Bridge after in-flight calls settle. `dispose()` cancels Bridge work immediately as well; call it before `viewer.destroy()`. The lower-level `registerCesiumWebMcp()` never owns or disposes an application-provided executor.
+
 WebMCP is not available in every browser. Keep the application usable without it and treat registration as an enhancement:
 
 ```ts
 if (isWebMcpSupported()) {
   const registration = await registerCesiumViewerWebMcp(viewer)
-  // Store registration and unregister it during teardown.
+  // Store registration and call dispose() before destroying the Viewer.
 }
 ```
 

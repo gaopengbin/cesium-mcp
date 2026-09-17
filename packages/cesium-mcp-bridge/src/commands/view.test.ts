@@ -17,7 +17,7 @@ vi.mock('cesium', () => ({
   default: {},
 }))
 
-import { saveViewpoint, loadViewpoint, listViewpoints, setView } from './view.js'
+import { saveViewpoint, loadViewpoint, listViewpoints, setView, flyTo, zoomToExtent } from './view.js'
 
 function makeViewer(pos = { lon: 116.4, lat: 39.9, height: 5000, heading: 0, pitch: -45, roll: 0 }) {
   const lonRad = pos.lon * (Math.PI / 180)
@@ -49,6 +49,33 @@ function makeViewer(pos = { lon: 116.4, lat: 39.9, height: 5000, heading: 0, pit
 }
 
 describe('setView', () => {
+  it('cancels camera motion and settles the pending flight', async () => {
+    const controller = new AbortController()
+    const viewer = makeViewer()
+    viewer.camera.flyToBoundingSphere = vi.fn()
+    viewer.camera.cancelFlight = vi.fn()
+    const pending = flyTo(viewer, { longitude: 0, latitude: 0 }, controller.signal)
+    controller.abort()
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    expect(viewer.camera.cancelFlight).toHaveBeenCalledOnce()
+  })
+
+  it('does not let an older cancellation stop a newer camera flight', async () => {
+    const controller = new AbortController()
+    const viewer = makeViewer()
+    let finish!: () => void
+    viewer.camera.flyToBoundingSphere = vi.fn()
+    viewer.camera.flyTo = (options: any) => { finish = options.complete }
+    viewer.camera.cancelFlight = vi.fn()
+    const older = flyTo(viewer, { longitude: 0, latitude: 0 }, controller.signal)
+    const newer = zoomToExtent(viewer, { bbox: [0, 0, 1, 1] })
+    controller.abort()
+    await expect(older).rejects.toMatchObject({ name: 'AbortError' })
+    expect(viewer.camera.cancelFlight).not.toHaveBeenCalled()
+    finish()
+    await newer
+  })
+
   it('applies an explicit roll after releasing the lookAt transform', () => {
     const viewer = makeViewer()
     setView(viewer, { longitude: 116.4, latitude: 39.9, roll: 30 })

@@ -246,6 +246,22 @@ function makePrimitiveCollection(materials: Array<Record<string, unknown>>) {
 }
 
 describe('detectGeometryType', () => {
+  it('keeps existing content and discards a CZML load completed after cancellation', async () => {
+    let finish!: (value: any) => void
+    mockLoadCzml.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const viewer = makeViewer()
+    const manager = new LayerManager(viewer)
+    registerLayer(manager, 'existing')
+    const controller = new AbortController()
+    const pending = manager.loadCzml({ id: 'existing', data: [] }, controller.signal)
+    controller.abort()
+    finish(mockDataSource)
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    expect(viewer.dataSources.add).not.toHaveBeenCalled()
+    expect(manager.layers).toHaveLength(1)
+    expect(manager.layers[0]?.type).toBe('test')
+  })
+
   it('should detect Point geometry', () => {
     const geojson = {
       type: 'FeatureCollection',

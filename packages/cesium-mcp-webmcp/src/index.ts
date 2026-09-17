@@ -29,7 +29,11 @@ export interface CesiumWebMcpCommand {
 }
 
 export interface CesiumWebMcpExecutor {
-  execute(command: CesiumWebMcpCommand): unknown | Promise<unknown>
+  execute(command: CesiumWebMcpCommand, context?: WebMcpExecutionContext): unknown | Promise<unknown>
+}
+
+export interface WebMcpExecutionContext {
+  signal?: AbortSignal
 }
 
 export interface WebMcpRegisteredTool {
@@ -42,7 +46,7 @@ export interface WebMcpRegisteredTool {
     readOnlyHint?: boolean
     untrustedContentHint?: boolean
   }
-  execute(input: Record<string, unknown>): unknown | Promise<unknown>
+  execute(input: Record<string, unknown>, context?: WebMcpExecutionContext): unknown | Promise<unknown>
 }
 
 export interface WebMcpRegisterToolOptions {
@@ -127,7 +131,13 @@ export function buildWebMcpTools(
       inputSchema: tool.inputSchema,
       outputSchema: tool.outputSchema,
       annotations: annotations && Object.keys(annotations).length > 0 ? annotations : undefined,
-      execute: input => executor.execute({ action: tool.name, params: input }),
+      execute: async (input, context) => {
+        context?.signal?.throwIfAborted()
+        const command = { action: tool.name, params: input }
+        const result = await (context ? executor.execute(command, context) : executor.execute(command))
+        context?.signal?.throwIfAborted()
+        return result
+      },
     }
   })
 }
@@ -140,7 +150,10 @@ export async function registerWebMcpTools(
   const webMcpTools = buildWebMcpTools(executor, tools)
   const modelContext = resolveModelContext(options)
   const controller = new AbortController()
-  const unregister = () => controller.abort()
+  const unregister = () => {
+    options.signal?.removeEventListener('abort', unregister)
+    controller.abort()
+  }
 
   if (options.signal) {
     if (options.signal.aborted) controller.abort()
