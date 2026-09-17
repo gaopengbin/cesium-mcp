@@ -363,7 +363,7 @@ curl -X POST http://localhost:9100/push \
 
 | 通道 | Runtime | Bridge | MCP 协议 | Cesium |
 |------|---------|--------|----------|--------|
-| `latest` | 当前稳定版 | 对应稳定版 | `2025-11-25` + `2026-07-28` | `~1.143.0` |
+| `latest` | 当前稳定版 | 对应稳定版 | `2025-11-25` + `2026-07-28` | `~1.145.0` |
 
 稳定版通过同一个 stdio/HTTP 入口服务两代协议，使用
 `@modelcontextprotocol/server`、`@modelcontextprotocol/node` `2.0.0`。

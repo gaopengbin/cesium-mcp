@@ -63,4 +63,4 @@ Consumers are responsible for adapting these contracts to their protocol or mode
 
 ## CesiumJS compatibility
 
-This package is transport-neutral and does not depend on CesiumJS directly. Executable compatibility is defined by `cesium-mcp-bridge`, currently tested with the peer dependency `cesium@~1.143.0`. A newer official CesiumJS release is reviewed before the Bridge baseline and affected contracts are updated; contracts do not automatically claim compatibility with every latest release.
+This package is transport-neutral and does not depend on CesiumJS directly. Executable compatibility is defined by `cesium-mcp-bridge`, currently tested with the peer dependency `cesium@~1.145.0`. A newer official CesiumJS release is reviewed before the Bridge baseline and affected contracts are updated; contracts do not automatically claim compatibility with every latest release.

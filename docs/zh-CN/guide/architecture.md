@@ -212,6 +212,6 @@ http://localhost:3216/mcp?session=project-a
 已有的 `cesium-mcp-bridge`、`cesium-mcp-runtime` 和 `cesium-mcp-dev` 使用 [changesets](https://github.com/changesets/changesets) 共享同一版本号（**fixed** 模式）。新增的 `cesium-mcp-contracts` 与 `cesium-mcp-webmcp` 使用独立的语义化版本。
 
 **主版本号.次版本号** 跟踪 CesiumJS：
-- `cesium-mcp-*@1.143.x` 对应已验证的 `cesium@~1.143.0` 基线
+- `cesium-mcp-*@1.145.x` 对应已验证的 `cesium@~1.145.0` 基线
 
 **修订版本号** 独立迭代，用于 MCP 功能更新。
