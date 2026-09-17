@@ -67,6 +67,31 @@ HTTP 模式下默认启用全部 62 个 Cesium 命令工具（无需动态工具
 
 ## MCP 客户端配置
 
+### 网络访问
+
+Runtime 的 HTTP 和 WebSocket 端口默认只监听 `127.0.0.1`。本机 MCP 客户端和 localhost 页面继续可用；直接通过 `file://` 打开的页面请改用本地 HTTP 服务。
+
+| 环境变量 | 用途 |
+|---|---|
+| `CESIUM_HOST` | 监听地址，默认 `127.0.0.1`；非回环地址必须配置 `CESIUM_AUTH_TOKEN`。 |
+| `CESIUM_AUTH_TOKEN` | 连接密钥。设置后所有 API 和 WebSocket 连接（包括本机客户端）均需鉴权。 |
+| `CESIUM_ALLOWED_HOSTS` | 额外允许的精确主机名，逗号分隔，不带端口；默认允许回环地址和监听地址，不接受通配符。 |
+| `CESIUM_ALLOWED_ORIGINS` | 允许访问的 HTTPS 页面来源，逗号分隔；默认允许回环地址的 HTTP/HTTPS 来源，不接受通配符。 |
+
+远程访问应通过反向代理提供 HTTPS/WSS，并显式配置域名与 Viewer 来源。例如设置 `CESIUM_HOST=0.0.0.0`、`CESIUM_ALLOWED_HOSTS=maps.example.com`、`CESIUM_ALLOWED_ORIGINS=https://maps.example.com`，将生成的连接密钥放入服务端 `CESIUM_AUTH_TOKEN` 环境变量。代理需保留 Host 请求头并支持 WebSocket 升级。
+
+MCP HTTP 和 REST 客户端发送 `Authorization: Bearer <token>`。启用鉴权后，内置 Viewer 会要求输入连接密钥，仅在当前页面持有。自定义浏览器 Bridge 使用 WebSocket 子协议传递密钥：
+
+```js
+const encoded = btoa(String.fromCharCode(...new TextEncoder().encode(token)))
+  .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+const ws = new WebSocket('wss://maps.example.com/?session=demo', [
+  'cesium-mcp', `cesium-token.${encoded}`,
+])
+```
+
+不要把密钥放入 URL 查询参数，代理日志也不要记录 Authorization 或 `Sec-WebSocket-Protocol` 请求头。Viewer HTML 和 Bridge 脚本是公开静态资源；API 和 WebSocket 升级仍需密钥。本机第二个 Runtime 实例需配置相同密钥才能中继已有实例。浏览器 session ID 只用于选择 Viewer，不用于鉴权。
+
 ### Claude Desktop
 
 ```json
