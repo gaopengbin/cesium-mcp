@@ -1,5 +1,11 @@
 # cesium-mcp-runtime
 
+## 1.145.3
+
+### Patch Changes
+
+- [#50](https://github.com/gaopengbin/cesium-mcp/pull/50) [`219cb0c`](https://github.com/gaopengbin/cesium-mcp/commit/219cb0c2382a095bc359910e7fcf22a9632b7c7b) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Build and test against CesiumJS 1.145, update the built-in Viewer and examples, and allow the verified 1.145 peer dependency while retaining support for 1.143. The development and CI baseline is Node.js 22 or newer, matching CesiumJS's engine requirement.
+
 ## 1.145.2
 
 ### Patch Changes

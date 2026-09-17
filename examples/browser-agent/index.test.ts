@@ -53,13 +53,13 @@ describe('browser-agent startup order', () => {
     expect(html).not.toContain('<script\n    src="../../packages/cesium-mcp-bridge')
     expect(html).not.toContain("BRIDGE_SCRIPT_URL = '/packages/cesium-mcp-bridge/")
     expect(html).toContain(
-      "BRIDGE_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/cesium-mcp-bridge@1.145.1/dist/cesium-mcp-bridge.browser.global.js'",
+      "BRIDGE_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/cesium-mcp-bridge@1.145.3/dist/cesium-mcp-bridge.browser.global.js'",
     )
     expect(html).not.toContain('src="/packages/cesium-mcp-webmcp/')
     expect(html).toContain(
-      'https://cdn.jsdelivr.net/npm/cesium-mcp-webmcp@0.3.0/dist/cesium-mcp-webmcp.browser.global.js',
+      'https://cdn.jsdelivr.net/npm/cesium-mcp-webmcp@0.4.0/dist/cesium-mcp-webmcp.browser.global.js',
     )
-    expect(html).toContain('cesium-mcp-webmcp@0.2.5/dist/cesium-mcp-webmcp.browser.global.js')
+    expect(html).toContain('cesium-mcp-webmcp@0.3.0/dist/cesium-mcp-webmcp.browser.global.js')
     expect(html).toContain('await CesiumMcpWebMcp.registerCesiumWebMcp(executor, {')
     expect(html).toContain('pageResourceStore ? { resourceStore: pageResourceStore } : {}')
     expect(html).not.toContain('document.modelContext.registerTool')
