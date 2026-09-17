@@ -112,7 +112,7 @@ Bridge 运行在**浏览器内部**，与 CesiumJS 应用共存。它：
 
 ### cesium-mcp-webmcp（浏览器适配层）
 
-WebMCP 包把共享契约注册到原生 `document.modelContext` API。默认暴露 15 个核心工具，也可以按 12 个工具集暴露全部 61 个浏览器安全工具。它不包含 AI 模型、聊天界面、MCP 服务、WebSocket 传输层或 polyfill。
+WebMCP 包把共享契约注册到原生 `document.modelContext` API。默认暴露 15 个核心工具，也可以按 12 个工具集暴露全部 61 个浏览器安全工具。应用可以额外启用 3 个适配层本地的[资源句柄](/zh-CN/guide/resource-handles)工具，而不改变 Bridge 协议。它不包含 AI 模型、聊天界面、MCP 服务、WebSocket 传输层或 polyfill。
 
 该适配层与 `cesium-mcp-runtime` 保持独立，接入步骤见 [WebMCP 浏览器接入](/zh-CN/guide/webmcp)。
 

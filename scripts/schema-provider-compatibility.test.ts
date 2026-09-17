@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 
 import { describe, expect, it, vi } from 'vitest'
-import { cesiumBrowserToolContracts } from '../packages/cesium-mcp-contracts/src/index.js'
+import {
+  cesiumBrowserToolContracts,
+  cesiumResourceToolContracts,
+} from '../packages/cesium-mcp-contracts/src/index.js'
 import { getCesiumRuntimeToolMetadata } from '../packages/cesium-mcp-runtime/src/tool-manifest.js'
 import { buildCesiumWebMcpTools } from '../packages/cesium-mcp-webmcp/src/index.js'
 import {
@@ -35,6 +38,33 @@ describe('provider schema compatibility gate', () => {
       .map(tool => ({ name: tool.name, inputSchema: tool.inputSchema }))
     const functionCalling = functionContext.CesiumFunctionTools
       .toFunctionTools(cesiumBrowserToolContracts)
+      .map((tool: any) => ({
+        name: tool.function.name,
+        inputSchema: tool.function.parameters,
+      }))
+
+    const surfaces = { canonical, runtime, webMcp, functionCalling }
+    for (const tools of Object.values(surfaces)) {
+      expect(tools.map(tool => tool.name)).toEqual(canonical.map(tool => tool.name))
+    }
+    expect(auditProviderToolSurfaces(surfaces)).toEqual([])
+  })
+
+  it('accepts resource handle tools across Contracts, MCP, WebMCP, and Function Calling', () => {
+    const canonical = cesiumResourceToolContracts.map(tool => ({
+      name: tool.name,
+      inputSchema: tool.inputSchema,
+    }))
+    const runtime = cesiumResourceToolContracts.map(tool => ({
+      name: tool.name,
+      inputSchema: getCesiumRuntimeToolMetadata(tool.name, 'en')!.inputSchema,
+    }))
+    const webMcp = buildCesiumWebMcpTools(
+      { execute: vi.fn() },
+      { tools: [], enableResources: true },
+    ).map(tool => ({ name: tool.name, inputSchema: tool.inputSchema }))
+    const functionCalling = functionContext.CesiumFunctionTools
+      .toFunctionTools(cesiumResourceToolContracts)
       .map((tool: any) => ({
         name: tool.function.name,
         inputSchema: tool.function.parameters,
