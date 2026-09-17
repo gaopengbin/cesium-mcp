@@ -1,5 +1,15 @@
 # cesium-mcp-bridge
 
+## 1.145.2
+
+### Patch Changes
+
+- [#48](https://github.com/gaopengbin/cesium-mcp/pull/48) [`91ed163`](https://github.com/gaopengbin/cesium-mcp/commit/91ed1632b4db55d065e4a76678235b3e339d5c6b) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Omit absent optional layer references from tool results, including the fix from PR [#45](https://github.com/gaopengbin/cesium-mcp/issues/45). Rebuild the browser Bridge bundled with Runtime.
+
+  Default Runtime to loopback networking. Add configurable exact host/origin allowlists and token authentication for network clients, with authenticated WebSocket connections and local relay support.
+
+  Refresh compatible dependency versions for the Runtime HTTP adapter and Cesium HTML sanitization.
+
 ## 1.145.1
 
 ## 1.145.0
