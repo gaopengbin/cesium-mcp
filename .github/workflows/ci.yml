@@ -39,5 +39,8 @@ jobs:
       - run: npm run test:e2e:packed
         if: matrix.node-version == 22
 
+      - run: node scripts/run-packed-runtime-e2e.mjs --auth
+        if: matrix.node-version == 22
+
       - run: npm run test:conformance:mcp
         if: matrix.node-version == 22

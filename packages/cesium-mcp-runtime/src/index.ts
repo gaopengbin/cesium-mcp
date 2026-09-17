@@ -46,11 +46,21 @@ import {
   settlePendingBrowserResponse,
 } from './browser-session-router.js'
 import type { PendingBrowserRequest } from './browser-session-router.js'
+import { authorizeHttp, checkNetworkRequest, createNetworkPolicy } from './network-policy.js'
+import type { NetworkPolicy } from './network-policy.js'
 
 // ==================== WebSocket Bridge ====================
 
 const WS_PORT = parseInt(process.env.CESIUM_WS_PORT ?? '9100')
 const MAX_PORT_RETRIES = 10
+let networkPolicy = createNetworkPolicy({})
+
+function relayHeaders(): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    ...(networkPolicy.token ? { Authorization: `Bearer ${networkPolicy.token}` } : {}),
+  }
+}
 
 /** 按 sessionId 管理已连接的浏览器 */
 const browserClients = new Map<string, WebSocket>()
@@ -140,7 +150,7 @@ async function _sendViaRelay(action: string, params: Record<string, unknown>, ti
   try {
     const resp = await fetch(`http://127.0.0.1:${_relayPort}/api/relay`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: relayHeaders(),
       body: JSON.stringify({ action, params, sessionId }),
       signal: controller.signal,
     })
@@ -161,7 +171,7 @@ async function _sendViaRelay(action: string, params: Record<string, unknown>, ti
 function _pushViaRelay(sessionId: string | undefined, command: { action: string; params: Record<string, unknown> }) {
   fetch(`http://127.0.0.1:${_relayPort}/api/command`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: relayHeaders(),
     body: JSON.stringify({ sessionId, command }),
   }).catch(() => { /* fire-and-forget */ })
 }
@@ -191,17 +201,17 @@ export function isViewerRequest(method: string | undefined, url: string | undefi
 }
 
 /** HTTP 请求处理：POST /api/command */
-async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
+async function handleHttpRequest(req: IncomingMessage, res: ServerResponse, policy: NetworkPolicy) {
+  if (!authorizeHttp(req, res, policy)) return
   const requestPath = new URL(req.url ?? '/', 'http://localhost').pathname
   if (requestPath === '/mcp') {
-    await _handleMcpRequest(req, res)
+    await _handleMcpRequest(req, res, policy)
     return
   }
 
   // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204)
@@ -324,7 +334,6 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
       const buffer = Buffer.from(await proxyResp.arrayBuffer())
       res.writeHead(proxyResp.status, {
         'Content-Type': contentType,
-        'Access-Control-Allow-Origin': '*',
       })
       res.end(buffer)
     } catch (err) {
@@ -341,7 +350,6 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
     if (bundle) {
       res.writeHead(200, {
         'Content-Type': 'application/javascript; charset=utf-8',
-        'Access-Control-Allow-Origin': '*',
       })
       res.end(bundle)
       return
@@ -354,7 +362,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
   // GET / — serve built-in viewer page
   if (isViewerRequest(req.method, req.url)) {
     const token = process.env.CESIUM_ION_TOKEN || ''
-    const html = _getViewerHtml(token, WS_PORT)
+    const html = _getViewerHtml(token, Boolean(policy.token))
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
     res.end(html)
     return
@@ -390,7 +398,7 @@ function _findLocalBridgeBundle(): string | null {
 }
 
 /** Built-in viewer HTML served at GET / */
-function _getViewerHtml(token: string, wsPort: number): string {
+function _getViewerHtml(token: string, requiresAuth: boolean): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -404,6 +412,7 @@ function _getViewerHtml(token: string, wsPort: number): string {
 *{margin:0;padding:0;box-sizing:border-box}
 html,body,#c{width:100%;height:100%;overflow:hidden}
 #s{position:fixed;top:12px;right:12px;z-index:999;padding:6px 12px;border-radius:6px;font:13px/1.4 -apple-system,sans-serif;backdrop-filter:blur(8px);transition:all .3s}
+#auth{position:fixed;top:50px;right:12px;z-index:999;background:#fff;padding:8px;border-radius:6px;font:13px sans-serif}
 .c0{background:rgba(255,170,0,.85);color:#333}
 .c1{background:rgba(0,180,80,.85);color:#fff}
 .c2{background:rgba(220,50,50,.85);color:#fff}
@@ -411,17 +420,20 @@ html,body,#c{width:100%;height:100%;overflow:hidden}
 </head>
 <body>
 <div id="c"></div><div id="s" class="c0">Connecting...</div>
+${requiresAuth ? '<form id="auth"><label>Connection token <input id="auth-token" type="password" autocomplete="off" required></label> <button>Connect</button></form>' : ''}
 <script>
-var WS=${wsPort},TOK='${token}',SE=new URLSearchParams(location.search).get('session')||'default';
+var TOK=${JSON.stringify(token).replace(/</g, '\\u003c')},SE=new URLSearchParams(location.search).get('session')||'default';
 if(TOK)Cesium.Ion.defaultAccessToken=TOK;
 var v=new Cesium.Viewer('c',{terrain:Cesium.Terrain.fromWorldTerrain(),baseLayerPicker:!0,geocoder:!0,animation:!0,timeline:!0});
 var b=new CesiumMcpBridge.CesiumBridge(v),el=document.getElementById('s');
-function conn(){var ws=new WebSocket('ws://localhost:'+WS+'?session='+SE);
+function conn(){var input=document.getElementById('auth-token'),protocols=[];
+if(input){if(!input.value)return;protocols=['cesium-mcp','cesium-token.'+btoa(String.fromCharCode.apply(null,new TextEncoder().encode(input.value))).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'')]}
+var ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'?session='+encodeURIComponent(SE),protocols);
 ws.onopen=function(){el.className='c1';el.textContent='Connected'};
 ws.onmessage=function(e){var m=JSON.parse(e.data);b.execute({action:m.method,params:m.params||{}}).then(function(r){if(m.id)ws.send(JSON.stringify({id:m.id,result:r||{success:!0}}))})};
-ws.onclose=function(){el.className='c2';el.textContent='Disconnected';setTimeout(conn,3000)};
+ws.onclose=function(){el.className='c2';el.textContent='Disconnected';if(!input)setTimeout(conn,3000)};
 ws.onerror=function(){ws.close()}}
-conn();
+var auth=document.getElementById('auth');if(auth){el.textContent='Enter connection token';auth.onsubmit=function(e){e.preventDefault();conn()}}else conn();
 </script>
 </body></html>`
 }
@@ -429,7 +441,8 @@ conn();
 /** Probe a port to check if a cesium-mcp-runtime instance is already running */
 async function _probeExistingInstance(port: number): Promise<boolean> {
   try {
-    const resp = await fetch(`http://127.0.0.1:${port}/api/status`, { signal: AbortSignal.timeout(1500) })
+    const resp = await fetch(`http://127.0.0.1:${port}/api/status`, { headers: relayHeaders(), signal: AbortSignal.timeout(1500) })
+    if (!resp.ok) return false
     const data = await resp.json() as { server?: string }
     return data.server === 'cesium-mcp-runtime'
   } catch {
@@ -451,19 +464,31 @@ function _tryListen(httpServer: ReturnType<typeof createServer>, port: number): 
     }
     httpServer.once('error', onError)
     httpServer.once('listening', onListening)
-    httpServer.listen(port)
+    httpServer.listen(port, networkPolicy.host)
   })
 }
 
-async function startServer() {
-  // Phase 1: check if target port is available
-  const httpServer = createServer(handleHttpRequest)
-  const wss = new WebSocketServer({ server: httpServer, noServer: false })
+export function createRuntimeHttpServer(policy = createNetworkPolicy({})) {
+  const httpServer = createServer((req, res) => { void handleHttpRequest(req, res, policy) })
+  const wss = new WebSocketServer({
+    server: httpServer,
+    verifyClient: ({ req }, done) => {
+      const error = checkNetworkRequest(req, policy, true)
+      done(!error, error?.status, error?.message)
+    },
+    handleProtocols: protocols => protocols.has('cesium-mcp') ? 'cesium-mcp' : false,
+  })
 
   // Prevent unhandled error crash when httpServer fails to bind
   wss.on('error', () => { /* handled by httpServer error listener in _tryListen */ })
 
   _setupWss(wss)
+  return httpServer
+}
+
+async function startServer() {
+  // Phase 1: check if target port is available
+  const httpServer = createRuntimeHttpServer(networkPolicy)
 
   if (await _tryListen(httpServer, WS_PORT)) {
     console.error(`[cesium-mcp-runtime] HTTP + WebSocket server on http://localhost:${WS_PORT}`)
@@ -485,10 +510,7 @@ async function startServer() {
   // Phase 3: port occupied by other service — try incremental ports
   for (let offset = 1; offset <= MAX_PORT_RETRIES; offset++) {
     const tryPort = WS_PORT + offset
-    const altServer = createServer(handleHttpRequest)
-    const altWss = new WebSocketServer({ server: altServer })
-    altWss.on('error', () => { /* handled by altServer error listener */ })
-    _setupWss(altWss)
+    const altServer = createRuntimeHttpServer(networkPolicy)
     if (await _tryListen(altServer, tryPort)) {
       console.error(`[cesium-mcp-runtime] Port ${WS_PORT} occupied by another service, using port ${tryPort}`)
       console.error(`[cesium-mcp-runtime] HTTP + WebSocket server on http://localhost:${tryPort}`)
@@ -2292,8 +2314,8 @@ const _nodeMcpHandler = toNodeHandler(_mcpHttpHandler, {
 /**
  * Handle MCP Streamable HTTP requests for both the 2025-era and 2026-07-28.
  */
-async function _handleMcpRequest(req: IncomingMessage, res: ServerResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+async function _handleMcpRequest(req: IncomingMessage, res: ServerResponse, policy = networkPolicy) {
+  if (!authorizeHttp(req, res, policy)) return
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
   res.setHeader(
     'Access-Control-Allow-Headers',
@@ -2377,6 +2399,7 @@ export function createSandboxServer() {
 // ==================== 启动 ====================
 
 export async function main(argv: string[] = []) {
+  networkPolicy = createNetworkPolicy(process.env)
   // Parse CLI arguments
   const transportArg = _parseArg(argv, '--transport') ?? process.env.MCP_TRANSPORT ?? 'stdio'
   const mcpPortArg = parseInt(_parseArg(argv, '--port') ?? process.env.MCP_HTTP_PORT ?? '0')
@@ -2387,7 +2410,7 @@ export async function main(argv: string[] = []) {
     // Streamable HTTP transport mode
     const port = mcpPortArg || WS_PORT + 100 // default: WS_PORT + 100 (e.g. 9200)
     const mcpHttpServer = createServer(_handleMcpRequest)
-    mcpHttpServer.listen(port, () => {
+    mcpHttpServer.listen(port, networkPolicy.host, () => {
       const allToolCount = _toolDefs.size
       console.error(`[cesium-mcp-runtime] MCP Server running (Streamable HTTP), ${allToolCount} tools available`)
       console.error(`[cesium-mcp-runtime] MCP endpoint: http://localhost:${port}/mcp`)

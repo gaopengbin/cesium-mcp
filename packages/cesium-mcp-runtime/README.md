@@ -68,6 +68,33 @@ In HTTP mode, all 62 Cesium command tools are enabled by default (no dynamic too
 
 ## MCP Client Configuration
 
+### Network access
+
+Runtime binds to `127.0.0.1` by default, including its HTTP and WebSocket ports.
+Local native MCP clients and pages served from localhost continue to work.
+Pages opened directly as `file://` must instead be served by a local HTTP server.
+
+| Variable | Purpose |
+|---|---|
+| `CESIUM_HOST` | Bind address, default `127.0.0.1`. Non-loopback addresses require `CESIUM_AUTH_TOKEN`. |
+| `CESIUM_AUTH_TOKEN` | Shared connection secret. When set, all APIs and WebSocket connections require authentication, including local clients. |
+| `CESIUM_ALLOWED_HOSTS` | Comma-separated exact hostnames without ports, in addition to loopback and the bind address. No wildcards. |
+| `CESIUM_ALLOWED_ORIGINS` | Comma-separated exact HTTPS page origins. Loopback HTTP/HTTPS origins are allowed by default. No wildcards. |
+
+For remote access, use HTTPS/WSS through a reverse proxy and configure the public hostname and Viewer origin explicitly. For example, set `CESIUM_HOST=0.0.0.0`, `CESIUM_ALLOWED_HOSTS=maps.example.com`, `CESIUM_ALLOWED_ORIGINS=https://maps.example.com`, and a generated `CESIUM_AUTH_TOKEN` in the server environment. Preserve the public Host header and WebSocket upgrades in the proxy.
+
+MCP HTTP and REST clients send `Authorization: Bearer <token>`. The built-in Viewer asks for the connection token when authentication is enabled; it keeps the token in the page only. Custom browser bridges authenticate with WebSocket subprotocols:
+
+```js
+const encoded = btoa(String.fromCharCode(...new TextEncoder().encode(token)))
+  .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+const ws = new WebSocket('wss://maps.example.com/?session=demo', [
+  'cesium-mcp', `cesium-token.${encoded}`,
+])
+```
+
+Do not put credentials in query strings. Reverse proxies must not log Authorization or `Sec-WebSocket-Protocol` headers. The Viewer HTML and Bridge script are public assets; protected APIs and WebSocket upgrades still require the token. Secondary local Runtime instances must use the same token to relay to an existing instance. Browser session IDs select a Viewer; they are not credentials.
+
 ### Claude Desktop
 
 ```json

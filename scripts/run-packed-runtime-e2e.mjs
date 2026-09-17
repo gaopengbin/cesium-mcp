@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -11,6 +12,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const npmCli = process.env.npm_execpath
   ?? resolve(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
 const requestedRuntime = process.argv[2] === '--runtime' ? process.argv[3] : undefined
+const authToken = process.argv.includes('--auth') ? randomUUID() : ''
+const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {}
 const temp = await mkdtemp(join(tmpdir(), 'cesium-mcp-packed-e2e-'))
 const artifactsDir = join(temp, 'artifacts')
 const installDir = join(temp, 'install')
@@ -97,7 +100,7 @@ async function waitForRuntime(baseUrl) {
       throw new Error(`Runtime exited early with code ${runtime.exitCode}`)
     }
     try {
-      const response = await fetch(`${baseUrl}/api/status`)
+      const response = await fetch(`${baseUrl}/api/status`, { headers: authHeaders })
       if (response.ok) return response.json()
     } catch {
       // Runtime is still starting.
@@ -136,7 +139,7 @@ async function launchBrowser() {
 async function postCommand(baseUrl, sessionId, action, params = {}) {
   const response = await fetch(`${baseUrl}/api/relay`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: JSON.stringify({ action, params, sessionId }),
   })
   const payload = await response.json()
@@ -186,6 +189,8 @@ try {
       env: {
         ...process.env,
         CESIUM_WS_PORT: String(viewerPort),
+        CESIUM_HOST: '127.0.0.1',
+        CESIUM_AUTH_TOKEN: authToken,
         MCP_TRANSPORT: 'http',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -199,7 +204,7 @@ try {
   const [viewerResponse, bundleResponse, toolsResponse] = await Promise.all([
     fetch(`${baseUrl}/?session=${sessionId}`),
     fetch(`${baseUrl}/bridge.js`),
-    fetch(`${baseUrl}/api/tools?toolsets=view`),
+    fetch(`${baseUrl}/api/tools?toolsets=view`, { headers: authHeaders }),
   ])
   const viewerHtml = await viewerResponse.text()
   const bundleSource = await bundleResponse.text()
@@ -258,6 +263,14 @@ try {
     waitUntil: 'domcontentloaded',
     timeout: 30_000,
   })
+  if (authToken) {
+    const denied = await fetch(`${baseUrl}/api/status`)
+    if (denied.status !== 401 || viewerHtml.includes(authToken)) {
+      throw new Error('Authenticated Runtime exposed an API or embedded its secret in the Viewer')
+    }
+    await page.locator('#auth-token').fill(authToken)
+    await page.locator('#auth button').click()
+  }
   await page.waitForFunction(
     () => document.querySelector('#s')?.textContent === 'Connected',
     undefined,
@@ -288,13 +301,31 @@ try {
     throw new Error(`Packed Viewer returned an unexpected camera state: ${JSON.stringify(view)}`)
   }
 
+  const layerResult = await postCommand(baseUrl, sessionId, 'addGeoJsonLayer', {
+    id: 'packed-geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [116.3972, 39.9163] },
+        properties: { name: 'Packed regression fixture' },
+      }],
+    },
+  })
+  const layersResult = await postCommand(baseUrl, sessionId, 'listLayers')
+  if (!layerResult.success || !layersResult.success
+    || !layersResult.data?.layers?.some(layer => layer.id === 'packed-geojson')) {
+    throw new Error(`Packed GeoJSON regression: ${JSON.stringify({ layerResult, layersResult })}`)
+  }
+
   console.log(JSON.stringify({
     runtime: runtimePackage.version,
     source: requestedRuntime ?? 'local npm pack',
     viewer: 'connected',
     bridge: 'local bundle',
     tools: toolsPayload.tools.length,
-    command: 'setView -> getView',
+    authenticated: Boolean(authToken),
+    command: 'setView -> getView; addGeoJsonLayer -> listLayers',
   }))
 } catch (error) {
   console.error(error)
