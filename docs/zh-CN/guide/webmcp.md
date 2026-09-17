@@ -41,7 +41,7 @@ const registration = isWebMcpSupported()
   : undefined
 
 // 页面或组件卸载时调用。
-registration?.unregister()
+registration?.dispose()
 ```
 
 `registerCesiumViewerWebMcp()` 默认注册包含 15 个工具的 `core` 选择。使用 `toolsets: 'all'` 可注册全部 61 个浏览器安全工具，也可以只选择页面需要的工具集：
@@ -89,6 +89,10 @@ npm run dev -w examples/webmcp-integration
 Origin Trial 期间，如果要部署到 HTTPS 生产环境，需要为最终使用的准确 origin 申请 Chrome WebMCP Origin Trial，并通过页面元数据或响应头提供 token。
 
 ## 能力检测与清理
+
+执行取消与注册清理互相独立。浏览器传入的 `execute(input, { signal })` 会转发到 `executor.execute(command, { signal })`；自定义执行器应把信号传给 `fetch`，并在修改场景前检查取消状态。Bridge 会停止相机飞行和截图等待，阻止已取消的图层或地形加载在稍后写入场景；Cesium 内部网络请求仍可能完成。取消不会撤销已经完成的场景修改。
+
+`unregister()` 立即注销工具，等正在执行的调用结束后释放自建 Bridge。`dispose()` 同时立即取消 Bridge 的待完成操作，应在 `viewer.destroy()` 前调用。底层 `registerCesiumWebMcp()` 不拥有、也不会销毁应用自行提供的执行器。
 
 并非所有浏览器都支持 WebMCP。应用应在没有 WebMCP 时仍能正常使用，把工具注册作为渐进增强：
 

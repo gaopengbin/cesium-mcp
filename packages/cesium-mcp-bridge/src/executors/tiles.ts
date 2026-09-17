@@ -10,48 +10,44 @@ import type {
 } from '../types.js'
 
 export const tilesExecutors = {
-  async load3dTiles(params, bridge) {
-    const info = await bridge.load3dTiles(params as unknown as Load3dTilesParams)
+  async load3dTiles(params, bridge, context = {}) {
+    const info = await bridge.load3dTiles(params as unknown as Load3dTilesParams, context.signal)
     return {
       success: true,
       data: info,
       message: `3D Tiles '${info.name}' loaded`,
     }
   },
-  async load3dGaussianSplat(params, bridge) {
-    const info = await bridge.load3dGaussianSplat(
-      params as unknown as AddGaussianSplatParams,
-    )
+  async load3dGaussianSplat(params, bridge, context = {}) {
+    const info = await bridge.load3dGaussianSplat(params as unknown as AddGaussianSplatParams, context.signal)
     return {
       success: true,
       data: info,
       message: `3D Gaussian Splat '${info.name}' loaded`,
     }
   },
-  loadTerrain(params, bridge) {
-    bridge.loadTerrain(params as unknown as LoadTerrainParams)
+  async loadTerrain(params, bridge, context = {}) {
+    await bridge.loadTerrain(params as unknown as LoadTerrainParams, context.signal)
     return { success: true, message: 'Terrain provider updated' }
   },
-  async loadImageryService(params, bridge) {
-    const info = await bridge.loadImageryService(
-      params as unknown as LoadImageryServiceParams,
-    )
+  async loadImageryService(params, bridge, context = {}) {
+    const info = await bridge.loadImageryService(params as unknown as LoadImageryServiceParams, context.signal)
     return {
       success: true,
       data: info,
       message: `Imagery service '${info.name}' loaded`,
     }
   },
-  async loadCzml(params, bridge) {
-    const info = await bridge.loadCzml(params as unknown as LoadCzmlParams)
+  async loadCzml(params, bridge, context = {}) {
+    const info = await bridge.loadCzml(params as unknown as LoadCzmlParams, context.signal)
     return {
       success: true,
       data: info,
       message: `CZML data source '${info.name}' loaded`,
     }
   },
-  async loadKml(params, bridge) {
-    const info = await bridge.loadKml(params as unknown as LoadKmlParams)
+  async loadKml(params, bridge, context = {}) {
+    const info = await bridge.loadKml(params as unknown as LoadKmlParams, context.signal)
     return {
       success: true,
       data: info,

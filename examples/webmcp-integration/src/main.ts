@@ -12,6 +12,7 @@ import {
 } from 'cesium-mcp-webmcp'
 import type {
   CesiumWebMcpCommand,
+  WebMcpExecutionContext,
   WebMcpRegistration,
 } from 'cesium-mcp-webmcp'
 
@@ -30,9 +31,9 @@ const viewer = new Viewer('cesiumContainer', {
 const bridge = new CesiumBridge(viewer)
 
 const executor = {
-  execute(command: CesiumWebMcpCommand) {
-    if (command.action === 'geocode') return geocode(command.params)
-    return bridge.execute(command)
+  execute(command: CesiumWebMcpCommand, context?: WebMcpExecutionContext) {
+    if (command.action === 'geocode') return geocode(command.params, context?.signal)
+    return bridge.execute(command, context)
   },
 }
 
@@ -62,6 +63,7 @@ document.querySelector<HTMLButtonElement>('#markerButton')!.addEventListener('cl
 
 window.addEventListener('beforeunload', () => {
   registration?.unregister()
+  bridge.dispose()
   viewer.destroy()
 })
 
@@ -70,13 +72,13 @@ function setStatus(state: 'ready' | 'checking' | 'unavailable', message: string)
   status.textContent = message
 }
 
-async function geocode(params: Record<string, unknown>): Promise<Record<string, unknown>> {
+async function geocode(params: Record<string, unknown>, signal?: AbortSignal): Promise<Record<string, unknown>> {
   const address = typeof params.address === 'string' ? params.address.trim() : ''
   if (!address) return { success: false, message: 'address is required' }
 
   const query = new URLSearchParams({ q: address, format: 'json', limit: '1' })
   if (typeof params.countryCode === 'string') query.set('countrycodes', params.countryCode)
-  const response = await fetch(`https://nominatim.openstreetmap.org/search?${query}`)
+  const response = await fetch(`https://nominatim.openstreetmap.org/search?${query}`, { signal })
   if (!response.ok) return { success: false, message: `Geocoder error: ${response.status}` }
 
   const results = await response.json() as Array<{

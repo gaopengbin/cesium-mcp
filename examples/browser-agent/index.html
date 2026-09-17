@@ -1048,10 +1048,12 @@ async function registerPageWebMcpTools() {
   setWebMcpStatus('checking', 'registeringWebMcp', 'connectingBrowserAgent');
 
   const executor = {
-    async execute({ action, params }) {
-      if (action === 'geocode') return clientGeocode(params)
+    async execute({ action, params }, context) {
+      context?.signal?.throwIfAborted()
+      if (action === 'geocode') return clientGeocode(params, context?.signal)
       await initCesium()
-      return bridge.execute({ action, params: prepareCommandParams(action, params) })
+      context?.signal?.throwIfAborted()
+      return bridge.execute({ action, params: prepareCommandParams(action, params) }, context)
     },
   };
 
@@ -1314,11 +1316,12 @@ function clearChat() {
   showThinking(false);
 }
 
-async function clientGeocode({ address, countryCode }) {
+async function clientGeocode({ address, countryCode }, signal) {
   const params = new URLSearchParams({ q: address, format: 'json', addressdetails: '1', limit: '1' });
   if (countryCode) params.set('countrycodes', countryCode);
   const resp = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
     headers: { 'User-Agent': 'cesium-mcp-browser-agent/1.0' },
+    signal,
   });
   if (!resp.ok) return { success: false, message: `Nominatim API error: ${resp.status}` };
   const data = await resp.json();

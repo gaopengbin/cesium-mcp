@@ -2,8 +2,8 @@ import type { BridgeExecutor } from '../bridge.js'
 import type { HighlightParams, MeasureParams } from '../types.js'
 
 export const interactionExecutors = {
-  async screenshot(_params, bridge) {
-    const result = await bridge.screenshot()
+  async screenshot(_params, bridge, context = {}) {
+    const result = await bridge.screenshot(context.signal)
     return {
       success: true,
       data: result,
