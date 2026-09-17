@@ -8,20 +8,16 @@ import type {
 } from '../types.js'
 
 export const layerExecutors = {
-  async addGeoJsonLayer(params, bridge) {
-    const info = await bridge.addGeoJsonLayer(
-      params as unknown as AddGeoJsonLayerParams,
-    )
+  async addGeoJsonLayer(params, bridge, context = {}) {
+    const info = await bridge.addGeoJsonLayer(params as unknown as AddGeoJsonLayerParams, context.signal)
     return {
       success: true,
       data: info,
       message: `GeoJSON layer '${info.name}' added`,
     }
   },
-  async addGeoJsonPrimitive(params, bridge) {
-    const info = await bridge.addGeoJsonPrimitive(
-      params as unknown as AddGeoJsonPrimitiveParams,
-    )
+  async addGeoJsonPrimitive(params, bridge, context = {}) {
+    const info = await bridge.addGeoJsonPrimitive(params as unknown as AddGeoJsonPrimitiveParams, context.signal)
     return {
       success: true,
       data: info,

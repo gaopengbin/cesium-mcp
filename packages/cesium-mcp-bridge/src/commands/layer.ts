@@ -8,6 +8,7 @@ import type {
 } from '../types'
 import { parseColor } from '../utils'
 import { BASEMAP_PRESETS } from './basemap-presets'
+import { awaitOperation, checkOperation, discardResource } from '../operation'
 
 // ==================== 图层状态（由 Bridge 实例持有） ====================
 
@@ -54,7 +55,8 @@ export class LayerManager {
 
   // ==================== addGeoJsonLayer ====================
 
-  async addGeoJsonLayer(params: AddGeoJsonLayerParams): Promise<LayerInfo> {
+  async addGeoJsonLayer(params: AddGeoJsonLayerParams, signal?: AbortSignal): Promise<LayerInfo> {
+    checkOperation(signal)
     const { id, name, data, url, style, dataRefId } = params
 
     if (!data && !url) throw new Error('Either "data" or "url" must be provided')
@@ -65,18 +67,18 @@ export class LayerManager {
     const opacity = style?.opacity ?? 0.6
     const pointSize = style?.pointSize ?? 10
 
-    this.removeLayer(layerId)
-
     const cesiumColor = parseColor(color).withAlpha(opacity)
 
-    const ds = await Cesium.GeoJsonDataSource.load(url ?? data, {
+    const ds = await awaitOperation(Cesium.GeoJsonDataSource.load(url ?? data, {
       stroke: cesiumColor,
       fill: cesiumColor.withAlpha(opacity * 0.4),
       strokeWidth: 3,
       markerSize: 1,
       markerColor: cesiumColor,
       clampToGround: true,
-    })
+    }), signal, discardResource)
+    checkOperation(signal, ds)
+    this.removeLayer(layerId)
     ds.name = layerName
 
     // 将默认 pin 图标替换为 canvas 圆点图片（保留 billboard 以兼容 EntityCluster）
@@ -208,15 +210,14 @@ export class LayerManager {
 
   // ==================== addGeoJsonPrimitive ====================
 
-  async addGeoJsonPrimitive(params: AddGeoJsonPrimitiveParams): Promise<LayerInfo> {
+  async addGeoJsonPrimitive(params: AddGeoJsonPrimitiveParams, signal?: AbortSignal): Promise<LayerInfo> {
+    checkOperation(signal)
     const { id, name, data, url, allowPicking, show } = params
 
     if (!data && !url) throw new Error('Either "data" or "url" must be provided')
 
     const layerId = id ?? `geojson_prim_${Date.now()}`
     const layerName = name ?? layerId
-
-    this.removeLayer(layerId)
 
     const opts: Record<string, unknown> = {}
     if (allowPicking !== undefined) opts.allowPicking = allowPicking
@@ -229,11 +230,13 @@ export class LayerManager {
 
     let primitive: any
     if (url) {
-      primitive = await GeoJsonPrimitive.fromUrl(url, opts)
+      primitive = await awaitOperation(GeoJsonPrimitive.fromUrl(url, opts), signal, discardResource)
     } else {
       primitive = GeoJsonPrimitive.fromGeoJson(data, opts)
     }
 
+    checkOperation(signal, primitive)
+    this.removeLayer(layerId)
     this._viewer.scene.primitives.add(primitive)
 
     const featureCount = primitive.featureCount ?? 0
@@ -256,7 +259,8 @@ export class LayerManager {
 
   // ==================== addHeatmap ====================
 
-  async addHeatmap(params: AddHeatmapParams): Promise<LayerInfo> {
+  async addHeatmap(params: AddHeatmapParams, signal?: AbortSignal): Promise<LayerInfo> {
+    checkOperation(signal)
     const {
       id, name, data,
       radius = 30, gradient,
@@ -280,7 +284,7 @@ export class LayerManager {
     }
 
     if (!points.length) {
-      return this.addGeoJsonLayer({ id: layerId, name: layerName, data, style: { color: '#FF4500', opacity: 0.8 } })
+      return this.addGeoJsonLayer({ id: layerId, name: layerName, data, style: { color: '#FF4500', opacity: 0.8 } }, signal)
     }
 
     // 计算数据范围
@@ -644,18 +648,19 @@ export class LayerManager {
 
   // ==================== 3D Scene ====================
 
-  async load3dTiles(params: Load3dTilesParams): Promise<LayerInfo> {
+  async load3dTiles(params: Load3dTilesParams, signal?: AbortSignal): Promise<LayerInfo> {
+    checkOperation(signal)
     const { id, name, url, ionAssetId, maximumScreenSpaceError = 16, heightOffset = 0 } = params
     const layerId = id ?? `3dtiles_${Date.now()}`
     const layerName = name ?? '3D Tiles'
 
     if (!url && !ionAssetId) throw new Error('Either "url" or "ionAssetId" must be provided')
 
+    const tileset = await awaitOperation(ionAssetId
+      ? Cesium.Cesium3DTileset.fromIonAssetId(ionAssetId, { maximumScreenSpaceError })
+      : Cesium.Cesium3DTileset.fromUrl(url!, { maximumScreenSpaceError }), signal, discardResource)
+    checkOperation(signal, tileset)
     this.removeLayer(layerId)
-
-    const tileset = ionAssetId
-      ? await Cesium.Cesium3DTileset.fromIonAssetId(ionAssetId, { maximumScreenSpaceError })
-      : await Cesium.Cesium3DTileset.fromUrl(url!, { maximumScreenSpaceError })
 
     if (heightOffset !== 0) {
       const cartographic = Cesium.Cartographic.fromCartesian(tileset.boundingSphere.center)
@@ -686,16 +691,17 @@ export class LayerManager {
 
   // ==================== addGaussianSplat ====================
 
-  async addGaussianSplat(params: AddGaussianSplatParams): Promise<LayerInfo> {
+  async addGaussianSplat(params: AddGaussianSplatParams, signal?: AbortSignal): Promise<LayerInfo> {
+    checkOperation(signal)
     const { id, name, url, maximumScreenSpaceError = 16, show = true } = params
     const layerId = id ?? `gaussian_splat_${Date.now()}`
     const layerName = name ?? '3D Gaussian Splat'
 
-    this.removeLayer(layerId)
-
-    const tileset = await Cesium.Cesium3DTileset.fromUrl(url, {
+    const tileset = await awaitOperation(Cesium.Cesium3DTileset.fromUrl(url, {
       maximumScreenSpaceError,
-    })
+    }), signal, discardResource)
+    checkOperation(signal, tileset)
+    this.removeLayer(layerId)
     tileset.show = show
 
     this._viewer.scene.primitives.add(tileset)
@@ -713,30 +719,27 @@ export class LayerManager {
     return info
   }
 
-  loadTerrain(params: LoadTerrainParams): void {
+  async loadTerrain(params: LoadTerrainParams, signal?: AbortSignal): Promise<void> {
+    checkOperation(signal)
     const { provider, url, cesiumIonAssetId } = params
-    const onError = (e: unknown) => console.error('[CesiumBridge] loadTerrain failed:', e)
-
+    let terrain: Cesium.TerrainProvider | undefined
     if (provider === 'flat') {
-      this._viewer.scene.terrainProvider = new Cesium.EllipsoidTerrainProvider()
+      terrain = new Cesium.EllipsoidTerrainProvider()
     } else if (provider === 'arcgis') {
-      Cesium.ArcGISTiledElevationTerrainProvider.fromUrl(
+      terrain = await awaitOperation(Cesium.ArcGISTiledElevationTerrainProvider.fromUrl(
         'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer',
-      ).then((tp: Cesium.TerrainProvider) => {
-        this._viewer.scene.terrainProvider = tp
-      }).catch(onError)
+      ), signal, discardResource)
     } else if (provider === 'cesiumion' && cesiumIonAssetId) {
-      Cesium.CesiumTerrainProvider.fromIonAssetId(cesiumIonAssetId).then((tp: Cesium.TerrainProvider) => {
-        this._viewer.scene.terrainProvider = tp
-      }).catch(onError)
+      terrain = await awaitOperation(Cesium.CesiumTerrainProvider.fromIonAssetId(cesiumIonAssetId), signal, discardResource)
     } else if (url) {
-      Cesium.CesiumTerrainProvider.fromUrl(url).then((tp: Cesium.TerrainProvider) => {
-        this._viewer.scene.terrainProvider = tp
-      }).catch(onError)
+      terrain = await awaitOperation(Cesium.CesiumTerrainProvider.fromUrl(url), signal, discardResource)
     }
+    checkOperation(signal, terrain)
+    if (terrain) this._viewer.scene.terrainProvider = terrain
   }
 
-  async loadImageryService(params: LoadImageryServiceParams): Promise<LayerInfo> {
+  async loadImageryService(params: LoadImageryServiceParams, signal?: AbortSignal): Promise<LayerInfo> {
+    checkOperation(signal)
     const { id, name, url, ionAssetId, serviceType, layerName, opacity = 1.0 } = params
     const layerId = id ?? `imagery_${Date.now()}`
 
@@ -745,7 +748,8 @@ export class LayerManager {
     let imageryLayer: Cesium.ImageryLayer
 
     if (ionAssetId) {
-      const provider = await Cesium.IonImageryProvider.fromAssetId(ionAssetId)
+      const provider = await awaitOperation(Cesium.IonImageryProvider.fromAssetId(ionAssetId), signal, discardResource)
+      checkOperation(signal, provider)
       imageryLayer = this._viewer.imageryLayers.addImageryProvider(provider)
     } else {
       let provider: Cesium.ImageryProvider
@@ -795,20 +799,20 @@ export class LayerManager {
 
   // ==================== CZML DataSource ====================
 
-  async loadCzml(params: LoadCzmlParams): Promise<LayerInfo> {
+  async loadCzml(params: LoadCzmlParams, signal?: AbortSignal): Promise<LayerInfo> {
+    checkOperation(signal)
     const { id, name, data, url, sourceUri, clampToGround } = params
 
     if (!data && !url) throw new Error('Either "data" or "url" must be provided')
 
     const layerId = id ?? `czml_${Date.now()}`
 
-    // 幂等：先移除同 id 图层
-    this.removeLayer(layerId)
-
     const loadOptions: { sourceUri?: string } = {}
     if (sourceUri) loadOptions.sourceUri = sourceUri
 
-    const ds = await Cesium.CzmlDataSource.load(url ?? data!, loadOptions)
+    const ds = await awaitOperation(Cesium.CzmlDataSource.load(url ?? data!, loadOptions), signal, discardResource)
+    checkOperation(signal, ds)
+    this.removeLayer(layerId)
 
     const displayName = name || ds.name || (url ? `CZML (${url.split('/').pop()})` : 'CZML Data')
 
@@ -849,15 +853,13 @@ export class LayerManager {
 
   // ==================== KML/KMZ DataSource ====================
 
-  async loadKml(params: LoadKmlParams): Promise<LayerInfo> {
+  async loadKml(params: LoadKmlParams, signal?: AbortSignal): Promise<LayerInfo> {
+    checkOperation(signal)
     const { id, name, url, data, sourceUri, clampToGround } = params
 
     if (!url && !data) throw new Error('Either "url" or "data" must be provided')
 
     const layerId = id ?? `kml_${Date.now()}`
-
-    // 幂等：先移除同 id 图层
-    this.removeLayer(layerId)
 
     const loadOptions: Record<string, unknown> = {
       camera: this._viewer.scene.camera,
@@ -867,7 +869,9 @@ export class LayerManager {
     if (clampToGround) loadOptions.clampToGround = true
 
     const source = url ?? new Blob([data!], { type: 'application/xml' })
-    const ds = await Cesium.KmlDataSource.load(source, loadOptions)
+    const ds = await awaitOperation(Cesium.KmlDataSource.load(source, loadOptions), signal, discardResource)
+    checkOperation(signal, ds)
+    this.removeLayer(layerId)
 
     const displayName = name || ds.name || (url ? `KML (${url.split('/').pop()})` : 'KML Data')
 

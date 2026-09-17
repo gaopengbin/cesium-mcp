@@ -17,6 +17,8 @@ export interface RegisterCesiumViewerWebMcpOptions extends RegisterCesiumWebMcpO
 
 export interface CesiumViewerWebMcpRegistration extends WebMcpRegistration {
   bridge: CesiumBridge
+  /** Unregister tools and cancel Bridge-owned work immediately. */
+  dispose(): void
 }
 
 /**
@@ -29,22 +31,42 @@ export async function registerCesiumViewerWebMcp(
 ): Promise<CesiumViewerWebMcpRegistration> {
   const { bridgeOptions, ...registrationOptions } = options
   const bridge = new CesiumBridge(viewer, bridgeOptions)
-  const disposeBridge = () => bridge.dispose()
-
-  if (options.signal?.aborted) disposeBridge()
-  else options.signal?.addEventListener('abort', disposeBridge, { once: true })
+  let active = 0
+  let closing = false
+  const releaseIfIdle = () => {
+    if (closing && active === 0) bridge.dispose()
+  }
+  const close = () => {
+    closing = true
+    releaseIfIdle()
+  }
 
   try {
-    const registration = await registerCesiumWebMcp(bridge, registrationOptions)
+    const registration = await registerCesiumWebMcp({
+      async execute(command, context) {
+        if (closing) throw new Error('WebMCP registration has been closed')
+        active++
+        try {
+          return await bridge.execute(command, context)
+        } finally {
+          active--
+          releaseIfIdle()
+        }
+      },
+    }, registrationOptions)
+    if (registration.signal.aborted) close()
+    else registration.signal.addEventListener('abort', close, { once: true })
     const unregister = () => {
-      options.signal?.removeEventListener('abort', disposeBridge)
       registration.unregister()
-      disposeBridge()
     }
-    return { ...registration, bridge, unregister }
+    const dispose = () => {
+      unregister()
+      bridge.dispose()
+    }
+    return { ...registration, bridge, unregister, dispose }
   } catch (error) {
-    options.signal?.removeEventListener('abort', disposeBridge)
-    disposeBridge()
+    closing = true
+    bridge.dispose()
     throw error
   }
 }

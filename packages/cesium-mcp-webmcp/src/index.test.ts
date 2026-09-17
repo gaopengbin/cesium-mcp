@@ -20,6 +20,17 @@ function createModelContext(): WebMcpModelContext & { registered: Array<{ tool: 
 }
 
 describe('registerCesiumWebMcp', () => {
+  it('forwards execution cancellation independently of registration', async () => {
+    const execution = new AbortController()
+    const execute = vi.fn().mockResolvedValue({ success: true })
+    const [tool] = buildCesiumWebMcpTools({ execute })
+    await tool!.execute({}, { signal: execution.signal })
+    expect(execute).toHaveBeenCalledWith(expect.any(Object), { signal: execution.signal })
+    execution.abort()
+    await expect(tool!.execute({}, { signal: execution.signal })).rejects.toMatchObject({ name: 'AbortError' })
+    expect(execute).toHaveBeenCalledOnce()
+  })
+
   it('detects native WebMCP support without throwing', () => {
     expect(isWebMcpSupported({ modelContext: createModelContext() })).toBe(true)
     expect(isWebMcpSupported({})).toBe(false)

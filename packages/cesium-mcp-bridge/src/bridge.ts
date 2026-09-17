@@ -79,7 +79,12 @@ import { internalBridgeExecutors } from './executors/internal'
 export type BridgeExecutor = (
   params: Record<string, unknown>,
   bridge: CesiumBridge,
+  context?: BridgeExecutionContext,
 ) => BridgeResult | Promise<BridgeResult>
+
+export interface BridgeExecutionContext {
+  signal?: AbortSignal
+}
 
 export interface CesiumBridgeOptions {
   /** Validate shared browser-tool input contracts before dispatch. Defaults to true. */
@@ -131,11 +136,15 @@ export class CesiumBridge {
 
   // ==================== 命令分发（MCP/SSE 兼容） ====================
 
-  async execute(cmd: BridgeCommand): Promise<BridgeResult> {
+  async execute(cmd: BridgeCommand, context: BridgeExecutionContext = {}): Promise<BridgeResult> {
     try {
       if (this._disposed) {
         return { success: false, error: 'CesiumBridge has been disposed' }
       }
+      const signal = context.signal
+        ? AbortSignal.any([context.signal, this._operationAbortController.signal])
+        : this._operationAbortController.signal
+      signal.throwIfAborted()
       const p = (cmd.params ?? {}) as Record<string, any>
       if (this._validateInputs) {
         const validation = validateCesiumToolInput(cmd.action, p)
@@ -152,7 +161,8 @@ export class CesiumBridge {
 
       const executor = this._executors.get(cmd.action)
       if (executor) {
-        const result = await executor(p, this)
+        const result = await executor(p, this, { signal })
+        signal.throwIfAborted()
         if (this._validateOutputs) {
           const validation = validateCesiumToolOutput(cmd.action, result)
           if (!validation.valid) {
@@ -177,8 +187,8 @@ export class CesiumBridge {
 
   // ==================== View ====================
 
-  flyTo(params: FlyToParams): Promise<void> {
-    return flyTo(this._viewer, params)
+  flyTo(params: FlyToParams, signal?: AbortSignal): Promise<void> {
+    return flyTo(this._viewer, params, this._operationSignal(signal))
   }
 
   setView(params: SetViewParams): void {
@@ -189,22 +199,22 @@ export class CesiumBridge {
     return getView(this._viewer)
   }
 
-  zoomToExtent(params: ZoomToExtentParams): Promise<void> {
-    return zoomToExtent(this._viewer, params)
+  zoomToExtent(params: ZoomToExtentParams, signal?: AbortSignal): Promise<void> {
+    return zoomToExtent(this._viewer, params, this._operationSignal(signal))
   }
 
   // ==================== Layer ====================
 
-  addGeoJsonLayer(params: AddGeoJsonLayerParams): Promise<LayerInfo> {
-    return this._layerManager.addGeoJsonLayer(params)
+  addGeoJsonLayer(params: AddGeoJsonLayerParams, signal?: AbortSignal): Promise<LayerInfo> {
+    return this._layerManager.addGeoJsonLayer(params, this._operationSignal(signal))
   }
 
-  addGeoJsonPrimitive(params: AddGeoJsonPrimitiveParams): Promise<LayerInfo> {
-    return this._layerManager.addGeoJsonPrimitive(params)
+  addGeoJsonPrimitive(params: AddGeoJsonPrimitiveParams, signal?: AbortSignal): Promise<LayerInfo> {
+    return this._layerManager.addGeoJsonPrimitive(params, this._operationSignal(signal))
   }
 
-  addHeatmap(params: AddHeatmapParams): Promise<LayerInfo> {
-    return this._layerManager.addHeatmap(params)
+  addHeatmap(params: AddHeatmapParams, signal?: AbortSignal): Promise<LayerInfo> {
+    return this._layerManager.addHeatmap(params, this._operationSignal(signal))
   }
 
   removeLayer(id: string): void {
@@ -234,6 +244,12 @@ export class CesiumBridge {
     this._layerManager.dispose()
     this._eventHandlers.clear()
     this._executors.clear()
+  }
+
+  private _operationSignal(signal?: AbortSignal): AbortSignal {
+    return signal
+      ? AbortSignal.any([signal, this._operationAbortController.signal])
+      : this._operationAbortController.signal
   }
 
   private _stopManagedActivity(): void {
@@ -278,28 +294,28 @@ export class CesiumBridge {
 
   // ==================== 3D Scene ====================
 
-  load3dTiles(params: Load3dTilesParams): Promise<LayerInfo> {
-    return this._layerManager.load3dTiles(params)
+  load3dTiles(params: Load3dTilesParams, signal?: AbortSignal): Promise<LayerInfo> {
+    return this._layerManager.load3dTiles(params, this._operationSignal(signal))
   }
 
-  load3dGaussianSplat(params: AddGaussianSplatParams): Promise<LayerInfo> {
-    return this._layerManager.addGaussianSplat(params)
+  load3dGaussianSplat(params: AddGaussianSplatParams, signal?: AbortSignal): Promise<LayerInfo> {
+    return this._layerManager.addGaussianSplat(params, this._operationSignal(signal))
   }
 
-  loadTerrain(params: LoadTerrainParams): void {
-    this._layerManager.loadTerrain(params)
+  loadTerrain(params: LoadTerrainParams, signal?: AbortSignal): Promise<void> {
+    return this._layerManager.loadTerrain(params, this._operationSignal(signal))
   }
 
-  loadImageryService(params: LoadImageryServiceParams): Promise<LayerInfo> {
-    return this._layerManager.loadImageryService(params)
+  loadImageryService(params: LoadImageryServiceParams, signal?: AbortSignal): Promise<LayerInfo> {
+    return this._layerManager.loadImageryService(params, this._operationSignal(signal))
   }
 
-  loadCzml(params: LoadCzmlParams): Promise<LayerInfo> {
-    return this._layerManager.loadCzml(params)
+  loadCzml(params: LoadCzmlParams, signal?: AbortSignal): Promise<LayerInfo> {
+    return this._layerManager.loadCzml(params, this._operationSignal(signal))
   }
 
-  loadKml(params: LoadKmlParams): Promise<LayerInfo> {
-    return this._layerManager.loadKml(params)
+  loadKml(params: LoadKmlParams, signal?: AbortSignal): Promise<LayerInfo> {
+    return this._layerManager.loadKml(params, this._operationSignal(signal))
   }
 
   // ==================== Trajectory ====================
@@ -517,8 +533,8 @@ export class CesiumBridge {
 
   // ==================== Interaction ====================
 
-  screenshot(): Promise<ScreenshotResult> {
-    return screenshot(this._viewer, this._operationAbortController.signal)
+  screenshot(signal?: AbortSignal): Promise<ScreenshotResult> {
+    return screenshot(this._viewer, this._operationSignal(signal))
   }
 
   highlight(params: HighlightParams): void {
