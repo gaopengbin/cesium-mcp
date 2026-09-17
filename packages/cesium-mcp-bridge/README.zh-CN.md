@@ -23,7 +23,7 @@ AI 智能体 --> SSE / MCP / WebSocket --> cesium-mcp-bridge --> Cesium Viewer
 npm install cesium-mcp-bridge cesium
 ```
 
-> `cesium` 是 peer 依赖（兼容 `~1.143.0`）。
+> `cesium` 是 peer 依赖（兼容 `~1.143.0 || ~1.145.0`）。
 
 ## 快速开始
 
@@ -199,7 +199,7 @@ import type {
 
 | cesium-mcp-bridge | Cesium |
 |-------------------|--------|
-| 1.143.x | ~1.143.0 |
+| 1.145.x | ~1.143.0 / ~1.145.0 |
 
 ## 许可证
 

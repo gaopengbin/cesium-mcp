@@ -40,7 +40,7 @@ features:
   - icon:
       src: /icons/version.svg
     title: 版本锁定 CesiumJS
-    details: 主版本号.次版本号跟踪已验证的 CesiumJS 基线（1.143.x 对应 Cesium ~1.143.0）。修订版本独立迭代。
+    details: 主版本号.次版本号跟踪已验证的 CesiumJS 基线（1.145.x 对应 Cesium ~1.145.0）。修订版本独立迭代。
 ---
 
 <div class="home-content">
