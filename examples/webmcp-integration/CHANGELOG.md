@@ -1,5 +1,12 @@
 # cesium-webmcp-integration-example
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [[`f9480a7`](https://github.com/gaopengbin/cesium-mcp/commit/f9480a7dc812c1c02bfa76f46bb6d9a86c358896), [`219cb0c`](https://github.com/gaopengbin/cesium-mcp/commit/219cb0c2382a095bc359910e7fcf22a9632b7c7b)]:
+  - cesium-mcp-webmcp@0.3.0
+
 ## 0.1.2
 
 ### Patch Changes

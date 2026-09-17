@@ -41,6 +41,21 @@ function updateEmbeddedVersion(relativePath, pattern, version) {
 const runtimeVersion = readJson('packages/cesium-mcp-runtime/package.json').version
 const devVersion = readJson('packages/cesium-mcp-dev/package.json').version
 
+// Changesets updates workspace manifests, but does not rewrite npm's lockfile.
+// Keep local workspace metadata aligned without resolving external dependencies.
+const lock = readJson('package-lock.json')
+for (const workspace of readJson('package.json').workspaces) {
+  const manifest = readJson(`${workspace}/package.json`)
+  const entry = lock.packages[workspace]
+  if (!entry) throw new Error(`Workspace missing from package-lock.json: ${workspace}`)
+  entry.version = manifest.version
+  for (const field of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
+    if (manifest[field]) entry[field] = manifest[field]
+    else delete entry[field]
+  }
+}
+writeJson('package-lock.json', lock)
+
 console.log('Synchronizing published server metadata')
 
 updateJson('packages/cesium-mcp-runtime/server.json', ['version', 'packages.0.version'], runtimeVersion)

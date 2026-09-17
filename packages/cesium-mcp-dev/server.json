@@ -7,12 +7,12 @@
     "source": "github",
     "subfolder": "packages/cesium-mcp-dev"
   },
-  "version": "1.145.2",
+  "version": "1.145.3",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "cesium-mcp-dev",
-      "version": "1.145.2",
+      "version": "1.145.3",
       "transport": {
         "type": "stdio"
       }
