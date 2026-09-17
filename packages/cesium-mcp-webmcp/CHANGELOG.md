@@ -1,5 +1,18 @@
 # cesium-mcp-webmcp
 
+## 0.3.0
+
+### Minor Changes
+
+- [#52](https://github.com/gaopengbin/cesium-mcp/pull/52) [`f9480a7`](https://github.com/gaopengbin/cesium-mcp/commit/f9480a7dc812c1c02bfa76f46bb6d9a86c358896) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Forward WebMCP execution signals through Bridge executors. Cancel pending camera and screenshot work, prevent cancelled layer and terrain loads from attaching late, and release late disposable resources. Terrain commands now await completion and report failures. Viewer registrations drain in-flight calls on unregister; use dispose() to cancel work before destroying the Viewer.
+
+### Patch Changes
+
+- [#50](https://github.com/gaopengbin/cesium-mcp/pull/50) [`219cb0c`](https://github.com/gaopengbin/cesium-mcp/commit/219cb0c2382a095bc359910e7fcf22a9632b7c7b) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Build and test against CesiumJS 1.145, update the built-in Viewer and examples, and allow the verified 1.145 peer dependency while retaining support for 1.143. The development and CI baseline is Node.js 22 or newer, matching CesiumJS's engine requirement.
+
+- Updated dependencies [[`f9480a7`](https://github.com/gaopengbin/cesium-mcp/commit/f9480a7dc812c1c02bfa76f46bb6d9a86c358896), [`219cb0c`](https://github.com/gaopengbin/cesium-mcp/commit/219cb0c2382a095bc359910e7fcf22a9632b7c7b)]:
+  - cesium-mcp-bridge@1.145.3
+
 ## 0.2.5
 
 ### Patch Changes
