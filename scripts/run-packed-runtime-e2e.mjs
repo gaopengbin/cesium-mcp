@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -10,7 +11,11 @@ import { chromium } from 'playwright'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const npmCli = process.env.npm_execpath
-  ?? resolve(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
+  ?? [
+    resolve(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    resolve(dirname(process.execPath), '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+  ].find(path => existsSync(path))
+if (!npmCli) throw new Error('Cannot find npm CLI; run this script through npm run test:e2e:packed')
 const requestedRuntime = process.argv[2] === '--runtime' ? process.argv[3] : undefined
 const authToken = process.argv.includes('--auth') ? randomUUID() : ''
 const authHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {}
