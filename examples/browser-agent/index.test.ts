@@ -57,9 +57,11 @@ describe('browser-agent startup order', () => {
     )
     expect(html).not.toContain('src="/packages/cesium-mcp-webmcp/')
     expect(html).toContain(
-      'https://cdn.jsdelivr.net/npm/cesium-mcp-webmcp@0.2.5/dist/cesium-mcp-webmcp.browser.global.js',
+      'https://cdn.jsdelivr.net/npm/cesium-mcp-webmcp@0.3.0/dist/cesium-mcp-webmcp.browser.global.js',
     )
-    expect(html).toContain("await CesiumMcpWebMcp.registerCesiumWebMcp(executor, { toolsets: 'all' })")
+    expect(html).toContain('cesium-mcp-webmcp@0.2.5/dist/cesium-mcp-webmcp.browser.global.js')
+    expect(html).toContain('await CesiumMcpWebMcp.registerCesiumWebMcp(executor, {')
+    expect(html).toContain('pageResourceStore ? { resourceStore: pageResourceStore } : {}')
     expect(html).not.toContain('document.modelContext.registerTool')
     expect(html).toContain('loadScript(BRIDGE_SCRIPT_URL)')
   })
@@ -75,7 +77,8 @@ describe('browser-agent startup order', () => {
     expect((byName.addPolyline.inputSchema as any).properties.coordinates.items.prefixItems).toHaveLength(3)
     expect((byName.addGeoJsonLayer.inputSchema as any).properties.data.properties.features.items.properties.geometry.oneOf).toHaveLength(3)
     expect((byName.addGeoJsonLayer.inputSchema as any).properties.style.properties).toHaveProperty('choropleth')
-    expect(html).toContain('const TOOL_CONTRACTS = CesiumMcpWebMcp.cesiumCoreToolContracts')
+    expect(html).toContain('...CesiumMcpWebMcp.cesiumCoreToolContracts')
+    expect(html).toContain('CesiumMcpWebMcp.cesiumResourceToolContracts || []')
     expect(html).toContain('CesiumMcpWebMcp.cesiumBrowserToolsetNames.map')
     expect(html).toContain('CesiumMcpWebMcp.cesiumBrowserToolsets[toolsetName]')
 
@@ -101,8 +104,9 @@ describe('browser-agent startup order', () => {
     expect(html).toContain('<script src="./tool-router.js"></script>')
     expect(html).toContain('<script src="./function-tools.js"></script>')
     expect(html).not.toContain('<script src="/function-tools.js"></script>')
-    expect(html).toContain('CesiumFunctionTools.toFunctionTools(selection.tools)')
-    expect(html).toContain('bridge.execute(CesiumFunctionTools.toBridgeCommand(')
+    expect(html).toContain('CesiumFunctionTools.toFunctionTools(selectedTools)')
+    expect(html).toContain('CesiumMcpWebMcp.createResourceAwareExecutor')
+    expect(html).toContain('result = await resourceExecutor.execute(command)')
     expect(html).not.toContain('function toFunctionTools(')
     expect(html).toContain('id="toolModeSelect"')
     expect(html).toContain("value=\"auto\"")
@@ -125,6 +129,6 @@ describe('browser-agent startup order', () => {
     expect(html).toContain("'http://jojo1986.cn:8888': 'jojo'")
     expect(html).toContain('function prepareCommandParams(action, params)')
     expect(html).toContain('CesiumToolRouter.rewriteAssetUrl')
-    expect(html.match(/prepareCommandParams\(/g)).toHaveLength(3)
+    expect(html.match(/prepareCommandParams\(/g)).toHaveLength(4)
   })
 })

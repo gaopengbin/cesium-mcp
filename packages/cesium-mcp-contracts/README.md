@@ -2,7 +2,7 @@
 
 Transport-neutral Cesium tool contracts shared by browser agents, WebMCP adapters, and model function-calling integrations.
 
-The package contains names, titles, English and Chinese descriptions, localized parameter hints, JSON input schemas, JSON output schemas, and behavioral annotations. It does not depend on CesiumJS, Zod, MCP SDKs, browser APIs, or any transport.
+The package contains public names, stable Bridge actions, titles, English and Chinese descriptions, localized parameter hints, JSON input schemas, JSON output schemas, and behavioral annotations. It does not depend on CesiumJS, Zod, MCP SDKs, browser APIs, or any transport.
 
 ## Install
 
@@ -21,6 +21,7 @@ import {
 const tools = selectCesiumToolContracts(['view', 'entity', 'layer'])
 for (const tool of tools) {
   console.log(tool.title, tool.annotations)
+  console.log(tool.name, tool.action)
   console.log(tool.localizations['zh-CN'].description)
   console.log(tool.inputSchema, tool.outputSchema)
 }
@@ -29,6 +30,8 @@ console.log(cesiumBrowserToolsets.animation.description)
 ```
 
 `cesiumBrowserToolsetDefinitions`, `cesiumSharedToolNames`, and each contract's metadata and JSON Schema are canonical for protocol adapters. The MCP runtime registers the same input and output schemas through SDK v2 Standard Schema adapters; WebMCP publishes them directly. Runtime-only credential tools and MCP discovery meta-tools remain outside this shared browser-safe inventory. `normalizeCesiumToolLocale()` maps an environment or application locale to the supported `en` or `zh-CN` catalogs.
+
+`name` is the public model-facing identifier. `action` is the stable browser Bridge command. They currently match for every published tool, but adapters must dispatch `action` rather than assuming it always equals `name`; this allows a future public rename without forcing browser integrations to rename their executable commands at the same time.
 
 Selections can be `core` (15 lightweight contracts), `all` (61 browser-safe contracts), one toolset name, or an array of toolset names. The 12 domain toolsets mirror the runtime capability groups. Sixty contracts execute directly through the Bridge; `geocode` is an application-provided browser service. `setIonToken` is intentionally excluded because page agents must not receive application credentials.
 

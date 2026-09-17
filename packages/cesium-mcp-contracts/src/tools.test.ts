@@ -4,6 +4,7 @@ import {
   cesiumBrowserToolsetDefinitions,
   cesiumBrowserToolsets,
   cesiumSharedToolNames,
+  getCesiumToolAction,
   selectCesiumToolContracts,
 } from './toolsets.js'
 import { cesiumCoreToolContracts } from './tools.js'
@@ -21,6 +22,8 @@ describe('cesiumCoreToolContracts', () => {
     expect(cesiumBrowserToolContracts).toHaveLength(61)
     expect(new Set(cesiumBrowserToolContracts.map(tool => tool.name)).size).toBe(61)
     expect(cesiumBrowserToolContracts.some(tool => tool.name === 'setIonToken')).toBe(false)
+    expect(cesiumBrowserToolContracts.every(tool => tool.action?.length)).toBe(true)
+    expect(cesiumBrowserToolContracts.every(tool => tool.action === tool.name)).toBe(true)
     expect(cesiumBrowserToolContracts.every(tool => tool.inputSchema.type === 'object')).toBe(true)
     expect(cesiumBrowserToolContracts.every(tool => tool.outputSchema.type === 'object')).toBe(true)
     expect(cesiumBrowserToolsets.camera.tools.map(tool => tool.name)).toEqual([
@@ -29,6 +32,11 @@ describe('cesiumCoreToolContracts', () => {
       'stopOrbit',
       'setCameraOptions',
     ])
+  })
+
+  it('falls back to the public name when a custom contract omits action', () => {
+    const flyTo = cesiumCoreToolContracts.find(tool => tool.name === 'flyTo')!
+    expect(getCesiumToolAction({ ...flyTo, action: undefined })).toBe('flyTo')
   })
 
   it('publishes items for every input array for strict MCP clients', () => {

@@ -1,5 +1,10 @@
 export { cesiumCoreToolContracts } from './tools'
+export { cesiumResourceToolContracts } from './resource-tools'
 export { normalizeCesiumToolLocale } from './metadata'
+export {
+  createCesiumResourceStore,
+  resolveCesiumResourceInput,
+} from './resource-store'
 export {
   validateCesiumToolInput,
   validateCesiumToolOutput,
@@ -10,6 +15,7 @@ export {
   cesiumBrowserToolsetNames,
   cesiumBrowserToolsets,
   cesiumSharedToolNames,
+  getCesiumToolAction,
   selectCesiumToolContracts,
 } from './toolsets'
 export type {
@@ -25,6 +31,14 @@ export type {
   CesiumToolLocalization,
   JsonSchema,
 } from './types'
+export type {
+  CesiumResourceEntry,
+  CesiumResourceKind,
+  CesiumResourceMetadata,
+  CesiumResourceStore,
+  CesiumResourceStoreOptions,
+  RegisterCesiumResourceInput,
+} from './resource-store'
 export type {
   CesiumToolValidationIssue,
   CesiumToolValidationResult,

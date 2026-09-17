@@ -812,6 +812,18 @@ Convert an address, landmark, or place name to geographic coordinates (longitude
 
 **Returns:** `{ success, longitude, latitude, displayName, boundingBox }`
 
+## Resource Handle Tools (3)
+
+These adapter-local tools store large inputs once. They are always available and do not belong to a Cesium browser toolset.
+
+| Tool | Parameters | Returns |
+|------|------------|---------|
+| `storeResource` | `kind` (`geojson` \| `czml` \| `json`), `data`, optional `resourceId`, `ttlSeconds` | Resource metadata including `resourceId` |
+| `listResources` | optional `sessionId` | `{ resources: ResourceMetadata[] }` without payloads |
+| `deleteResource` | `resourceId`, optional `sessionId` | `{ removed: boolean }` |
+
+The same browser `sessionId` used for command routing also scopes resources. See [Resource Handles](/guide/resource-handles) for supported consuming tools and lifecycle limits.
+
 ## MCP Resources (2)
 
 | URI | Description |
