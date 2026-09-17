@@ -77,7 +77,9 @@ jobs:
           // Retry transient failures and allow npm's freshly published version to propagate.
           // Only a Registry 404 means "not published"; auth/network/server errors must fail.
           async function request(url, retryNotFound = false) {
-            for (let attempt = 1; attempt <= 6; attempt++) {
+            // Fresh npm versions can take several minutes to reach every edge.
+            const maxAttempts = retryNotFound ? 31 : 6
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
               try {
                 const response = await fetch(url, {
                   headers: { Accept: 'application/json' },
@@ -85,12 +87,12 @@ jobs:
                 })
                 const retryable = response.status === 429 || response.status >= 500 ||
                   (retryNotFound && response.status === 404)
-                if (!retryable || attempt === 6) return response
+                if (!retryable || attempt === maxAttempts) return response
                 await response.body?.cancel()
               } catch (error) {
-                if (attempt === 6) throw error
+                if (attempt === maxAttempts) throw error
               }
-              console.log(`Retrying ${url} (${attempt}/6) in 10 seconds`)
+              console.log(`Retrying ${url} (${attempt}/${maxAttempts}) in 10 seconds`)
               await sleep(10000)
             }
           }
