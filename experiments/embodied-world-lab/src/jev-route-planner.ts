@@ -1,4 +1,4 @@
-export type NavigationRouteId = 'left' | 'right' | 'hold'
+export type NavigationRouteId = 'left' | 'right' | 'direct' | 'detour' | 'hold'
 
 export interface NavigationRouteCandidate {
   id: Exclude<NavigationRouteId, 'hold'>
@@ -50,14 +50,15 @@ export function validateNavigationRouteObservation(value: unknown): NavigationRo
   if (typeof input.capturedAt !== 'string' || !Number.isFinite(Date.parse(input.capturedAt))
     || typeof input.straightLineBlocked !== 'boolean'
     || !finiteRange(input.distanceToGoalMeters, 0, 40_000_000)
-    || !Array.isArray(input.candidates) || input.candidates.length > 2) {
+    || !Array.isArray(input.candidates) || input.candidates.length > 4) {
     throw new Error('Invalid route observation')
   }
   const seen = new Set<unknown>()
   for (const item of input.candidates) {
     const candidate = exactRecord(item, ['id', 'feasible', 'lengthMeters', 'minimumClearanceMeters', 'turnCount'])
-    if (!['left', 'right'].includes(String(candidate.id)) || seen.has(candidate.id)
+    if (!['left', 'right', 'direct', 'detour'].includes(String(candidate.id)) || seen.has(candidate.id)
       || typeof candidate.feasible !== 'boolean'
+      || (candidate.id === 'direct' && candidate.feasible && input.straightLineBlocked)
       || !finiteRange(candidate.lengthMeters, 0, 40_000_000)
       || !finiteRange(candidate.minimumClearanceMeters, 0, 40_000_000)) {
       throw new Error('Invalid route candidate')
@@ -71,7 +72,7 @@ export function validateNavigationRouteObservation(value: unknown): NavigationRo
 export function validateJevRouteResult(value: unknown, observation: NavigationRouteObservation): JevRouteResult {
   const input = exactRecord(value, ['offerId', 'revision', 'routeId', 'confidence', 'probabilities', 'model', 'latencyMs', 'usage'])
   if (input.offerId !== observation.offerId || input.revision !== observation.revision
-    || !['left', 'right', 'hold'].includes(String(input.routeId))
+    || !['left', 'right', 'direct', 'detour', 'hold'].includes(String(input.routeId))
     || !finiteRange(input.confidence, 0, 1) || !finiteRange(input.latencyMs, 0, 3_600_000)
     || typeof input.model !== 'string' || !input.model.trim() || input.model.length > 100) {
     throw new Error('Invalid or mismatched Jev route decision')
@@ -79,7 +80,7 @@ export function validateJevRouteResult(value: unknown, observation: NavigationRo
   if (input.routeId !== 'hold' && !observation.candidates.some(candidate => candidate.id === input.routeId && candidate.feasible)) {
     throw new Error('Jev selected an infeasible route')
   }
-  const probabilities = exactRecord(input.probabilities, ['left', 'right', 'hold'])
+  const probabilities = exactRecord(input.probabilities, ['left', 'right', 'direct', 'detour', 'hold'])
   if (!finiteRange(probabilities[String(input.routeId)], 0, 1)) throw new Error('Missing selected route probability')
   let total = 0
   for (const probability of Object.values(probabilities)) {

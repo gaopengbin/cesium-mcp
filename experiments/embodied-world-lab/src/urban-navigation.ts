@@ -9,11 +9,22 @@ export interface UrbanNavigationMesh {
 }
 
 export interface UrbanRouteCandidate {
-  id: 'left' | 'right'
+  id: 'left' | 'right' | 'direct' | 'detour'
   feasible: true
   waypoints: GeoPoint[]
   lengthMeters: number
   minimumClearanceMeters: number
+}
+
+export interface UrbanPointValidation {
+  valid: boolean
+  reason: 'valid' | 'invalid-coordinate' | 'outside-coverage' | 'boundary-margin' | 'near-building'
+  /** Lower bound from the conservative raster, not exact distance to a wall. */
+  clearanceMeters: number
+  coverageClearanceMeters: number
+  /** Suggestion only: callers must explicitly offer it, never silently move a click. */
+  nearestValidPoint?: GeoPoint
+  nearestDistanceMeters?: number
 }
 
 export interface UrbanNavigationChallenge {
@@ -26,8 +37,10 @@ export interface UrbanNavigationChallenge {
 
 export interface UrbanNavigation {
   defaultChallenge: UrbanNavigationChallenge
+  coverageBbox: [number, number, number, number]
   grid: { cellSizeMeters: number, width: number, height: number, occupiedCells: number }
   planCandidates(start: GeoPoint, goal: GeoPoint): UrbanRouteCandidate[]
+  validatePoint(point: GeoPoint): UrbanPointValidation
   clearanceAt(point: GeoPoint): number
   coverageClearanceAt(point: GeoPoint): number
   isSegmentWalkable(from: GeoPoint, to: GeoPoint): boolean
@@ -53,6 +66,8 @@ export function createUrbanNavigation(
   const toLocal = Matrix4.inverseTransformation(toWorld, new Matrix4())
   const halfDiagonal = cell / Math.SQRT2
   const groundHeight = 38
+  const hasValidCoordinates = (point: GeoPoint) => [point.longitude, point.latitude, point.height].every(Number.isFinite)
+    && Math.abs(point.longitude) <= 180 && Math.abs(point.latitude) <= 90
   const [west, south, east, north] = mesh.coverageBbox
   const localPoint = (point: GeoPoint): Point => {
     const p = Matrix4.multiplyByPoint(toLocal, Cartesian3.fromDegrees(point.longitude, point.latitude, point.height), new Cartesian3())
@@ -132,6 +147,7 @@ export function createUrbanNavigation(
     return Math.max(0, clearance - cell / 8)
   }
   const coverageClearanceAt = (point: GeoPoint): number => {
+    if (!hasValidCoordinates(point)) return 0
     const metrePerDegree = Math.PI * 6_378_137 / 180
     return Math.max(0, Math.min(
       (point.longitude - west) * metrePerDegree * Math.cos(point.latitude * Math.PI / 180),
@@ -140,7 +156,41 @@ export function createUrbanNavigation(
       (north - point.latitude) * metrePerDegree,
     ))
   }
-  const routeForSide = (from: Point, to: Point, id: 'left' | 'right'): UrbanRouteCandidate | undefined => {
+  const pointStatus = (point: GeoPoint): UrbanPointValidation => {
+    if (!hasValidCoordinates(point)) return { valid: false, reason: 'invalid-coordinate', clearanceMeters: 0, coverageClearanceMeters: 0 }
+    const coverageClearanceMeters = coverageClearanceAt(point)
+    if (point.longitude < west || point.longitude > east || point.latitude < south || point.latitude > north) {
+      return { valid: false, reason: 'outside-coverage', clearanceMeters: 0, coverageClearanceMeters }
+    }
+    const local = localPoint(point)
+    const index = indexAt(local)
+    const clearanceMeters = localClearance(local)
+    if (coverageClearanceMeters < margin + cell * 2 || index < 0
+      || index % width < 2 || index % width >= width - 2 || Math.floor(index / width) < 2 || Math.floor(index / width) >= height - 2) {
+      return { valid: false, reason: 'boundary-margin', clearanceMeters, coverageClearanceMeters }
+    }
+    const valid = Boolean(walkable[index]) && lineClearance(local, center(index)) >= radius
+    return { valid, reason: valid ? 'valid' : 'near-building', clearanceMeters, coverageClearanceMeters }
+  }
+  const validatePoint = (point: GeoPoint): UrbanPointValidation => {
+    const result = pointStatus(point)
+    if (result.valid || result.reason === 'invalid-coordinate') return result
+    const local = localPoint(point)
+    let best = 50
+    let nearest: GeoPoint | undefined
+    for (let index = 0; index < count; index++) {
+      if (!walkable[index]) continue
+      const delta = distance(local, center(index))
+      if (delta >= best) continue
+      const candidate = geographicPoint(center(index))
+      if (pointStatus(candidate).valid) {
+        best = delta
+        nearest = candidate
+      }
+    }
+    return nearest ? { ...result, nearestValidPoint: nearest, nearestDistanceMeters: best } : result
+  }
+  const routeThroughGrid = (from: Point, to: Point, id: 'left' | 'right' | 'detour'): UrbanRouteCandidate | undefined => {
     const startIndex = indexAt(from)
     const goalIndex = indexAt(to)
     if (startIndex < 0 || goalIndex < 0 || !walkable[startIndex] || !walkable[goalIndex]
@@ -148,7 +198,8 @@ export function createUrbanNavigation(
     const sign = id === 'left' ? 1 : -1
     const span = distance(from, to)
     if (span < cell) return
-    const sideAllowed = (point: Point) => sign * ((to.x - from.x) * (point.y - from.y) - (to.y - from.y) * (point.x - from.x)) / span >= -cell * 0.6
+    const sideAllowed = (point: Point) => id === 'detour'
+      || sign * ((to.x - from.x) * (point.y - from.y) - (to.y - from.y) * (point.x - from.x)) / span >= -cell * 0.6
     const route = aStar(startIndex, goalIndex, width, height, walkable, center, sideAllowed)
     if (!route) return
     const raw = [from, ...route.map(center), to]
@@ -170,9 +221,25 @@ export function createUrbanNavigation(
     return { id, feasible: true, waypoints: simplified.map(geographicPoint), lengthMeters, minimumClearanceMeters }
   }
   const planCandidates = (start: GeoPoint, goal: GeoPoint): UrbanRouteCandidate[] => {
+    if (!pointStatus(start).valid || !pointStatus(goal).valid) return []
     const from = localPoint(start)
     const to = localPoint(goal)
-    return (['left', 'right'] as const).map(id => routeForSide(from, to, id)).filter((value): value is UrbanRouteCandidate => Boolean(value))
+    const directClearance = lineClearance(from, to)
+    if (directClearance >= radius) {
+      return [{ id: 'direct', feasible: true, waypoints: [{ ...start }, { ...goal }], lengthMeters: distance(from, to), minimumClearanceMeters: directClearance }]
+    }
+    const candidates = (['left', 'right'] as const).map(id => routeThroughGrid(from, to, id)).filter((value): value is UrbanRouteCandidate => Boolean(value))
+    // A connected city route can have to cross both sides of the start-goal line.
+    // Do not mistake failure of both half-plane searches for a disconnected world.
+    if (!candidates.length) {
+      const detour = routeThroughGrid(from, to, 'detour')
+      if (detour) candidates.push(detour)
+    }
+    for (const candidate of candidates) {
+      candidate.waypoints[0] = { ...start }
+      candidate.waypoints[candidate.waypoints.length - 1] = { ...goal }
+    }
+    return candidates
   }
   const nearestFree = (point: Point): Point | undefined => {
     let nearest: Point | undefined
@@ -229,11 +296,13 @@ export function createUrbanNavigation(
   if (!defaultChallenge) throw new Error(`No short bilateral building detour found (${eligible.length} eligible mesh components)`)
   return {
     defaultChallenge,
+    coverageBbox: [...mesh.coverageBbox],
     grid: { cellSizeMeters: cell, width, height, occupiedCells: occupied.reduce((sum, value) => sum + value, 0) },
     planCandidates,
-    clearanceAt: point => localClearance(localPoint(point)),
+    validatePoint,
+    clearanceAt: point => hasValidCoordinates(point) ? localClearance(localPoint(point)) : 0,
     coverageClearanceAt,
-    isSegmentWalkable: (from, to) => lineClearance(localPoint(from), localPoint(to)) >= radius,
+    isSegmentWalkable: (from, to) => hasValidCoordinates(from) && hasValidCoordinates(to) && lineClearance(localPoint(from), localPoint(to)) >= radius,
   }
 }
 

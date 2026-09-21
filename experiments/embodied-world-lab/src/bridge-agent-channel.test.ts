@@ -188,6 +188,20 @@ function routeFixture() {
 }
 
 describe('Cesium Bridge navigation route channel', () => {
+  it.each(['direct', 'detour'] as const)('dispatches offered %s routes through Bridge and refuses other unoffered routes', async routeId => {
+    const execute = vi.spyOn(CesiumBridge.prototype, 'execute')
+    const f = routeFixture()
+    f.setOffer(routeOffer({
+      straightLineBlocked: false,
+      candidates: [{ id: routeId, feasible: true, lengthMeters: 120, minimumClearanceMeters: 3, turnCount: 2 }],
+    }))
+    await f.channel.readNavigationOptions()
+    expect(await f.channel.commitNavigationRoute(1, 1, 'run-1:offer-1', 'left')).toBe(false)
+    expect(await f.channel.commitNavigationRoute(2, 1, 'run-1:offer-1', routeId)).toBe(true)
+    expect(f.commitNavigationRoute).toHaveBeenCalledWith({ requestId: 2, revision: 1, offerId: 'run-1:offer-1', routeId })
+    expect(execute.mock.calls.at(-1)?.[0].action).toBe('commitNavigationRoute')
+  })
+
   it('uses the actual Bridge dispatcher for candidate observations and route commitments', async () => {
     const execute = vi.spyOn(CesiumBridge.prototype, 'execute')
     const f = routeFixture()

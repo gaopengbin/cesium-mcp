@@ -47,6 +47,42 @@ describe('Jev route choice adapter', () => {
     expect(Object.keys(buildJevRouteRequest(input).questions.route.criteria)).toEqual(['hold'])
   })
 
+  it('offers an unobstructed direct route and describes a whole-map detour without calling it left or right', () => {
+    const input = observation()
+    input.straightLineBlocked = false
+    input.candidates.push(
+      { id: 'direct', feasible: true, lengthMeters: 100, minimumClearanceMeters: 4, turnCount: 0 },
+      { id: 'detour', feasible: true, lengthMeters: 140, minimumClearanceMeters: 4, turnCount: 4 },
+    )
+    const criteria = buildJevRouteRequest(input).questions.route.criteria
+    expect(Object.keys(criteria)).toEqual(['left', 'right', 'direct', 'detour', 'hold'])
+    expect(criteria.direct).toContain('unobstructed')
+    expect(criteria.detour).toContain('local whole-map A*')
+    expect(criteria.detour).toContain('both sides')
+    expect(criteria.detour).not.toContain('left corridor')
+  })
+
+  it.each(['direct', 'detour'] as const)('accepts an offered feasible %s choice and rejects it when absent or blocked', routeId => {
+    const input = observation()
+    input.straightLineBlocked = false
+    input.candidates = [{ id: routeId, feasible: true, lengthMeters: 120, minimumClearanceMeters: 3, turnCount: 2 }]
+    const body = { ...answer, answers: { route: {
+      type: 'choice', choice: routeId, confidence: 0.9, probabilities: { [routeId]: 0.9, hold: 0.1 },
+    } } }
+    expect(parseJevRouteResult(body, 250, input)).toMatchObject({ routeId, model: 'jev-1.13.0' })
+    input.candidates[0].feasible = false
+    expect(() => parseJevRouteResult(body, 250, input)).toThrow('infeasible')
+    input.candidates = []
+    expect(() => parseJevRouteResult(body, 250, input)).toThrow('infeasible')
+  })
+
+  it('rejects contradictory direct-route evidence and candidate sets exceeding four unique ids', () => {
+    const input = observation()
+    input.candidates = [{ id: 'direct', feasible: true, lengthMeters: 100, minimumClearanceMeters: 3, turnCount: 0 }]
+    expect(() => buildJevRouteRequest(input)).toThrow()
+    expect(() => buildJevRouteRequest({ ...observation(), candidates: Array(5).fill(observation().candidates[0]) })).toThrow()
+  })
+
   it.each([
     { offerId: '' }, { revision: -1 }, { capturedAt: 'invalid' }, { straightLineBlocked: 'yes' },
     { distanceToGoalMeters: Infinity }, { secret: 'must-not-leave' },

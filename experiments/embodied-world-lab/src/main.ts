@@ -18,6 +18,8 @@ import {
   PolylineGlowMaterialProperty,
   PolylineDashMaterialProperty,
   ConstantProperty,
+  ScreenSpaceEventHandler,
+  ScreenSpaceEventType,
   sampleTerrainMostDetailed,
   UrlTemplateImageryProvider,
   VerticalOrigin,
@@ -55,12 +57,13 @@ import {
   SCENARIO_PRESETS,
 } from './scenario.js'
 import type { ScenarioPreset } from './scenario.js'
-import { addUrbanBuildingColliders, addUrbanGroundCollider, createUrbanGround, createUrbanScenario, insideUrbanCoverage, loadUrbanBuildings, URBAN_GROUND_HEIGHT, URBAN_METADATA } from './urban-scene.js'
+import { addUrbanBuildingColliders, addUrbanGroundCollider, createUrbanGround, createUrbanScenario, insideUrbanCoverage, loadUrbanBuildings, URBAN_COLLISION_BOUNDS, URBAN_GROUND_HEIGHT, URBAN_METADATA } from './urban-scene.js'
 import type { UrbanVisualState } from './urban-scene.js'
 import { createMovementContinuity } from './movement-continuity.js'
 import { createUrbanNavigation } from './urban-navigation.js'
 import type { UrbanRouteCandidate } from './urban-navigation.js'
 import { UrbanRouteFollower } from './urban-route-follower.js'
+import { readUrbanMission, writeUrbanMission } from './urban-mission-url.js'
 import { requestJevRoute } from './jev-route-planner.js'
 import type { NavigationRouteObservation, NavigationRouteId } from './jev-route-planner.js'
 import {
@@ -114,10 +117,12 @@ if (useJev) {
   modelStatus.textContent = 'JEV · 等待开始'
   const intro = chatMessages.querySelector('p')
   if (intro) intro.textContent = isUrban
-    ? '目的地在楼后，无法直走。Jev 先选择绕行方向，再持续更新人物动作；本地执行器负责路径跟随和碰撞制动。'
+    ? '你可以自己选择起点和终点。先预览建筑间的可行路线，再让 Jev 选择路线并控制人物行动。'
     : 'Jev 在后台持续更新下一段动作，角色沿当前有效计划连续前进。建筑和地形碰撞由本地控制器实时处理；此实验使用结构化观测。'
 }
 element('urbanRoutePanel').hidden = !isUrban
+element('urbanMissionEditor').hidden = !isUrban
+element<HTMLDetailsElement>('otherScenarios').open = !isUrban
 
 let viewer: Viewer | undefined
 let player: playerController | undefined
@@ -142,7 +147,15 @@ const announcedSafetyEvidence = new Set<string>()
 let completionAnnounced = false
 let modelRetryNotBefore = 0
 let overviewView = false
-let controllerCameraPose: { position: Cartesian3, direction: Cartesian3, up: Cartesian3 } | undefined
+type CameraPose = { position: Cartesian3, direction: Cartesian3, up: Cartesian3 }
+let controllerCameraPose: CameraPose | undefined
+let mapCameraPose: CameraPose | undefined
+let mapPoseChanged = false
+let mapPickMode: 'start' | 'goal' | undefined
+let pickPair = false
+let mapPickHandler: ScreenSpaceEventHandler | undefined
+let missionError = ''
+let missionUrlError = ''
 const urbanMotionSamples: Array<{ position: GeoPoint, at: number }> = []
 let minimumHazardBoundaryDistanceMeters = Number.POSITIVE_INFINITY
 const trailPositions: Cartesian3[] = []
@@ -170,7 +183,8 @@ let routeAbort: AbortController | undefined
 let routeRequestId = 0
 let selectedRouteId: NavigationRouteId | undefined
 let minimumBuildingClearanceMeters = Infinity
-const routeEntities: Partial<Record<'left' | 'right', Entity>> = {}
+const routeEntities: Partial<Record<UrbanRouteCandidate['id'], Entity>> = {}
+const ROUTE_LABELS = { left: '左侧绕行', right: '右侧绕行', direct: '直达路线', detour: '街区绕行' }
 installScenarioControls()
 
 void bootstrap().catch((error: unknown) => {
@@ -219,7 +233,17 @@ async function bootstrap(): Promise<void> {
     urbanNavigation = createUrbanNavigation(mesh)
     Object.assign(NAMCHE_START, urbanNavigation.defaultChallenge.start)
     Object.assign(NAMCHE_GOAL, urbanNavigation.defaultChallenge.goal)
-    urbanCandidates = urbanNavigation.defaultChallenge.candidates
+    try {
+      const mission = readUrbanMission(sceneQuery)
+      if (mission) {
+        for (const point of [mission.start, mission.goal]) {
+          if (!urbanNavigation.validatePoint(point).valid) throw new Error('链接中的起终点不在可通行范围，请重新选点。')
+        }
+        Object.assign(NAMCHE_START, mission.start)
+        Object.assign(NAMCHE_GOAL, mission.goal)
+      }
+    } catch (error) { missionUrlError = errorMessage(error) }
+    urbanCandidates = urbanNavigation.planCandidates(NAMCHE_START, NAMCHE_GOAL)
   } else try {
     terrainProvider = await ArcGISTiledElevationTerrainProvider.fromUrl(
       ARCGIS_WORLD_ELEVATION_URL,
@@ -318,6 +342,10 @@ async function bootstrap(): Promise<void> {
     enableZoom: false,
   })
   if (isUrban) {
+    // Keep the physics loop and programmatic AI input, release mouse control to
+    // Cesium's map camera while the user explores or chooses a mission.
+    player.offAllEvent()
+    player.isupdate = true
     await addUrbanGroundCollider(player)
     setPhase('BUILDING COLLISIONS', '正在建立真实楼体碰撞', '完成后才开放导航，避免把未加载的建筑当作空地。')
     urbanCollisionCounts = await addUrbanBuildingColliders(player)
@@ -365,6 +393,7 @@ async function bootstrap(): Promise<void> {
       routeFollower = new UrbanRouteFollower(candidate.waypoints, urbanNavigation.isSegmentWalkable)
       selectedRouteId = routeId
       showRouteSelection(routeId)
+      element('missionStatus').textContent = `人物正在执行${ROUTE_LABELS[routeId]}，可切换视角观察。`
       setOverviewView(false, false)
       return true
     },
@@ -373,6 +402,7 @@ async function bootstrap(): Promise<void> {
     // The controller derives walking direction from the camera. Restore its own
     // pose before simulation so the presentation camera cannot steer the person.
     if (viewer && controllerCameraPose) {
+      if (overviewView && !mapPoseChanged) mapCameraPose = captureCameraPose()
       viewer.camera.setView({
         destination: controllerCameraPose.position,
         orientation: { direction: controllerCameraPose.direction, up: controllerCameraPose.up },
@@ -381,25 +411,15 @@ async function bootstrap(): Promise<void> {
     }
     player?.update()
     if (isUrban && overviewView && viewer) {
-      controllerCameraPose = {
-        position: Cartesian3.clone(viewer.camera.positionWC),
-        direction: Cartesian3.clone(viewer.camera.directionWC),
-        up: Cartesian3.clone(viewer.camera.upWC),
-      }
-      // A fixed overhead view keeps the building, both choices and the person in frame.
-      // The normal follow camera remains available through the view button.
-      const centerLongitude = (NAMCHE_START.longitude + NAMCHE_GOAL.longitude) / 2
-      const centerLatitude = (NAMCHE_START.latitude + NAMCHE_GOAL.latitude) / 2
-      viewer.camera.setView({
-        destination: Cartesian3.fromDegrees(centerLongitude, centerLatitude - 0.0004, URBAN_GROUND_HEIGHT + 150),
-        orientation: { heading: 0, pitch: CesiumMath.toRadians(-73.5), roll: 0 },
-      })
+      controllerCameraPose = captureCameraPose()
+      if (mapCameraPose) restoreCameraPose(mapCameraPose)
+      mapPoseChanged = false
     }
     if (!active || !ready || disposed) return
     const now = performance.now()
     if (now - lastFastLoopAt < FAST_LOOP_INTERVAL_MS) return
     lastFastLoopAt = now
-    runFastLoop(now, goal, hazard)
+    runFastLoop(now, isUrban ? terrainPoint(NAMCHE_GOAL) : goal, hazard)
   })
 
   installInteractions()
@@ -407,6 +427,11 @@ async function bootstrap(): Promise<void> {
   ready = true
   distanceMetric.textContent = `目标距离 ${Math.round(distanceMeters(NAMCHE_START, NAMCHE_GOAL))} m`
   setOverviewView(true, false)
+  if (isUrban) {
+    installUrbanMissionEditor()
+    showDistrictView()
+    updateMissionPreview()
+  }
   if (isUrban) foxCredits.textContent = '人物及地图来源'
   element('bridgeStatus').textContent = 'Bridge 已连接'
   if (urbanCollisionCounts) appendMessage('event', `建筑碰撞已加载：${urbanCollisionCounts.tileCount} 个真实建筑数据块，${urbanCollisionCounts.triangleCount.toLocaleString()} 个三角面。`)
@@ -416,7 +441,7 @@ async function bootstrap(): Promise<void> {
   setPhase(
     'READY',
     `${scenario.title} · 已就绪`,
-    `${scenario.description} 点击“开始导航”，观察 Jev 决策与本地安全接管。`,
+    isUrban ? '可在整个白框街区内自由选起点、终点，再开始导航。' : `${scenario.description} 点击“开始导航”，观察 Jev 决策与本地安全接管。`,
   )
   appendMessage(
     'event',
@@ -579,7 +604,8 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
     const safetySummary = isUrban ? '已沿建筑街区到达目标，执行器停止。' : rawBoundaryClearance >= 0
       ? `轨迹未进入风险区，距其边界最近 ${boundaryClearance} 米。`
       : `轨迹曾进入风险区 ${boundaryClearance} 米，需要继续调优。`
-    setPhase('ARRIVED', isUrban ? '已绕楼到达目的地' : '观察点已到达', `角色已停止；${safetySummary}`)
+    setPhase('ARRIVED', isUrban ? '已到达你设置的终点' : '观察点已到达', `角色已停止；${safetySummary}`)
+    if (isUrban) element('missionStatus').textContent = '已到达 B 终点。可以回到起点重试，或重新选择一条路线。'
     appendMessage('assistant', isUrban ? '已经到达街区目标。Jev 在有效动作执行期间更新下一段，角色已停止。' : `已经到达观察点。${safetySummary}移动过程中持续使用地形样本和角色前向物理射线，并在发现隐藏落石区后废弃了旧计划。`)
   }
 }
@@ -685,6 +711,11 @@ function startTask(): void {
     appendMessage('assistant', '场景仍在初始化，请等状态变为“已就绪”。')
     return
   }
+  if (isUrban && (mapPickMode || missionError)) {
+    appendMessage('event', missionError || '请完成起终点选择，或取消选点后再开始。')
+    return
+  }
+  if (isUrban && agentLoop.getState().lifecycle === 'completed') applyUrbanMission(NAMCHE_START, NAMCHE_GOAL)
   worldRevision += 1
   taskGeneration += 1
   exitReplay()
@@ -701,6 +732,7 @@ function startTask(): void {
     selectedRouteId = undefined
     urbanMotionSamples.length = 0
     minimumBuildingClearanceMeters = Number.POSITIVE_INFINITY
+    element('missionStatus').textContent = '任务已开始，正在让 Jev 评估路线。可停止后重新选点。'
     void chooseUrbanRoute()
     return
   }
@@ -732,9 +764,9 @@ async function chooseUrbanRoute(): Promise<void> {
       })),
     }
     drawUrbanRoutes(position)
-    element('routeDecision').textContent = 'Jev 正在比较左右绕行路线'
-    modelStatus.textContent = 'JEV · 选择绕行方向'
-    setPhase('ROUTE DECISION', '直线被建筑挡住，Jev 正在选择绕行', '人物保持原位，选择完成后才开始行动。')
+    element('routeDecision').textContent = 'Jev 正在评估本次任务的候选路线'
+    modelStatus.textContent = 'JEV · 选择路线'
+    setPhase('ROUTE DECISION', routeOffer.straightLineBlocked ? '直达受阻，Jev 正在选择绕行' : 'Jev 正在评估直达路线', '人物保持原位，选择完成后才开始行动。')
     const observation = await agentChannel.readNavigationOptions()
     const decision = await requestJevRoute(observation, { signal: abort.signal })
     if (generation !== taskGeneration || !active || abort.signal.aborted) return
@@ -742,7 +774,7 @@ async function chooseUrbanRoute(): Promise<void> {
     if (!accepted) throw new Error('路线选择已过期或不在当前候选中')
     decisionTrace.push({ kind: 'route', observation, ...decision, accepted: true })
     element('decisionCount').textContent = String(decisionTrace.filter(item => item.accepted).length)
-    const side = decision.routeId === 'left' ? '左侧绕行' : decision.routeId === 'right' ? '右侧绕行' : '保持停止'
+    const side = decision.routeId === 'hold' ? '保持停止' : ROUTE_LABELS[decision.routeId]
     appendMessage('event model', `${decision.model} 选择${side} · 置信度 ${Math.round(decision.confidence * 100)}% · ${decision.latencyMs} ms`)
     element('routeDecision').textContent = `Jev 选择${side} · ${Math.round(decision.confidence * 100)}%`
   } catch (error) {
@@ -755,7 +787,7 @@ async function chooseUrbanRoute(): Promise<void> {
 
 function drawUrbanRoutes(start = NAMCHE_START): void {
   if (!viewer || !isUrban) return
-  for (const id of ['left', 'right'] as const) {
+  for (const id of ['left', 'right', 'direct', 'detour'] as const) {
     viewer.entities.removeById(`route-${id}`)
     delete routeEntities[id]
   }
@@ -765,12 +797,12 @@ function drawUrbanRoutes(start = NAMCHE_START): void {
     polyline: {
       positions: [start, NAMCHE_GOAL].map(point => Cartesian3.fromDegrees(point.longitude, point.latitude, URBAN_GROUND_HEIGHT + 0.3)),
       width: 3,
-      material: new PolylineDashMaterialProperty({ color: Color.fromCssColorString('#ff736c'), dashLength: 12 }),
+      material: new PolylineDashMaterialProperty({ color: Color.fromCssColorString(urbanNavigation?.isSegmentWalkable(start, NAMCHE_GOAL) ? '#829e98' : '#ff736c'), dashLength: 12 }),
     },
   })
   const descriptions: string[] = []
   for (const candidate of urbanCandidates) {
-    const color = candidate.id === 'left' ? '#ffc46a' : '#9fafff'
+    const color = { left: '#ffc46a', right: '#9fafff', direct: '#7bcbd5', detour: '#ffc46a' }[candidate.id]
     routeEntities[candidate.id] = viewer.entities.add({
       id: `route-${candidate.id}`,
       polyline: {
@@ -779,13 +811,13 @@ function drawUrbanRoutes(start = NAMCHE_START): void {
         material: Color.fromCssColorString(color).withAlpha(0.85),
       },
     })
-    descriptions.push(`${candidate.id === 'left' ? '左绕' : '右绕'} ${Math.round(candidate.lengthMeters)}m · 距楼 ≥${candidate.minimumClearanceMeters.toFixed(1)}m`)
+    descriptions.push(`${ROUTE_LABELS[candidate.id]} ${Math.round(candidate.lengthMeters)}m · ${Math.max(0, candidate.waypoints.length - 2)} 个拐点`)
   }
   element('routeOptions').textContent = descriptions.join(' ｜ ')
 }
 
-function showRouteSelection(routeId: 'left' | 'right'): void {
-  for (const id of ['left', 'right'] as const) {
+function showRouteSelection(routeId: UrbanRouteCandidate['id']): void {
+  for (const id of ['left', 'right', 'direct', 'detour'] as const) {
     const line = routeEntities[id]?.polyline
     if (!line) continue
     line.width = new ConstantProperty(id === routeId ? 5 : 2)
@@ -808,6 +840,7 @@ function stopTask(): void {
   else agentLoop?.stop()
   plannerRuntime.clear(new Error('Task stopped by user'))
   modelStatus.textContent = 'TASK STOPPED'
+  if (isUrban) element('missionStatus').textContent = '任务已停止。可以继续导航，或重新设置起终点。'
   loopStatus.textContent = 'STOPPED · IDLE · 20HZ'
   setPhase('STOPPED', '任务已停止', '角色输入已归零，地图和证据仍保留。')
   appendMessage('assistant', '已停止任务，角色执行器已经收到中性输入。')
@@ -819,17 +852,253 @@ function toggleView(): void {
 }
 
 function setAutonomousCameraLock(locked: boolean): void {
-  if (viewer) viewer.canvas.style.pointerEvents = locked ? 'none' : 'auto'
+  if (viewer) viewer.canvas.style.pointerEvents = locked && !(isUrban && overviewView) ? 'none' : 'auto'
 }
 
 function setOverviewView(enabled: boolean, announce = true): void {
   if (!player || !ready || overviewView === enabled) return
   overviewView = enabled
+  if (isUrban) {
+    setNativeMapControl(enabled)
+    if (enabled) frameUrbanMap(false)
+    setAutonomousCameraLock(active)
+  }
   cameraTransition.begin(enabled ? 'overview' : 'follow', performance.now())
   scheduleCameraTransition()
   if (announce) appendMessage('event', overviewView
     ? 'ACTIVE VIEW · 高位环境观察视角'
     : 'ACTIVE VIEW · 近距第三人称跟随视角')
+}
+
+function captureCameraPose(): CameraPose {
+  const camera = viewer!.camera
+  return { position: Cartesian3.clone(camera.positionWC), direction: Cartesian3.clone(camera.directionWC), up: Cartesian3.clone(camera.upWC) }
+}
+
+function restoreCameraPose(pose: CameraPose): void {
+  viewer?.camera.setView({ destination: pose.position, orientation: { direction: pose.direction, up: pose.up } })
+}
+
+function setNativeMapControl(enabled: boolean): void {
+  if (!viewer) return
+  const control = viewer.scene.screenSpaceCameraController
+  control.enableInputs = enabled
+  control.enableRotate = enabled
+  control.enableTranslate = enabled
+  control.enableZoom = enabled
+  control.enableTilt = enabled
+  control.enableLook = enabled
+  control.minimumZoomDistance = 45
+  control.maximumZoomDistance = 2_500
+}
+
+function frameUrbanMap(district: boolean): void {
+  if (!viewer) return
+  const [west, south, east, north] = district ? URBAN_COLLISION_BOUNDS : [
+    Math.min(NAMCHE_START.longitude, NAMCHE_GOAL.longitude), Math.min(NAMCHE_START.latitude, NAMCHE_GOAL.latitude),
+    Math.max(NAMCHE_START.longitude, NAMCHE_GOAL.longitude), Math.max(NAMCHE_START.latitude, NAMCHE_GOAL.latitude),
+  ]
+  const latitude = (south + north) / 2
+  const width = (east - west) * 111_320 * Math.cos(CesiumMath.toRadians(latitude)) + 60
+  const height = (north - south) * 111_320 + 80
+  const aspect = viewer.canvas.clientWidth / viewer.canvas.clientHeight
+  const altitude = Math.max(150, height * 1.25, width / aspect * 1.25)
+  const current = captureCameraPose()
+  viewer.camera.setView({
+    destination: Cartesian3.fromDegrees((west + east) / 2, latitude, URBAN_GROUND_HEIGHT + altitude),
+    orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
+  })
+  mapCameraPose = captureCameraPose()
+  mapPoseChanged = true
+  restoreCameraPose(current)
+}
+
+function showDistrictView(): void {
+  if (!isUrban || !ready) return
+  setOverviewView(true, false)
+  frameUrbanMap(true)
+  setNativeMapControl(true)
+}
+
+function updatePickUi(): void {
+  element('mapPickHint').hidden = !mapPickMode
+  element('mapPickText').textContent = mapPickMode === 'start' ? '点击地面设置 A 起点 · 拖动平移，滚轮缩放' : '点击地面设置 B 终点'
+  element('pickStart').setAttribute('aria-pressed', String(mapPickMode === 'start'))
+  element('pickGoal').setAttribute('aria-pressed', String(mapPickMode === 'goal'))
+  if (viewer) viewer.canvas.style.cursor = mapPickMode ? 'crosshair' : ''
+  document.querySelectorAll<HTMLButtonElement>('[data-command="start"]').forEach(button => { button.disabled = !!mapPickMode || !!missionError || !ready })
+}
+
+function beginMapPick(mode: 'start' | 'goal', pair = false): void {
+  if (!ready || !isUrban) return
+  if (active) stopTask()
+  mapPickMode = mode
+  pickPair = pair
+  showDistrictView()
+  updatePickUi()
+  setPhase('SET MISSION', mode === 'start' ? '在街区内点选起点' : '在街区内点选终点', '可缩放、拖动地图。选点仅设置任务，点击“开始导航”后才调用 Jev。')
+}
+
+function applyUrbanMission(start: GeoPoint, goal: GeoPoint): void {
+  if (!viewer || !player || !urbanNavigation) return
+  // Invalidate even a completed run; neither a late route nor an old motion may
+  // survive an edit. Teleport uses the public controller API, not just the mesh.
+  active = false
+  taskGeneration += 1
+  worldRevision += 1
+  routeAbort?.abort()
+  routeAbort = undefined
+  plannerRuntime.clear(new Error('Mission endpoints changed'))
+  agentLoop?.stop()
+  if (agentChannel) void agentChannel.stop().catch(error => appendMessage('event', errorMessage(error)))
+  embodiment?.stop()
+  Object.assign(NAMCHE_START, { ...start })
+  Object.assign(NAMCHE_GOAL, { ...goal })
+  player.reset(Cartesian3.fromDegrees(start.longitude, start.latitude, URBAN_GROUND_HEIGHT + player.getCapsuleGroundHeight() + 0.05))
+  player.setOnGround(false)
+  routeFollower = undefined
+  routeOffer = undefined
+  selectedRouteId = undefined
+  latestSnapshot = undefined
+  latestTick = undefined
+  completionAnnounced = false
+  lastTrailPosition = undefined
+  trailPositions.length = 0
+  replayFrames.length = 0
+  urbanMotionSamples.length = 0
+  decisionTrace.length = 0
+  bridgeTrace.length = 0
+  movementContinuity.reset()
+  minimumBuildingClearanceMeters = Infinity
+  missionUrlError = ''
+  exitReplay()
+  element('decisionCount').textContent = '0'
+  modelStatus.textContent = 'JEV · 等待开始'
+  loopStatus.textContent = '任务已更新'
+  revisionStatus.textContent = `WORLD r${worldRevision}`
+  element('missionLinkField').hidden = true
+  element('shareMission').textContent = '生成任务链接'
+  setAutonomousCameraLock(false)
+  updateMissionPreview()
+  history.replaceState(null, '', writeUrbanMission(new URL(location.href), NAMCHE_START, NAMCHE_GOAL))
+}
+
+function updateMissionPreview(): void {
+  if (!viewer || !urbanNavigation) return
+  urbanCandidates = urbanNavigation.planCandidates(NAMCHE_START, NAMCHE_GOAL)
+  const directDistance = distanceMeters(NAMCHE_START, NAMCHE_GOAL)
+  missionError = missionUrlError || (directDistance < 8 ? '起终点太近，请选至少相距 8 米的两个位置。'
+    : urbanCandidates.length === 0 ? '两点之间没有满足通行条件的路线，请更换起点或终点。' : '')
+  element('startCoordinates').textContent = `${NAMCHE_START.longitude.toFixed(6)}, ${NAMCHE_START.latitude.toFixed(6)}`
+  element('goalCoordinates').textContent = `${NAMCHE_GOAL.longitude.toFixed(6)}, ${NAMCHE_GOAL.latitude.toFixed(6)}`
+  const status = element('missionStatus')
+  status.textContent = missionError || `直线 ${Math.round(directDistance)}m · ${urbanCandidates.length} 条可行候选 · 尚未调用 Jev`
+  status.dataset.error = String(!!missionError)
+  element('routeDecision').textContent = missionError ? '请调整任务位置' : urbanNavigation.isSegmentWalkable(NAMCHE_START, NAMCHE_GOAL)
+    ? '直线可通行，等待 Jev 决定行动' : '建筑阻挡直达，等待 Jev 选择绕行'
+  distanceMetric.textContent = `直线距离 ${Math.round(directDistance)} m`
+  const goal = viewer.entities.getById('embodied-goal')
+  if (goal) goal.position = new ConstantPositionProperty(Cartesian3.fromDegrees(NAMCHE_GOAL.longitude, NAMCHE_GOAL.latitude, URBAN_GROUND_HEIGHT + 1))
+  const start = viewer.entities.getById('mission-start')
+  if (start) start.position = new ConstantPositionProperty(Cartesian3.fromDegrees(NAMCHE_START.longitude, NAMCHE_START.latitude, URBAN_GROUND_HEIGHT + 1))
+  drawUrbanRoutes()
+  if (!urbanCandidates.length) element('routeOptions').textContent = '未找到可执行路线'
+  updatePickUi()
+}
+
+function installUrbanMissionEditor(): void {
+  if (!viewer || !urbanNavigation) return
+  // Show the conservative working boundary; distant visible buildings alone do
+  // not imply complete collision coverage.
+  const marginLatitude = 34.5 / 111_320
+  const marginLongitude = marginLatitude / Math.cos(CesiumMath.toRadians(35.681))
+  const [west, south, east, north] = URBAN_COLLISION_BOUNDS
+  viewer.entities.add({ id: 'mission-coverage', polyline: {
+    positions: [[west + marginLongitude, south + marginLatitude], [east - marginLongitude, south + marginLatitude], [east - marginLongitude, north - marginLatitude], [west + marginLongitude, north - marginLatitude], [west + marginLongitude, south + marginLatitude]]
+      .map(([lon, lat]) => Cartesian3.fromDegrees(lon, lat, URBAN_GROUND_HEIGHT + 0.5)),
+    width: 2, material: new PolylineDashMaterialProperty({ color: Color.WHITE.withAlpha(0.6), dashLength: 14 }),
+  } })
+  viewer.entities.add({ id: 'mission-start', position: Cartesian3.fromDegrees(NAMCHE_START.longitude, NAMCHE_START.latitude, URBAN_GROUND_HEIGHT + 1),
+    point: { pixelSize: 12, color: Color.fromCssColorString('#ffc46a'), outlineColor: Color.BLACK, outlineWidth: 2, disableDepthTestDistance: Infinity },
+    label: { text: 'A · 起点', font: '600 13px sans-serif', pixelOffset: new Cartesian2(0, -25), outlineColor: Color.BLACK, outlineWidth: 3, style: LabelStyle.FILL_AND_OUTLINE, disableDepthTestDistance: Infinity },
+  })
+  const goal = viewer.entities.getById('embodied-goal')
+  if (goal?.label) goal.label.text = new ConstantProperty('B · 终点')
+  element('pickMission').addEventListener('click', () => beginMapPick('start', true))
+  element('pickStart').addEventListener('click', () => beginMapPick('start'))
+  element('pickGoal').addEventListener('click', () => beginMapPick('goal'))
+  const cancelPick = (): void => {
+    mapPickMode = undefined
+    pickPair = false
+    updateMissionPreview()
+    setPhase('READY', '任务位置已保留', missionError || '可继续修改，或开始导航。')
+  }
+  element('cancelMapPick').addEventListener('click', cancelPick)
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && mapPickMode) cancelPick() })
+  element('districtView').addEventListener('click', showDistrictView)
+  element('swapMission').addEventListener('click', () => { applyUrbanMission({ ...NAMCHE_GOAL }, { ...NAMCHE_START }); cancelPick() })
+  element('resetMission').addEventListener('click', () => { applyUrbanMission(NAMCHE_START, NAMCHE_GOAL); cancelPick() })
+  element('restoreMission').addEventListener('click', () => {
+    applyUrbanMission(urbanNavigation!.defaultChallenge.start, urbanNavigation!.defaultChallenge.goal)
+    cancelPick()
+    setOverviewView(true, false)
+    frameUrbanMap(false)
+  })
+  element('crossDistrictMission').hidden = false
+  element('crossDistrictMission').addEventListener('click', () => {
+    applyUrbanMission(
+      { longitude: 139.76375, latitude: 35.68045, height: URBAN_GROUND_HEIGHT },
+      { longitude: 139.76375, latitude: 35.68245, height: URBAN_GROUND_HEIGHT },
+    )
+    cancelPick()
+    showDistrictView()
+  })
+  element('shareMission').addEventListener('click', () => { void shareCurrentMission('shareMission') })
+  mapPickHandler = new ScreenSpaceEventHandler(viewer.canvas)
+  mapPickHandler.setInputAction((event: { position: Cartesian2 }) => {
+    if (!mapPickMode || !viewer || !urbanNavigation) return
+    const reject = (message: string): void => {
+      element('mapPickText').textContent = message
+      element('missionStatus').textContent = message
+      element('missionStatus').dataset.error = 'true'
+    }
+    const surface = viewer.scene.pickPositionSupported ? viewer.scene.pickPosition(event.position) : undefined
+    if (surface && Cartographic.fromCartesian(surface).height > URBAN_GROUND_HEIGHT + 3) {
+      reject('这里是建筑表面，请点击街道或空地。')
+      return
+    }
+    const ray = viewer.camera.getPickRay(event.position)
+    const picked = ray && viewer.scene.globe.pick(ray, viewer.scene)
+    if (!picked) { reject('没有选到地面，请点击白框内的街道或空地。'); return }
+    const geo = Cartographic.fromCartesian(picked)
+    const point = { longitude: CesiumMath.toDegrees(geo.longitude), latitude: CesiumMath.toDegrees(geo.latitude), height: URBAN_GROUND_HEIGHT }
+    const validation = urbanNavigation.validatePoint(point)
+    if (!validation.valid) {
+      reject(validation.reason === 'near-building' ? '这个位置太靠近建筑，请选更开阔的地面。' : '这个位置超出可选范围，请在白色边框内选点。')
+      return
+    }
+    const choosingStart = mapPickMode === 'start'
+    applyUrbanMission(choosingStart ? point : NAMCHE_START, choosingStart ? NAMCHE_GOAL : point)
+    if (choosingStart && pickPair) mapPickMode = 'goal'
+    else { mapPickMode = undefined; pickPair = false }
+    updatePickUi()
+    if (mapPickMode === 'goal') setPhase('SET MISSION', '起点已设置，请再选终点', '点击白框内的街道或空地。')
+    if (!mapPickMode) setPhase('READY', '起终点已设置', missionError || '候选路线已更新。点击“开始导航”，让 Jev 执行本次任务。')
+  }, ScreenSpaceEventType.LEFT_CLICK)
+}
+
+async function shareCurrentMission(buttonId: string): Promise<void> {
+  const url = isUrban ? writeUrbanMission(new URL(location.href), NAMCHE_START, NAMCHE_GOAL) : new URL(location.href)
+  if (isUrban) {
+    const input = element('missionLink') as HTMLInputElement
+    input.value = url.href
+    element('missionLinkField').hidden = false
+    input.select()
+    element(buttonId).textContent = '任务链接已生成'
+    return
+  }
+  try { await navigator.clipboard.writeText(url.href); element(buttonId).textContent = '已复制任务链接' }
+  catch { appendMessage('event', `当前任务链接：${url.href}`) }
 }
 
 function scheduleCameraTransition(): void {
@@ -880,7 +1149,7 @@ function installInteractions(): void {
         appendMessage('user', '停止任务')
         stopTask()
       } else {
-        appendMessage('user', isUrban ? '绕过前方建筑，前往楼后目的地' : '自主前往观察点')
+        appendMessage('user', isUrban ? '从当前起点前往设置的终点' : '自主前往观察点')
         startTask()
       }
     })
@@ -1085,7 +1354,7 @@ function installScenarioControls(): void {
     apply()
   })
   element('shareScene').addEventListener('click', () => {
-    const url = new URL(location.href)
+    const url = isUrban ? writeUrbanMission(new URL(location.href), NAMCHE_START, NAMCHE_GOAL) : new URL(location.href)
     url.searchParams.set('scene', selectedPreset)
     url.searchParams.set('seed', String(selectedSeed))
     url.searchParams.set('planner', 'jev')
@@ -1439,6 +1708,7 @@ function exposeDebugApi(): void {
       urbanCollisionCounts,
       urbanVisualState,
       navigation: {
+        editor: { pickMode: mapPickMode, missionError },
         selectedRouteId,
         offer: routeOffer,
         candidates: urbanCandidates,
@@ -1458,6 +1728,7 @@ window.addEventListener('beforeunload', () => {
   if (chatScrollFrame !== undefined) cancelAnimationFrame(chatScrollFrame)
   plannerRuntime.clear(new Error('Page disposed'))
   removePreUpdate?.()
+  mapPickHandler?.destroy()
   removeUrbanVisualWatcher?.()
   agentChannel?.dispose()
   embodiment?.stop()

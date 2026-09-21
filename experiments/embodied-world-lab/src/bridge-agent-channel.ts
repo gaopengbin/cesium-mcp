@@ -189,7 +189,7 @@ function validateRouteCommit(value: unknown): NavigationRouteParams {
   integer(input.requestId, 'requestId')
   integer(input.revision, 'revision')
   text(input.offerId, 120, 'offerId')
-  oneOf(input.routeId, ['left', 'right', 'hold'], 'routeId')
+  oneOf(input.routeId, ['left', 'right', 'direct', 'detour', 'hold'], 'routeId')
   return structuredClone(input) as unknown as NavigationRouteParams
 }
 

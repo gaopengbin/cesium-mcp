@@ -65,8 +65,8 @@ export function watchUrbanVisualState(
 export const URBAN_GROUND_HEIGHT = 38
 export const URBAN_METADATA = {
   id: 'city' as const,
-  title: '东京 · 绕楼导航',
-  description: '起终点位于真实楼体两侧，Jev 选择左右绕行路线，人物沿所选走廊前往楼后。',
+  title: '东京 · 自由探索',
+  description: '在真实建筑街区内点选起终点，预览候选路线，再让 Jev 控制人物行动。',
 }
 // Selected on the rendered road surface west of Tokyo Station; not inside a building.
 export const URBAN_START: GeoPoint = { longitude: 139.764624924, latitude: 35.681082469, height: URBAN_GROUND_HEIGHT }

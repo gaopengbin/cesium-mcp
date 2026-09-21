@@ -25,6 +25,13 @@ export function createMovementContinuity() {
 
   return {
     stats,
+    /** New mission: keep UI references valid while clearing totals and the old position. */
+    reset() {
+      for (const key of Object.keys(stats) as Array<keyof typeof stats>) stats[key] = 0
+      previous = undefined
+      hadAcceptedPlan = false
+    },
+    /** Resume the same mission without counting a pause or resetting its totals. */
     beginRun() {
       previous = undefined
       hadAcceptedPlan = false

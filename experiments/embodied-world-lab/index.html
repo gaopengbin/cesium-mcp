@@ -17,6 +17,10 @@
           </div>
           <span id="worldStatus" class="world-status" data-state="loading"><i></i><span>加载三维场景</span></span>
         </header>
+        <div id="mapPickHint" class="map-pick-hint" role="status" hidden>
+          <span id="mapPickText">点击地面设置起点</span>
+          <button id="cancelMapPick" type="button">取消选点</button>
+        </div>
         <section class="map-evidence" aria-live="polite">
           <span id="phaseLabel">BOOT</span>
           <strong id="phaseTitle">正在建立执行器与局部世界</strong>
@@ -34,6 +38,33 @@
           <span id="modelStatus" class="model-status">JEV · 等待就绪</span>
         </header>
         <div class="agent-content">
+          <section id="urbanMissionEditor" class="mission-editor" aria-label="自定义城市任务" hidden>
+            <header><strong>自己选一条路</strong><span>东京 · 街区探索</span></header>
+            <p>在地图上选择起终点，让 Jev 尝试你设定的任务。</p>
+            <button id="pickMission" class="mission-primary" type="button">在地图上依次选起点和终点</button>
+            <div class="mission-points">
+              <button id="pickStart" type="button" aria-label="修改起点"><b>A · 起点</b><span id="startCoordinates">加载中…</span></button>
+              <button id="pickGoal" type="button" aria-label="修改终点"><b>B · 终点</b><span id="goalCoordinates">加载中…</span></button>
+            </div>
+            <p id="missionStatus" class="mission-status" role="status">正在检查已加载的街区。</p>
+            <div class="control-actions">
+              <button id="districtView" type="button">街区全景</button>
+              <button id="swapMission" type="button">交换起终点</button>
+              <button id="resetMission" type="button">回到起点</button>
+            </div>
+            <details class="mission-examples"><summary>示例任务与链接</summary>
+              <div class="control-actions">
+                <button id="restoreMission" type="button">单楼绕行</button>
+                <button id="crossDistrictMission" type="button" hidden>穿越街区</button>
+                <button id="shareMission" type="button">生成任务链接</button>
+              </div>
+              <label id="missionLinkField" class="mission-link" hidden>复制地址可恢复这组起终点
+                <input id="missionLink" aria-label="当前任务链接" type="text" readonly />
+              </label>
+            </details>
+            <small>白色边框内可选点；拖动平移、滚轮缩放。建筑与边界附近的点会被拒绝。</small>
+          </section>
+          <details id="otherScenarios" class="other-scenarios"><summary>其他实验场景</summary>
           <section class="scenario-controls" aria-label="选择场景">
             <div class="field-row">
               <label>场景<select id="sceneSelect"></select></label>
@@ -47,11 +78,12 @@
             </div>
             <small id="sceneScope">城市使用真实纹理建筑；街道路面为局部近似。</small>
           </section>
+          </details>
           <section class="execution-panel" aria-label="执行通道">
             <div id="urbanRoutePanel" class="route-panel">
               <strong id="routeDecision">直线被建筑阻挡，等待 Jev 选择</strong>
               <p id="routeOptions">正在检查左右绕行空间…</p>
-              <small>红虚线：直达方向 · 彩线：候选走廊 · 绿线：所选路线。建筑几何生成可行候选，Jev 决定走哪一侧。</small>
+              <small>红虚线：受阻直达方向 · 彩线：候选路线 · 绿线：选定路线。建筑几何生成候选，Jev 选择路线和后续动作。</small>
             </div>
             <div class="execution-stats"><span id="bridgeStatus">Bridge 初始化中</span><span>已接受决策 <b id="decisionCount">0</b></span></div>
             <details>

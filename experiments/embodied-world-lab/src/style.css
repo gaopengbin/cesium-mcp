@@ -530,6 +530,35 @@ button {
 .agent-content button:hover { border-color: #55dfb9; }
 button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid #55dfb9; outline-offset: 3px; }
 .agent-content small, .scope-note { color: #8aa79c; font-size: 11px; line-height: 1.6; }
+.mission-editor { padding: 18px 16px; border-bottom: 1px solid #24433d; font-size: 12px; }
+.mission-editor > header { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.mission-editor > header strong { font-size: 17px; }
+.mission-editor > header span { color: #8fbcad; font-size: 11px; }
+.mission-editor > p { color: #c0d5ce; line-height: 1.6; margin: 9px 0 13px; }
+.agent-content .mission-primary { width: 100%; min-height: 42px; background: #2aac8e; border-color: #55dfb9; color: #051c18; font-weight: 650; }
+.mission-points { display: grid; grid-template-columns: 1fr; gap: 7px; margin: 12px 0; }
+.mission-points button { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 42px; text-align: left; }
+.mission-points b { color: #ffc46a; white-space: nowrap; }
+.mission-points button:last-child b { color: #55dfb9; }
+.mission-points span { font: 11px/1.5 Consolas, monospace; color: #aac5bc; }
+.mission-points button[aria-pressed="true"] { border-color: #ffc46a; background: #3b3520; }
+.mission-status[data-error="true"] { color: #ffc5b5; }
+.mission-examples { margin: 10px 0; }
+.mission-examples summary { color: #bcd3ca; cursor: pointer; }
+.mission-examples .control-actions { margin-top: 10px; }
+.mission-link { display: block; margin-top: 10px; color: #bcd3ca; font-size: 12px; }
+.mission-link[hidden] { display: none; }
+.mission-link input { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 8px; border: 1px solid #40645a; border-radius: 4px; background: #0a2525; color: #e8fff5; }
+.other-scenarios > summary { padding: 12px 16px; font-size: 12px; color: #aac5bc; cursor: pointer; border-bottom: 1px solid #24433d; }
+.agent-content button:disabled, .suggestions button:disabled { opacity: 0.45; cursor: not-allowed; }
+.map-pick-hint { position: absolute; z-index: 3; top: 95px; left: 24px; right: 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: #173c35ed; border: 1px solid #55dfb9; border-radius: 6px; color: #e8fff5; font-size: 13px; box-shadow: 0 4px 24px #0005; }
+.map-pick-hint[hidden] { display: none; }
+.map-pick-hint button { background: #0a2525; border: 1px solid #678e7f; border-radius: 4px; padding: 7px 10px; cursor: pointer; white-space: nowrap; font-size: 12px; }
+@media (max-width: 800px) {
+  .map-pick-hint { top: 67px; left: 14px; right: 14px; padding: 9px; font-size: 12px; }
+  .mission-editor { padding: 14px 12px; }
+  .mission-editor > header strong { font-size: 15px; }
+}
 .execution-stats { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: #a2daca; }
 .route-panel { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #24433d; }
 .route-panel strong { color: #e9f5ef; font-size: 13px; }
