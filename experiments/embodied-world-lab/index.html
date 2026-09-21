@@ -39,7 +39,7 @@
         </header>
         <div class="agent-content">
           <section id="urbanMissionEditor" class="mission-editor" aria-label="自定义城市任务" hidden>
-            <header><strong>自己选一条路</strong><span>东京 · 街区探索</span></header>
+            <header><strong>自己选一条路</strong><span>东京 · 大范围探索</span></header>
             <p>在地图上选择起终点，让 Jev 尝试你设定的任务。</p>
             <button id="pickMission" class="mission-primary" type="button">在地图上依次选起点和终点</button>
             <div class="mission-points">
@@ -52,17 +52,23 @@
               <button id="swapMission" type="button">交换起终点</button>
               <button id="resetMission" type="button">回到起点</button>
             </div>
+            <div class="field-row mission-view-settings">
+              <label>行走速度<select id="citySpeed"><option value="3">慢速 · 3 m/s</option><option value="8" selected>快速 · 8 m/s</option><option value="12">长途 · 12 m/s</option></select></label>
+              <label>跟随镜头高度<select id="cityCameraHeight"><option value="35">近景 · 35 m</option><option value="70" selected>街景 · 70 m</option><option value="120">远景 · 120 m</option></select></label>
+            </div>
+            <small>转弯与接近终点时自动减速；高位镜头遇到建筑遮挡时调整机位。</small>
             <details class="mission-examples"><summary>示例任务与链接</summary>
               <div class="control-actions">
                 <button id="restoreMission" type="button">单楼绕行</button>
                 <button id="crossDistrictMission" type="button" hidden>穿越街区</button>
+                <button id="longMission" type="button">1.5 公里长途</button>
                 <button id="shareMission" type="button">生成任务链接</button>
               </div>
               <label id="missionLinkField" class="mission-link" hidden>复制地址可恢复这组起终点
                 <input id="missionLink" aria-label="当前任务链接" type="text" readonly />
               </label>
             </details>
-            <small>白色边框内可选点；拖动平移、滚轮缩放。建筑与边界附近的点会被拒绝。</small>
+            <small id="cityCoverage">正在加载城市碰撞覆盖范围。地图可拖动平移、滚轮缩放。</small>
           </section>
           <details id="otherScenarios" class="other-scenarios"><summary>其他实验场景</summary>
           <section class="scenario-controls" aria-label="选择场景">

@@ -16,8 +16,9 @@ function event<T extends unknown[] = []>() {
 describe('urban visual loading state', () => {
   it('requires loaded and visible tile content rather than just tileset metadata', () => {
     const tiles = {
-      tilesLoaded: true, tileLoad: event(), tileVisible: event(), tileFailed: event(),
+      tilesLoaded: true, tileLoad: event<[object]>(), tileUnload: event<[object]>(), tileVisible: event<[object]>(), tileFailed: event(),
       loadProgress: event<[number, number]>(),
+      totalMemoryUsageInBytes: 16_000, cacheBytes: 32_000,
     }
     const postRender = event()
     const onState = vi.fn()
@@ -26,14 +27,15 @@ describe('urban visual loading state', () => {
     } as unknown as Viewer, onState)
     postRender.emit()
     expect(onState.mock.calls.at(-1)?.[0].status).toBe('loading')
-    tiles.tileLoad.emit()
-    tiles.tileVisible.emit()
+    const firstTile = {}
+    tiles.tileLoad.emit(firstTile)
+    tiles.tileVisible.emit(firstTile)
     postRender.emit()
     expect(onState.mock.calls.at(-1)?.[0]).toMatchObject({ status: 'ready', loadedTiles: 1, scope: 'current-view' })
 
     tiles.tilesLoaded = false
     tiles.loadProgress.emit(2, 1)
-    tiles.tileVisible.emit()
+    tiles.tileVisible.emit(firstTile)
     postRender.emit()
     expect(onState.mock.calls.at(-1)?.[0]).toMatchObject({ status: 'loading', pendingRequests: 2, processingTiles: 1 })
     tiles.tileFailed.emit()
@@ -42,6 +44,42 @@ describe('urban visual loading state', () => {
     const calls = onState.mock.calls.length
     dispose()
     tiles.tileFailed.emit()
+    postRender.emit()
+    expect(onState).toHaveBeenCalledTimes(calls)
+  })
+
+  it('distinguishes resident tiles from historical loads across eviction and revisits', () => {
+    const tiles = {
+      tilesLoaded: true, tileLoad: event<[object]>(), tileUnload: event<[object]>(), tileVisible: event<[object]>(), tileFailed: event(),
+      loadProgress: event<[number, number]>(), totalMemoryUsageInBytes: 32_000, cacheBytes: 32_000,
+    }
+    const postRender = event()
+    const onState = vi.fn()
+    const dispose = watchUrbanVisualState(tiles as unknown as Cesium3DTileset, { scene: { postRender } } as unknown as Viewer, onState)
+    const firstTile = {}
+    const secondTile = {}
+    tiles.tileLoad.emit(firstTile)
+    tiles.tileLoad.emit(secondTile)
+    tiles.tileVisible.emit(firstTile)
+    tiles.tileVisible.emit(firstTile)
+    postRender.emit()
+    expect(onState.mock.calls.at(-1)?.[0]).toMatchObject({
+      loadedTiles: 2, residentTiles: 2, unloadedTiles: 0, visibleTiles: 1, memoryUsageBytes: 32_000,
+    })
+
+    tiles.tileUnload.emit(firstTile)
+    tiles.totalMemoryUsageInBytes = 16_000
+    tiles.tileVisible.emit(secondTile)
+    postRender.emit()
+    expect(onState.mock.calls.at(-1)?.[0]).toMatchObject({ status: 'ready', loadedTiles: 2, residentTiles: 1, unloadedTiles: 1, memoryUsageBytes: 16_000 })
+
+    tiles.tileLoad.emit(firstTile)
+    tiles.tileVisible.emit(firstTile)
+    postRender.emit()
+    expect(onState.mock.calls.at(-1)?.[0]).toMatchObject({ loadedTiles: 3, residentTiles: 2, unloadedTiles: 1, visibleTiles: 1 })
+    const calls = onState.mock.calls.length
+    dispose()
+    tiles.tileUnload.emit(firstTile)
     postRender.emit()
     expect(onState).toHaveBeenCalledTimes(calls)
   })

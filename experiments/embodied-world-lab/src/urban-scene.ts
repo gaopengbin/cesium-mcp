@@ -8,13 +8,17 @@ import {
   ShadowMode,
 } from 'cesium'
 import type { Viewer } from 'cesium'
-import { initRapier } from 'cesium-player-controller'
 import type { playerController } from 'cesium-player-controller'
 import type { GeoPoint } from './world-sensor.js'
 
 export interface UrbanVisualState {
   status: 'loading' | 'ready' | 'partial'
   loadedTiles: number
+  residentTiles: number
+  unloadedTiles: number
+  visibleTiles: number
+  memoryUsageBytes: number
+  cacheBudgetBytes: number
   failedTiles: number
   pendingRequests: number
   processingTiles: number
@@ -27,14 +31,19 @@ export function watchUrbanVisualState(
   onState: (state: UrbanVisualState) => void,
 ): () => void {
   let loadedTiles = 0
+  let unloadedTiles = 0
   let failedTiles = 0
   let pendingRequests = 0
   let processingTiles = 0
-  let visibleThisFrame = false
+  const residentTiles = new Set<object>()
+  const visibleThisFrame = new Set<object>()
   let lastKey = ''
-  const publish = (visible = false): void => {
+  const publish = (visibleTiles = 0): void => {
     const state: UrbanVisualState = {
-      status: failedTiles > 0 ? 'partial' : visible && buildings.tilesLoaded && loadedTiles > 0 ? 'ready' : 'loading',
+      status: failedTiles > 0 ? 'partial' : visibleTiles > 0 && buildings.tilesLoaded && residentTiles.size > 0 ? 'ready' : 'loading',
+      residentTiles: residentTiles.size, unloadedTiles, visibleTiles,
+      memoryUsageBytes: buildings.totalMemoryUsageInBytes,
+      cacheBudgetBytes: buildings.cacheBytes,
       loadedTiles, failedTiles, pendingRequests, processingTiles, scope: 'current-view',
     }
     const key = JSON.stringify(state)
@@ -43,8 +52,15 @@ export function watchUrbanVisualState(
     onState(state)
   }
   const remove = [
-    buildings.tileLoad.addEventListener(() => { loadedTiles += 1 }),
-    buildings.tileVisible.addEventListener(() => { visibleThisFrame = true }),
+    buildings.tileLoad.addEventListener(tile => {
+      loadedTiles += 1
+      residentTiles.add(tile)
+    }),
+    buildings.tileUnload.addEventListener(tile => {
+      unloadedTiles += 1
+      residentTiles.delete(tile)
+    }),
+    buildings.tileVisible.addEventListener(tile => { visibleThisFrame.add(tile) }),
     buildings.tileFailed.addEventListener(() => {
       failedTiles += 1
       publish()
@@ -54,8 +70,8 @@ export function watchUrbanVisualState(
       processingTiles = processing
     }),
     viewer.scene.postRender.addEventListener(() => {
-      publish(visibleThisFrame)
-      visibleThisFrame = false
+      publish(visibleThisFrame.size)
+      visibleThisFrame.clear()
     }),
   ]
   publish()
@@ -71,7 +87,7 @@ export const URBAN_METADATA = {
 // Selected on the rendered road surface west of Tokyo Station; not inside a building.
 export const URBAN_START: GeoPoint = { longitude: 139.764624924, latitude: 35.681082469, height: URBAN_GROUND_HEIGHT }
 export const URBAN_GOAL: GeoPoint = { longitude: 139.764700799, latitude: 35.682126853, height: URBAN_GROUND_HEIGHT }
-export const URBAN_COLLISION_BOUNDS = [139.7630, 35.6790, 139.7665, 35.6830] as const
+export const URBAN_COLLISION_BOUNDS = [139.758, 35.676, 139.7678, 35.692] as const
 
 export function insideUrbanCoverage(point: GeoPoint, marginMeters = 0): boolean {
   const latitudeMargin = marginMeters / 111_320
@@ -114,9 +130,15 @@ export async function loadUrbanBuildings(
   onCleanup?: (cleanup: () => void) => void,
 ): Promise<Cesium3DTileset> {
   const buildings = await Cesium3DTileset.fromUrl(URBAN_TILESET_URL, {
-    maximumScreenSpaceError: 4,
-    cacheBytes: 256 * 1024 * 1024,
-    maximumCacheOverflowBytes: 128 * 1024 * 1024,
+    maximumScreenSpaceError: 16,
+    // This local city is explored continuously. Cesium's movement/foveated gates
+    // otherwise defer visible requests until the camera stops moving.
+    cullRequestsWhileMoving: false,
+    foveatedScreenSpaceError: false,
+    foveatedTimeDelay: 0,
+    // Retain a bounded working set when switching between street and map views.
+    cacheBytes: 1024 * 1024 * 1024,
+    maximumCacheOverflowBytes: 256 * 1024 * 1024,
     shadows: ShadowMode.DISABLED,
     lightColor: new Cartesian3(2.5, 2.5, 2.5),
   })
@@ -139,14 +161,34 @@ export async function loadUrbanBuildings(
   return buildings
 }
 
+export function createUrbanGroundColliderMesh(
+  toLocal: (point: Cartesian3) => { x: number, y: number, z: number },
+): { positions: Float32Array, indices: Uint32Array } {
+  const [west, south, east, north] = URBAN_COLLISION_BOUNDS
+  const columns = Math.ceil((east - west) * 111_320 * Math.cos((south + north) * Math.PI / 360) / 40)
+  const rows = Math.ceil((north - south) * 111_320 / 40)
+  const positions = new Float32Array((columns + 1) * (rows + 1) * 3)
+  const indices = new Uint32Array(columns * rows * 6)
+  for (let y = 0; y <= rows; y++) {
+    for (let x = 0; x <= columns; x++) {
+      const point = toLocal(Cartesian3.fromDegrees(west + (east - west) * x / columns, south + (north - south) * y / rows, URBAN_GROUND_HEIGHT))
+      const offset = (y * (columns + 1) + x) * 3
+      positions.set([point.x, point.y, point.z], offset)
+      if (x < columns && y < rows) {
+        const vertex = y * (columns + 1) + x
+        // Rapier frame axes are east/up/south: this winding faces upward.
+        indices.set([vertex, vertex + 1, vertex + columns + 1, vertex + 1, vertex + columns + 2, vertex + columns + 1], (y * columns + x) * 6)
+      }
+    }
+  }
+  return { positions, indices }
+}
+
 export async function addUrbanGroundCollider(player: playerController): Promise<void> {
-  const rapier = await initRapier()
-  const center = player.frame.ecefToRapier(Cartesian3.fromDegrees(
-    URBAN_START.longitude, URBAN_START.latitude, URBAN_GROUND_HEIGHT - 1,
-  ))
-  player.physics.world.createCollider(rapier.ColliderDesc.cuboid(350, 1, 350)
-    .setTranslation(center.x, center.y, center.z)
-    .setFriction(0.8))
+  // Follow the same 38 m ellipsoid surface as the rendered terrain. A single
+  // tangent cuboid diverges from that surface over kilometre-scale distances.
+  const mesh = createUrbanGroundColliderMesh(point => player.frame.ecefToRapier(point))
+  player.physics.addTerrainTileCollider('plateau-tokyo-ground', mesh.positions, mesh.indices)
 }
 
 interface UrbanCollisionData {

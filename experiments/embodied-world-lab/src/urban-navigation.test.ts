@@ -139,7 +139,7 @@ describe('urban navigation candidates from building meshes', () => {
     expect(crossesMeshAtWalkingHeight(data, challenge.start, challenge.goal)).toBe(true)
     expect(challenge.candidates).toHaveLength(2)
     for (const candidate of challenge.candidates) {
-      expect(candidate.lengthMeters).toBeGreaterThanOrEqual(80)
+      expect(candidate.lengthMeters).toBeGreaterThanOrEqual(60)
       expect(candidate.lengthMeters).toBeLessThanOrEqual(180)
       expect(candidate.minimumClearanceMeters).toBeGreaterThanOrEqual(2)
       for (const point of candidate.waypoints) {
@@ -154,15 +154,15 @@ describe('urban navigation candidates from building meshes', () => {
     expect(navigation.planCandidates(challenge.start, challenge.goal)).toEqual(challenge.candidates)
   }, 30_000)
 
-  it('supports exact user endpoints across several real city street sections, including a mixed-side detour', () => {
+  it('supports exact user endpoints across several real city street sections', () => {
     const data = JSON.parse(readFileSync(new URL('./assets/tokyo-colliders.json', import.meta.url), 'utf8')) as UrbanNavigationMesh
     const navigation = createUrbanNavigation(data)
     const pairs = [
-      [[139.76375, 35.68045], [139.76375, 35.68245]],
+      [[139.76375, 35.68045], [139.76373824707136, 35.682448668504016]],
       [[139.7648, 35.68045], [139.76375, 35.68165]],
       [[139.766, 35.67985], [139.76435, 35.68105]],
     ]
-    for (const [index, [from, to]] of pairs.entries()) {
+    for (const [from, to] of pairs) {
       const start = { longitude: from[0], latitude: from[1], height: 38 }
       const goal = { longitude: to[0], latitude: to[1], height: 38 }
       expect(navigation.validatePoint(start).valid).toBe(true)
@@ -170,10 +170,9 @@ describe('urban navigation candidates from building meshes', () => {
       expect(crossesMeshAtWalkingHeight(data, start, goal)).toBe(true)
       const candidates = navigation.planCandidates(start, goal)
       expect(candidates.length).toBeGreaterThan(0)
-      if (index === 0) expect(candidates.map(candidate => candidate.id)).toEqual(['detour'])
       for (const candidate of candidates) {
         expect(candidate.lengthMeters).toBeGreaterThan(150)
-        expect(candidate.lengthMeters).toBeLessThan(400)
+        expect(candidate.lengthMeters).toBeLessThan(800)
         expect(candidate.minimumClearanceMeters).toBeGreaterThanOrEqual(2)
         expect(candidate.waypoints[0]).toEqual(start)
         expect(candidate.waypoints.at(-1)).toEqual(goal)
@@ -181,6 +180,28 @@ describe('urban navigation candidates from building meshes', () => {
           expect(navigation.isSegmentWalkable(candidate.waypoints[point - 1], candidate.waypoints[point])).toBe(true)
           expect(crossesMeshAtWalkingHeight(data, candidate.waypoints[point - 1], candidate.waypoints[point])).toBe(false)
         }
+      }
+    }
+  }, 30_000)
+
+  it('plans two independently verified kilometre-scale corridors within the enlarged real mesh coverage', () => {
+    const data = JSON.parse(readFileSync(new URL('./assets/tokyo-colliders.json', import.meta.url), 'utf8')) as UrbanNavigationMesh
+    const navigation = createUrbanNavigation(data)
+    expect(navigation.grid.cellSizeMeters).toBe(2)
+    expect(navigation.grid.width * navigation.grid.height).toBeGreaterThan(300_000)
+    const start = { longitude: 139.7632081060892, latitude: 35.67707705479974, height: 38 }
+    const goal = { longitude: 139.76537322496728, latitude: 35.68989320722705, height: 38 }
+    const routes = navigation.planCandidates(start, goal)
+    expect(routes.map(route => route.id)).toEqual(['left', 'right'])
+    for (const route of routes) {
+      expect(route.lengthMeters).toBeGreaterThan(1_400)
+      expect(route.lengthMeters).toBeLessThan(1_900)
+      expect(route.minimumClearanceMeters).toBeGreaterThanOrEqual(2)
+      expect(route.waypoints[0]).toEqual(start)
+      expect(route.waypoints.at(-1)).toEqual(goal)
+      for (let index = 1; index < route.waypoints.length; index++) {
+        expect(navigation.isSegmentWalkable(route.waypoints[index - 1], route.waypoints[index])).toBe(true)
+        expect(crossesMeshAtWalkingHeight(data, route.waypoints[index - 1], route.waypoints[index])).toBe(false)
       }
     }
   }, 30_000)

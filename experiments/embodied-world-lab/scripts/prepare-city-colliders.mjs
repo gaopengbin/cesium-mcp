@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -12,9 +12,10 @@ import draco3d from 'draco3d'
 // Original PLATEAU textured geometry, decoded only for local collision meshes.
 // No building extrusion, height adjustment, road surface or procedural geometry.
 const TILESET_URL = 'https://assets.cms.plateau.reearth.io/assets/28/07d0a1-b6be-46ef-bd87-4f0683b5ef6e/13101_chiyoda-ku_pref_2025_citygml_1_op_bldg_3dtiles_13101_chiyoda-ku_lod2/tileset.json'
-const COVERAGE = [139.7630, 35.6790, 139.7665, 35.6830]
-const DOWNLOAD_LIMIT = 20_000_000
+const COVERAGE = [139.758, 35.676, 139.7678, 35.692]
+const DOWNLOAD_LIMIT = 90_000_000
 const OUTPUT = new URL('../src/assets/tokyo-colliders.json', import.meta.url)
+const CACHE = new URL('../../../artifacts/plateau-city-cache/', import.meta.url)
 const ORIGIN = Cartesian3.fromDegrees(139.76475, 35.681, 38)
 // B3dmLoader defaults: upAxis Y, forwardAxis X. The RTC translations are ECEF.
 // GltfLoader.js / B3dmLoader.js in Cesium combine tile * b3dmRTC * gltfRTC * axis * node.
@@ -25,6 +26,7 @@ const Y_UP_TO_Z_UP = Matrix4.fromColumnMajorArray([
   0, 0, 0, 1,
 ])
 let downloadedBytes = 0
+let networkDownloadedBytes = 0
 
 function product(...matrices) {
   return matrices.reduce((left, right) => Matrix4.multiply(left, right, new Matrix4()), Matrix4.clone(Matrix4.IDENTITY))
@@ -77,18 +79,45 @@ function parseB3dm(buffer) {
   return { featureTable, batchTable, rtcCenter, rawGltf, glb: buffer.subarray(glbOffset) }
 }
 
-async function download(url) {
-  const response = await fetch(url, { signal: AbortSignal.timeout(120_000) })
-  assert(response.ok, `${response.status} ${url}`)
-  const declaredLength = Number(response.headers.get('content-length'))
-  assert(!declaredLength || downloadedBytes + declaredLength <= DOWNLOAD_LIMIT, 'Download budget exceeded')
-  const chunks = []
-  for await (const chunk of response.body) {
-    downloadedBytes += chunk.length
-    assert(downloadedBytes <= DOWNLOAD_LIMIT, 'Download budget exceeded')
-    chunks.push(Buffer.from(chunk))
+async function download(url, expectedLength) {
+  const cachePath = new URL(`${createHash('sha256').update(String(url)).digest('hex')}.bin`, CACHE)
+  try {
+    const buffer = await readFile(cachePath)
+    if (!expectedLength || buffer.length === expectedLength) {
+      downloadedBytes += buffer.length
+      assert(downloadedBytes <= DOWNLOAD_LIMIT, 'Source data budget exceeded')
+      return buffer
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
   }
-  return Buffer.concat(chunks)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(240_000) })
+      assert(response.ok, `${response.status} ${url}`)
+      const declaredLength = Number(response.headers.get('content-length'))
+      assert(!declaredLength || downloadedBytes + declaredLength <= DOWNLOAD_LIMIT, 'Source data budget exceeded')
+      const chunks = []
+      for await (const chunk of response.body) {
+        networkDownloadedBytes += chunk.length
+        assert(networkDownloadedBytes <= DOWNLOAD_LIMIT * 2, 'Network retry budget exceeded')
+        chunks.push(Buffer.from(chunk))
+      }
+      const buffer = Buffer.concat(chunks)
+      if (expectedLength) assert.equal(buffer.length, expectedLength, 'Source changed after size preflight')
+      downloadedBytes += buffer.length
+      assert(downloadedBytes <= DOWNLOAD_LIMIT, 'Source data budget exceeded')
+      await mkdir(CACHE, { recursive: true })
+      const temporary = new URL(`${cachePath.href}.partial`)
+      await writeFile(temporary, buffer)
+      await rename(temporary, cachePath)
+      return buffer
+    } catch (error) {
+      if (attempt === 2 || !['TimeoutError', 'TypeError', 'AbortError'].includes(error.name)) throw error
+      console.warn(`Retry ${attempt + 1}/2: ${new URL(url).pathname}`)
+      await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
+    }
+  }
 }
 
 function findLeaves(tileset) {
@@ -297,22 +326,38 @@ async function main() {
   const tileset = JSON.parse(tilesetBuffer.toString('utf8'))
   assert.equal(tileset.asset.gltfUpAxis ?? 'Y', 'Y', 'This preparation expects b3dm Y-up')
   const leaves = findLeaves(tileset)
-  assert.equal(leaves.length, 16, 'Source changed: recheck spatial coverage and download budget')
+  assert.equal(leaves.length, 64, 'Source changed: recheck spatial coverage and download budget')
   let expectedBytes = tilesetBuffer.length
-  for (const leaf of leaves) {
-    const response = await fetch(new URL(leaf.uri, TILESET_URL), { method: 'HEAD', signal: AbortSignal.timeout(30_000) })
-    assert(response.ok)
-    const length = Number(response.headers.get('content-length'))
-    assert(length > 0, 'Cannot preflight download budget without Content-Length')
-    expectedBytes += length
-  }
+  let headCursor = 0
+  await Promise.all(Array.from({ length: 6 }, async () => {
+    while (headCursor < leaves.length) {
+      const leaf = leaves[headCursor++]
+      const response = await fetch(new URL(leaf.uri, TILESET_URL), { method: 'HEAD', signal: AbortSignal.timeout(60_000) })
+      assert(response.ok)
+      leaf.expectedBytes = Number(response.headers.get('content-length'))
+      assert(leaf.expectedBytes > 0, 'Cannot preflight source budget without Content-Length')
+      expectedBytes += leaf.expectedBytes
+    }
+  }))
   assert(expectedBytes <= DOWNLOAD_LIMIT, `Expected download ${expectedBytes} exceeds budget`)
+  console.log(`Preflight: ${leaves.length} leaves, ${expectedBytes} source bytes, ${JSON.stringify(COVERAGE)}`)
+  const buffers = new Array(leaves.length)
+  let downloadCursor = 0
+  await Promise.all(Array.from({ length: 4 }, async () => {
+    while (downloadCursor < leaves.length) {
+      const index = downloadCursor++
+      const leaf = leaves[index]
+      buffers[index] = await download(new URL(leaf.uri, TILESET_URL), leaf.expectedBytes)
+      console.log(`Ready ${index + 1}/${leaves.length}: ${leaf.uri} (${buffers[index].length} bytes)`)
+    }
+  }))
   const positions = []
   const indices = []
   const tiles = []
-  for (const leaf of leaves) {
-    const buffer = await download(new URL(leaf.uri, TILESET_URL))
+  for (const [index, leaf] of leaves.entries()) {
+    const buffer = buffers[index]
     const record = await decodeTile(buffer, leaf, positions, indices)
+    buffers[index] = undefined
     tiles.push(record)
     console.log(`${leaf.uri}: ${record.vertexCount} vertices, ${record.triangleCount} triangles, bounds verified`)
   }
@@ -356,8 +401,10 @@ async function main() {
     indices,
   }
   await mkdir(dirname(fileURLToPath(OUTPUT)), { recursive: true })
-  await writeFile(OUTPUT, `${JSON.stringify(output)}\n`)
-  console.log(JSON.stringify({ output: fileURLToPath(OUTPUT), counts: output.counts, rayChecks }, null, 2))
+  const temporaryOutput = new URL(`${OUTPUT.href}.partial`)
+  await writeFile(temporaryOutput, `${JSON.stringify(output)}\n`)
+  await rename(temporaryOutput, OUTPUT)
+  console.log(JSON.stringify({ output: fileURLToPath(OUTPUT), counts: output.counts, networkDownloadedBytes, rayChecks }, null, 2))
 }
 
 if (process.argv.includes('--self-test')) {

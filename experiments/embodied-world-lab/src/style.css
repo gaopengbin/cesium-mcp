@@ -544,6 +544,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-v
 .mission-points button[aria-pressed="true"] { border-color: #ffc46a; background: #3b3520; }
 .mission-status[data-error="true"] { color: #ffc5b5; }
 .mission-examples { margin: 10px 0; }
+.mission-view-settings { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 14px 0 8px; }
 .mission-examples summary { color: #bcd3ca; cursor: pointer; }
 .mission-examples .control-actions { margin-top: 10px; }
 .mission-link { display: block; margin-top: 10px; color: #bcd3ca; font-size: 12px; }

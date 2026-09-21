@@ -156,7 +156,15 @@ for (const height of ['recorded', 38.7, 39.5, 40]) {
       return Matrix4.multiplyByPoint(worldToLocal, height === 'recorded' ? world : Cartesian3.fromDegrees(geo.longitude, geo.latitude, height), new Cartesian3())
     })
     if (Cartesian3.distanceSquared(points[0], points[1]) < 1e-14) continue
+    const segmentBounds = {
+      minX: Math.min(points[0].x, points[1].x), maxX: Math.max(points[0].x, points[1].x),
+      minY: Math.min(points[0].y, points[1].y), maxY: Math.max(points[0].y, points[1].y),
+      minZ: Math.min(points[0].z, points[1].z), maxZ: Math.max(points[0].z, points[1].z),
+    }
     for (const item of triangles) {
+      if (item.maxX < segmentBounds.minX || item.minX > segmentBounds.maxX
+        || item.maxY < segmentBounds.minY || item.minY > segmentBounds.maxY
+        || item.maxZ < segmentBounds.minZ || item.minZ > segmentBounds.maxZ) continue
       const { a, b, c } = item.triangle
       const hit = IntersectionTests.lineSegmentTriangle(points[0], points[1], a, b, c, false)
       if (hit) intersections.push({ height, precedingFrameIndex: index - 1, followingFrameIndex: index, triangleIndex: item.index, position: geographic(Matrix4.multiplyByPoint(localToWorld, hit, new Cartesian3())) })

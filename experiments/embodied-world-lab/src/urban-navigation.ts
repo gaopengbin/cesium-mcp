@@ -83,7 +83,7 @@ export function createUrbanNavigation(
   const minY = Math.min(...corners.map(p => p.y)) + margin + 0.5
   const width = Math.floor((Math.max(...corners.map(p => p.x)) - margin - 0.5 - minX) / cell)
   const height = Math.floor((Math.max(...corners.map(p => p.y)) - margin - 0.5 - minY) / cell)
-  if (width < 8 || height < 8 || width * height > 200_000) throw new Error('Navigation coverage is too small or too large')
+  if (width < 8 || height < 8 || width * height > 1_000_000) throw new Error('Navigation coverage is too small or too large')
   const count = width * height
   const occupied = new Uint8Array(count)
   const center = (index: number): Point => ({ x: minX + (index % width + 0.5) * cell, y: minY + (Math.floor(index / width) + 0.5) * cell })
@@ -128,6 +128,9 @@ export function createUrbanNavigation(
     // All points in a free cell have >= radius clearance from occupied cell squares.
     walkable[i] = Math.sqrt(squaredDistance[i]) * cell >= radius + 2 * halfDiagonal + 0.05 ? 1 : 0
   }
+  // Connectivity is fixed for this prepared district. Reject disconnected clicks
+  // before running multiple full-grid searches in a kilometre-scale scene.
+  const freeRegions = labelFreeRegions(walkable, width, height)
   const localClearance = (point: Point): number => {
     const index = indexAt(point)
     if (index < 0 || occupied[index]) return 0
@@ -194,6 +197,7 @@ export function createUrbanNavigation(
     const startIndex = indexAt(from)
     const goalIndex = indexAt(to)
     if (startIndex < 0 || goalIndex < 0 || !walkable[startIndex] || !walkable[goalIndex]
+      || freeRegions[startIndex] !== freeRegions[goalIndex]
       || lineClearance(from, center(startIndex)) < radius || lineClearance(center(goalIndex), to) < radius) return
     const sign = id === 'left' ? 1 : -1
     const span = distance(from, to)
@@ -308,6 +312,31 @@ export function createUrbanNavigation(
 
 function distance(a: Point, b: Point): number { return Math.hypot(a.x - b.x, a.y - b.y) }
 
+function labelFreeRegions(walkable: Uint8Array, width: number, height: number): Int32Array {
+  const labels = new Int32Array(walkable.length).fill(-1)
+  const queue = new Int32Array(walkable.length)
+  let label = 0
+  for (let start = 0; start < walkable.length; start++) {
+    if (!walkable[start] || labels[start] !== -1) continue
+    let tail = 1
+    queue[0] = start
+    labels[start] = label
+    for (let head = 0; head < tail; head++) {
+      const index = queue[head]
+      const x = index % width
+      const y = Math.floor(index / width)
+      for (const next of [x > 0 ? index - 1 : -1, x + 1 < width ? index + 1 : -1, y > 0 ? index - width : -1, y + 1 < height ? index + width : -1]) {
+        if (next >= 0 && walkable[next] && labels[next] === -1) {
+          labels[next] = label
+          queue[tail++] = next
+        }
+      }
+    }
+    label++
+  }
+  return labels
+}
+
 function triangleIntersectsCell(t: Point[], x: number, y: number, size: number): boolean {
   if (t.some(p => p.x >= x && p.x <= x + size && p.y >= y && p.y <= y + size)) return true
   const cross = (a: Point, b: Point, c: Point) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
@@ -409,6 +438,8 @@ function distanceTransform(occupied: Uint8Array, width: number, height: number):
 }
 
 function aStar(start: number, goal: number, width: number, height: number, walkable: Uint8Array, center: (index: number) => Point, allowed: (point: Point) => boolean): number[] | undefined {
+  const goalPoint = center(goal)
+  const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
   const heap: Array<{ index: number, score: number }> = []
   const push = (entry: { index: number, score: number }) => {
     heap.push(entry)
@@ -441,7 +472,7 @@ function aStar(start: number, goal: number, width: number, height: number, walka
   const previous = new Int32Array(walkable.length).fill(-1)
   const closed = new Uint8Array(walkable.length)
   cost[start] = 0
-  push({ index: start, score: distance(center(start), center(goal)) })
+  push({ index: start, score: distance(center(start), goalPoint) })
   while (heap.length) {
     const current = pop()
     if (closed[current]) continue
@@ -453,17 +484,19 @@ function aStar(start: number, goal: number, width: number, height: number, walka
     closed[current] = 1
     const x = current % width
     const y = Math.floor(current / width)
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+    const currentPoint = center(current)
+    for (const [dx, dy] of neighbors) {
       const nx = x + dx
       const ny = y + dy
       const next = ny * width + nx
+      const nextPoint = center(next)
       if (nx < 0 || ny < 0 || nx >= width || ny >= height || !walkable[next] || closed[next]
-        || !allowed(center(next)) || (dx && dy && (!walkable[y * width + nx] || !walkable[ny * width + x]))) continue
-      const newCost = cost[current] + distance(center(current), center(next))
+        || !allowed(nextPoint) || (dx && dy && (!walkable[y * width + nx] || !walkable[ny * width + x]))) continue
+      const newCost = cost[current] + distance(currentPoint, nextPoint)
       if (newCost >= cost[next]) continue
       cost[next] = newCost
       previous[next] = current
-      push({ index: next, score: newCost + distance(center(next), center(goal)) })
+      push({ index: next, score: newCost + distance(nextPoint, goalPoint) })
     }
   }
   return undefined

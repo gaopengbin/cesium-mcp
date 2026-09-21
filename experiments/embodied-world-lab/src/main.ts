@@ -37,6 +37,8 @@ import {
 import { CesiumPlayerEmbodiment } from './cesium-player-embodiment.js'
 import type { ActorRayFan, ActorRayHitFan } from './cesium-player-embodiment.js'
 import { CameraPresetTransition } from './camera-transition.js'
+import { UrbanFollowCamera } from './urban-follow-camera.js'
+import { urbanTravelSpeed } from './urban-travel-speed.js'
 import { LabWorldInquiry } from './world-inquiry.js'
 import { EmbodiedAgentLoop } from './embodied-agent-loop.js'
 import { requestJevMotionPlan } from './jev-planner.js'
@@ -90,6 +92,10 @@ const selectedSeed = Math.max(1, Math.min(999999, Number(sceneQuery.get('seed'))
 const scenario = isUrban ? createUrbanScenario(selectedSeed) : createScenario(selectedPreset as ScenarioPreset, selectedSeed)
 const NAMCHE_START = scenario.start
 const NAMCHE_GOAL = scenario.goal
+const CITY_LONG_MISSION = {
+  start: { longitude: 139.7632081060892, latitude: 35.67707705479974, height: URBAN_GROUND_HEIGHT },
+  goal: { longitude: 139.76537322496728, latitude: 35.68989320722705, height: URBAN_GROUND_HEIGHT },
+}
 const LANDSLIDE_HAZARD = scenario.hazard
 const decisionTrace: Array<Record<string, unknown>> = []
 const bridgeTrace: BridgeAgentTrace[] = []
@@ -151,6 +157,9 @@ type CameraPose = { position: Cartesian3, direction: Cartesian3, up: Cartesian3 
 let controllerCameraPose: CameraPose | undefined
 let mapCameraPose: CameraPose | undefined
 let mapPoseChanged = false
+const urbanFollowCamera = new UrbanFollowCamera()
+let citySpeedMetersPerSecond = 8
+let cityCameraHeightMeters = 70
 let mapPickMode: 'start' | 'goal' | undefined
 let pickPair = false
 let mapPickHandler: ScreenSpaceEventHandler | undefined
@@ -231,8 +240,8 @@ async function bootstrap(): Promise<void> {
     setPhase('BUILDING MAP', '正在读取楼体与可通行空间', '起终点之间有真实建筑阻挡，先建立左右候选走廊。')
     const mesh = await fetch(new URL('./assets/tokyo-colliders.json', import.meta.url)).then(response => response.json())
     urbanNavigation = createUrbanNavigation(mesh)
-    Object.assign(NAMCHE_START, urbanNavigation.defaultChallenge.start)
-    Object.assign(NAMCHE_GOAL, urbanNavigation.defaultChallenge.goal)
+    Object.assign(NAMCHE_START, CITY_LONG_MISSION.start)
+    Object.assign(NAMCHE_GOAL, CITY_LONG_MISSION.goal)
     try {
       const mission = readUrbanMission(sceneQuery)
       if (mission) {
@@ -305,7 +314,7 @@ async function bootstrap(): Promise<void> {
       jumpAnim: isUrban ? 'Jump' : 'Survey',
       gravity: -980,
       jumpHeight: 0,
-      speed: isUrban ? 280 : 300,
+      speed: isUrban ? citySpeedMetersPerSecond * 100 : 300,
       acceleration: 18,
       deceleration: 24,
       rotateY: initialHeading,
@@ -346,11 +355,20 @@ async function bootstrap(): Promise<void> {
     // Cesium's map camera while the user explores or chooses a mission.
     player.offAllEvent()
     player.isupdate = true
+    player.registerLocomotionSet('city-walk', { idle: 'Idle', walking: 'Walking' })
+    player.registerLocomotionSet('city-run', { idle: 'Idle', walking: 'Running' })
+    player.switchLocomotionSet('city-walk')
     await addUrbanGroundCollider(player)
     setPhase('BUILDING COLLISIONS', '正在建立真实楼体碰撞', '完成后才开放导航，避免把未加载的建筑当作空地。')
     urbanCollisionCounts = await addUrbanBuildingColliders(player)
     const actorModel = player.getPlayerModel()
-    if (actorModel) actorModel.minimumPixelSize = 48
+    if (actorModel) {
+      actorModel.scale = 2
+      actorModel.minimumPixelSize = 110
+      actorModel.maximumScale = 5
+      actorModel.silhouetteColor = Color.fromCssColorString('#ffe5a3')
+      actorModel.silhouetteSize = 1
+    }
   }
   player.setOverShoulderView(false)
   player.setInput({
@@ -410,9 +428,10 @@ async function bootstrap(): Promise<void> {
       controllerCameraPose = undefined
     }
     player?.update()
-    if (isUrban && overviewView && viewer) {
+    if (isUrban && viewer && player) {
       controllerCameraPose = captureCameraPose()
-      if (mapCameraPose) restoreCameraPose(mapCameraPose)
+      if (overviewView && mapCameraPose) restoreCameraPose(mapCameraPose)
+      else if (!overviewView) restoreCameraPose(urbanFollowCamera.update(player.getPosition(), player.getYaw(), cityCameraHeightMeters, performance.now(), urbanCameraSightlineClear))
       mapPoseChanged = false
     }
     if (!active || !ready || disposed) return
@@ -470,6 +489,17 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
     height: cartographic.height,
   }
   const guidance = isUrban ? routeFollower?.update(position) : undefined
+  if (isUrban && player) {
+    // The controller normalizes movement input, so speed is adjusted explicitly.
+    // Slow before a corner or the goal instead of overshooting it at travel speed.
+    const approachDistance = distanceMeters(position, guidance?.target ?? goal)
+    const bearingError = initialBearingRadians(position, guidance?.target ?? goal) - observation.headingRadians
+    player.setPlayerSpeed(urbanTravelSpeed(citySpeedMetersPerSecond, approachDistance, bearingError) * 100)
+    const actualSpeed = Math.hypot(observation.velocityEnu.east, observation.velocityEnu.north)
+    const currentAnimationSet = player.getCurrentLocomotionSet()
+    const nextAnimationSet = actualSpeed > 4 ? 'city-run' : actualSpeed < 3.5 ? 'city-walk' : currentAnimationSet
+    if (nextAnimationSet && nextAnimationSet !== currentAnimationSet) player.switchLocomotionSet(nextAnimationSet)
+  }
   if (isUrban) {
     urbanMotionSamples.push({ position, at: nowMs })
     if (urbanMotionSamples.length > 20_000) urbanMotionSamples.shift()
@@ -653,7 +683,7 @@ function requestModelPlan(snapshot: EmbodiedWorldSnapshot): void {
     if (generation !== taskGeneration || !active) return
     const entry = { revision: modelObservation.revision, capturedAt: modelObservation.capturedAt, observation: modelObservation, ...result, accepted: false }
     decisionTrace.push(entry)
-    if (decisionTrace.length > 100) decisionTrace.shift()
+    if (decisionTrace.length > 1_000) decisionTrace.shift()
     if (!await agentChannel?.commitIntent(
       requestId,
       modelObservation.revision,
@@ -861,13 +891,15 @@ function setOverviewView(enabled: boolean, announce = true): void {
   if (isUrban) {
     setNativeMapControl(enabled)
     if (enabled) frameUrbanMap(false)
+    else urbanFollowCamera.reset()
     setAutonomousCameraLock(active)
+  } else {
+    cameraTransition.begin(enabled ? 'overview' : 'follow', performance.now())
+    scheduleCameraTransition()
   }
-  cameraTransition.begin(enabled ? 'overview' : 'follow', performance.now())
-  scheduleCameraTransition()
   if (announce) appendMessage('event', overviewView
-    ? 'ACTIVE VIEW · 高位环境观察视角'
-    : 'ACTIVE VIEW · 近距第三人称跟随视角')
+    ? '地图全景 · 拖动平移、滚轮缩放'
+    : isUrban ? `高位跟随 · ${cityCameraHeightMeters} 米` : '近距第三人称跟随视角')
 }
 
 function captureCameraPose(): CameraPose {
@@ -877,6 +909,15 @@ function captureCameraPose(): CameraPose {
 
 function restoreCameraPose(pose: CameraPose): void {
   viewer?.camera.setView({ destination: pose.position, orientation: { direction: pose.direction, up: pose.up } })
+}
+
+function urbanCameraSightlineClear(from: Cartesian3, to: Cartesian3): boolean {
+  if (!player) return false
+  const direction = Cartesian3.subtract(to, from, new Cartesian3())
+  const distance = Cartesian3.magnitude(direction)
+  if (distance < 0.1) return false
+  Cartesian3.divideByScalar(direction, distance, direction)
+  return player.physics.raycastEcef(from, direction, distance, player.physics.charBody) >= distance - 0.2
 }
 
 function setNativeMapControl(enabled: boolean): void {
@@ -889,7 +930,7 @@ function setNativeMapControl(enabled: boolean): void {
   control.enableTilt = enabled
   control.enableLook = enabled
   control.minimumZoomDistance = 45
-  control.maximumZoomDistance = 2_500
+  control.maximumZoomDistance = 15_000
 }
 
 function frameUrbanMap(district: boolean): void {
@@ -956,6 +997,7 @@ function applyUrbanMission(start: GeoPoint, goal: GeoPoint): void {
   Object.assign(NAMCHE_GOAL, { ...goal })
   player.reset(Cartesian3.fromDegrees(start.longitude, start.latitude, URBAN_GROUND_HEIGHT + player.getCapsuleGroundHeight() + 0.05))
   player.setOnGround(false)
+  urbanFollowCamera.reset()
   routeFollower = undefined
   routeOffer = undefined
   selectedRouteId = undefined
@@ -1013,6 +1055,9 @@ function installUrbanMissionEditor(): void {
   const marginLatitude = 34.5 / 111_320
   const marginLongitude = marginLatitude / Math.cos(CesiumMath.toRadians(35.681))
   const [west, south, east, north] = URBAN_COLLISION_BOUNDS
+  const coverageHeight = (north - south) * 111_320 / 1_000
+  const coverageWidth = (east - west) * 111_320 * Math.cos(CesiumMath.toRadians((north + south) / 2)) / 1_000
+  element('cityCoverage').textContent = `已加载约 ${(coverageHeight * coverageWidth).toFixed(1)} km² 建筑碰撞，南北 ${coverageHeight.toFixed(1)} km。可跨街区选点；白框标示数据覆盖范围。`
   viewer.entities.add({ id: 'mission-coverage', polyline: {
     positions: [[west + marginLongitude, south + marginLatitude], [east - marginLongitude, south + marginLatitude], [east - marginLongitude, north - marginLatitude], [west + marginLongitude, north - marginLatitude], [west + marginLongitude, south + marginLatitude]]
       .map(([lon, lat]) => Cartesian3.fromDegrees(lon, lat, URBAN_GROUND_HEIGHT + 0.5)),
@@ -1036,6 +1081,13 @@ function installUrbanMissionEditor(): void {
   element('cancelMapPick').addEventListener('click', cancelPick)
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && mapPickMode) cancelPick() })
   element('districtView').addEventListener('click', showDistrictView)
+  element<HTMLSelectElement>('citySpeed').addEventListener('change', event => {
+    citySpeedMetersPerSecond = Number((event.target as HTMLSelectElement).value)
+  })
+  element<HTMLSelectElement>('cityCameraHeight').addEventListener('change', event => {
+    cityCameraHeightMeters = Number((event.target as HTMLSelectElement).value)
+    setOverviewView(false, false)
+  })
   element('swapMission').addEventListener('click', () => { applyUrbanMission({ ...NAMCHE_GOAL }, { ...NAMCHE_START }); cancelPick() })
   element('resetMission').addEventListener('click', () => { applyUrbanMission(NAMCHE_START, NAMCHE_GOAL); cancelPick() })
   element('restoreMission').addEventListener('click', () => {
@@ -1054,6 +1106,12 @@ function installUrbanMissionEditor(): void {
     showDistrictView()
   })
   element('shareMission').addEventListener('click', () => { void shareCurrentMission('shareMission') })
+  element('longMission').addEventListener('click', () => {
+    applyUrbanMission(CITY_LONG_MISSION.start, CITY_LONG_MISSION.goal)
+    cancelPick()
+    setOverviewView(true, false)
+    frameUrbanMap(false)
+  })
   mapPickHandler = new ScreenSpaceEventHandler(viewer.canvas)
   mapPickHandler.setInputAction((event: { position: Cartesian2 }) => {
     if (!mapPickMode || !viewer || !urbanNavigation) return
@@ -1316,7 +1374,7 @@ function updateTrail(position: { x: number, y: number, z: number }, force = fals
   }
   trailPositions.push(current)
   lastTrailPosition = Cartesian3.clone(current)
-  if (trailPositions.length > 240) trailPositions.shift()
+  if (trailPositions.length > 4_000) trailPositions.shift()
   if (latestSnapshot) {
     replayFrames.push({ position: Cartesian3.clone(current), snapshot: structuredClone(latestSnapshot), at: Date.now() })
     if (replayFrames.length > 4_000) replayFrames.shift()
@@ -1387,7 +1445,7 @@ function installScenarioControls(): void {
 
 function recordBridgeCall(trace: BridgeAgentTrace): void {
   bridgeTrace.push(trace)
-  if (bridgeTrace.length > 200) bridgeTrace.shift()
+  if (bridgeTrace.length > 2_000) bridgeTrace.shift()
   const list = element('bridgeCalls')
   list.replaceChildren(...bridgeTrace.slice(-8).reverse().map(entry => {
     const item = document.createElement('li')
@@ -1717,6 +1775,14 @@ function exposeDebugApi(): void {
         motionSamples: urbanMotionSamples,
       },
       positionEcef: embodiment?.observe().positionEcef,
+      presentation: {
+        overview: overviewView,
+        speedMetersPerSecond: citySpeedMetersPerSecond,
+        followHeightMeters: cityCameraHeightMeters,
+        cameraHeight: viewer ? Cartographic.fromCartesian(viewer.camera.positionWC).height : undefined,
+        cameraPitchDegrees: viewer ? CesiumMath.toDegrees(viewer.camera.pitch) : undefined,
+        actorMinimumPixelSize: player?.getPlayerModel()?.minimumPixelSize,
+      },
     }),
   }
 }
