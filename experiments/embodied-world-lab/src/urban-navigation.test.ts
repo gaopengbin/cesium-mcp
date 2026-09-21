@@ -54,6 +54,26 @@ function boxMesh(boxes = [[-10, -20, 10, 20]]): UrbanNavigationMesh {
 }
 
 describe('urban navigation candidates from building meshes', () => {
+  it('keeps the reported street connection open at the unchanged two metre safety radius', () => {
+    const mesh = JSON.parse(readFileSync(new URL('./assets/tokyo-colliders.json', import.meta.url), 'utf8')) as UrbanNavigationMesh
+    const navigation = createUrbanNavigation(mesh)
+    const start = { longitude: 139.761788, latitude: 35.676708, height: 38 }
+    const goal = { longitude: 139.766056, latitude: 35.683870, height: 38 }
+    expect(navigation.validatePoint(start).valid).toBe(true)
+    expect(navigation.validatePoint(goal).valid).toBe(true)
+    const candidates = navigation.planCandidates(start, goal)
+    expect(candidates.length).toBeGreaterThan(0)
+    for (const candidate of candidates) {
+      expect(candidate.waypoints[0]).toEqual(start)
+      expect(candidate.waypoints.at(-1)).toEqual(goal)
+      expect(candidate.minimumClearanceMeters).toBeGreaterThanOrEqual(2)
+      for (let index = 1; index < candidate.waypoints.length; index++) {
+        expect(navigation.isSegmentWalkable(candidate.waypoints[index - 1], candidate.waypoints[index])).toBe(true)
+        expect(crossesMeshAtWalkingHeight(mesh, candidate.waypoints[index - 1], candidate.waypoints[index])).toBe(false)
+      }
+    }
+  }, 30_000)
+
   it('returns one direct option with exact unsnapped endpoints when no obstacle blocks them', () => {
     const navigation = createUrbanNavigation(boxMesh())
     const start = localGeo(-44.73, -11.28)
@@ -187,8 +207,9 @@ describe('urban navigation candidates from building meshes', () => {
   it('plans two independently verified kilometre-scale corridors within the enlarged real mesh coverage', () => {
     const data = JSON.parse(readFileSync(new URL('./assets/tokyo-colliders.json', import.meta.url), 'utf8')) as UrbanNavigationMesh
     const navigation = createUrbanNavigation(data)
-    expect(navigation.grid.cellSizeMeters).toBe(2)
-    expect(navigation.grid.width * navigation.grid.height).toBeGreaterThan(300_000)
+    expect(navigation.grid.cellSizeMeters).toBe(1)
+    expect(navigation.grid.width * navigation.grid.height).toBeGreaterThan(1_000_000)
+    expect(navigation.grid.width * navigation.grid.height).toBeLessThan(2_000_000)
     const start = { longitude: 139.7632081060892, latitude: 35.67707705479974, height: 38 }
     const goal = { longitude: 139.76537322496728, latitude: 35.68989320722705, height: 38 }
     const routes = navigation.planCandidates(start, goal)

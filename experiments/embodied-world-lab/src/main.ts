@@ -458,9 +458,9 @@ async function bootstrap(): Promise<void> {
     ? '椭球地面 · 可演示'
     : isUrban ? '城市碰撞 · 已就绪' : '真实地形 · 已就绪')
   setPhase(
-    'READY',
-    `${scenario.title} · 已就绪`,
-    isUrban ? '可在整个白框街区内自由选起点、终点，再开始导航。' : `${scenario.description} 点击“开始导航”，观察 Jev 决策与本地安全接管。`,
+    missionError ? 'CHECK ROUTE' : 'READY',
+    missionError ? '起终点已保留，路线尚未确认' : `${scenario.title} · 已就绪`,
+    missionError || (isUrban ? '可在整个白框街区内自由选起点、终点，再开始导航。' : `${scenario.description} 点击“开始导航”，观察 Jev 决策与本地安全接管。`),
   )
   appendMessage(
     'event',
@@ -782,7 +782,7 @@ async function chooseUrbanRoute(): Promise<void> {
     const geo = Cartographic.fromCartesian(new Cartesian3(ecef.x, ecef.y, ecef.z))
     const position = { longitude: CesiumMath.toDegrees(geo.longitude), latitude: CesiumMath.toDegrees(geo.latitude), height: URBAN_GROUND_HEIGHT }
     urbanCandidates = urbanNavigation.planCandidates(position, NAMCHE_GOAL)
-    if (urbanCandidates.length === 0) throw new Error('当前没有满足楼体净距的可行路线')
+    if (urbanCandidates.length === 0) throw new Error('本地寻路暂未找到通过净距校验的路线，尚未请求 Jev 选择')
     routeOffer = {
       offerId: `city-${generation}-${requestId}`, revision: worldRevision, capturedAt: new Date().toISOString(),
       straightLineBlocked: !urbanNavigation.isSegmentWalkable(position, NAMCHE_GOAL),
@@ -966,6 +966,12 @@ function updatePickUi(): void {
   element('mapPickText').textContent = mapPickMode === 'start' ? '点击地面设置 A 起点 · 拖动平移，滚轮缩放' : '点击地面设置 B 终点'
   element('pickStart').setAttribute('aria-pressed', String(mapPickMode === 'start'))
   element('pickGoal').setAttribute('aria-pressed', String(mapPickMode === 'goal'))
+  const pendingPair = !!mapPickMode && pickPair
+  const status = element('missionStatus')
+  status.textContent = pendingPair
+    ? mapPickMode === 'start' ? '请依次选择起点和终点，选完后检查路线。' : '起点已设置，请选择终点，选完后检查路线。'
+    : missionError || `直线 ${Math.round(distanceMeters(NAMCHE_START, NAMCHE_GOAL))}m · ${urbanCandidates.length} 条可行候选 · 尚未调用 Jev`
+  status.dataset.error = String(!pendingPair && !!missionError)
   if (viewer) viewer.canvas.style.cursor = mapPickMode ? 'crosshair' : ''
   document.querySelectorAll<HTMLButtonElement>('[data-command="start"]').forEach(button => { button.disabled = !!mapPickMode || !!missionError || !ready })
 }
@@ -1030,13 +1036,10 @@ function updateMissionPreview(): void {
   urbanCandidates = urbanNavigation.planCandidates(NAMCHE_START, NAMCHE_GOAL)
   const directDistance = distanceMeters(NAMCHE_START, NAMCHE_GOAL)
   missionError = missionUrlError || (directDistance < 8 ? '起终点太近，请选至少相距 8 米的两个位置。'
-    : urbanCandidates.length === 0 ? '两点之间没有满足通行条件的路线，请更换起点或终点。' : '')
+    : urbanCandidates.length === 0 ? '当前导航网格未找到连接路线，不代表实际无路。起终点已保留，尚未调用 Jev。' : '')
   element('startCoordinates').textContent = `${NAMCHE_START.longitude.toFixed(6)}, ${NAMCHE_START.latitude.toFixed(6)}`
   element('goalCoordinates').textContent = `${NAMCHE_GOAL.longitude.toFixed(6)}, ${NAMCHE_GOAL.latitude.toFixed(6)}`
-  const status = element('missionStatus')
-  status.textContent = missionError || `直线 ${Math.round(directDistance)}m · ${urbanCandidates.length} 条可行候选 · 尚未调用 Jev`
-  status.dataset.error = String(!!missionError)
-  element('routeDecision').textContent = missionError ? '请调整任务位置' : urbanNavigation.isSegmentWalkable(NAMCHE_START, NAMCHE_GOAL)
+  element('routeDecision').textContent = missionError ? '本地路线校验未通过，Jev 尚未参与' : urbanNavigation.isSegmentWalkable(NAMCHE_START, NAMCHE_GOAL)
     ? '直线可通行，等待 Jev 决定行动' : '建筑阻挡直达，等待 Jev 选择绕行'
   distanceMetric.textContent = `直线距离 ${Math.round(directDistance)} m`
   const goal = viewer.entities.getById('embodied-goal')
@@ -1076,7 +1079,7 @@ function installUrbanMissionEditor(): void {
     mapPickMode = undefined
     pickPair = false
     updateMissionPreview()
-    setPhase('READY', '任务位置已保留', missionError || '可继续修改，或开始导航。')
+    setPhase(missionError ? 'CHECK ROUTE' : 'READY', '任务位置已保留', missionError || '可继续修改，或开始导航。')
   }
   element('cancelMapPick').addEventListener('click', cancelPick)
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && mapPickMode) cancelPick() })
@@ -1141,7 +1144,7 @@ function installUrbanMissionEditor(): void {
     else { mapPickMode = undefined; pickPair = false }
     updatePickUi()
     if (mapPickMode === 'goal') setPhase('SET MISSION', '起点已设置，请再选终点', '点击白框内的街道或空地。')
-    if (!mapPickMode) setPhase('READY', '起终点已设置', missionError || '候选路线已更新。点击“开始导航”，让 Jev 执行本次任务。')
+    if (!mapPickMode) setPhase(missionError ? 'CHECK ROUTE' : 'READY', '起终点已设置', missionError || '候选路线已更新。点击“开始导航”，让 Jev 执行本次任务。')
   }, ScreenSpaceEventType.LEFT_CLICK)
 }
 
@@ -1766,7 +1769,8 @@ function exposeDebugApi(): void {
       urbanCollisionCounts,
       urbanVisualState,
       navigation: {
-        editor: { pickMode: mapPickMode, missionError },
+        editor: { pickMode: mapPickMode, missionError, start: { ...NAMCHE_START }, goal: { ...NAMCHE_GOAL } },
+        grid: urbanNavigation?.grid,
         selectedRouteId,
         offer: routeOffer,
         candidates: urbanCandidates,

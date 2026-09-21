@@ -54,7 +54,10 @@ export function createUrbanNavigation(
   mesh: UrbanNavigationMesh,
   options: { cellSizeMeters?: number, vehicleRadiusMeters?: number, coverageMarginMeters?: number } = {},
 ): UrbanNavigation {
-  const cell = options.cellSizeMeters ?? 2
+  // Two-metre cells over-inflate narrow street connections even when a route
+  // satisfies the unchanged two-metre clearance. Keep finer geometry here,
+  // rather than lowering the safety radius or permitting diagonal corner cuts.
+  const cell = options.cellSizeMeters ?? 1
   const radius = options.vehicleRadiusMeters ?? 2
   const margin = options.coverageMarginMeters ?? 34
   if (!Number.isFinite(cell) || cell < 1 || cell > 5 || !Number.isFinite(radius) || radius < 0
@@ -83,7 +86,7 @@ export function createUrbanNavigation(
   const minY = Math.min(...corners.map(p => p.y)) + margin + 0.5
   const width = Math.floor((Math.max(...corners.map(p => p.x)) - margin - 0.5 - minX) / cell)
   const height = Math.floor((Math.max(...corners.map(p => p.y)) - margin - 0.5 - minY) / cell)
-  if (width < 8 || height < 8 || width * height > 1_000_000) throw new Error('Navigation coverage is too small or too large')
+  if (width < 8 || height < 8 || width * height > 2_000_000) throw new Error('Navigation coverage is too small or too large')
   const count = width * height
   const occupied = new Uint8Array(count)
   const center = (index: number): Point => ({ x: minX + (index % width + 0.5) * cell, y: minY + (Math.floor(index / width) + 0.5) * cell })
