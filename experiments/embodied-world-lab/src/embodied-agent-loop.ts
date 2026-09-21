@@ -386,6 +386,7 @@ export class EmbodiedAgentLoop {
       || this.pendingPlan.worldRevision !== worldRevision
       || !this.isPendingPlanFresh(this.pendingPlan)) {
       if (this.pendingPlan?.requestId === requestId) {
+        this.discardProvisionalHold(requestId)
         this.pendingPlan = undefined
         this.planner = this.committedPlan ? 'committed' : 'idle'
       }
@@ -440,6 +441,7 @@ export class EmbodiedAgentLoop {
 
   failPlanning(requestId: number, nowMs = this.currentNowMs): void {
     if (this.pendingPlan?.requestId !== requestId) return
+    this.discardProvisionalHold(requestId)
     this.pendingPlan = undefined
     this.planner = this.committedPlan ? 'committed' : 'idle'
     this.retryNotBeforeMs = finiteOr(nowMs, this.currentNowMs) + this.retryDelayMs
@@ -467,6 +469,13 @@ export class EmbodiedAgentLoop {
             activePlanReason: this.committedPlan.reason,
           }
         : {}),
+    }
+  }
+
+  private discardProvisionalHold(requestId: number): void {
+    if (this.committedPlan?.requestId === requestId
+      && this.committedPlan.source === 'fallback' && this.committedPlan.intent === 'hold') {
+      this.committedPlan = undefined
     }
   }
 

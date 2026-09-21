@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { Cartesian3 } from 'cesium'
 
 import {
   CesiumPlayerEmbodiment,
@@ -21,6 +22,26 @@ function createController(): CesiumPlayerControllerPort {
 }
 
 describe('CesiumPlayerEmbodiment actor-space sensor', () => {
+  it('can omit the camera diagnostic without losing the actor observation or sprint setting', () => {
+    const controller = createController()
+    controller.getCenterScreenRaycastHit = vi.fn(() => { throw new Error('Camera ray is inside a building') })
+    const embodiment = new CesiumPlayerEmbodiment(controller, { includeCameraRay: false, allowSprint: false })
+    expect(embodiment.observe()).toMatchObject({ positionEcef: { x: 1, y: 2, z: 3 }, grounded: true })
+    expect(embodiment.observe()).not.toHaveProperty('physicsCenterRayHit')
+    expect(controller.getCenterScreenRaycastHit).not.toHaveBeenCalled()
+    embodiment.applyInput({ moveY: 1, sprint: true })
+    expect(controller.setInput).toHaveBeenCalledWith(expect.objectContaining({ moveY: 1, shift: false }))
+  })
+
+  it('retains the camera diagnostic by default', () => {
+    const controller = createController()
+    controller.getCenterScreenRaycastHit = vi.fn(() => ({
+      distance: 4, position: { x: 1, y: 2, z: 3 }, normal: { x: 0, y: 0, z: 1 },
+    }))
+    expect(new CesiumPlayerEmbodiment(controller).observe().physicsCenterRayHit?.distanceMeters).toBe(4)
+    expect(controller.getCenterScreenRaycastHit).toHaveBeenCalledOnce()
+  })
+
   it('casts front, left and right rays from the actor instead of the camera', () => {
     const controller = createController() as CesiumPlayerControllerPort & {
       frame: {
@@ -156,5 +177,57 @@ describe('CesiumPlayerEmbodiment actor-space sensor', () => {
       positionEcef: { x: 10, y: 20, z: 30 },
       normalEcef: { x: 0, y: 0, z: 1 },
     })
+  })
+
+  it('keeps solid-ray hits as obstacles when the library cannot normalize an interior hit normal', () => {
+    const controller = Object.assign(createController(), {
+      frame: { enuVectorToEcef: (vector: Cartesian3) => ({ ...vector }) },
+      physics: {
+        charBody: {},
+        raycastEcef: vi.fn(() => 0),
+        raycastEcefHit: vi.fn(() => {
+          Cartesian3.normalize(new Cartesian3(), new Cartesian3())
+          return undefined
+        }),
+      },
+    })
+    const hits = new CesiumPlayerEmbodiment(controller).senseActorRayHitFan(28)
+    for (const id of ['front', 'left', 'right'] as const) {
+      expect(hits?.[id]).toMatchObject({
+        distanceMeters: 0, normalKnown: false,
+        normalEcef: { x: 0, y: 0, z: 0 }, positionEcef: { x: 1, y: 2, z: 3.8 },
+      })
+    }
+    expect(controller.physics.raycastEcef).toHaveBeenCalledTimes(3)
+    expect(controller.physics.raycastEcef.mock.calls).toEqual(controller.physics.raycastEcefHit.mock.calls)
+  })
+
+  it('preserves a finite fallback distance and derives its hit position along the same ray', () => {
+    const controller = Object.assign(createController(), {
+      frame: { enuVectorToEcef: (vector: Cartesian3) => ({ ...vector }) },
+      physics: {
+        charBody: {}, raycastEcef: vi.fn(() => 3),
+        raycastEcefHit: vi.fn(() => { throw new Error('normalized result is not a number') }),
+      },
+    })
+    expect(new CesiumPlayerEmbodiment(controller).senseActorRayHitFan(28)?.front).toEqual({
+      distanceMeters: 3, normalKnown: false,
+      normalEcef: { x: 0, y: 0, z: 0 }, positionEcef: { x: 1, y: 5, z: 3.8 },
+    })
+  })
+
+  it('does not hide unrelated raycast failures or interpret an invalid fallback distance as clear space', () => {
+    const controller = Object.assign(createController(), {
+      frame: { enuVectorToEcef: (vector: Cartesian3) => ({ ...vector }) },
+      physics: {
+        charBody: {}, raycastEcef: vi.fn(() => Infinity),
+        raycastEcefHit: vi.fn(() => { throw new Error('Physics world unavailable') }),
+      },
+    })
+    const embodiment = new CesiumPlayerEmbodiment(controller)
+    expect(() => embodiment.senseActorRayHitFan()).toThrow('Physics world unavailable')
+    expect(controller.physics.raycastEcef).not.toHaveBeenCalled()
+    controller.physics.raycastEcefHit.mockImplementation(() => { throw new Error('normalized result is not a number') })
+    expect(() => embodiment.senseActorRayHitFan()).toThrow('normalized result is not a number')
   })
 })

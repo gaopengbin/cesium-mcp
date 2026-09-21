@@ -531,6 +531,9 @@ button {
 button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid #55dfb9; outline-offset: 3px; }
 .agent-content small, .scope-note { color: #8aa79c; font-size: 11px; line-height: 1.6; }
 .execution-stats { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: #a2daca; }
+.route-panel { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #24433d; }
+.route-panel strong { color: #e9f5ef; font-size: 13px; }
+.route-panel p { color: #ffc46a; line-height: 1.7; margin: 9px 0; }
 .execution-panel summary { margin-top: 12px; cursor: pointer; color: #cadcd5; }
 .bridge-calls { padding: 0; list-style: none; font: 11px/1.8 Consolas, monospace; overflow-wrap: anywhere; }
 .bridge-calls li[data-status="failed"], .bridge-calls li[data-status="rejected"] { color: #ffc19c; }

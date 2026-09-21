@@ -42,6 +42,8 @@ export interface CesiumPlayerControllerPort {
 
 export interface CesiumPlayerEmbodimentOptions {
   lookDeltaScale?: number
+  allowSprint?: boolean
+  includeCameraRay?: boolean
   now?: () => string
 }
 
@@ -57,6 +59,8 @@ export interface ActorRayHit {
   distanceMeters: number
   positionEcef: CartesianLike
   normalEcef: CartesianLike
+  /** False when a solid ray began inside a collider and no surface normal exists. */
+  normalKnown?: boolean
 }
 
 export type ActorRayHitFan = Partial<Record<keyof ActorRayFan, ActorRayHit>>
@@ -88,6 +92,8 @@ interface PlayerSensorPort {
 
 export class CesiumPlayerEmbodiment implements EmbodiedActuator {
   private readonly lookDeltaScale: number
+  private readonly allowSprint: boolean
+  private readonly includeCameraRay: boolean
   private readonly now: () => string
 
   constructor(
@@ -95,6 +101,8 @@ export class CesiumPlayerEmbodiment implements EmbodiedActuator {
     options: CesiumPlayerEmbodimentOptions = {},
   ) {
     this.lookDeltaScale = positiveFinite(options.lookDeltaScale, 0.8)
+    this.allowSprint = options.allowSprint ?? true
+    this.includeCameraRay = options.includeCameraRay ?? true
     this.now = options.now ?? (() => new Date().toISOString())
   }
 
@@ -106,7 +114,7 @@ export class CesiumPlayerEmbodiment implements EmbodiedActuator {
       lookDeltaX: normalized.lookX * this.lookDeltaScale,
       lookDeltaY: normalized.lookY * this.lookDeltaScale,
       jump: normalized.jump,
-      shift: normalized.sprint,
+      shift: this.allowSprint && normalized.sprint,
       toggleView: normalized.toggleView,
       toggleFly: normalized.toggleFly,
       toggleVehicle: normalized.toggleVehicle,
@@ -117,7 +125,7 @@ export class CesiumPlayerEmbodiment implements EmbodiedActuator {
   observe(): EmbodiedStateObservation {
     const position = this.controller.getPosition()
     const velocity = this.controller.getVelocity()
-    const physicsCenterRayHit = this.controller.getCenterScreenRaycastHit()
+    const physicsCenterRayHit = this.includeCameraRay ? this.controller.getCenterScreenRaycastHit() : undefined
 
     return {
       capturedAt: this.now(),
@@ -271,18 +279,38 @@ function castActorRayHit(
     y: Math.cos(headingRadians),
     z: Math.tan(terrainSlopeRadians),
   }))
-  const hit = sensor.physics.raycastEcefHit(
-    origin,
-    directionEcef,
-    maximumDistance,
-    sensor.physics.charBody,
-  )
+  let hit: ReturnType<PlayerSensorPort['physics']['raycastEcefHit']>
+  try {
+    hit = sensor.physics.raycastEcefHit(origin, directionEcef, maximumDistance, sensor.physics.charBody)
+  } catch (error) {
+    // Rapier solid rays can return an interior hit with a zero normal. The current
+    // player library normalizes it in Cesium and throws before returning distance.
+    if (!isZeroNormalError(error) || typeof sensor.physics.raycastEcef !== 'function') throw error
+    const distance = sensor.physics.raycastEcef(origin, directionEcef, maximumDistance, sensor.physics.charBody)
+    // An unconfirmed hit must not become a maximum-distance (clear-space) result.
+    if (!Number.isFinite(distance) || distance < 0 || distance > maximumDistance) throw error
+    return {
+      distanceMeters: distance,
+      positionEcef: {
+        x: origin.x + directionEcef.x * distance,
+        y: origin.y + directionEcef.y * distance,
+        z: origin.z + directionEcef.z * distance,
+      },
+      normalEcef: { x: 0, y: 0, z: 0 },
+      normalKnown: false,
+    }
+  }
   if (!hit || !Number.isFinite(hit.distance)) return undefined
   return {
     distanceMeters: Math.max(0, Math.min(maximumDistance, hit.distance)),
     positionEcef: vector3(hit.point),
     normalEcef: vector3(hit.normal),
   }
+}
+
+function isZeroNormalError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'message' in error
+    && error.message === 'normalized result is not a number'
 }
 
 function slopeRadians(value: number | undefined): number {

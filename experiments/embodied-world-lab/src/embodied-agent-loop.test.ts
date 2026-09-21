@@ -351,6 +351,60 @@ describe('EmbodiedAgentLoop', () => {
     expect(loop.tick(world({ distanceToGoalMeters: 97 }), 5_200).input.moveY).toBe(0.72)
   })
 
+  it('discards the rejected request provisional hold so a fresh plan can start immediately', () => {
+    const loop = new EmbodiedAgentLoop(createActuator())
+    loop.start(1)
+    loop.tick(world(), 0)
+    const requestId = loop.beginPlanning(world())!
+    loop.setProvisionalPlan(requestId, 1, plan({ intent: 'hold', source: 'fallback', durationMs: 16_000 }), 0)
+    const drifted = world({ bearingErrorRadians: 0.8 })
+    expect(loop.tick(drifted, 1_000).input.moveY).toBe(0)
+
+    expect(loop.commitPlan(requestId, 1, plan(), 1_100)).toBe(false)
+    expect(loop.getState().activeIntent).toBeUndefined()
+    expect(loop.getState().planner).toBe('idle')
+    const waiting = loop.tick(drifted, 1_150)
+    expect(waiting.input.moveY).toBe(0)
+    expect(waiting.needsPlanning).toBe(true)
+    const replacement = loop.beginPlanning(drifted)!
+    expect(replacement).toBeGreaterThan(requestId)
+    expect(loop.commitPlan(replacement, 1, plan(), 1_200)).toBe(true)
+    expect(loop.tick(drifted, 1_250).input.moveY).toBe(0.72)
+  })
+
+  it('discards a failed request provisional hold and retries after only the configured cooldown', () => {
+    const loop = new EmbodiedAgentLoop(createActuator(), { retryDelayMs: 2_000 })
+    loop.start(1)
+    loop.tick(world(), 0)
+    const requestId = loop.beginPlanning(world())!
+    loop.setProvisionalPlan(requestId, 1, plan({ intent: 'hold', source: 'fallback', durationMs: 16_000 }), 0)
+    loop.failPlanning(requestId, 1_000)
+
+    expect(loop.getState().activeIntent).toBeUndefined()
+    expect(loop.getState().planner).toBe('idle')
+    expect(loop.tick(world(), 2_999).needsPlanning).toBe(false)
+    expect(loop.tick(world(), 3_000).needsPlanning).toBe(true)
+    expect(loop.beginPlanning(world())).toBeGreaterThan(requestId)
+  })
+
+  it('does not let a late rejection or failure clear the restarted request provisional hold', () => {
+    const loop = new EmbodiedAgentLoop(createActuator())
+    loop.start(1)
+    const oldRequest = loop.beginPlanning(world())!
+    loop.stop()
+    loop.start(2)
+    const current = world({ revision: 2 })
+    const newRequest = loop.beginPlanning(current)!
+    loop.setProvisionalPlan(newRequest, 2, plan({ intent: 'hold', source: 'fallback', durationMs: 16_000 }), 100)
+
+    expect(loop.commitPlan(oldRequest, 1, plan(), 200)).toBe(false)
+    loop.failPlanning(oldRequest, 200)
+    expect(loop.getState()).toMatchObject({
+      planner: 'pending', activeIntent: 'hold', activePlanSource: 'fallback', planRequestId: newRequest,
+    })
+    expect(loop.commitPlan(newRequest, 2, plan(), 250)).toBe(true)
+  })
+
   it('keeps provisional control active until the hosted timeout can settle', () => {
     const actuator = createActuator()
     const loop = new EmbodiedAgentLoop(actuator)

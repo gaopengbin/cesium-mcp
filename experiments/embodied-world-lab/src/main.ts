@@ -16,6 +16,8 @@ import {
   LabelStyle,
   Math as CesiumMath,
   PolylineGlowMaterialProperty,
+  PolylineDashMaterialProperty,
+  ConstantProperty,
   sampleTerrainMostDetailed,
   UrlTemplateImageryProvider,
   VerticalOrigin,
@@ -56,6 +58,11 @@ import type { ScenarioPreset } from './scenario.js'
 import { addUrbanBuildingColliders, addUrbanGroundCollider, createUrbanGround, createUrbanScenario, insideUrbanCoverage, loadUrbanBuildings, URBAN_GROUND_HEIGHT, URBAN_METADATA } from './urban-scene.js'
 import type { UrbanVisualState } from './urban-scene.js'
 import { createMovementContinuity } from './movement-continuity.js'
+import { createUrbanNavigation } from './urban-navigation.js'
+import type { UrbanRouteCandidate } from './urban-navigation.js'
+import { UrbanRouteFollower } from './urban-route-follower.js'
+import { requestJevRoute } from './jev-route-planner.js'
+import type { NavigationRouteObservation, NavigationRouteId } from './jev-route-planner.js'
 import {
   distanceMeters,
   initialBearingRadians,
@@ -71,11 +78,11 @@ const FAST_LOOP_INTERVAL_MS = 50
 const MODEL_RETRY_COOLDOWN_MS = 30_000
 const MODEL_TIMEOUT_MS = 15_000
 const sceneQuery = new URLSearchParams(location.search)
-const useJev = sceneQuery.get('planner') !== 'hosted'
 const displayScenarios = [URBAN_METADATA, ...SCENARIO_PRESETS]
 const selectedPreset = displayScenarios.some(item => item.id === sceneQuery.get('scene'))
   ? sceneQuery.get('scene') as ScenarioPreset | 'city' : 'city'
 const isUrban = selectedPreset === 'city'
+const useJev = isUrban || sceneQuery.get('planner') !== 'hosted'
 const selectedSeed = Math.max(1, Math.min(999999, Number(sceneQuery.get('seed')) || 260921)) | 0
 const scenario = isUrban ? createUrbanScenario(selectedSeed) : createScenario(selectedPreset as ScenarioPreset, selectedSeed)
 const NAMCHE_START = scenario.start
@@ -106,8 +113,11 @@ foxCredits.href = FOX_NOTICE_URL
 if (useJev) {
   modelStatus.textContent = 'JEV · 等待开始'
   const intro = chatMessages.querySelector('p')
-  if (intro) intro.textContent = 'Jev 在后台持续更新下一段动作，角色沿当前有效计划连续前进。建筑和地形碰撞由本地控制器实时处理；此实验使用结构化观测。'
+  if (intro) intro.textContent = isUrban
+    ? '目的地在楼后，无法直走。Jev 先选择绕行方向，再持续更新人物动作；本地执行器负责路径跟随和碰撞制动。'
+    : 'Jev 在后台持续更新下一段动作，角色沿当前有效计划连续前进。建筑和地形碰撞由本地控制器实时处理；此实验使用结构化观测。'
 }
+element('urbanRoutePanel').hidden = !isUrban
 
 let viewer: Viewer | undefined
 let player: playerController | undefined
@@ -132,13 +142,15 @@ const announcedSafetyEvidence = new Set<string>()
 let completionAnnounced = false
 let modelRetryNotBefore = 0
 let overviewView = false
+let controllerCameraPose: { position: Cartesian3, direction: Cartesian3, up: Cartesian3 } | undefined
+const urbanMotionSamples: Array<{ position: GeoPoint, at: number }> = []
 let minimumHazardBoundaryDistanceMeters = Number.POSITIVE_INFINITY
 const trailPositions: Cartesian3[] = []
 const plannerRuntime = new WorldTaskRuntime({ frameBudgetMs: 5 })
 const cameraTransition = new CameraPresetTransition({
   presets: {
-    follow: { minDistance: isUrban ? 1_800 : 800, maxDistance: isUrban ? 3_500 : 2_200, pitchOffset: 0 },
-    overview: { minDistance: isUrban ? 18_000 : 50_000, maxDistance: isUrban ? 25_000 : 60_000, pitchOffset: isUrban ? 12 : 45 },
+    follow: { minDistance: isUrban ? 1_100 : 800, maxDistance: isUrban ? 1_800 : 2_200, pitchOffset: 0 },
+    overview: { minDistance: isUrban ? 7_000 : 50_000, maxDistance: isUrban ? 10_000 : 60_000, pitchOffset: isUrban ? 20 : 45 },
   },
 })
 const worldInquiry = new LabWorldInquiry(new Date().toISOString())
@@ -150,6 +162,15 @@ let urbanVisualState: UrbanVisualState | undefined
 let removeUrbanVisualWatcher: (() => void) | undefined
 let cameraTransitionFrame: number | undefined
 let chatScrollFrame: number | undefined
+let urbanNavigation: ReturnType<typeof createUrbanNavigation> | undefined
+let urbanCandidates: UrbanRouteCandidate[] = []
+let routeFollower: UrbanRouteFollower | undefined
+let routeOffer: NavigationRouteObservation | undefined
+let routeAbort: AbortController | undefined
+let routeRequestId = 0
+let selectedRouteId: NavigationRouteId | undefined
+let minimumBuildingClearanceMeters = Infinity
+const routeEntities: Partial<Record<'left' | 'right', Entity>> = {}
 installScenarioControls()
 
 void bootstrap().catch((error: unknown) => {
@@ -193,6 +214,12 @@ async function bootstrap(): Promise<void> {
     terrainField = { heightAt: () => URBAN_GROUND_HEIGHT }
     setPhase('CITY', '正在加载东京实景建筑', 'PLATEAU 2025 带纹理三维建筑；街道路面使用局部平面近似。')
     await loadUrbanBuildings(viewer, recordUrbanVisualState, cleanup => { removeUrbanVisualWatcher = cleanup })
+    setPhase('BUILDING MAP', '正在读取楼体与可通行空间', '起终点之间有真实建筑阻挡，先建立左右候选走廊。')
+    const mesh = await fetch(new URL('./assets/tokyo-colliders.json', import.meta.url)).then(response => response.json())
+    urbanNavigation = createUrbanNavigation(mesh)
+    Object.assign(NAMCHE_START, urbanNavigation.defaultChallenge.start)
+    Object.assign(NAMCHE_GOAL, urbanNavigation.defaultChallenge.goal)
+    urbanCandidates = urbanNavigation.defaultChallenge.candidates
   } else try {
     terrainProvider = await ArcGISTiledElevationTerrainProvider.fromUrl(
       ARCGIS_WORLD_ELEVATION_URL,
@@ -217,6 +244,7 @@ async function bootstrap(): Promise<void> {
     center: terrainPoint(LANDSLIDE_HAZARD.center),
   }
   addSceneEvidence(goal, hazard)
+  if (isUrban) drawUrbanRoutes()
 
   const initialHeading = initialBearingRadians(start, goal)
   viewer.camera.setView({
@@ -234,7 +262,9 @@ async function bootstrap(): Promise<void> {
 
   setPhase('PHYSICS', '正在建立本地地形碰撞体', '角色物理与远程 AI 分离，控制帧不会等待模型。')
   player = new playerController()
-  const modelUrl = new URL('./assets/Fox.glb', import.meta.url).href
+  const modelUrl = isUrban
+    ? new URL('./assets/RobotExpressive.glb', import.meta.url).href
+    : new URL('./assets/Fox.glb', import.meta.url).href
   await player.init({
     viewer,
     initPos: Cartesian3.fromDegrees(
@@ -245,13 +275,13 @@ async function bootstrap(): Promise<void> {
     playerModelConfig: {
       url: modelUrl,
       scale: 0.01,
-      idleAnim: 'Survey',
-      walkAnim: 'Walk',
-      runAnim: 'Run',
-      jumpAnim: 'Survey',
+      idleAnim: isUrban ? 'Idle' : 'Survey',
+      walkAnim: isUrban ? 'Walking' : 'Walk',
+      runAnim: isUrban ? 'Running' : 'Run',
+      jumpAnim: isUrban ? 'Jump' : 'Survey',
       gravity: -980,
       jumpHeight: 0,
-      speed: isUrban ? 220 : 300,
+      speed: isUrban ? 280 : 300,
       acceleration: 18,
       deceleration: 24,
       rotateY: initialHeading,
@@ -283,21 +313,23 @@ async function bootstrap(): Promise<void> {
     enableOverShoulderView: false,
     enableSpringCamera: true,
     springCameraTime: 0.08,
-    minCamDistance: isUrban ? 1_800 : 800,
-    maxCamDistance: isUrban ? 3_500 : 2_200,
+    minCamDistance: isUrban ? 1_100 : 800,
+    maxCamDistance: isUrban ? 1_800 : 2_200,
     enableZoom: false,
   })
   if (isUrban) {
     await addUrbanGroundCollider(player)
     setPhase('BUILDING COLLISIONS', '正在建立真实楼体碰撞', '完成后才开放导航，避免把未加载的建筑当作空地。')
     urbanCollisionCounts = await addUrbanBuildingColliders(player)
+    const actorModel = player.getPlayerModel()
+    if (actorModel) actorModel.minimumPixelSize = 48
   }
   player.setOverShoulderView(false)
   player.setInput({
     moveX: 0,
     moveY: 0,
     lookDeltaX: 0,
-    lookDeltaY: isUrban ? -2 : 34,
+    lookDeltaY: isUrban ? 12 : 34,
     jump: false,
     shift: false,
     toggleView: false,
@@ -305,10 +337,10 @@ async function bootstrap(): Promise<void> {
     toggleVehicle: false,
   })
 
-  embodiment = new CesiumPlayerEmbodiment(player, { lookDeltaScale: 0.8 })
+  embodiment = new CesiumPlayerEmbodiment(player, { lookDeltaScale: isUrban ? 8 : 0.8, allowSprint: !isUrban, includeCameraRay: !isUrban })
   agentLoop = new EmbodiedAgentLoop(embodiment, {
-    arrivalDistanceMeters: 8,
-    emergencyClearanceMeters: 12,
+    arrivalDistanceMeters: isUrban ? 2.5 : 8,
+    emergencyClearanceMeters: isUrban ? 2 : 12,
     retryDelayMs: 2_000,
     planningLeadTimeMs: 3_000,
   })
@@ -321,9 +353,48 @@ async function bootstrap(): Promise<void> {
       agentLoop?.commitPlan(requestId, revision, plan, performance.now()) ?? false,
     stopEmbodied: () => { agentLoop?.stop() },
     onTrace: recordBridgeCall,
+    readNavigationOptions: () => {
+      if (!routeOffer) throw new Error('没有当前绕行候选')
+      return { ...structuredClone(routeOffer), capturedAt: new Date().toISOString() }
+    },
+    commitNavigationRoute: ({ requestId, revision, offerId, routeId }) => {
+      if (!active || requestId !== routeRequestId || revision !== worldRevision || offerId !== routeOffer?.offerId) return false
+      if (routeId === 'hold') { stopTask(); return true }
+      const candidate = urbanCandidates.find(item => item.id === routeId)
+      if (!candidate || !urbanNavigation) return false
+      routeFollower = new UrbanRouteFollower(candidate.waypoints, urbanNavigation.isSegmentWalkable)
+      selectedRouteId = routeId
+      showRouteSelection(routeId)
+      setOverviewView(false, false)
+      return true
+    },
   })
   removePreUpdate = viewer.scene.preUpdate.addEventListener(() => {
+    // The controller derives walking direction from the camera. Restore its own
+    // pose before simulation so the presentation camera cannot steer the person.
+    if (viewer && controllerCameraPose) {
+      viewer.camera.setView({
+        destination: controllerCameraPose.position,
+        orientation: { direction: controllerCameraPose.direction, up: controllerCameraPose.up },
+      })
+      controllerCameraPose = undefined
+    }
     player?.update()
+    if (isUrban && overviewView && viewer) {
+      controllerCameraPose = {
+        position: Cartesian3.clone(viewer.camera.positionWC),
+        direction: Cartesian3.clone(viewer.camera.directionWC),
+        up: Cartesian3.clone(viewer.camera.upWC),
+      }
+      // A fixed overhead view keeps the building, both choices and the person in frame.
+      // The normal follow camera remains available through the view button.
+      const centerLongitude = (NAMCHE_START.longitude + NAMCHE_GOAL.longitude) / 2
+      const centerLatitude = (NAMCHE_START.latitude + NAMCHE_GOAL.latitude) / 2
+      viewer.camera.setView({
+        destination: Cartesian3.fromDegrees(centerLongitude, centerLatitude - 0.0004, URBAN_GROUND_HEIGHT + 150),
+        orientation: { heading: 0, pitch: CesiumMath.toRadians(-73.5), roll: 0 },
+      })
+    }
     if (!active || !ready || disposed) return
     const now = performance.now()
     if (now - lastFastLoopAt < FAST_LOOP_INTERVAL_MS) return
@@ -336,6 +407,7 @@ async function bootstrap(): Promise<void> {
   ready = true
   distanceMetric.textContent = `目标距离 ${Math.round(distanceMeters(NAMCHE_START, NAMCHE_GOAL))} m`
   setOverviewView(true, false)
+  if (isUrban) foxCredits.textContent = '人物及地图来源'
   element('bridgeStatus').textContent = 'Bridge 已连接'
   if (urbanCollisionCounts) appendMessage('event', `建筑碰撞已加载：${urbanCollisionCounts.tileCount} 个真实建筑数据块，${urbanCollisionCounts.triangleCount.toLocaleString()} 个三角面。`)
   setWorldStatus(terrainDegraded ? 'degraded' : 'ready', terrainDegraded
@@ -352,7 +424,7 @@ async function bootstrap(): Promise<void> {
   )
   appendMessage(
     'event',
-    isUrban ? '场景来源：PLATEAU 2025 东京千代田区实景纹理建筑。街道路面使用 38m 椭球高的局部平面近似，未模拟车辆和行人。' : '实验边界：落石区是可重复评测 fixture；地形高度与角色坐标系 Rapier 扇形射线来自正在运行的场景。',
+    isUrban ? '场景来源：PLATEAU 2025 东京千代田区实景纹理建筑。街道路面使用 38m 椭球高的局部平面近似，未模拟交通流与其他行人。' : '实验边界：落石区是可重复评测 fixture；地形高度与角色坐标系 Rapier 扇形射线来自正在运行的场景。',
   )
   exposeDebugApi()
 }
@@ -372,6 +444,15 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
     latitude: CesiumMath.toDegrees(cartographic.latitude),
     height: cartographic.height,
   }
+  const guidance = isUrban ? routeFollower?.update(position) : undefined
+  if (isUrban) {
+    urbanMotionSamples.push({ position, at: nowMs })
+    if (urbanMotionSamples.length > 20_000) urbanMotionSamples.shift()
+  }
+  const navigationTarget = guidance?.target ?? goal
+  if (isUrban && urbanNavigation) minimumBuildingClearanceMeters = Math.min(
+    minimumBuildingClearanceMeters, urbanNavigation.clearanceAt(position),
+  )
   if (isUrban && !insideUrbanCoverage(position, SENSOR_DISTANCE_METERS + 2)) {
     stopTask()
     setPhase('COVERAGE LIMIT', '已到建筑碰撞数据边界', '角色已停止；未加载区域不作为可通行区域。')
@@ -384,13 +465,14 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
   let sensed = senseEmbodiedWorld({
     revision: worldRevision,
     position,
-    target: goal,
+    target: navigationTarget,
     embodiment: observation,
     hazard,
     hazardVisible,
     terrainHeightAt: terrainField.heightAt,
     candidateDistanceMeters: SENSOR_DISTANCE_METERS,
     hazardPaddingMeters: HAZARD_PADDING_METERS,
+    minimumTraversableClearanceMeters: isUrban ? 2 : 10,
   })
   const terrainSlopes = Object.fromEntries(
     sensed.snapshot.candidates.map(candidate => [candidate.id, candidate.slopeDegrees]),
@@ -400,13 +482,14 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
   sensed = senseEmbodiedWorld({
     revision: worldRevision,
     position,
-    target: goal,
+    target: navigationTarget,
     embodiment: observation,
     hazard,
     hazardVisible,
     terrainHeightAt: terrainField.heightAt,
     candidateDistanceMeters: SENSOR_DISTANCE_METERS,
     hazardPaddingMeters: HAZARD_PADDING_METERS,
+    minimumTraversableClearanceMeters: isUrban ? 2 : 10,
     ...(rayFan ? { actorRayClearanceMeters: rayFan } : {}),
   })
 
@@ -417,13 +500,14 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
     sensed = senseEmbodiedWorld({
       revision: worldRevision,
       position,
-      target: goal,
+      target: navigationTarget,
       embodiment: observation,
       hazard,
       hazardVisible,
       terrainHeightAt: terrainField.heightAt,
       candidateDistanceMeters: SENSOR_DISTANCE_METERS,
       hazardPaddingMeters: HAZARD_PADDING_METERS,
+      minimumTraversableClearanceMeters: isUrban ? 2 : 10,
       ...(rayFan ? { actorRayClearanceMeters: rayFan } : {}),
     })
   }
@@ -440,18 +524,26 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
     sensed = senseEmbodiedWorld({
       revision: worldRevision,
       position,
-      target: goal,
+      target: navigationTarget,
       embodiment: observation,
       hazard,
       hazardVisible: true,
       terrainHeightAt: terrainField.heightAt,
       candidateDistanceMeters: SENSOR_DISTANCE_METERS,
       hazardPaddingMeters: HAZARD_PADDING_METERS,
+      minimumTraversableClearanceMeters: isUrban ? 2 : 10,
       ...(rayFan ? { actorRayClearanceMeters: rayFan } : {}),
     })
   }
 
+  // The controller steers at the next route point, but only the final mission may complete.
+  if (guidance) sensed.snapshot.distanceToGoalMeters = guidance.remainingMeters
   latestSnapshot = sensed.snapshot
+  if (isUrban && !routeFollower) {
+    embodiment.stop()
+    updateTrail(observation.positionEcef)
+    return
+  }
   latestTick = agentLoop.tick(sensed.snapshot, nowMs)
   updateTrail(observation.positionEcef)
   updateLiveUi(sensed.snapshot, latestTick)
@@ -487,7 +579,7 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
     const safetySummary = isUrban ? '已沿建筑街区到达目标，执行器停止。' : rawBoundaryClearance >= 0
       ? `轨迹未进入风险区，距其边界最近 ${boundaryClearance} 米。`
       : `轨迹曾进入风险区 ${boundaryClearance} 米，需要继续调优。`
-    setPhase('ARRIVED', '观察点已到达', `角色已停止；${safetySummary}`)
+    setPhase('ARRIVED', isUrban ? '已绕楼到达目的地' : '观察点已到达', `角色已停止；${safetySummary}`)
     appendMessage('assistant', isUrban ? '已经到达街区目标。Jev 在有效动作执行期间更新下一段，角色已停止。' : `已经到达观察点。${safetySummary}移动过程中持续使用地形样本和角色前向物理射线，并在发现隐藏落石区后废弃了旧计划。`)
   }
 }
@@ -604,14 +696,113 @@ function startTask(): void {
   completionAnnounced = false
   announcedSafetyEvidence.clear()
   lastFastLoopAt = 0
+  if (isUrban) {
+    routeFollower = undefined
+    selectedRouteId = undefined
+    urbanMotionSamples.length = 0
+    minimumBuildingClearanceMeters = Number.POSITIVE_INFINITY
+    void chooseUrbanRoute()
+    return
+  }
   setPhase('SENSE', '正在读取角色周边世界', '下一步模型规划在后台运行，角色控制帧不会等待网络。')
   appendMessage('assistant', '任务开始。我会先依据当前地形和前向扇形射线形成短时动作计划；发现新风险时，本地安全循环会先制动，再废弃旧计划。')
+}
+
+async function chooseUrbanRoute(): Promise<void> {
+  if (!urbanNavigation || !embodiment || !agentChannel) return
+  const generation = taskGeneration
+  const requestId = ++routeRequestId
+  routeAbort?.abort()
+  const abort = new AbortController()
+  routeAbort = abort
+  try {
+    const ecef = embodiment.observe().positionEcef
+    const geo = Cartographic.fromCartesian(new Cartesian3(ecef.x, ecef.y, ecef.z))
+    const position = { longitude: CesiumMath.toDegrees(geo.longitude), latitude: CesiumMath.toDegrees(geo.latitude), height: URBAN_GROUND_HEIGHT }
+    urbanCandidates = urbanNavigation.planCandidates(position, NAMCHE_GOAL)
+    if (urbanCandidates.length === 0) throw new Error('当前没有满足楼体净距的可行路线')
+    routeOffer = {
+      offerId: `city-${generation}-${requestId}`, revision: worldRevision, capturedAt: new Date().toISOString(),
+      straightLineBlocked: !urbanNavigation.isSegmentWalkable(position, NAMCHE_GOAL),
+      distanceToGoalMeters: distanceMeters(position, NAMCHE_GOAL),
+      candidates: urbanCandidates.map(candidate => ({
+        id: candidate.id, feasible: true, lengthMeters: candidate.lengthMeters,
+        minimumClearanceMeters: candidate.minimumClearanceMeters,
+        turnCount: Math.max(0, candidate.waypoints.length - 2),
+      })),
+    }
+    drawUrbanRoutes(position)
+    element('routeDecision').textContent = 'Jev 正在比较左右绕行路线'
+    modelStatus.textContent = 'JEV · 选择绕行方向'
+    setPhase('ROUTE DECISION', '直线被建筑挡住，Jev 正在选择绕行', '人物保持原位，选择完成后才开始行动。')
+    const observation = await agentChannel.readNavigationOptions()
+    const decision = await requestJevRoute(observation, { signal: abort.signal })
+    if (generation !== taskGeneration || !active || abort.signal.aborted) return
+    const accepted = await agentChannel.commitNavigationRoute(requestId, worldRevision, observation.offerId, decision.routeId)
+    if (!accepted) throw new Error('路线选择已过期或不在当前候选中')
+    decisionTrace.push({ kind: 'route', observation, ...decision, accepted: true })
+    element('decisionCount').textContent = String(decisionTrace.filter(item => item.accepted).length)
+    const side = decision.routeId === 'left' ? '左侧绕行' : decision.routeId === 'right' ? '右侧绕行' : '保持停止'
+    appendMessage('event model', `${decision.model} 选择${side} · 置信度 ${Math.round(decision.confidence * 100)}% · ${decision.latencyMs} ms`)
+    element('routeDecision').textContent = `Jev 选择${side} · ${Math.round(decision.confidence * 100)}%`
+  } catch (error) {
+    if (abort.signal.aborted || generation !== taskGeneration) return
+    stopTask()
+    element('routeDecision').textContent = '路线选择失败，人物已停止'
+    appendMessage('event safety', `绕行选择失败：${errorMessage(error)}`)
+  }
+}
+
+function drawUrbanRoutes(start = NAMCHE_START): void {
+  if (!viewer || !isUrban) return
+  for (const id of ['left', 'right'] as const) {
+    viewer.entities.removeById(`route-${id}`)
+    delete routeEntities[id]
+  }
+  viewer.entities.removeById('blocked-direct-route')
+  viewer.entities.add({
+    id: 'blocked-direct-route',
+    polyline: {
+      positions: [start, NAMCHE_GOAL].map(point => Cartesian3.fromDegrees(point.longitude, point.latitude, URBAN_GROUND_HEIGHT + 0.3)),
+      width: 3,
+      material: new PolylineDashMaterialProperty({ color: Color.fromCssColorString('#ff736c'), dashLength: 12 }),
+    },
+  })
+  const descriptions: string[] = []
+  for (const candidate of urbanCandidates) {
+    const color = candidate.id === 'left' ? '#ffc46a' : '#9fafff'
+    routeEntities[candidate.id] = viewer.entities.add({
+      id: `route-${candidate.id}`,
+      polyline: {
+        positions: candidate.waypoints.map(point => Cartesian3.fromDegrees(point.longitude, point.latitude, URBAN_GROUND_HEIGHT + 0.4)),
+        width: 3,
+        material: Color.fromCssColorString(color).withAlpha(0.85),
+      },
+    })
+    descriptions.push(`${candidate.id === 'left' ? '左绕' : '右绕'} ${Math.round(candidate.lengthMeters)}m · 距楼 ≥${candidate.minimumClearanceMeters.toFixed(1)}m`)
+  }
+  element('routeOptions').textContent = descriptions.join(' ｜ ')
+}
+
+function showRouteSelection(routeId: 'left' | 'right'): void {
+  for (const id of ['left', 'right'] as const) {
+    const line = routeEntities[id]?.polyline
+    if (!line) continue
+    line.width = new ConstantProperty(id === routeId ? 5 : 2)
+    line.material = new PolylineGlowMaterialProperty({
+      color: Color.fromCssColorString(id === routeId ? '#55dfb9' : '#7d8893').withAlpha(id === routeId ? 0.9 : 0.25),
+      glowPower: id === routeId ? 0.1 : 0,
+    })
+  }
 }
 
 function stopTask(): void {
   if (agentLoop?.getState().lifecycle === 'completed') return
   taskGeneration += 1
   active = false
+  routeAbort?.abort()
+  routeAbort = undefined
+  if (isUrban && !routeFollower) element('routeDecision').textContent = '路线选择已停止'
   setAutonomousCameraLock(false)
   if (agentChannel) void agentChannel.stop().catch(error => appendMessage('event safety', errorMessage(error)))
   else agentLoop?.stop()
@@ -689,7 +880,7 @@ function installInteractions(): void {
         appendMessage('user', '停止任务')
         stopTask()
       } else {
-        appendMessage('user', '自主前往观察点')
+        appendMessage('user', isUrban ? '绕过前方建筑，前往楼后目的地' : '自主前往观察点')
         startTask()
       }
     })
@@ -740,11 +931,11 @@ function addSceneEvidence(goal: GeoPoint, hazard: CircularHazard): void {
   viewer.entities.add({
     id: 'live-actor-marker',
     position: new CallbackPositionProperty(() => {
-      const position = embodiment?.observe().positionEcef
+      const position = player?.getPosition()
       return position ? new Cartesian3(position.x, position.y, position.z) : undefined
     }, false),
-    point: { pixelSize: 9, color: Color.fromCssColorString('#ffbf69'), outlineColor: Color.BLACK, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
-    label: { text: 'Jev 角色', font: '12px sans-serif', pixelOffset: new Cartesian2(0, -19), outlineColor: Color.BLACK, outlineWidth: 3, style: LabelStyle.FILL_AND_OUTLINE, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+    ...(!isUrban ? { point: { pixelSize: 9, color: Color.fromCssColorString('#ffbf69'), outlineColor: Color.BLACK, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY } } : {}),
+    label: { text: isUrban ? 'Jev 导航员' : 'Jev 角色', font: '12px sans-serif', pixelOffset: new Cartesian2(0, isUrban ? -72 : -19), outlineColor: Color.BLACK, outlineWidth: 3, style: LabelStyle.FILL_AND_OUTLINE, disableDepthTestDistance: Number.POSITIVE_INFINITY },
   })
   viewer.entities.add({
     id: 'embodied-goal',
@@ -757,7 +948,7 @@ function addSceneEvidence(goal: GeoPoint, hazard: CircularHazard): void {
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
     label: {
-      text: 'AI 观察点',
+      text: isUrban ? '楼后目的地' : 'AI 观察点',
       font: '600 13px sans-serif',
       fillColor: Color.WHITE,
       outlineColor: Color.fromCssColorString('#061015'),
@@ -817,7 +1008,7 @@ function addSceneEvidence(goal: GeoPoint, hazard: CircularHazard): void {
 }
 
 function updateLiveUi(snapshot: EmbodiedWorldSnapshot, tick: EmbodiedTickResult): void {
-  distanceMetric.textContent = `目标距离 ${Math.round(snapshot.distanceToGoalMeters)} m`
+  distanceMetric.textContent = `${isUrban ? '剩余路程' : '目标距离'} ${Math.round(snapshot.distanceToGoalMeters)} m`
   revisionStatus.textContent = `WORLD r${snapshot.revision}`
   loopStatus.textContent = `${tick.state.safety.toUpperCase()} · ${tick.state.planner.toUpperCase()} · 20HZ`
   const candidateSummary = snapshot.candidates
@@ -913,6 +1104,7 @@ function installScenarioControls(): void {
       version: 1, scenario, planner: useJev ? 'jev' : 'hosted',
       channel: 'cesium-mcp-bridge-sdk', exportedAt: new Date().toISOString(),
       decisions: decisionTrace, calls: bridgeTrace, frames: replayFrames, continuity, urbanVisualState,
+      navigation: isUrban ? { selectedRouteId, offer: routeOffer, candidates: urbanCandidates, motionSamples: urbanMotionSamples } : undefined,
     }, null, 2)
     if (!traceDialog.open) traceDialog.showModal()
   })
@@ -1059,6 +1251,10 @@ function classifyActorRayHits(
   for (const id of ['front', 'left', 'right'] as const) {
     const hit = hits[id]
     if (!hit) continue
+    if (hit.normalKnown === false || Math.hypot(hit.normalEcef.x, hit.normalEcef.y, hit.normalEcef.z) < 1e-9) {
+      result[id] = hit.distanceMeters
+      continue
+    }
     const point = new Cartesian3(
       hit.positionEcef.x,
       hit.positionEcef.y,
@@ -1242,6 +1438,14 @@ function exposeDebugApi(): void {
       continuity,
       urbanCollisionCounts,
       urbanVisualState,
+      navigation: {
+        selectedRouteId,
+        offer: routeOffer,
+        candidates: urbanCandidates,
+        challenge: urbanNavigation?.defaultChallenge,
+        minimumBuildingClearanceMeters,
+        motionSamples: urbanMotionSamples,
+      },
       positionEcef: embodiment?.observe().positionEcef,
     }),
   }

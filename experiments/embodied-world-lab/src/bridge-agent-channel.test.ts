@@ -3,6 +3,7 @@ import type { Viewer } from 'cesium'
 import { CesiumBridge } from '../../../packages/cesium-mcp-bridge/src/index.js'
 import { createBridgeAgentChannel } from './bridge-agent-channel.js'
 import type { EmbodiedPlan, EmbodiedWorldSnapshot } from './embodied-agent-loop.js'
+import type { NavigationRouteObservation } from './jev-route-planner.js'
 
 const NOW = Date.parse('2026-09-21T10:00:00.000Z')
 
@@ -155,5 +156,109 @@ describe('Cesium Bridge embodied agent channel', () => {
     await expect(f.channel.readObservation()).resolves.toEqual(world())
     await expect(f.channel.commitIntent(1, 1, plan())).resolves.toBe(true)
     expect(f.commitMotionIntent).toHaveBeenCalledOnce()
+  })
+})
+
+function routeOffer(overrides: Partial<NavigationRouteObservation> = {}): NavigationRouteObservation {
+  return {
+    offerId: 'run-1:offer-1', revision: 1, capturedAt: new Date(NOW).toISOString(),
+    straightLineBlocked: true, distanceToGoalMeters: 100,
+    candidates: [
+      { id: 'left', feasible: true, lengthMeters: 150, minimumClearanceMeters: 3, turnCount: 3 },
+      { id: 'right', feasible: true, lengthMeters: 180, minimumClearanceMeters: 4, turnCount: 4 },
+    ], ...overrides,
+  }
+}
+
+function routeFixture() {
+  let current = routeOffer()
+  let now = NOW
+  const readNavigationOptions = vi.fn(() => current)
+  const commitNavigationRoute = vi.fn(() => true)
+  const onTrace = vi.fn()
+  const channel = createBridgeAgentChannel({} as Viewer, {
+    observeWorld: () => world(), commitMotionIntent: () => true, stopEmbodied: vi.fn(),
+    readNavigationOptions, commitNavigationRoute, onTrace, now: () => now,
+  })
+  return {
+    channel, readNavigationOptions, commitNavigationRoute, onTrace,
+    setOffer: (offer: NavigationRouteObservation) => { current = offer },
+    setNow: (value: number) => { now = value },
+  }
+}
+
+describe('Cesium Bridge navigation route channel', () => {
+  it('uses the actual Bridge dispatcher for candidate observations and route commitments', async () => {
+    const execute = vi.spyOn(CesiumBridge.prototype, 'execute')
+    const f = routeFixture()
+    const observation = await f.channel.readNavigationOptions()
+    observation.candidates[0].feasible = false
+    expect(await f.channel.commitNavigationRoute(1, 1, 'run-1:offer-1', 'left')).toBe(true)
+    expect(f.commitNavigationRoute).toHaveBeenCalledWith({ requestId: 1, revision: 1, offerId: 'run-1:offer-1', routeId: 'left' })
+    expect(execute.mock.calls.map(([command]) => command.action)).toEqual(['readNavigationOptions', 'commitNavigationRoute'])
+    expect(f.onTrace.mock.calls.map(([trace]) => trace.status)).toEqual(['succeeded', 'succeeded'])
+  })
+
+  it('rejects a missing observation, repeated request and a stopped run', async () => {
+    const f = routeFixture()
+    expect(await f.channel.commitNavigationRoute(1, 1, 'run-1:offer-1', 'left')).toBe(false)
+    await f.channel.readNavigationOptions()
+    expect(await f.channel.commitNavigationRoute(1, 1, 'run-1:offer-1', 'left')).toBe(true)
+    expect(await f.channel.commitNavigationRoute(1, 1, 'run-1:offer-1', 'right')).toBe(false)
+    await f.channel.stop()
+    expect(await f.channel.commitNavigationRoute(2, 1, 'run-1:offer-1', 'right')).toBe(false)
+    expect(f.commitNavigationRoute).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    { revision: 2 }, { offerId: 'run-2:offer-1' },
+    { candidates: routeOffer().candidates.map(candidate => ({ ...candidate, lengthMeters: candidate.lengthMeters + 2 })) },
+  ])('rejects a delayed choice after the observed offer changes: %j', async changes => {
+    const f = routeFixture()
+    await f.channel.readNavigationOptions()
+    f.setOffer(routeOffer(changes))
+    expect(await f.channel.commitNavigationRoute(1, 1, 'run-1:offer-1', 'left')).toBe(false)
+    expect(f.commitNavigationRoute).not.toHaveBeenCalled()
+  })
+
+  it('rejects stale choices and observes the current callback rejection', async () => {
+    const f = routeFixture()
+    await f.channel.readNavigationOptions()
+    f.setNow(NOW + 20_001)
+    f.setOffer(routeOffer({ capturedAt: new Date(NOW + 20_001).toISOString() }))
+    expect(await f.channel.commitNavigationRoute(1, 1, 'run-1:offer-1', 'left')).toBe(false)
+    await f.channel.readNavigationOptions()
+    f.commitNavigationRoute.mockReturnValue(false)
+    expect(await f.channel.commitNavigationRoute(2, 1, 'run-1:offer-1', 'left')).toBe(false)
+    expect(f.onTrace.mock.calls.at(-1)?.[0].status).toBe('rejected')
+  })
+
+  it('rejects an infeasible side without silently replacing it, while accepting explicit hold', async () => {
+    const f = routeFixture()
+    f.setOffer(routeOffer({ candidates: routeOffer().candidates.map(candidate => ({ ...candidate, feasible: false })) }))
+    await f.channel.readNavigationOptions()
+    expect(await f.channel.commitNavigationRoute(1, 1, 'run-1:offer-1', 'left')).toBe(false)
+    expect(await f.channel.commitNavigationRoute(2, 1, 'run-1:offer-1', 'hold')).toBe(true)
+    expect(f.commitNavigationRoute).toHaveBeenCalledTimes(1)
+    expect(f.commitNavigationRoute).toHaveBeenCalledWith(expect.objectContaining({ routeId: 'hold' }))
+  })
+
+  it('validates direct dispatcher route fields and fails clearly when hooks are absent', async () => {
+    const f = routeFixture()
+    await f.channel.readNavigationOptions()
+    const result = await f.channel.bridge.execute({ action: 'commitNavigationRoute', params: {
+      requestId: 1, revision: 1, offerId: 'run-1:offer-1', routeId: 'teleport', path: [1, 2],
+    } })
+    expect(result.success).toBe(false)
+    expect(f.commitNavigationRoute).not.toHaveBeenCalled()
+    await expect(fixture().channel.readNavigationOptions()).rejects.toThrow('not configured')
+  })
+
+  it('invalidates prior options if a subsequent read fails', async () => {
+    const f = routeFixture()
+    await f.channel.readNavigationOptions()
+    f.readNavigationOptions.mockImplementationOnce(() => { throw new Error('Route observation failed') })
+    await expect(f.channel.readNavigationOptions()).rejects.toThrow()
+    expect(await f.channel.commitNavigationRoute(1, 1, 'run-1:offer-1', 'left')).toBe(false)
   })
 })

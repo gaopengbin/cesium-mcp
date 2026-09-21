@@ -65,8 +65,8 @@ export function watchUrbanVisualState(
 export const URBAN_GROUND_HEIGHT = 38
 export const URBAN_METADATA = {
   id: 'city' as const,
-  title: '东京 · 丸之内建筑区',
-  description: 'PLATEAU 2025 实景纹理建筑，沿东京站西侧街区连续导航。',
+  title: '东京 · 绕楼导航',
+  description: '起终点位于真实楼体两侧，Jev 选择左右绕行路线，人物沿所选走廊前往楼后。',
 }
 // Selected on the rendered road surface west of Tokyo Station; not inside a building.
 export const URBAN_START: GeoPoint = { longitude: 139.764624924, latitude: 35.681082469, height: URBAN_GROUND_HEIGHT }

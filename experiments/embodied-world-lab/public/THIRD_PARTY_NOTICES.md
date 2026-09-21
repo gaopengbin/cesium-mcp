@@ -1,5 +1,16 @@
 # Third-Party Notices
 
+## RobotExpressive walking character
+
+The `src/assets/RobotExpressive.glb` asset is an unmodified copy from the [official Three.js skinning and morphing example](https://github.com/mrdoob/three.js/blob/dev/examples/webgl_animation_skinning_morph.html).
+
+- Model: **Tomás Laulhé (Quaternius)**.
+- Upstream modifications: **Don McCurdy**.
+- Model license stated by the official example: **CC0-1.0** ([full legal terms](https://creativecommons.org/publicdomain/zero/1.0/legalcode)).
+- [Upstream model file](https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/RobotExpressive/RobotExpressive.glb).
+
+The local asset is 463,988 bytes, SHA-256 `047f5e5fb3bb6d378bd1df16ca6137f2a596c99b3a1b5690b4020c05aaf6f319`. Its geometry, colors and animation clips have not been edited. The application adds navigation, positioning, display scale and animation selection. This is a walking-character demonstration; using this asset does not imply robot hardware or vehicle dynamics. No author or provider endorsement is implied.
+
 ## Fox glTF sample asset
 
 Canonical source: [KhronosGroup glTF Sample Assets / Models / Fox](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Fox)

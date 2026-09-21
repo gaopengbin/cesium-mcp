@@ -2,6 +2,8 @@ import type { Viewer } from 'cesium'
 import { CesiumBridge } from '../../../packages/cesium-mcp-bridge/src/index.js'
 import type { BridgeResult } from '../../../packages/cesium-mcp-bridge/src/index.js'
 import type { EmbodiedPlan, EmbodiedWorldSnapshot } from './embodied-agent-loop.js'
+import { validateNavigationRouteObservation } from './jev-route-planner.js'
+import type { NavigationRouteId, NavigationRouteObservation } from './jev-route-planner.js'
 
 export interface MotionIntentParams {
   requestId: number
@@ -9,8 +11,15 @@ export interface MotionIntentParams {
   plan: EmbodiedPlan
 }
 
+export interface NavigationRouteParams {
+  requestId: number
+  revision: number
+  offerId: string
+  routeId: NavigationRouteId
+}
+
 export interface BridgeAgentTrace {
-  tool: 'observeWorld' | 'commitMotionIntent' | 'stopEmbodied'
+  tool: 'observeWorld' | 'commitMotionIntent' | 'stopEmbodied' | 'readNavigationOptions' | 'commitNavigationRoute'
   status: 'succeeded' | 'rejected' | 'failed'
   durationMs: number
   timestamp: string
@@ -21,6 +30,9 @@ export interface BridgeAgentChannelOptions {
   /** The loop remains authoritative for request identity and position/bearing drift. */
   commitMotionIntent: (input: MotionIntentParams) => boolean
   stopEmbodied: () => void
+  readNavigationOptions?: () => NavigationRouteObservation
+  /** Main remains authoritative for generation, request identity and current route validity. */
+  commitNavigationRoute?: (input: NavigationRouteParams) => boolean
   onTrace?: (trace: BridgeAgentTrace) => void
   now?: () => number
 }
@@ -29,6 +41,8 @@ export interface BridgeAgentChannel {
   bridge: CesiumBridge
   readObservation(): Promise<EmbodiedWorldSnapshot>
   commitIntent(requestId: number, revision: number, plan: EmbodiedPlan): Promise<boolean>
+  readNavigationOptions(): Promise<NavigationRouteObservation>
+  commitNavigationRoute(requestId: number, revision: number, offerId: string, routeId: NavigationRouteId): Promise<boolean>
   stop(): Promise<void>
   dispose(): void
 }
@@ -43,7 +57,9 @@ export function createBridgeAgentChannel(
 ): BridgeAgentChannel {
   const now = options.now ?? Date.now
   let observed: EmbodiedWorldSnapshot | undefined
+  let observedRoutes: NavigationRouteObservation | undefined
   let lastSubmittedRequestId = -1
+  let lastRouteRequestId = -1
   let disposed = false
 
   const bridge = new CesiumBridge(viewer, {
@@ -73,9 +89,41 @@ export function createBridgeAgentChannel(
         if (typeof accepted !== 'boolean') throw new Error('The motion executor must return a boolean')
         return { success: true, data: { accepted } }
       },
+      readNavigationOptions(params) {
+        exactRecord(params, [])
+        observedRoutes = undefined
+        if (!options.readNavigationOptions) throw new Error('Navigation options are not configured')
+        const snapshot = validateRouteObservation(options.readNavigationOptions(), now())
+        observedRoutes = structuredClone(snapshot)
+        return { success: true, data: snapshot }
+      },
+      commitNavigationRoute(params) {
+        const input = validateRouteCommit(params)
+        if (!options.readNavigationOptions || !options.commitNavigationRoute) {
+          throw new Error('Navigation route executor is not configured')
+        }
+        if (!observedRoutes || input.requestId <= lastRouteRequestId
+          || input.revision !== observedRoutes.revision || input.offerId !== observedRoutes.offerId
+          || !isFresh(observedRoutes.capturedAt, now())) {
+          return { success: true, data: { accepted: false } }
+        }
+        const current = validateRouteObservation(options.readNavigationOptions(), now())
+        if (routeSignature(current) !== routeSignature(observedRoutes)) {
+          observedRoutes = undefined
+          return { success: true, data: { accepted: false } }
+        }
+        if (input.routeId !== 'hold' && !current.candidates.some(candidate => candidate.id === input.routeId && candidate.feasible)) {
+          return { success: true, data: { accepted: false } }
+        }
+        lastRouteRequestId = input.requestId
+        const accepted = options.commitNavigationRoute(input)
+        if (typeof accepted !== 'boolean') throw new Error('The route executor must return a boolean')
+        return { success: true, data: { accepted } }
+      },
       stopEmbodied(params) {
         exactRecord(params, [])
         observed = undefined
+        observedRoutes = undefined
         options.stopEmbodied()
         return { success: true }
       },
@@ -88,7 +136,7 @@ export function createBridgeAgentChannel(
     try {
       const result = await bridge.execute({ action: tool, params })
       if (!result.success) throw new Error(result.error ?? `${tool} failed`)
-      status = tool === 'commitMotionIntent' && !(result.data as { accepted: boolean }).accepted
+      status = (tool === 'commitMotionIntent' || tool === 'commitNavigationRoute') && !(result.data as { accepted: boolean }).accepted
         ? 'rejected'
         : 'succeeded'
       return result
@@ -111,6 +159,14 @@ export function createBridgeAgentChannel(
       const result = await execute('commitMotionIntent', { requestId, revision, plan })
       return (result.data as { accepted: boolean }).accepted
     },
+    async readNavigationOptions() {
+      const result = await execute('readNavigationOptions', {})
+      return result.data as NavigationRouteObservation
+    },
+    async commitNavigationRoute(requestId, revision, offerId, routeId) {
+      const result = await execute('commitNavigationRoute', { requestId, revision, offerId, routeId })
+      return (result.data as { accepted: boolean }).accepted
+    },
     async stop() {
       await execute('stopEmbodied', {})
     },
@@ -118,6 +174,7 @@ export function createBridgeAgentChannel(
       if (disposed) return
       disposed = true
       observed = undefined
+      observedRoutes = undefined
       try {
         options.stopEmbodied()
       } finally {
@@ -125,6 +182,30 @@ export function createBridgeAgentChannel(
       }
     },
   }
+}
+
+function validateRouteCommit(value: unknown): NavigationRouteParams {
+  const input = exactRecord(value, ['requestId', 'revision', 'offerId', 'routeId'])
+  integer(input.requestId, 'requestId')
+  integer(input.revision, 'revision')
+  text(input.offerId, 120, 'offerId')
+  oneOf(input.routeId, ['left', 'right', 'hold'], 'routeId')
+  return structuredClone(input) as unknown as NavigationRouteParams
+}
+
+function validateRouteObservation(value: unknown, now: number): NavigationRouteObservation {
+  const observation = validateNavigationRouteObservation(value)
+  if (!isFresh(observation.capturedAt, now)) throw new Error('Route observation timestamp is invalid or stale')
+  return observation
+}
+
+function routeSignature(observation: NavigationRouteObservation): string {
+  return JSON.stringify({
+    offerId: observation.offerId, revision: observation.revision, straightLineBlocked: observation.straightLineBlocked,
+    candidates: [...observation.candidates].sort((left, right) => left.id.localeCompare(right.id)).map(candidate => [
+      candidate.id, candidate.feasible, candidate.lengthMeters, candidate.minimumClearanceMeters, candidate.turnCount,
+    ]),
+  })
 }
 
 function validateIntent(value: unknown): MotionIntentParams {

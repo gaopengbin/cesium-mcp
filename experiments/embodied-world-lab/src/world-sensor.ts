@@ -31,6 +31,7 @@ export interface WorldSensorInput {
   candidateDistanceMeters?: number
   actorRayClearanceMeters?: Partial<Record<NavigationCandidateId, number>>
   hazardPaddingMeters?: number
+  minimumTraversableClearanceMeters?: number
 }
 
 export interface WorldSensorResult {
@@ -68,6 +69,7 @@ export function senseEmbodiedWorld(input: WorldSensorInput): WorldSensorResult {
     ),
     actorRayClearanceMeters: input.actorRayClearanceMeters?.[id],
     maxSlopeDegrees: input.embodiment.mode === 'vehicle' ? 22 : 45,
+    minimumClearanceMeters: positiveFinite(input.minimumTraversableClearanceMeters, 10),
     terrainHeightAt: input.terrainHeightAt,
   }))
   const velocity = input.embodiment.velocityEnu
@@ -183,6 +185,7 @@ function createCandidate(input: {
   hazardPaddingMeters: number
   actorRayClearanceMeters?: number
   maxSlopeDegrees: number
+  minimumClearanceMeters: number
   terrainHeightAt(point: GeoPoint): number | undefined
 }): NavigationCandidate {
   const probe = offsetGeoPoint(
@@ -222,7 +225,7 @@ function createCandidate(input: {
     terrainReady,
     traversable: terrainReady
       && Math.abs(slopeDegrees ?? 90) <= input.maxSlopeDegrees
-      && clearanceMeters >= 10,
+      && clearanceMeters >= input.minimumClearanceMeters,
   }
 }
 

@@ -48,6 +48,11 @@
             <small id="sceneScope">城市使用真实纹理建筑；街道路面为局部近似。</small>
           </section>
           <section class="execution-panel" aria-label="执行通道">
+            <div id="urbanRoutePanel" class="route-panel">
+              <strong id="routeDecision">直线被建筑阻挡，等待 Jev 选择</strong>
+              <p id="routeOptions">正在检查左右绕行空间…</p>
+              <small>红虚线：直达方向 · 彩线：候选走廊 · 绿线：所选路线。建筑几何生成可行候选，Jev 决定走哪一侧。</small>
+            </div>
             <div class="execution-stats"><span id="bridgeStatus">Bridge 初始化中</span><span>已接受决策 <b id="decisionCount">0</b></span></div>
             <details>
               <summary>查看 cesium-mcp 调用记录</summary>

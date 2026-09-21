@@ -1,6 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import type { EmbodiedMotionIntent } from '../src/embodied-agent-loop.js'
+import { buildJevRouteRequest, parseJevRouteResult } from './jev-route.js'
+import type { NavigationRouteObservation } from '../src/jev-route-planner.js'
 
 const ENDPOINT = 'https://api.typesafe.ai/v1/systemone'
 const criteria: Record<EmbodiedMotionIntent, string> = {
@@ -63,7 +65,7 @@ export function buildJevRequest(input: unknown) {
           + 'Use only the supplied observation. Positive bearingErrorRadians means goal to the right, negative means left. '
           + 'Advance corrects small heading errors; for large errors rotate toward the goal first. '
           + 'Unknown terrain is not traversable. Never advance unless the front is terrainReady and traversable. '
-          + 'Do not assume unobserved obstacles are absent. Within 8 meters of the goal, hold. '
+          + 'Do not assume unobserved obstacles are absent. Within 2 meters of the goal, hold. '
           + 'A separate local controller handles immediate collision prevention.',
         criteria,
       },
@@ -118,7 +120,7 @@ export function createJevMiddleware(config: JevConfig) {
   let busy = false
   return (request: IncomingMessage, response: ServerResponse, next: () => void): void => {
     const path = request.url?.split('?')[0]
-    if (path !== '/api/jev/plan' && path !== '/api/jev/status') return next()
+    if (path !== '/api/jev/plan' && path !== '/api/jev/route' && path !== '/api/jev/status') return next()
     const send = (status: number, body: unknown) => {
       if (response.destroyed) return
       response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' })
@@ -142,7 +144,7 @@ export function createJevMiddleware(config: JevConfig) {
       send(200, { configured: Boolean(config.apiKey?.trim()), model: 'jev-latest' })
       return
     }
-    if (path !== '/api/jev/plan' || request.method !== 'POST') {
+    if ((path !== '/api/jev/plan' && path !== '/api/jev/route') || request.method !== 'POST') {
       send(405, { error: 'Unsupported method' })
       return
     }
@@ -172,9 +174,11 @@ export function createJevMiddleware(config: JevConfig) {
             return
           }
         }
-        let payload: ReturnType<typeof buildJevRequest>
+        let payload: ReturnType<typeof buildJevRequest> | ReturnType<typeof buildJevRouteRequest>
+        let observation: unknown
         try {
-          payload = buildJevRequest(JSON.parse(raw))
+          observation = JSON.parse(raw)
+          payload = path === '/api/jev/route' ? buildJevRouteRequest(observation) : buildJevRequest(observation)
           const age = Date.now() - Date.parse(JSON.parse(payload.state).capturedAt)
           if (age > 30000 || age < -5000) throw new Error('Stale observation')
         } catch {
@@ -193,7 +197,10 @@ export function createJevMiddleware(config: JevConfig) {
           return
         }
         const body: unknown = await upstream.json()
-        send(200, parseJevResult(body, Math.round(performance.now() - started)))
+        const latencyMs = Math.round(performance.now() - started)
+        send(200, path === '/api/jev/route'
+          ? parseJevRouteResult(body, latencyMs, observation as NavigationRouteObservation)
+          : parseJevResult(body, latencyMs))
       } catch {
         send(controller.signal.aborted ? 504 : 502, {
           error: controller.signal.aborted ? 'Jev request timed out or was cancelled' : 'Jev request failed or returned an invalid decision',
