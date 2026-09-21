@@ -22,6 +22,7 @@ export default defineConfig({
       'examples/browser-agent/functions/**/*.test.ts',
       'examples/spatial-context-experiment/src/**/*.test.ts',
       'experiments/embodied-world-lab/src/**/*.test.ts',
+      'experiments/embodied-world-lab/server/**/*.test.ts',
       'scripts/**/*.test.ts',
     ],
   },

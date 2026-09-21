@@ -104,6 +104,128 @@ describe('EmbodiedAgentLoop', () => {
     expect(result.input.sprint).toBe(true)
   })
 
+  it('prefetches the next plan while preserving motion through its asynchronous handoff', () => {
+    const actuator = createActuator()
+    const loop = new EmbodiedAgentLoop(actuator, { planningLeadTimeMs: 1_200 })
+    loop.start(1)
+    const first = loop.beginPlanning(world())!
+    loop.commitPlan(first, 1, plan({ durationMs: 4_000 }), 0)
+
+    expect(loop.tick(world(), 2_799).needsPlanning).toBe(false)
+    const anticipating = loop.tick(world(), 2_800)
+    expect(anticipating.needsPlanning).toBe(true)
+    expect(anticipating.input.moveY).toBe(0.72)
+    const next = loop.beginPlanning(world())!
+    expect(next).toBeGreaterThan(first)
+    expect(loop.beginPlanning(world())).toBeUndefined()
+
+    // A caller's old provisional hold must not interrupt an accepted model action.
+    expect(loop.setProvisionalPlan(next, 1, plan({ intent: 'hold', source: 'fallback' }), 2_800)).toBe(false)
+    const pending = loop.tick(world({ distanceToGoalMeters: 117 }), 3_200)
+    expect(pending.state.planner).toBe('pending')
+    expect(pending.state.activePlanSource).toBe('model')
+    expect(pending.input.moveY).toBe(0.72)
+    expect(pending.needsPlanning).toBe(false)
+
+    expect(loop.commitPlan(next, 1, plan({ durationMs: 4_000 }), 3_300)).toBe(true)
+    expect(loop.tick(world({ distanceToGoalMeters: 116 }), 4_001).input.moveY).toBe(0.72)
+    expect(actuator.applyInput.mock.calls.slice(1).every(([input]) => input.moveY === 0.72)).toBe(true)
+  })
+
+  it('stops at the current plan deadline if the prefetched model result is still pending', () => {
+    const loop = new EmbodiedAgentLoop(createActuator(), { planningLeadTimeMs: 1_000 })
+    loop.start(1)
+    const first = loop.beginPlanning(world())!
+    loop.commitPlan(first, 1, plan({ durationMs: 4_000 }), 0)
+    loop.tick(world(), 3_000)
+    const next = loop.beginPlanning(world())!
+    expect(next).toBeGreaterThan(first)
+    expect(loop.tick(world(), 3_999).input.moveY).toBe(0.72)
+    const expired = loop.tick(world(), 4_000)
+    expect(expired.input.moveY).toBe(0)
+    expect(expired.state.planner).toBe('pending')
+    expect(expired.state.activeIntent).toBeUndefined()
+    expect(expired.needsPlanning).toBe(false)
+    expect(loop.commitPlan(next, 1, plan(), 4_100)).toBe(true)
+    expect(loop.tick(world(), 4_150).input.moveY).toBe(0.72)
+  })
+
+  it('rejects a drifted replacement without discarding a still-valid movement plan', () => {
+    const loop = new EmbodiedAgentLoop(createActuator(), { planningLeadTimeMs: 1_000 })
+    loop.start(1)
+    const first = loop.beginPlanning(world())!
+    loop.commitPlan(first, 1, plan({ durationMs: 4_000 }), 0)
+    loop.tick(world(), 3_000)
+    const next = loop.beginPlanning(world())!
+    loop.tick(world({ distanceToGoalMeters: 100 }), 3_100)
+    expect(loop.commitPlan(next, 1, plan({ intent: 'turn-left' }), 3_200)).toBe(false)
+    const preserved = loop.tick(world({ distanceToGoalMeters: 99 }), 3_250)
+    expect(preserved.state.activeIntent).toBe('advance')
+    expect(preserved.state.planner).toBe('committed')
+    expect(preserved.input.moveY).toBe(0.72)
+    expect(preserved.needsPlanning).toBe(true)
+  })
+
+  it('keeps a valid plan during a prefetch failure but respects its original expiry', () => {
+    const loop = new EmbodiedAgentLoop(createActuator(), { planningLeadTimeMs: 1_000 })
+    loop.start(1)
+    const first = loop.beginPlanning(world())!
+    loop.commitPlan(first, 1, plan({ durationMs: 4_000 }), 0)
+    loop.tick(world(), 3_000)
+    const next = loop.beginPlanning(world())!
+    loop.failPlanning(next, 3_100)
+    const current = loop.tick(world(), 3_200)
+    expect(current.state.planner).toBe('committed')
+    expect(current.input.moveY).toBe(0.72)
+    expect(current.needsPlanning).toBe(false)
+    expect(loop.tick(world(), 4_000).input.moveY).toBe(0)
+  })
+
+  it.each(['revision', 'stop', 'danger'] as const)('does not let prefetch override %s safety', event => {
+    const loop = new EmbodiedAgentLoop(createActuator(), { planningLeadTimeMs: 1_000 })
+    loop.start(1)
+    const first = loop.beginPlanning(world())!
+    loop.commitPlan(first, 1, plan({ durationMs: 4_000 }), 0)
+    loop.tick(world(), 3_000)
+    const next = loop.beginPlanning(world())!
+    if (event === 'stop') loop.stop()
+    const snapshot = event === 'revision' ? world({ revision: 2 })
+      : event === 'danger' ? world({ candidates: [
+          candidate('front', 4, false), candidate('left', 0, false), candidate('right', 0, false),
+        ] }) : world()
+    expect(loop.tick(snapshot, 3_100).input.moveY).toBe(0)
+    if (event !== 'danger') expect(loop.commitPlan(next, 1, plan(), 3_200)).toBe(false)
+    else {
+      loop.commitPlan(next, 1, plan(), 3_200)
+      expect(loop.tick(snapshot, 3_250).input.moveY).toBe(0)
+    }
+  })
+
+  it.each(['turn-left', 'turn-right'] as const)('finishes %s when the goal bearing is aligned', intent => {
+    const loop = new EmbodiedAgentLoop(createActuator())
+    const initial = world({ bearingErrorRadians: intent === 'turn-left' ? -0.4 : 0.4 })
+    loop.start(1)
+    const first = loop.beginPlanning(initial)!
+    loop.commitPlan(first, 1, plan({ intent, durationMs: 2_000 }), 0)
+    expect(Math.abs(loop.tick(initial, 50).input.lookX)).toBe(0.8)
+    const aligned = loop.tick(world({ bearingErrorRadians: 0.03 }), 100)
+    expect(aligned.input.lookX).toBe(0)
+    expect(aligned.input.moveY).toBe(0)
+    expect(aligned.state.activeIntent).toBeUndefined()
+    expect(aligned.needsPlanning).toBe(true)
+  })
+
+  it('does not shorten an explicit inspection scan when the goal is aligned', () => {
+    const loop = new EmbodiedAgentLoop(createActuator())
+    const aligned = world({ bearingErrorRadians: 0.03 })
+    loop.start(1)
+    const first = loop.beginPlanning(aligned)!
+    loop.commitPlan(first, 1, plan({ intent: 'inspect-left' }), 0)
+    const result = loop.tick(aligned, 100)
+    expect(result.state.activeIntent).toBe('inspect-left')
+    expect(result.input.lookX).toBe(-0.45)
+  })
+
   it('turns in place toward the clearer side while a new plan is pending', () => {
     const actuator = createActuator()
     const loop = new EmbodiedAgentLoop(actuator, { emergencyClearanceMeters: 20 })

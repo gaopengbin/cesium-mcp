@@ -5,9 +5,15 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,
+    "skipLibCheck": true,
     "noEmit": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vite/client"]
+    "types": ["vite/client", "node"],
+    "paths": {
+      "cesium-mcp-contracts": ["../../packages/cesium-mcp-contracts/src/index.ts"],
+      "cesium-mcp-spatial": ["../../packages/cesium-mcp-spatial/src/index.ts"],
+      "cesium": ["./node_modules/cesium/Source/Cesium.d.ts"]
+    }
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "server", "vite.config.ts", "vitest.config.ts", "../../packages/cesium-mcp-bridge/src/heatmap.d.ts"]
 }

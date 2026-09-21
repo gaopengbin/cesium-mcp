@@ -82,6 +82,8 @@ export interface EmbodiedAgentLoopOptions {
   characterDeceleration?: number
   vehicleDeceleration?: number
   retryDelayMs?: number
+  /** Request a replacement before the current action expires, without stopping it. */
+  planningLeadTimeMs?: number
 }
 
 interface CommittedPlan extends EmbodiedPlan {
@@ -104,6 +106,7 @@ const AVOIDANCE_CLEAR_TICKS = 4
 const AVOIDANCE_BLOCKED_TICKS = 5
 const MAX_MODEL_PLAN_DURATION_MS = 8_000
 const MAX_PROVISIONAL_PLAN_DURATION_MS = 20_000
+const ALIGNED_TURN_THRESHOLD_RADIANS = 0.1
 
 export class EmbodiedAgentLoop {
   private readonly arrivalDistanceMeters: number
@@ -116,6 +119,7 @@ export class EmbodiedAgentLoop {
   private readonly characterDeceleration: number
   private readonly vehicleDeceleration: number
   private readonly retryDelayMs: number
+  private readonly planningLeadTimeMs: number
   private lifecycle: EmbodiedLoopLifecycle = 'idle'
   private safety: EmbodiedSafetyState = 'clear'
   private planner: EmbodiedPlannerState = 'idle'
@@ -153,6 +157,7 @@ export class EmbodiedAgentLoop {
     this.characterDeceleration = positiveFinite(options.characterDeceleration, 5)
     this.vehicleDeceleration = positiveFinite(options.vehicleDeceleration, 6)
     this.retryDelayMs = positiveFinite(options.retryDelayMs, 2_000)
+    this.planningLeadTimeMs = boundedNumber(options.planningLeadTimeMs ?? 1_200, 0, 8_000, 1_200)
   }
 
   start(worldRevision: number): void {
@@ -337,21 +342,23 @@ export class EmbodiedAgentLoop {
 
     this.safety = 'clear'
     this.clearAvoidance()
+    if ((this.committedPlan?.intent === 'turn-left' || this.committedPlan?.intent === 'turn-right')
+      && Number.isFinite(snapshot.bearingErrorRadians)
+      && Math.abs(snapshot.bearingErrorRadians) <= ALIGNED_TURN_THRESHOLD_RADIANS) {
+      this.committedPlan = undefined
+      this.planner = this.pendingPlan ? 'pending' : 'idle'
+    }
     if (!this.committedPlan) {
       this.applyInput(NEUTRAL_INPUT)
       return this.result(this.shouldRequestPlan())
     }
 
     this.applyInput(motionInput(this.committedPlan.intent, snapshot))
-    return this.result(false)
+    return this.result(this.shouldRequestPlan())
   }
 
   beginPlanning(snapshot: EmbodiedWorldSnapshot): number | undefined {
-    if (this.lifecycle !== 'running'
-      || snapshot.revision !== this.worldRevision
-      || this.pendingPlan
-      || this.committedPlan
-      || this.currentNowMs < this.retryNotBeforeMs) {
+    if (snapshot.revision !== this.worldRevision || !this.shouldRequestPlan()) {
       return undefined
     }
     this.latestSnapshot = snapshot
@@ -374,6 +381,7 @@ export class EmbodiedAgentLoop {
   ): boolean {
     if (this.lifecycle !== 'running'
       || this.worldRevision !== worldRevision
+      || !this.pendingPlan
       || this.pendingPlan?.requestId !== requestId
       || this.pendingPlan.worldRevision !== worldRevision
       || !this.isPendingPlanFresh(this.pendingPlan)) {
@@ -406,8 +414,13 @@ export class EmbodiedAgentLoop {
   ): boolean {
     if (this.lifecycle !== 'running'
       || this.worldRevision !== worldRevision
+      || !this.pendingPlan
       || this.pendingPlan?.requestId !== requestId
       || this.pendingPlan.worldRevision !== worldRevision) {
+      return false
+    }
+    if (this.committedPlan && this.committedPlan.requestId !== requestId
+      && this.committedPlan.expiresAtMs > finiteOr(nowMs, this.currentNowMs)) {
       return false
     }
     const normalized = normalizePlan(
@@ -428,7 +441,7 @@ export class EmbodiedAgentLoop {
   failPlanning(requestId: number, nowMs = this.currentNowMs): void {
     if (this.pendingPlan?.requestId !== requestId) return
     this.pendingPlan = undefined
-    this.planner = 'idle'
+    this.planner = this.committedPlan ? 'committed' : 'idle'
     this.retryNotBeforeMs = finiteOr(nowMs, this.currentNowMs) + this.retryDelayMs
   }
 
@@ -458,9 +471,13 @@ export class EmbodiedAgentLoop {
   }
 
   private shouldRequestPlan(): boolean {
+    const plan = this.committedPlan
+    // Short turns get a bounded lead window too; do not immediately re-request
+    // the moment a short replacement is accepted.
+    const leadTimeMs = plan ? Math.min(this.planningLeadTimeMs, plan.durationMs / 2) : 0
     return this.lifecycle === 'running'
       && !this.pendingPlan
-      && !this.committedPlan
+      && (!plan || plan.expiresAtMs - this.currentNowMs <= leadTimeMs)
       && this.currentNowMs >= this.retryNotBeforeMs
   }
 
