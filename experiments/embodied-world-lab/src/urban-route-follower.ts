@@ -14,7 +14,8 @@ export class UrbanRouteFollower {
 
   update(position: GeoPoint) {
     const last = this.waypoints.length - 1
-    while (this.index < last && distanceMeters(position, this.waypoints[this.index]) < 2) this.index += 1
+    // Being close to a corner does not make the following leg visible: every
+    // skipped waypoint must preserve the same building clearance as the route.
     for (let candidate = last; candidate > this.index; candidate -= 1) {
       if (this.segmentIsClear(position, this.waypoints[candidate])) {
         this.index = candidate

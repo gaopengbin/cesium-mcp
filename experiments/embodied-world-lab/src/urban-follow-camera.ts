@@ -38,7 +38,7 @@ export class UrbanFollowCamera {
     this.lastTime = nowMs
     const headingDelta = Math.atan2(Math.sin(heading - (this.heading ?? heading)), Math.cos(heading - (this.heading ?? heading)))
     this.heading = (this.heading ?? heading) + headingDelta * weight
-    const height = Math.max(25, Math.min(180, heightMeters))
+    const height = Number.isFinite(heightMeters) ? Math.max(25, heightMeters) : 70
     const frame = Transforms.eastNorthUpToFixedFrame(actor)
     const head = Matrix4.multiplyByPoint(frame, new Cartesian3(0, 0, 2), new Cartesian3())
     const clear = isSightlineClear ?? (() => true)
@@ -58,7 +58,8 @@ export class UrbanFollowCamera {
   }
 
   private chooseView(frame: Matrix4, head: Cartesian3, height: number, heading: number, clear: SightlineCheck) {
-    const heights = [...new Set([height, Math.min(180, height * 1.5), Math.min(180, height * 2)])]
+    // Obstruction escape always starts at the selected height and searches up.
+    const heights = [height, height * 1.5, height * 2].filter(Number.isFinite)
     const offsets = [this.clearYawOffset, ...ORBIT_OFFSETS.filter(offset => offset !== this.clearYawOffset)]
     const east = Math.sin(heading)
     const north = Math.cos(heading)

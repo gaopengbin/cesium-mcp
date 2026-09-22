@@ -203,7 +203,7 @@ function routeSignature(observation: NavigationRouteObservation): string {
   return JSON.stringify({
     offerId: observation.offerId, revision: observation.revision, straightLineBlocked: observation.straightLineBlocked,
     candidates: [...observation.candidates].sort((left, right) => left.id.localeCompare(right.id)).map(candidate => [
-      candidate.id, candidate.feasible, candidate.lengthMeters, candidate.minimumClearanceMeters, candidate.turnCount,
+      candidate.id, candidate.feasible, candidate.lengthMeters, candidate.minimumClearanceMeters, candidate.turnCount, candidate.dataCoverage,
     ]),
   })
 }
@@ -224,7 +224,7 @@ function validateIntent(value: unknown): MotionIntentParams {
 function validateObservation(value: unknown, now: number): EmbodiedWorldSnapshot {
   const input = exactRecord(value, [
     'revision', 'capturedAt', 'mode', 'distanceToGoalMeters', 'bearingErrorRadians',
-    'grounded', 'speedMetersPerSecond', 'hazardId', 'physicsCenterRayDistanceMeters', 'candidates',
+    'grounded', 'speedMetersPerSecond', 'dataCoverage', 'hazardId', 'physicsCenterRayDistanceMeters', 'candidates',
   ])
   integer(input.revision, 'revision')
   if (typeof input.capturedAt !== 'string' || !isFresh(input.capturedAt, now)) {
@@ -235,6 +235,7 @@ function validateObservation(value: unknown, now: number): EmbodiedWorldSnapshot
   finiteRange(input.bearingErrorRadians, -Math.PI, Math.PI, 'bearingErrorRadians')
   finiteRange(input.speedMetersPerSecond, 0, 10_000, 'speedMetersPerSecond')
   boolean(input.grounded, 'grounded')
+  if (input.dataCoverage !== undefined) oneOf(input.dataCoverage, ['surveyed', 'unmapped'], 'dataCoverage')
   if (input.hazardId !== undefined) text(input.hazardId, 256, 'hazardId')
   if (input.physicsCenterRayDistanceMeters !== undefined) {
     finiteRange(input.physicsCenterRayDistanceMeters, 0, 40_000_000, 'physicsCenterRayDistanceMeters')

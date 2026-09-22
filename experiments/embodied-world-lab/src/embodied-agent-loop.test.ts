@@ -351,6 +351,93 @@ describe('EmbodiedAgentLoop', () => {
     expect(loop.tick(world({ distanceToGoalMeters: 97 }), 5_200).input.moveY).toBe(0.72)
   })
 
+  it('accepts a high-speed prefetched plan without interrupting the current motion', () => {
+    const actuator = createActuator()
+    const loop = new EmbodiedAgentLoop(actuator)
+    loop.setPlanningSpeedMetersPerSecond(300)
+    const initial = world({ distanceToGoalMeters: 10_000, speedMetersPerSecond: 300,
+      candidates: [candidate('front', 10_000), candidate('left', 10_000), candidate('right', 10_000)] })
+    loop.start(1)
+    const first = loop.beginPlanning(initial)!
+    expect(loop.commitPlan(first, 1, plan({ durationMs: 4_000 }), 0)).toBe(true)
+    expect(loop.tick(initial, 2_800).needsPlanning).toBe(true)
+    const next = loop.beginPlanning(initial)!
+    const advanced = { ...initial, distanceToGoalMeters: 9_550 }
+    expect(loop.tick(advanced, 3_800).input.moveY).toBe(0.72)
+    expect(loop.commitPlan(next, 1, plan({ durationMs: 4_000 }), 3_850)).toBe(true)
+    expect(loop.tick(advanced, 4_100).input.moveY).toBe(0.72)
+    expect(actuator.applyInput.mock.calls.slice(1).every(([input]) => input.moveY === 0.72)).toBe(true)
+  })
+
+  it.each([
+    [300, 600, true],
+    [300, 601, false],
+    [25, 50, true],
+    [25, 51, false],
+    [0, 10, true],
+    [0, 11, false],
+  ])('updates plan freshness after reducing speed to %s m/s with %s m drift', (speed, drift, accepted) => {
+    const loop = new EmbodiedAgentLoop(createActuator())
+    loop.setPlanningSpeedMetersPerSecond(300)
+    loop.setPlanningSpeedMetersPerSecond(speed)
+    const initial = world({ distanceToGoalMeters: 10_000 })
+    loop.start(1)
+    const request = loop.beginPlanning(initial)!
+    loop.tick({ ...initial, distanceToGoalMeters: 10_000 - drift }, 500)
+    expect(loop.commitPlan(request, 1, plan(), 550)).toBe(accepted)
+  })
+
+  it('preserves the explicitly configured minimum planning distance tolerance', () => {
+    const loop = new EmbodiedAgentLoop(createActuator(), { planningDistanceDriftMeters: 80 })
+    loop.setPlanningSpeedMetersPerSecond(20)
+    const initial = world({ distanceToGoalMeters: 1_000 })
+    loop.start(1)
+    const request = loop.beginPlanning(initial)!
+    loop.tick({ ...initial, distanceToGoalMeters: 921 }, 500)
+    expect(loop.commitPlan(request, 1, plan(), 550)).toBe(true)
+  })
+
+  it.each(['bearing', 'revision', 'danger'] as const)('keeps %s checks when high speed allows more distance drift', change => {
+    const loop = new EmbodiedAgentLoop(createActuator())
+    loop.setPlanningSpeedMetersPerSecond(300)
+    const initial = world({ distanceToGoalMeters: 10_000 })
+    loop.start(1)
+    const request = loop.beginPlanning(initial)!
+    const latest = world({ distanceToGoalMeters: 9_550,
+      ...(change === 'bearing' ? { bearingErrorRadians: 0.8 } : {}),
+      ...(change === 'revision' ? { revision: 2 } : {}),
+      ...(change === 'danger' ? { candidates: [candidate('front', 0, false), candidate('left', 0, false), candidate('right', 0, false)] } : {}),
+    })
+    loop.tick(latest, 500)
+    expect(loop.commitPlan(request, 1, plan(), 550)).toBe(change === 'danger')
+    expect(loop.tick(latest, 600).input.moveY).toBe(0)
+  })
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -1, Number.MAX_VALUE])('rejects invalid planning speed %s', speed => {
+    const loop = new EmbodiedAgentLoop(createActuator())
+    expect(() => loop.setPlanningSpeedMetersPerSecond(speed)).toThrow(RangeError)
+  })
+
+  it('exposes the same high-speed stopping distance used by the safety loop', () => {
+    const loop = new EmbodiedAgentLoop(createActuator())
+    expect(loop.getRequiredClearanceMeters(300)).toBeCloseTo(9_150.8)
+    expect(loop.getRequiredClearanceMeters(300, 'vehicle')).toBeCloseTo(7_652.5)
+    expect(loop.getRequiredClearanceMeters(0)).toBe(16)
+    const initial = world({ distanceToGoalMeters: 10_000, speedMetersPerSecond: 300,
+      candidates: [candidate('front', loop.getRequiredClearanceMeters(300)), candidate('left', 0, false), candidate('right', 0, false)] })
+    loop.start(1)
+    const request = loop.beginPlanning(initial)!
+    loop.commitPlan(request, 1, plan(), 0)
+    expect(loop.tick(initial, 50).input.moveY).toBe(0.72)
+    expect(loop.tick({ ...initial, candidates: [candidate('front', 9_150), candidate('left', 0, false), candidate('right', 0, false)] }, 100).input.moveY).toBe(0)
+  })
+
+  it('uses configured reaction time and deceleration in required clearance', () => {
+    const loop = new EmbodiedAgentLoop(createActuator(), { reactionTimeSeconds: 0.25, characterDeceleration: 10, vehicleDeceleration: 20 })
+    expect(loop.getRequiredClearanceMeters(20)).toBeCloseTo(25.8)
+    expect(loop.getRequiredClearanceMeters(20, 'vehicle')).toBeCloseTo(17.5)
+  })
+
   it('discards the rejected request provisional hold so a fresh plan can start immediately', () => {
     const loop = new EmbodiedAgentLoop(createActuator())
     loop.start(1)

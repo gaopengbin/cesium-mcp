@@ -41,6 +41,7 @@ import type { ActorRayFan, ActorRayHitFan } from './cesium-player-embodiment.js'
 import { CameraPresetTransition } from './camera-transition.js'
 import { UrbanFollowCamera } from './urban-follow-camera.js'
 import { urbanTravelSpeed } from './urban-travel-speed.js'
+import { urbanMotionSpeedLimit } from './urban-motion-speed-limit.js'
 import { LabWorldInquiry } from './world-inquiry.js'
 import { EmbodiedAgentLoop } from './embodied-agent-loop.js'
 import { requestJevMotionPlan } from './jev-planner.js'
@@ -61,8 +62,10 @@ import {
   SCENARIO_PRESETS,
 } from './scenario.js'
 import type { ScenarioPreset } from './scenario.js'
-import { addUrbanBuildingColliders, addUrbanGroundCollider, createUrbanGround, createUrbanScenario, insideUrbanCoverage, URBAN_COLLISION_BOUNDS, URBAN_GROUND_HEIGHT, URBAN_METADATA } from './urban-scene.js'
+import { addUrbanBuildingColliders, createUrbanGround, createUrbanScenario, insideUrbanCoverage, URBAN_COLLISION_BOUNDS, URBAN_GROUND_HEIGHT, URBAN_METADATA } from './urban-scene.js'
 import type { UrbanVisualState } from './urban-scene.js'
+import { createUrbanStreamingGround } from './urban-streaming-ground.js'
+import type { UrbanStreamingGround } from './urban-streaming-ground.js'
 import { loadUrbanBuildingMesh } from './urban-building-mesh.js'
 import { GRAY_BASEMAP_CREDIT, GRAY_BASEMAP_URL, loadUrbanBuildingLayer, resolveUrbanBuildingSource, URBAN_SOURCE_LABELS } from './urban-building-source.js'
 import { URBAN_WHITE_BUILDINGS_ID } from './urban-white-buildings.js'
@@ -142,6 +145,7 @@ element<UiDetails>('otherScenarios').open = !isUrban
 
 let viewer: Viewer | undefined
 let player: playerController | undefined
+let urbanStreamingGround: UrbanStreamingGround | undefined
 let embodiment: CesiumPlayerEmbodiment | undefined
 let agentLoop: EmbodiedAgentLoop | undefined
 let agentChannel: ReturnType<typeof createBridgeAgentChannel> | undefined
@@ -168,8 +172,8 @@ let controllerCameraPose: CameraPose | undefined
 let mapCameraPose: CameraPose | undefined
 let mapPoseChanged = false
 const urbanFollowCamera = new UrbanFollowCamera()
-let citySpeedMetersPerSecond = 8
-let cityCameraHeightMeters = 70
+let citySpeedMetersPerSecond = readNumericSetting('speed', 30, 0.1, 1_000)
+let cityCameraHeightMeters = readNumericSetting('height', 300, 25, 10_000_000)
 let mapPickMode: 'start' | 'goal' | undefined
 let pickPair = false
 let mapPickHandler: ScreenSpaceEventHandler | undefined
@@ -250,7 +254,7 @@ async function bootstrap(): Promise<void> {
     removeUrbanVisualWatcher = await loadUrbanBuildingLayer(viewer, mesh, buildingChoice.source, buildingCredentials, recordUrbanVisualState)
     if (buildingChoice.source === 'google') viewer.scene.globe.show = false
     setPhase('BUILDING MAP', '正在准备可行走区域', '首次进入需要几秒钟。')
-    urbanNavigation = createUrbanNavigation(mesh)
+    urbanNavigation = createUrbanNavigation(mesh, { allowUnmappedTravel: true })
     Object.assign(NAMCHE_START, CITY_LONG_MISSION.start)
     Object.assign(NAMCHE_GOAL, CITY_LONG_MISSION.goal)
     try {
@@ -369,7 +373,8 @@ async function bootstrap(): Promise<void> {
     player.registerLocomotionSet('city-walk', { idle: 'Idle', walking: 'Walking' })
     player.registerLocomotionSet('city-run', { idle: 'Idle', walking: 'Running' })
     player.switchLocomotionSet('city-walk')
-    await addUrbanGroundCollider(player)
+    urbanStreamingGround = createUrbanStreamingGround(player)
+    urbanStreamingGround.reset(player.getPosition(), citySpeedMetersPerSecond)
     setPhase('BUILDING COLLISIONS', '正在建立真实楼体碰撞', '完成后才开放导航，避免把未加载的建筑当作空地。')
     urbanCollisionCounts = await addUrbanBuildingColliders(player)
     const actorModel = player.getPlayerModel()
@@ -402,6 +407,7 @@ async function bootstrap(): Promise<void> {
     retryDelayMs: 2_000,
     planningLeadTimeMs: 3_000,
   })
+  if (isUrban) agentLoop.setPlanningSpeedMetersPerSecond(citySpeedMetersPerSecond)
   agentChannel = createBridgeAgentChannel(viewer, {
     observeWorld: () => {
       if (!latestSnapshot) throw new Error('场景还没有可用观测')
@@ -439,6 +445,7 @@ async function bootstrap(): Promise<void> {
       })
       controllerCameraPose = undefined
     }
+    if (player && urbanStreamingGround) urbanStreamingGround.update(player.getPosition(), citySpeedMetersPerSecond)
     player?.update()
     if (isUrban && viewer && player) {
       controllerCameraPose = captureCameraPose()
@@ -460,7 +467,8 @@ async function bootstrap(): Promise<void> {
   setOverviewView(true, false)
   if (isUrban) {
     installUrbanMissionEditor()
-    showDistrictView()
+    frameUrbanMap(false)
+    setNativeMapControl(true)
     updateMissionPreview()
   }
   if (isUrban) foxCredits.textContent = '人物及地图来源'
@@ -472,7 +480,7 @@ async function bootstrap(): Promise<void> {
   setPhase(
     missionError ? 'CHECK ROUTE' : 'READY',
     missionError ? '起终点已保留，路线尚未确认' : `${scenario.title} · 已就绪`,
-    missionError || (isUrban ? '可在整个白框街区内自由选起点、终点，再开始导航。' : `${scenario.description} 点击“开始导航”，观察 Jev 决策与本地安全接管。`),
+    missionError || (isUrban ? '自由选起点、终点；白框仅标示已有建筑数据。' : `${scenario.description} 点击“开始导航”，观察 Jev 决策与本地安全接管。`),
   )
   appendMessage(
     'event',
@@ -510,7 +518,14 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
     // Slow before a corner or the goal instead of overshooting it at travel speed.
     const approachDistance = distanceMeters(position, guidance?.target ?? goal)
     const bearingError = initialBearingRadians(position, guidance?.target ?? goal) - observation.headingRadians
-    player.setPlayerSpeed(urbanTravelSpeed(citySpeedMetersPerSecond, approachDistance, bearingError) * 100)
+    const proposedSpeed = urbanTravelSpeed(citySpeedMetersPerSecond, approachDistance, bearingError)
+    const safeSpeed = urbanNavigation ? urbanMotionSpeedLimit({
+      position, headingRadians: observation.headingRadians, proposedSpeedMetersPerSecond: proposedSpeed,
+      segmentIsWalkable: urbanNavigation.isSegmentWalkable,
+    }) : 0
+    if (safeSpeed + 0.001 < proposedSpeed
+      && Math.hypot(observation.velocityEnu.east, observation.velocityEnu.north) > safeSpeed) player.resetVelocity()
+    player.setPlayerSpeed(safeSpeed * 100)
     const actualSpeed = Math.hypot(observation.velocityEnu.east, observation.velocityEnu.north)
     const currentAnimationSet = player.getCurrentLocomotionSet()
     const nextAnimationSet = actualSpeed > 4 ? 'city-run' : actualSpeed < 3.5 ? 'city-walk' : currentAnimationSet
@@ -521,14 +536,12 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
     if (urbanMotionSamples.length > 20_000) urbanMotionSamples.shift()
   }
   const navigationTarget = guidance?.target ?? goal
+  const sensorDistance = isUrban
+    ? Math.max(SENSOR_DISTANCE_METERS, agentLoop.getRequiredClearanceMeters(citySpeedMetersPerSecond) + 4)
+    : SENSOR_DISTANCE_METERS
   if (isUrban && urbanNavigation) minimumBuildingClearanceMeters = Math.min(
     minimumBuildingClearanceMeters, urbanNavigation.clearanceAt(position),
   )
-  if (isUrban && !insideUrbanCoverage(position, SENSOR_DISTANCE_METERS + 2)) {
-    stopTask()
-    setPhase('COVERAGE LIMIT', '已到建筑碰撞数据边界', '角色已停止；未加载区域不作为可通行区域。')
-    return
-  }
   if (!isUrban) minimumHazardBoundaryDistanceMeters = Math.min(
     minimumHazardBoundaryDistanceMeters,
     distanceMeters(position, hazard.center) - hazard.radiusMeters,
@@ -541,15 +554,15 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
     hazard,
     hazardVisible,
     terrainHeightAt: terrainField.heightAt,
-    candidateDistanceMeters: SENSOR_DISTANCE_METERS,
+    candidateDistanceMeters: sensorDistance,
     hazardPaddingMeters: HAZARD_PADDING_METERS,
     minimumTraversableClearanceMeters: isUrban ? 2 : 10,
   })
   const terrainSlopes = Object.fromEntries(
     sensed.snapshot.candidates.map(candidate => [candidate.id, candidate.slopeDegrees]),
   )
-  const rayHits = embodiment.senseActorRayHitFan(SENSOR_DISTANCE_METERS, terrainSlopes)
-  const rayFan = classifyActorRayHits(rayHits, terrainField, SENSOR_DISTANCE_METERS)
+  const rayHits = embodiment.senseActorRayHitFan(sensorDistance, terrainSlopes)
+  const rayFan = classifyActorRayHits(rayHits, terrainField, sensorDistance)
   sensed = senseEmbodiedWorld({
     revision: worldRevision,
     position,
@@ -558,7 +571,7 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
     hazard,
     hazardVisible,
     terrainHeightAt: terrainField.heightAt,
-    candidateDistanceMeters: SENSOR_DISTANCE_METERS,
+    candidateDistanceMeters: sensorDistance,
     hazardPaddingMeters: HAZARD_PADDING_METERS,
     minimumTraversableClearanceMeters: isUrban ? 2 : 10,
     ...(rayFan ? { actorRayClearanceMeters: rayFan } : {}),
@@ -576,7 +589,7 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
       hazard,
       hazardVisible,
       terrainHeightAt: terrainField.heightAt,
-      candidateDistanceMeters: SENSOR_DISTANCE_METERS,
+      candidateDistanceMeters: sensorDistance,
       hazardPaddingMeters: HAZARD_PADDING_METERS,
       minimumTraversableClearanceMeters: isUrban ? 2 : 10,
       ...(rayFan ? { actorRayClearanceMeters: rayFan } : {}),
@@ -600,7 +613,7 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
       hazard,
       hazardVisible: true,
       terrainHeightAt: terrainField.heightAt,
-      candidateDistanceMeters: SENSOR_DISTANCE_METERS,
+      candidateDistanceMeters: sensorDistance,
       hazardPaddingMeters: HAZARD_PADDING_METERS,
       minimumTraversableClearanceMeters: isUrban ? 2 : 10,
       ...(rayFan ? { actorRayClearanceMeters: rayFan } : {}),
@@ -609,6 +622,7 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
 
   // The controller steers at the next route point, but only the final mission may complete.
   if (guidance) sensed.snapshot.distanceToGoalMeters = guidance.remainingMeters
+  if (isUrban && urbanNavigation) sensed.snapshot.dataCoverage = urbanNavigation.dataCoverageAt(position)
   latestSnapshot = sensed.snapshot
   if (isUrban && !routeFollower) {
     embodiment.stop()
@@ -647,7 +661,7 @@ function runFastLoop(nowMs: number, goal: GeoPoint, hazard: CircularHazard): voi
     setOverviewView(true, false)
     const rawBoundaryClearance = minimumHazardBoundaryDistanceMeters
     const boundaryClearance = Math.round(Math.abs(rawBoundaryClearance))
-    const safetySummary = isUrban ? '已沿建筑街区到达目标，执行器停止。' : rawBoundaryClearance >= 0
+    const safetySummary = isUrban ? '已完成本次模拟路线，执行器停止。' : rawBoundaryClearance >= 0
       ? `轨迹未进入风险区，距其边界最近 ${boundaryClearance} 米。`
       : `轨迹曾进入风险区 ${boundaryClearance} 米，需要继续调优。`
     setPhase('ARRIVED', isUrban ? '已到达你设置的终点' : '观察点已到达', `角色已停止；${safetySummary}`)
@@ -807,6 +821,7 @@ async function chooseUrbanRoute(): Promise<void> {
         id: candidate.id, feasible: true, lengthMeters: candidate.lengthMeters,
         minimumClearanceMeters: candidate.minimumClearanceMeters,
         turnCount: Math.max(0, candidate.waypoints.length - 2),
+        dataCoverage: candidate.dataCoverage,
       })),
     }
     drawUrbanRoutes(position)
@@ -947,7 +962,7 @@ function setNativeMapControl(enabled: boolean): void {
   control.enableTilt = enabled
   control.enableLook = enabled
   control.minimumZoomDistance = 45
-  control.maximumZoomDistance = buildingChoice.source === 'google' ? 40_000_000 : 15_000
+  control.maximumZoomDistance = 40_000_000
 }
 
 function frameUrbanMap(district: boolean): void {
@@ -957,13 +972,15 @@ function frameUrbanMap(district: boolean): void {
     Math.max(NAMCHE_START.longitude, NAMCHE_GOAL.longitude), Math.max(NAMCHE_START.latitude, NAMCHE_GOAL.latitude),
   ]
   const latitude = (south + north) / 2
-  const width = (east - west) * 111_320 * Math.cos(CesiumMath.toRadians(latitude)) + 60
+  const longitudeSpan = east - west > 180 ? 360 - (east - west) : east - west
+  const centerLongitude = east - west > 180 ? ((east + west) / 2 + 360) % 360 - 180 : (west + east) / 2
+  const width = longitudeSpan * 111_320 * Math.cos(CesiumMath.toRadians(latitude)) + 60
   const height = (north - south) * 111_320 + 80
   const aspect = viewer.canvas.clientWidth / viewer.canvas.clientHeight
   const altitude = Math.max(150, height * 1.25, width / aspect * 1.25)
   const current = captureCameraPose()
   viewer.camera.setView({
-    destination: Cartesian3.fromDegrees((west + east) / 2, latitude, URBAN_GROUND_HEIGHT + altitude),
+    destination: Cartesian3.fromDegrees(centerLongitude, latitude, URBAN_GROUND_HEIGHT + altitude),
     orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
   })
   mapCameraPose = captureCameraPose()
@@ -976,6 +993,33 @@ function showDistrictView(): void {
   setOverviewView(true, false)
   frameUrbanMap(true)
   setNativeMapControl(true)
+}
+
+function readNumericSetting(key: string, fallback: number, min: number, max: number): number {
+  const raw = sceneQuery.get(key)
+  const value = raw === null ? NaN : Number(raw)
+  return Number.isFinite(value) && value >= min && value <= max ? value : fallback
+}
+
+function installNumericSetting(id: string, key: string, initial: number, apply: (value: number) => void): void {
+  const input = element<UiInput>(id)
+  input.value = String(initial)
+  const commit = (): void => {
+    if (!input.value?.trim() || !input.reportValidity()) return
+    const value = Number(input.value)
+    if (!Number.isFinite(value)) return
+    apply(value)
+    const url = new URL(location.href)
+    url.searchParams.set(key, String(value))
+    history.replaceState(null, '', url)
+  }
+  input.addEventListener('change', commit)
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && !event.isComposing) {
+      event.preventDefault()
+      commit()
+    }
+  })
 }
 
 function updatePickUi(): void {
@@ -992,7 +1036,7 @@ function updatePickUi(): void {
   if (viewer) viewer.canvas.style.cursor = mapPickMode ? 'crosshair' : ''
   document.querySelectorAll<UiButton>('[data-command="start"]').forEach(button => { button.disabled = !!mapPickMode || !!missionError || !ready })
   for (const id of ['pickStart', 'pickGoal', 'pickMission', 'swapMission', 'resetMission', 'restoreMission', 'crossDistrictMission', 'longMission', 'citySpeed', 'cityCameraHeight']) {
-    element<UiButton | UiSelect>(id).disabled = !buildingChoice.navigationAvailable || !ready
+    element<UiButton | UiInput>(id).disabled = !buildingChoice.navigationAvailable || !ready
   }
 }
 
@@ -1001,9 +1045,10 @@ function beginMapPick(mode: 'start' | 'goal', pair = false): void {
   if (active) stopTask()
   mapPickMode = mode
   pickPair = pair
-  showDistrictView()
+  setOverviewView(true, false)
+  setNativeMapControl(true)
   updatePickUi()
-  setPhase('SET MISSION', mode === 'start' ? '在街区内点选起点' : '在街区内点选终点', '可缩放、拖动地图。选点仅设置任务，点击“开始导航”后才调用 Jev。')
+  setPhase('SET MISSION', mode === 'start' ? '在地图上点选起点' : '在地图上点选终点', '可缩放、拖动地图，不限白框。选完后点击“开始导航”。')
 }
 
 function applyUrbanMission(start: GeoPoint, goal: GeoPoint): void {
@@ -1021,7 +1066,9 @@ function applyUrbanMission(start: GeoPoint, goal: GeoPoint): void {
   embodiment?.stop()
   Object.assign(NAMCHE_START, { ...start })
   Object.assign(NAMCHE_GOAL, { ...goal })
-  player.reset(Cartesian3.fromDegrees(start.longitude, start.latitude, URBAN_GROUND_HEIGHT + player.getCapsuleGroundHeight() + 0.05))
+  const startPosition = Cartesian3.fromDegrees(start.longitude, start.latitude, URBAN_GROUND_HEIGHT + player.getCapsuleGroundHeight() + 0.05)
+  urbanStreamingGround?.reset(startPosition, citySpeedMetersPerSecond)
+  player.reset(startPosition)
   player.setOnGround(false)
   urbanFollowCamera.reset()
   routeFollower = undefined
@@ -1055,8 +1102,12 @@ function updateMissionPreview(): void {
   if (!viewer || !urbanNavigation) return
   urbanCandidates = urbanNavigation.planCandidates(NAMCHE_START, NAMCHE_GOAL)
   const directDistance = distanceMeters(NAMCHE_START, NAMCHE_GOAL)
-  missionError = !buildingChoice.navigationAvailable ? 'Google 实景仅供浏览，切回轻量白模即可导航。' : missionUrlError || (directDistance < 8 ? '起终点太近，请选至少相距 8 米的两个位置。'
-    : urbanCandidates.length === 0 ? '当前导航网格未找到连接路线，不代表实际无路。起终点已保留，尚未调用 Jev。' : '')
+  missionError = !buildingChoice.navigationAvailable ? 'Google 实景仅供浏览，切回轻量白模即可导航。' : missionUrlError || (urbanCandidates.length === 0 ? '当前导航网格未找到连接路线，不代表实际无路。起终点已保留，尚未调用 Jev。' : '')
+  const usesUnmappedGround = urbanCandidates.some(candidate => candidate.dataCoverage !== 'surveyed')
+    || !insideUrbanCoverage(NAMCHE_START) || !insideUrbanCoverage(NAMCHE_GOAL)
+  const coverageNote = element('missionCoverageNote')
+  coverageNote.hidden = !usesUnmappedGround
+  coverageNote.textContent = '这条路线包含建筑数据覆盖外区域，按简化地面探索。'
   element('startCoordinates').textContent = `${NAMCHE_START.longitude.toFixed(6)}, ${NAMCHE_START.latitude.toFixed(6)}`
   element('goalCoordinates').textContent = `${NAMCHE_GOAL.longitude.toFixed(6)}, ${NAMCHE_GOAL.latitude.toFixed(6)}`
   element('routeDecision').textContent = missionError ? '路线尚未确认' : urbanNavigation.isSegmentWalkable(NAMCHE_START, NAMCHE_GOAL)
@@ -1073,16 +1124,13 @@ function updateMissionPreview(): void {
 
 function installUrbanMissionEditor(): void {
   if (!viewer || !urbanNavigation) return
-  // Show the conservative working boundary; distant visible buildings alone do
-  // not imply complete collision coverage.
-  const marginLatitude = 34.5 / 111_320
-  const marginLongitude = marginLatitude / Math.cos(CesiumMath.toRadians(35.681))
+  // This outline describes data coverage, not an editable mission boundary.
   const [west, south, east, north] = URBAN_COLLISION_BOUNDS
   const coverageHeight = (north - south) * 111_320 / 1_000
   const coverageWidth = (east - west) * 111_320 * Math.cos(CesiumMath.toRadians((north + south) / 2)) / 1_000
-  element('cityCoverage').textContent = `已加载约 ${(coverageHeight * coverageWidth).toFixed(1)} km² 建筑碰撞，南北 ${coverageHeight.toFixed(1)} km。可跨街区选点；白框标示数据覆盖范围。`
+  element('cityCoverage').textContent = `白框内约 ${(coverageHeight * coverageWidth).toFixed(1)} km² 有建筑数据。起终点不限白框；框外按简化地面探索，未加载真实建筑或道路。`
   viewer.entities.add({ id: 'mission-coverage', polyline: {
-    positions: [[west + marginLongitude, south + marginLatitude], [east - marginLongitude, south + marginLatitude], [east - marginLongitude, north - marginLatitude], [west + marginLongitude, north - marginLatitude], [west + marginLongitude, south + marginLatitude]]
+    positions: [[west, south], [east, south], [east, north], [west, north], [west, south]]
       .map(([lon, lat]) => Cartesian3.fromDegrees(lon, lat, URBAN_GROUND_HEIGHT + 0.5)),
     width: 2, material: new PolylineDashMaterialProperty({ color: Color.WHITE.withAlpha(0.6), dashLength: 14 }),
   } })
@@ -1111,11 +1159,12 @@ function installUrbanMissionEditor(): void {
   element('cancelMapPick').addEventListener('click', cancelPick)
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && mapPickMode) cancelPick() })
   element('districtView').addEventListener('click', showDistrictView)
-  element<UiSelect>('citySpeed').addEventListener('change', event => {
-    citySpeedMetersPerSecond = Number((event.target as UiSelect).value)
+  installNumericSetting('citySpeed', 'speed', citySpeedMetersPerSecond, value => {
+    citySpeedMetersPerSecond = value
+    agentLoop?.setPlanningSpeedMetersPerSecond(value)
   })
-  element<UiSelect>('cityCameraHeight').addEventListener('change', event => {
-    cityCameraHeightMeters = Number((event.target as UiSelect).value)
+  installNumericSetting('cityCameraHeight', 'height', cityCameraHeightMeters, value => {
+    cityCameraHeightMeters = value
     setOverviewView(false, false)
   })
   element('swapMission').addEventListener('click', () => { applyUrbanMission({ ...NAMCHE_GOAL }, { ...NAMCHE_START }); cancelPick() })
@@ -1161,12 +1210,12 @@ function installUrbanMissionEditor(): void {
     }
     const ray = viewer.camera.getPickRay(event.position)
     const picked = ray && viewer.scene.globe.pick(ray, viewer.scene)
-    if (!picked) { reject('没有选到地面，请点击白框内的街道或空地。'); return }
+    if (!picked) { reject('没有选到地面，请点击地图上的地面。'); return }
     const geo = Cartographic.fromCartesian(picked)
     const point = { longitude: CesiumMath.toDegrees(geo.longitude), latitude: CesiumMath.toDegrees(geo.latitude), height: URBAN_GROUND_HEIGHT }
     const validation = urbanNavigation.validatePoint(point)
     if (!validation.valid) {
-      reject(validation.reason === 'near-building' ? '这个位置太靠近建筑，请选更开阔的地面。' : '这个位置超出可选范围，请在白色边框内选点。')
+      reject(validation.reason === 'near-building' ? '这个位置太靠近建筑，请选更开阔的地面。' : '这个坐标无效，请重新选择地图上的地面。')
       return
     }
     const choosingStart = mapPickMode === 'start'
@@ -1174,7 +1223,7 @@ function installUrbanMissionEditor(): void {
     if (choosingStart && pickPair) mapPickMode = 'goal'
     else { mapPickMode = undefined; pickPair = false }
     updatePickUi()
-    if (mapPickMode === 'goal') setPhase('SET MISSION', '起点已设置，请再选终点', '点击白框内的街道或空地。')
+    if (mapPickMode === 'goal') setPhase('SET MISSION', '起点已设置，请再选终点', '点击地图上的地面，可缩放和平移到其他区域。')
     if (!mapPickMode) setPhase(missionError ? 'CHECK ROUTE' : 'READY', '起终点已设置', missionError || '候选路线已更新。点击“开始导航”，让 Jev 执行本次任务。')
   }, ScreenSpaceEventType.LEFT_CLICK)
 }
@@ -1819,6 +1868,7 @@ function exposeDebugApi(): void {
       replay: { frameCount: replayFrames.length, active: replaying, frames: replayFrames },
       continuity,
       urbanCollisionCounts,
+      streamingGround: urbanStreamingGround?.getState(),
       urbanVisualState,
       navigation: {
         buildingSource: buildingChoice.source,
@@ -1856,6 +1906,7 @@ window.addEventListener('beforeunload', () => {
   removeUrbanVisualWatcher?.()
   agentChannel?.dispose()
   embodiment?.stop()
+  urbanStreamingGround?.destroy()
   player?.destroy()
   if (viewer && !viewer.isDestroyed()) viewer.destroy()
 })

@@ -22,7 +22,9 @@ export function buildJevRouteRequest(input: unknown) {
       route: {
         type: 'choice',
         instructions: 'Choose a route for this simulated Cesium agent using only the supplied candidate metrics. '
-          + 'A local geometry algorithm generated and collision-checked these candidate corridors; your choice does not generate the route geometry. '
+          + 'A local geometry algorithm generated these candidate corridors and checked the loaded building geometry; your choice does not generate the route geometry. '
+          + 'dataCoverage mixed or unmapped means parts of the route use simplified ground without building data. This is an authorized simulation exploration, not a real-world clearance guarantee. '
+          + 'minimumClearanceMeters concerns loaded obstacles only; never infer missing buildings, roads or terrain. '
           + 'Select only a feasible offered corridor. Prefer the shorter safe route; for similar lengths prefer more clearance and fewer turns. '
           + 'If straightLineBlocked is true, do not attempt a direct shortcut through the building. '
           + 'Within 2 meters of the goal, or when no route is feasible, hold. '

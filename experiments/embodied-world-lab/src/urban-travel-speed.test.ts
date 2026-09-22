@@ -2,12 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { urbanTravelSpeed } from './urban-travel-speed.js'
 
 describe('urban travel speed', () => {
-  it.each([3, 8, 12])('respects the selected %s m/s travel speed on a distant straight', (maximum) => {
-    expect(urbanTravelSpeed(maximum, 100, 0)).toBe(maximum)
+  it.each([3, 8, 12, 30, 100, 300, 1_200])('respects the selected %s m/s travel speed on a distant straight', (maximum) => {
+    expect(urbanTravelSpeed(maximum, maximum * 4, 0)).toBe(maximum)
   })
 
-  it('caps travel at 12 m/s without raising a lower user limit', () => {
-    expect(urbanTravelSpeed(20, 100, 0)).toBe(12)
+  it('does not raise a lower user limit', () => {
     expect(urbanTravelSpeed(1.5, 100, 0)).toBe(1.5)
     expect(urbanTravelSpeed(1.5, 1, 0)).toBe(1.5)
   })
@@ -23,6 +22,23 @@ describe('urban travel speed', () => {
     expect(urbanTravelSpeed(12, 1.9, 0)).toBe(2.8)
     expect(urbanTravelSpeed(12, 100, Math.PI / 2)).toBe(0)
     expect(urbanTravelSpeed(12, 100, -Math.PI / 2)).toBe(0)
+  })
+
+  it('slows a high speed request before reaching a turn or endpoint', () => {
+    expect(urbanTravelSpeed(300, 100, 0)).toBe(50)
+    expect(urbanTravelSpeed(300, 20, 0)).toBe(10)
+    expect(urbanTravelSpeed(300, 4, 0)).toBe(2.8)
+    expect(urbanTravelSpeed(300, 1_000, Math.PI / 2)).toBe(0)
+    expect(urbanTravelSpeed(300, 1_000, 0.5)).toBeCloseTo(6)
+  })
+
+  it('does not multiply sideways drift by a high travel speed setting', () => {
+    const speed = urbanTravelSpeed(300, 1_000, 0.1)
+    expect(speed).toBeGreaterThan(12)
+    expect(speed).toBeLessThan(25)
+    expect(speed * Math.sin(0.1)).toBeCloseTo(2.4)
+    expect(urbanTravelSpeed(300, 1_000, -0.1)).toBeCloseTo(speed)
+    expect(urbanTravelSpeed(300, 1_000, 0)).toBe(300)
   })
 
   it('keeps small steering corrections at travel speed and stops large turns', () => {

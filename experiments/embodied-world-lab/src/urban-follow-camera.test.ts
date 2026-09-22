@@ -75,15 +75,48 @@ describe('urban presentation camera', () => {
     expect(Math.hypot(toLocal(pose.position).x, toLocal(pose.position).y)).toBeCloseTo(131.25)
   })
 
-  it('never raises an obstruction escape above 180 metres', () => {
+  it('raises an obstruction escape above the former 180 metre ceiling', () => {
     const checkedHeights: number[] = []
     const pose = new UrbanFollowCamera().update(actor, 0, 160, 0, (_from, to) => {
       const height = toLocal(to).z
       checkedHeights.push(height)
-      return height > 179
+      return height > 200
     })
-    expect(Math.max(...checkedHeights)).toBeLessThan(180.001)
-    expect(toLocal(pose.position).z).toBeCloseTo(180)
+    expect(checkedHeights.filter(height => Math.abs(height - 160) < 0.001)).toHaveLength(8)
+    expect(toLocal(pose.position).z).toBeCloseTo(240)
+  })
+
+  it.each([300, 1_000, 5_000, 20_000])('uses the requested %s metre height for an unobstructed view', (height) => {
+    const pose = new UrbanFollowCamera().update(actor, 0, height, 0)
+    const position = toLocal(pose.position)
+    expect(position.z).toBeCloseTo(height)
+    expect(Math.hypot(position.x, position.y)).toBeCloseTo(height * 1.25)
+    expect(Cartesian3.magnitude(pose.direction)).toBeCloseTo(1)
+    expect(Cartesian3.dot(pose.direction, pose.up)).toBeCloseTo(0)
+  })
+
+  it('searches upward from a high selected altitude instead of falling back to 180 metres', () => {
+    const checkedHeights: number[] = []
+    const pose = new UrbanFollowCamera().update(actor, 0, 5_000, 0, (_from, to) => {
+      const height = toLocal(to).z
+      checkedHeights.push(height)
+      return height > 7_000
+    })
+    expect(Math.min(...checkedHeights)).toBeGreaterThan(4_999.999)
+    expect(toLocal(pose.position).z).toBeCloseTo(7_500)
+  })
+
+  it('keeps a fully blocked overhead fallback above the selected high altitude', () => {
+    const pose = new UrbanFollowCamera().update(actor, 0, 5_000, 0, () => false)
+    expect(toLocal(pose.position).z).toBeCloseTo(10_000)
+    expect(Cartesian3.magnitude(pose.direction)).toBeCloseTo(1)
+    expect(Cartesian3.magnitude(pose.up)).toBeCloseTo(1)
+  })
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])('retains a finite default view for invalid altitude %s', (height) => {
+    const pose = new UrbanFollowCamera().update(actor, 0, height, 0)
+    expect(toLocal(pose.position).z).toBeCloseTo(70)
+    expect(Cartesian3.magnitude(pose.direction)).toBeCloseTo(1)
   })
 
   it('uses a nondegenerate overhead fallback only when side views are blocked', () => {

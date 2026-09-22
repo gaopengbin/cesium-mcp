@@ -30,6 +30,8 @@ export interface EmbodiedWorldSnapshot {
   bearingErrorRadians: number
   grounded: boolean
   speedMetersPerSecond: number
+  /** Unmapped terrain is the demo's simplified ground, not surveyed building clearance. */
+  dataCoverage?: 'surveyed' | 'unmapped'
   hazardId?: string
   physicsCenterRayDistanceMeters?: number
   candidates: NavigationCandidate[]
@@ -113,7 +115,8 @@ export class EmbodiedAgentLoop {
   private readonly emergencyClearanceMeters: number
   private readonly avoidanceBypassDurationMs: number
   private readonly avoidanceScanDurationMs: number
-  private readonly planningDistanceDriftMeters: number
+  private readonly minimumPlanningDistanceDriftMeters: number
+  private planningDistanceDriftMeters: number
   private readonly planningBearingDriftRadians: number
   private readonly reactionTimeSeconds: number
   private readonly characterDeceleration: number
@@ -148,7 +151,8 @@ export class EmbodiedAgentLoop {
     this.emergencyClearanceMeters = positiveFinite(options.emergencyClearanceMeters, 16)
     this.avoidanceBypassDurationMs = positiveFinite(options.avoidanceBypassDurationMs, 9_000)
     this.avoidanceScanDurationMs = positiveFinite(options.avoidanceScanDurationMs, 2_500)
-    this.planningDistanceDriftMeters = positiveFinite(options.planningDistanceDriftMeters, 10)
+    this.minimumPlanningDistanceDriftMeters = positiveFinite(options.planningDistanceDriftMeters, 10)
+    this.planningDistanceDriftMeters = this.minimumPlanningDistanceDriftMeters
     this.planningBearingDriftRadians = positiveFinite(
       options.planningBearingDriftRadians,
       Math.PI / 9,
@@ -158,6 +162,28 @@ export class EmbodiedAgentLoop {
     this.vehicleDeceleration = positiveFinite(options.vehicleDeceleration, 6)
     this.retryDelayMs = positiveFinite(options.retryDelayMs, 2_000)
     this.planningLeadTimeMs = boundedNumber(options.planningLeadTimeMs ?? 1_200, 0, 8_000, 1_200)
+  }
+
+  /** Allow two seconds of configured travel while a model request is in flight. */
+  setPlanningSpeedMetersPerSecond(speed: number): void {
+    const expectedDrift = speed * 2
+    if (!Number.isFinite(expectedDrift) || speed < 0) {
+      throw new RangeError('Planning speed must be a finite non-negative number')
+    }
+    this.planningDistanceDriftMeters = Math.max(this.minimumPlanningDistanceDriftMeters, expectedDrift)
+  }
+
+  /** Sensor range must cover this distance to distinguish clear space from limited reach. */
+  getRequiredClearanceMeters(speedMetersPerSecond: number, mode: EmbodiedWorldSnapshot['mode'] = 'character'): number {
+    const speed = Math.max(0, finiteOr(speedMetersPerSecond, 0))
+    const deceleration = mode === 'vehicle'
+      ? this.vehicleDeceleration
+      : this.characterDeceleration
+    const footprint = mode === 'vehicle' ? 2.5 : 0.8
+    const stoppingDistance = speed * this.reactionTimeSeconds
+      + speed ** 2 / (2 * deceleration)
+      + footprint
+    return Math.max(this.emergencyClearanceMeters, stoppingDistance)
   }
 
   start(worldRevision: number): void {
@@ -491,15 +517,7 @@ export class EmbodiedAgentLoop {
   }
 
   private dynamicEmergencyClearance(snapshot: EmbodiedWorldSnapshot): number {
-    const speed = Math.max(0, finiteOr(snapshot.speedMetersPerSecond, 0))
-    const deceleration = snapshot.mode === 'vehicle'
-      ? this.vehicleDeceleration
-      : this.characterDeceleration
-    const footprint = snapshot.mode === 'vehicle' ? 2.5 : 0.8
-    const stoppingDistance = speed * this.reactionTimeSeconds
-      + speed ** 2 / (2 * deceleration)
-      + footprint
-    return Math.max(this.emergencyClearanceMeters, stoppingDistance)
+    return this.getRequiredClearanceMeters(snapshot.speedMetersPerSecond, snapshot.mode)
   }
 
   private applyInput(input: EmbodiedMotionInput): NormalizedEmbodiedMotionInput {

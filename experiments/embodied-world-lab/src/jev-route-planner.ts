@@ -6,6 +6,7 @@ export interface NavigationRouteCandidate {
   lengthMeters: number
   minimumClearanceMeters: number
   turnCount: number
+  dataCoverage?: 'surveyed' | 'mixed' | 'unmapped'
 }
 
 export interface NavigationRouteObservation {
@@ -55,12 +56,13 @@ export function validateNavigationRouteObservation(value: unknown): NavigationRo
   }
   const seen = new Set<unknown>()
   for (const item of input.candidates) {
-    const candidate = exactRecord(item, ['id', 'feasible', 'lengthMeters', 'minimumClearanceMeters', 'turnCount'])
+    const candidate = exactRecord(item, ['id', 'feasible', 'lengthMeters', 'minimumClearanceMeters', 'turnCount', 'dataCoverage'])
     if (!['left', 'right', 'direct', 'detour'].includes(String(candidate.id)) || seen.has(candidate.id)
       || typeof candidate.feasible !== 'boolean'
       || (candidate.id === 'direct' && candidate.feasible && input.straightLineBlocked)
       || !finiteRange(candidate.lengthMeters, 0, 40_000_000)
-      || !finiteRange(candidate.minimumClearanceMeters, 0, 40_000_000)) {
+      || !finiteRange(candidate.minimumClearanceMeters, 0, 40_000_000)
+      || (candidate.dataCoverage !== undefined && !['surveyed', 'mixed', 'unmapped'].includes(String(candidate.dataCoverage)))) {
       throw new Error('Invalid route candidate')
     }
     nonnegativeInteger(candidate.turnCount)

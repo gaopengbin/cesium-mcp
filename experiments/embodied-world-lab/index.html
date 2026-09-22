@@ -46,9 +46,11 @@
             </div>
             <p id="missionStatus" class="mission-status" role="status">正在检查街区。</p>
             <div class="field-row mission-view-settings">
-              <wa-select id="citySpeed" label="行走速度" size="s" placement="bottom"><wa-option value="3">慢速 · 3 m/s</wa-option><wa-option value="8" selected>快速 · 8 m/s</wa-option><wa-option value="12">长途 · 12 m/s</wa-option></wa-select>
-              <wa-select id="cityCameraHeight" label="镜头高度" size="s" placement="bottom"><wa-option value="35">近景 · 35 m</wa-option><wa-option value="70" selected>街景 · 70 m</wa-option><wa-option value="120">远景 · 120 m</wa-option></wa-select>
+              <wa-input id="citySpeed" label="行走速度" type="number" min="0.1" max="1000" step="any" value="30" size="s" without-spin-buttons><span slot="end">m/s</span></wa-input>
+              <wa-input id="cityCameraHeight" label="镜头高度" type="number" min="25" max="10000000" step="any" value="300" size="s" without-spin-buttons><span slot="end">m</span></wa-input>
             </div>
+            <p class="setting-note">直接输入数值 · 转弯与临近终点自动减速</p>
+            <p id="missionCoverageNote" class="scope-note" hidden></p>
           </section>
           <wa-details class="panel-details scene-display" summary="场景与显示" appearance="plain" icon-placement="end">
             <div class="details-body">

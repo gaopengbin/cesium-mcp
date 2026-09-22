@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { EmbodiedStateObservation } from '../../../packages/cesium-mcp-spatial/src/index.js'
 import {
   canDetectHazard,
+  distanceMeters,
   isGroundSupportHit,
   offsetGeoPoint,
   rayCircleClearanceMeters,
@@ -31,6 +32,16 @@ function embodiment(headingRadians = 0): EmbodiedStateObservation {
 }
 
 describe('embodied world sensor', () => {
+  it('keeps long sensor offsets valid across the date line and poles', () => {
+    for (const point of [{ longitude: 179.99, latitude: 35, height: 38 }, { longitude: 10, latitude: 89.99, height: 38 }]) {
+      const offset = offsetGeoPoint(point, 100_000, 100_000)
+      expect(Math.abs(offset.longitude)).toBeLessThanOrEqual(180)
+      expect(Math.abs(offset.latitude)).toBeLessThanOrEqual(90)
+      expect(distanceMeters(point, offset)).toBeCloseTo(Math.hypot(100_000, 100_000), 4)
+      expect(offset.height).toBe(38)
+    }
+  })
+
   it('reveals only hazards inside the bounded forward sensor', () => {
     expect(canDetectHazard(origin, 0, hazard)).toBe(true)
     expect(canDetectHazard(origin, Math.PI, hazard)).toBe(false)

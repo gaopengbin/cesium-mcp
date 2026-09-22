@@ -133,6 +133,9 @@ a:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 .mission-status { margin: 14px 0; color: var(--muted-foreground); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
 .mission-status[data-error='true'] { padding: 9px 11px; border-radius: 8px; background: var(--destructive-background); color: var(--destructive); }
 .field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.mission-view-settings [slot='end'] { color: var(--muted-foreground); font-size: 11px; }
+.setting-note { margin: 9px 0 0; color: var(--muted-foreground); font-size: 10px; line-height: 1.6; }
+#missionCoverageNote { margin: 10px 0 0; color: var(--warning); }
 .panel-details { display: block; border-bottom: 1px solid var(--border); --spacing: 0; }
 .panel-details::part(details), .technical-details::part(details) { border: 0; border-radius: 0; background: transparent; }
 .panel-details::part(header) { min-height: 46px; padding: 14px 20px; color: #3c4043; font-size: 12px; line-height: 1.5; font-weight: 400; }

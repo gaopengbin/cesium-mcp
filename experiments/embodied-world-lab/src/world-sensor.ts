@@ -147,11 +147,22 @@ export function initialBearingRadians(from: GeoPoint, to: GeoPoint): number {
 }
 
 export function offsetGeoPoint(origin: GeoPoint, eastMeters: number, northMeters: number): GeoPoint {
-  const latitudeRadians = toRadians(origin.latitude)
+  const distance = Math.hypot(eastMeters, northMeters)
+  if (distance === 0) return { ...origin }
+  const latitude = toRadians(origin.latitude)
+  const longitude = toRadians(origin.longitude)
+  const bearing = Math.atan2(eastMeters, northMeters)
+  const angle = distance / EARTH_RADIUS_METERS
+  const destinationLatitude = Math.asin(Math.max(-1, Math.min(1,
+    Math.sin(latitude) * Math.cos(angle) + Math.cos(latitude) * Math.sin(angle) * Math.cos(bearing),
+  )))
+  const destinationLongitude = longitude + Math.atan2(
+    Math.sin(bearing) * Math.sin(angle) * Math.cos(latitude),
+    Math.cos(angle) - Math.sin(latitude) * Math.sin(destinationLatitude),
+  )
   return {
-    longitude: origin.longitude
-      + toDegrees(eastMeters / (EARTH_RADIUS_METERS * Math.cos(latitudeRadians))),
-    latitude: origin.latitude + toDegrees(northMeters / EARTH_RADIUS_METERS),
+    longitude: (toDegrees(destinationLongitude) + 540) % 360 - 180,
+    latitude: toDegrees(destinationLatitude),
     height: origin.height,
   }
 }

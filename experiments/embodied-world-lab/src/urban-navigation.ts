@@ -1,5 +1,10 @@
 import { Cartesian3, Cartographic, Math as CesiumMath, Matrix4, Transforms } from 'cesium'
 import type { GeoPoint } from './world-sensor.js'
+import { distanceMeters } from './world-sensor.js'
+import { urbanGeodesicWindows } from './urban-geodesic-window.js'
+
+export type UrbanDataCoverage = 'surveyed' | 'mixed' | 'unmapped'
+const MAX_KNOWN_CLEARANCE_METERS = 10_000
 
 export interface UrbanNavigationMesh {
   originEcef: [number, number, number]
@@ -14,6 +19,8 @@ export interface UrbanRouteCandidate {
   waypoints: GeoPoint[]
   lengthMeters: number
   minimumClearanceMeters: number
+  /** Describes completeness of building data, not permission to travel. */
+  dataCoverage?: UrbanDataCoverage
 }
 
 export interface UrbanPointValidation {
@@ -25,6 +32,7 @@ export interface UrbanPointValidation {
   /** Suggestion only: callers must explicitly offer it, never silently move a click. */
   nearestValidPoint?: GeoPoint
   nearestDistanceMeters?: number
+  dataCoverage?: UrbanDataCoverage
 }
 
 export interface UrbanNavigationChallenge {
@@ -44,6 +52,7 @@ export interface UrbanNavigation {
   clearanceAt(point: GeoPoint): number
   coverageClearanceAt(point: GeoPoint): number
   isSegmentWalkable(from: GeoPoint, to: GeoPoint): boolean
+  dataCoverageAt(point: GeoPoint): 'surveyed' | 'unmapped'
 }
 
 interface Point { x: number, y: number }
@@ -52,7 +61,7 @@ interface Component { minX: number, minY: number, maxX: number, maxY: number, ce
 /** Conservative building projection for candidate generation, not Jev's own route planner. */
 export function createUrbanNavigation(
   mesh: UrbanNavigationMesh,
-  options: { cellSizeMeters?: number, vehicleRadiusMeters?: number, coverageMarginMeters?: number } = {},
+  options: { cellSizeMeters?: number, vehicleRadiusMeters?: number, coverageMarginMeters?: number, allowUnmappedTravel?: boolean } = {},
 ): UrbanNavigation {
   // Two-metre cells over-inflate narrow street connections even when a route
   // satisfies the unchanged two-metre clearance. Keep finer geometry here,
@@ -60,6 +69,7 @@ export function createUrbanNavigation(
   const cell = options.cellSizeMeters ?? 1
   const radius = options.vehicleRadiusMeters ?? 2
   const margin = options.coverageMarginMeters ?? 34
+  const openTravel = options.allowUnmappedTravel === true
   if (!Number.isFinite(cell) || cell < 1 || cell > 5 || !Number.isFinite(radius) || radius < 0
     || !Number.isFinite(margin) || margin < 0 || mesh.positions.length % 3 || mesh.indices.length % 3) {
     throw new Error('Invalid urban navigation geometry or grid settings')
@@ -82,11 +92,32 @@ export function createUrbanNavigation(
   }
   const corners = [[west, south], [east, south], [west, north], [east, north]]
     .map(([longitude, latitude]) => localPoint({ longitude, latitude, height: groundHeight }))
-  const minX = Math.min(...corners.map(p => p.x)) + margin + 0.5
-  const minY = Math.min(...corners.map(p => p.y)) + margin + 0.5
-  const width = Math.floor((Math.max(...corners.map(p => p.x)) - margin - 0.5 - minX) / cell)
-  const height = Math.floor((Math.max(...corners.map(p => p.y)) - margin - 0.5 - minY) / cell)
-  if (width < 8 || height < 8 || width * height > 2_000_000) throw new Error('Navigation coverage is too small or too large')
+  const vertices = new Float64Array(mesh.positions.length)
+  let meshMinX = Infinity
+  let meshMinY = Infinity
+  let meshMaxX = -Infinity
+  let meshMaxY = -Infinity
+  for (let i = 0; i < mesh.positions.length; i += 3) {
+    const x = mesh.positions[i] + origin.x
+    const y = mesh.positions[i + 1] + origin.y
+    const z = mesh.positions[i + 2] + origin.z
+    vertices[i] = toLocal[0] * x + toLocal[4] * y + toLocal[8] * z + toLocal[12]
+    vertices[i + 1] = toLocal[1] * x + toLocal[5] * y + toLocal[9] * z + toLocal[13]
+    vertices[i + 2] = toLocal[2] * x + toLocal[6] * y + toLocal[10] * z + toLocal[14]
+    meshMinX = Math.min(meshMinX, vertices[i])
+    meshMinY = Math.min(meshMinY, vertices[i + 1])
+    meshMaxX = Math.max(meshMaxX, vertices[i])
+    meshMaxY = Math.max(meshMaxY, vertices[i + 1])
+  }
+  // Open travel only widens this fixed local grid to encompass every known
+  // triangle. A far-away mission never allocates a start-to-goal raster.
+  const minX = openTravel ? Math.min(meshMinX, ...corners.map(p => p.x)) - 64 : Math.min(...corners.map(p => p.x)) + margin + 0.5
+  const minY = openTravel ? Math.min(meshMinY, ...corners.map(p => p.y)) - 64 : Math.min(...corners.map(p => p.y)) + margin + 0.5
+  const maxX = openTravel ? Math.max(meshMaxX, ...corners.map(p => p.x)) + 64 : Math.max(...corners.map(p => p.x)) - margin - 0.5
+  const maxY = openTravel ? Math.max(meshMaxY, ...corners.map(p => p.y)) + 64 : Math.max(...corners.map(p => p.y)) - margin - 0.5
+  const width = Math.floor((maxX - minX) / cell)
+  const height = Math.floor((maxY - minY) / cell)
+  if (width < 8 || height < 8 || width * height > (openTravel ? 4_000_000 : 2_000_000)) throw new Error('Navigation coverage is too small or too large')
   const count = width * height
   const occupied = new Uint8Array(count)
   const center = (index: number): Point => ({ x: minX + (index % width + 0.5) * cell, y: minY + (Math.floor(index / width) + 0.5) * cell })
@@ -95,14 +126,25 @@ export function createUrbanNavigation(
     const y = Math.floor((point.y - minY) / cell)
     return x < 0 || y < 0 || x >= width || y >= height ? -1 : y * width + x
   }
-  const vertices = new Float64Array(mesh.positions.length)
-  for (let i = 0; i < mesh.positions.length; i += 3) {
-    const x = mesh.positions[i] + origin.x
-    const y = mesh.positions[i + 1] + origin.y
-    const z = mesh.positions[i + 2] + origin.z
-    vertices[i] = toLocal[0] * x + toLocal[4] * y + toLocal[8] * z + toLocal[12]
-    vertices[i + 1] = toLocal[1] * x + toLocal[5] * y + toLocal[9] * z + toLocal[13]
-    vertices[i + 2] = toLocal[2] * x + toLocal[6] * y + toLocal[10] * z + toLocal[14]
+  const clipSegment = (from: Point, to: Point, inset = 0): [Point, Point] | undefined => {
+    let low = 0
+    let high = 1
+    const lowerX = minX + inset + 1e-6
+    const lowerY = minY + inset + 1e-6
+    const upperX = minX + width * cell - inset - 1e-6
+    const upperY = minY + height * cell - inset - 1e-6
+    for (const [start, delta, minimum, maximum] of [[from.x, to.x - from.x, lowerX, upperX], [from.y, to.y - from.y, lowerY, upperY]]) {
+      if (Math.abs(delta) < 1e-12) { if (start < minimum || start > maximum) return; continue }
+      const t0 = (minimum - start) / delta
+      const t1 = (maximum - start) / delta
+      low = Math.max(low, Math.min(t0, t1))
+      high = Math.min(high, Math.max(t0, t1))
+    }
+    if (low > high) return
+    return [low, high].map(t => ({
+      x: Math.max(lowerX, Math.min(upperX, from.x + (to.x - from.x) * t)),
+      y: Math.max(lowerY, Math.min(upperY, from.y + (to.y - from.y) * t)),
+    })) as [Point, Point]
   }
   for (let i = 0; i < mesh.indices.length; i += 3) {
     const triangle = [0, 1, 2].map(offset => {
@@ -123,8 +165,10 @@ export function createUrbanNavigation(
   }
   const components = findComponents(occupied, width, height)
   // Coverage is an obstacle boundary too: do not route into unprepared geometry.
-  for (let x = 0; x < width; x++) occupied[x] = occupied[(height - 1) * width + x] = 1
-  for (let y = 0; y < height; y++) occupied[y * width] = occupied[y * width + width - 1] = 1
+  if (!openTravel) {
+    for (let x = 0; x < width; x++) occupied[x] = occupied[(height - 1) * width + x] = 1
+    for (let y = 0; y < height; y++) occupied[y * width] = occupied[y * width + width - 1] = 1
+  }
   const squaredDistance = distanceTransform(occupied, width, height)
   const walkable = new Uint8Array(count)
   for (let i = 0; i < count; i++) {
@@ -136,10 +180,17 @@ export function createUrbanNavigation(
   const freeRegions = labelFreeRegions(walkable, width, height)
   const localClearance = (point: Point): number => {
     const index = indexAt(point)
-    if (index < 0 || occupied[index]) return 0
+    if (index < 0) return openTravel ? MAX_KNOWN_CLEARANCE_METERS : 0
+    if (occupied[index]) return 0
     return Math.max(0, Math.sqrt(squaredDistance[index]) * cell - halfDiagonal - distance(point, center(index)))
   }
   const lineClearance = (from: Point, to: Point): number => {
+    if (openTravel) {
+      const clipped = clipSegment(from, to)
+      if (!clipped) return MAX_KNOWN_CLEARANCE_METERS
+      from = clipped[0]
+      to = clipped[1]
+    }
     const steps = Math.max(1, Math.ceil(distance(from, to) / (cell / 4)))
     let clearance = Infinity
     for (let step = 0; step <= steps; step++) {
@@ -152,6 +203,10 @@ export function createUrbanNavigation(
     // Lower bound between samples using the 1-Lipschitz distance-to-obstacle property.
     return Math.max(0, clearance - cell / 8)
   }
+  const dataCoverageAt = (point: GeoPoint): 'surveyed' | 'unmapped' => point.longitude >= west && point.longitude <= east && point.latitude >= south && point.latitude <= north ? 'surveyed' : 'unmapped'
+  const originGeo = geographicPoint({ x: 0, y: 0 })
+  const localSupportRadius = Math.max(Math.hypot(minX, minY), Math.hypot(minX, maxY), Math.hypot(maxX, minY), Math.hypot(maxX, maxY)) + 100
+  const beyondLocalSupport = (point: GeoPoint) => distanceMeters(originGeo, point) > localSupportRadius + 100
   const coverageClearanceAt = (point: GeoPoint): number => {
     if (!hasValidCoordinates(point)) return 0
     const metrePerDegree = Math.PI * 6_378_137 / 180
@@ -165,18 +220,20 @@ export function createUrbanNavigation(
   const pointStatus = (point: GeoPoint): UrbanPointValidation => {
     if (!hasValidCoordinates(point)) return { valid: false, reason: 'invalid-coordinate', clearanceMeters: 0, coverageClearanceMeters: 0 }
     const coverageClearanceMeters = coverageClearanceAt(point)
-    if (point.longitude < west || point.longitude > east || point.latitude < south || point.latitude > north) {
+    if (openTravel && beyondLocalSupport(point)) return { valid: true, reason: 'valid', clearanceMeters: MAX_KNOWN_CLEARANCE_METERS, coverageClearanceMeters, dataCoverage: 'unmapped' }
+    if (!openTravel && (point.longitude < west || point.longitude > east || point.latitude < south || point.latitude > north)) {
       return { valid: false, reason: 'outside-coverage', clearanceMeters: 0, coverageClearanceMeters }
     }
     const local = localPoint(point)
     const index = indexAt(local)
     const clearanceMeters = localClearance(local)
-    if (coverageClearanceMeters < margin + cell * 2 || index < 0
-      || index % width < 2 || index % width >= width - 2 || Math.floor(index / width) < 2 || Math.floor(index / width) >= height - 2) {
+    if (openTravel && index < 0) return { valid: true, reason: 'valid', clearanceMeters, coverageClearanceMeters, dataCoverage: dataCoverageAt(point) }
+    if (!openTravel && (coverageClearanceMeters < margin + cell * 2 || index < 0
+      || index % width < 2 || index % width >= width - 2 || Math.floor(index / width) < 2 || Math.floor(index / width) >= height - 2)) {
       return { valid: false, reason: 'boundary-margin', clearanceMeters, coverageClearanceMeters }
     }
     const valid = Boolean(walkable[index]) && lineClearance(local, center(index)) >= radius
-    return { valid, reason: valid ? 'valid' : 'near-building', clearanceMeters, coverageClearanceMeters }
+    return { valid, reason: valid ? 'valid' : 'near-building', clearanceMeters, coverageClearanceMeters, dataCoverage: dataCoverageAt(point) }
   }
   const validatePoint = (point: GeoPoint): UrbanPointValidation => {
     const result = pointStatus(point)
@@ -197,6 +254,14 @@ export function createUrbanNavigation(
     return nearest ? { ...result, nearestValidPoint: nearest, nearestDistanceMeters: best } : result
   }
   const routeThroughGrid = (from: Point, to: Point, id: 'left' | 'right' | 'detour'): UrbanRouteCandidate | undefined => {
+    const originalFrom = from
+    const originalTo = to
+    if (openTravel) {
+      const clipped = clipSegment(from, to, cell * 2)
+      if (!clipped) return
+      from = clipped[0]
+      to = clipped[1]
+    }
     const startIndex = indexAt(from)
     const goalIndex = indexAt(to)
     if (startIndex < 0 || goalIndex < 0 || !walkable[startIndex] || !walkable[goalIndex]
@@ -209,8 +274,8 @@ export function createUrbanNavigation(
       || sign * ((to.x - from.x) * (point.y - from.y) - (to.y - from.y) * (point.x - from.x)) / span >= -cell * 0.6
     const route = aStar(startIndex, goalIndex, width, height, walkable, center, sideAllowed)
     if (!route) return
-    const raw = [from, ...route.map(center), to]
-    const simplified = [from]
+    const raw = [originalFrom, from, ...route.map(center), to, originalTo]
+    const simplified = [originalFrom]
     let cursor = 0
     while (cursor < raw.length - 1) {
       let next = raw.length - 1
@@ -227,7 +292,7 @@ export function createUrbanNavigation(
     }
     return { id, feasible: true, waypoints: simplified.map(geographicPoint), lengthMeters, minimumClearanceMeters }
   }
-  const planCandidates = (start: GeoPoint, goal: GeoPoint): UrbanRouteCandidate[] => {
+  const planLocalCandidates = (start: GeoPoint, goal: GeoPoint): UrbanRouteCandidate[] => {
     if (!pointStatus(start).valid || !pointStatus(goal).valid) return []
     const from = localPoint(start)
     const to = localPoint(goal)
@@ -247,6 +312,40 @@ export function createUrbanNavigation(
       candidate.waypoints[candidate.waypoints.length - 1] = { ...goal }
     }
     return candidates
+  }
+  const coverageFor = (points: GeoPoint[]): UrbanDataCoverage => {
+    const known = points.some(point => dataCoverageAt(point) === 'surveyed')
+    const unknown = points.some(point => dataCoverageAt(point) === 'unmapped')
+    return unknown ? known ? 'mixed' : 'unmapped' : 'surveyed'
+  }
+  const planCandidates = (start: GeoPoint, goal: GeoPoint): UrbanRouteCandidate[] => {
+    if (!openTravel) return planLocalCandidates(start, goal)
+    if (!pointStatus(start).valid || !pointStatus(goal).valid) return []
+    const windows = urbanGeodesicWindows(start, goal, originGeo, localSupportRadius)
+    let routes: UrbanRouteCandidate[] = [{ id: 'direct', feasible: true, waypoints: [{ ...start }], lengthMeters: 0, minimumClearanceMeters: MAX_KNOWN_CLEARANCE_METERS }]
+    for (const window of windows) {
+      const localRoutes = planLocalCandidates(window.from, window.to)
+      if (!localRoutes.length) return []
+      routes = routes.flatMap(route => localRoutes.map(local => ({
+        ...route,
+        id: local.id === 'direct' ? route.id : local.id,
+        waypoints: [...route.waypoints, ...local.waypoints],
+        minimumClearanceMeters: Math.min(route.minimumClearanceMeters, local.minimumClearanceMeters),
+      }))).slice(0, 2)
+    }
+    for (const route of routes) {
+      route.waypoints.push({ ...goal })
+      route.waypoints = route.waypoints.filter((point, index, points) => index === 0 || distanceMeters(point, points[index - 1]) > 0.01)
+      if (route.waypoints.length < 2) route.waypoints.push({ ...goal })
+      route.waypoints[0] = { ...start }
+      route.waypoints[route.waypoints.length - 1] = { ...goal }
+      route.lengthMeters = route.waypoints.slice(1).reduce((sum, point, index) => sum + distanceMeters(route.waypoints[index], point), 0)
+      route.minimumClearanceMeters = Math.min(MAX_KNOWN_CLEARANCE_METERS, route.minimumClearanceMeters)
+      route.dataCoverage = coverageFor(route.waypoints)
+      // An exterior-to-exterior route can still cross the prepared district.
+      if (route.dataCoverage === 'unmapped' && windows.length) route.dataCoverage = 'mixed'
+    }
+    return routes
   }
   const nearestFree = (point: Point): Point | undefined => {
     let nearest: Point | undefined
@@ -307,9 +406,12 @@ export function createUrbanNavigation(
     grid: { cellSizeMeters: cell, width, height, occupiedCells: occupied.reduce((sum, value) => sum + value, 0) },
     planCandidates,
     validatePoint,
-    clearanceAt: point => hasValidCoordinates(point) ? localClearance(localPoint(point)) : 0,
+    clearanceAt: point => hasValidCoordinates(point) ? openTravel && beyondLocalSupport(point) ? MAX_KNOWN_CLEARANCE_METERS : Math.min(MAX_KNOWN_CLEARANCE_METERS, localClearance(localPoint(point))) : 0,
     coverageClearanceAt,
-    isSegmentWalkable: (from, to) => hasValidCoordinates(from) && hasValidCoordinates(to) && lineClearance(localPoint(from), localPoint(to)) >= radius,
+    dataCoverageAt,
+    isSegmentWalkable: (from, to) => hasValidCoordinates(from) && hasValidCoordinates(to) && (openTravel
+      ? urbanGeodesicWindows(from, to, originGeo, localSupportRadius).every(window => lineClearance(localPoint(window.from), localPoint(window.to)) >= radius)
+      : lineClearance(localPoint(from), localPoint(to)) >= radius),
   }
 }
 

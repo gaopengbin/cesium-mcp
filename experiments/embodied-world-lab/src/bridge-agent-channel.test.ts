@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Viewer } from 'cesium'
 import { CesiumBridge } from '../../../packages/cesium-mcp-bridge/src/index.js'
+import { buildJevRequest } from '../server/jev-api.js'
 import { createBridgeAgentChannel } from './bridge-agent-channel.js'
 import type { EmbodiedPlan, EmbodiedWorldSnapshot } from './embodied-agent-loop.js'
 import type { NavigationRouteObservation } from './jev-route-planner.js'
@@ -54,6 +55,31 @@ function fixture() {
 afterEach(() => vi.restoreAllMocks())
 
 describe('Cesium Bridge embodied agent channel', () => {
+  it.each(['surveyed', 'unmapped'] as const)('preserves %s coverage through Bridge, Jev request construction and intent commit', async dataCoverage => {
+    const f = fixture()
+    f.setWorld(world({ dataCoverage }))
+    const observation = await f.channel.readObservation()
+    expect(observation.dataCoverage).toBe(dataCoverage)
+    expect(JSON.parse(buildJevRequest(observation).state).dataCoverage).toBe(dataCoverage)
+    expect(await f.channel.commitIntent(1, 1, plan())).toBe(true)
+    expect(f.commitMotionIntent).toHaveBeenCalledExactlyOnceWith({ requestId: 1, revision: 1, plan: plan() })
+  })
+
+  it.each(['worldwide', 'mixed', null, 1, { surveyed: true }])('rejects invalid observation coverage %j', async dataCoverage => {
+    const f = fixture()
+    f.setWorld({ ...world(), dataCoverage } as EmbodiedWorldSnapshot)
+    await expect(f.channel.readObservation()).rejects.toThrow('dataCoverage')
+    expect(await f.channel.commitIntent(1, 1, plan())).toBe(false)
+    expect(f.commitMotionIntent).not.toHaveBeenCalled()
+  })
+
+  it('still rejects arbitrary observation fields alongside valid coverage', async () => {
+    const f = fixture()
+    f.setWorld({ ...world({ dataCoverage: 'unmapped' }), hiddenWorld: { fullMap: [] } } as EmbodiedWorldSnapshot)
+    await expect(f.channel.readObservation()).rejects.toThrow('Unexpected field: hiddenWorld')
+    expect(await f.channel.commitIntent(1, 1, plan())).toBe(false)
+  })
+
   it('routes observation, bounded intent and stop through the real Bridge dispatcher', async () => {
     const execute = vi.spyOn(CesiumBridge.prototype, 'execute')
     const f = fixture()

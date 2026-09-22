@@ -19,6 +19,13 @@ const realFetch = globalThis.fetch
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Jev motion adapter', () => {
+  it('labels the simulated ground outside mapped buildings instead of claiming global perception', () => {
+    const request = buildJevRequest({ ...snapshot, dataCoverage: 'unmapped' })
+    expect(JSON.parse(request.state).dataCoverage).toBe('unmapped')
+    expect(request.questions.motion.instructions).toContain('simplified ground')
+    expect(() => buildJevRequest({ ...snapshot, dataCoverage: 'worldwide' })).toThrow()
+  })
+
   it('sends observed state only and limits decisions to movement intents', () => {
     const request = buildJevRequest({ ...snapshot, secret: 'must-not-leave', hiddenHazards: [1] })
     expect(request.state).not.toContain('must-not-leave')

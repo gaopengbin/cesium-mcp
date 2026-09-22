@@ -21,6 +21,16 @@ const realFetch = globalThis.fetch
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Jev route choice adapter', () => {
+  it('preserves missing-building coverage evidence and explains the simulation assumption', () => {
+    const input = observation()
+    const candidate = { ...input.candidates[0], dataCoverage: 'mixed' }
+    const payload = buildJevRouteRequest({ ...input, candidates: [candidate] })
+    expect(JSON.parse(payload.state).candidates[0].dataCoverage).toBe('mixed')
+    expect(payload.questions.route.instructions).toContain('simplified ground')
+    expect(payload.questions.route.instructions).toContain('not a real-world clearance guarantee')
+    expect(() => buildJevRouteRequest({ ...input, candidates: [{ ...candidate, dataCoverage: 'worldwide' }] })).toThrow()
+  })
+
   it('describes local geometry candidates truthfully and asks Jev to choose an offered route', () => {
     const input = observation()
     const payload = buildJevRouteRequest(input)

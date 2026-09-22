@@ -27,6 +27,7 @@ export function buildJevRequest(input: unknown) {
     || !finite(input.bearingErrorRadians) || Math.abs(input.bearingErrorRadians) > Math.PI
     || typeof input.grounded !== 'boolean'
     || !finite(input.speedMetersPerSecond) || input.speedMetersPerSecond < 0
+    || (input.dataCoverage !== undefined && !['surveyed', 'unmapped'].includes(String(input.dataCoverage)))
     || !Array.isArray(input.candidates) || input.candidates.length !== 3) {
     throw new Error('Invalid world observation')
   }
@@ -51,6 +52,7 @@ export function buildJevRequest(input: unknown) {
     distanceToGoalMeters: input.distanceToGoalMeters,
     bearingErrorRadians: input.bearingErrorRadians, grounded: input.grounded,
     speedMetersPerSecond: input.speedMetersPerSecond, candidates,
+    ...(input.dataCoverage !== undefined ? { dataCoverage: input.dataCoverage } : {}),
     ...(finite(input.physicsCenterRayDistanceMeters)
       ? { physicsCenterRayDistanceMeters: input.physicsCenterRayDistanceMeters } : {}),
     ...(typeof input.hazardId === 'string' ? { hazardId: input.hazardId.slice(0, 200) } : {}),
@@ -65,6 +67,7 @@ export function buildJevRequest(input: unknown) {
           + 'Use only the supplied observation. Positive bearingErrorRadians means goal to the right, negative means left. '
           + 'Advance corrects small heading errors; for large errors rotate toward the goal first. '
           + 'Unknown terrain is not traversable. Never advance unless the front is terrainReady and traversable. '
+          + 'When dataCoverage is unmapped, terrainReady refers to authorized simplified ground in this simulation; building data is absent, and clear rays are not real-world clearance guarantees. '
           + 'Do not assume unobserved obstacles are absent. Within 2 meters of the goal, hold. '
           + 'A separate local controller handles immediate collision prevention.',
         criteria,
