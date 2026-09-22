@@ -10,6 +10,8 @@ import {
 import type { Viewer } from 'cesium'
 import type { playerController } from 'cesium-player-controller'
 import type { GeoPoint } from './world-sensor.js'
+import { loadUrbanBuildingMesh } from './urban-building-mesh.js'
+import type { UrbanBuildingMesh } from './urban-building-mesh.js'
 
 export interface UrbanVisualState {
   status: 'loading' | 'ready' | 'partial'
@@ -191,19 +193,8 @@ export async function addUrbanGroundCollider(player: playerController): Promise<
   player.physics.addTerrainTileCollider('plateau-tokyo-ground', mesh.positions, mesh.indices)
 }
 
-interface UrbanCollisionData {
-  schemaVersion: number
-  originEcef: [number, number, number]
-  positions: number[]
-  indices: number[]
-  coverageBbox: [number, number, number, number]
-  counts: { tileCount: number, vertexCount: number, triangleCount: number }
-}
-
-export async function addUrbanBuildingColliders(player: playerController): Promise<UrbanCollisionData['counts']> {
-  const response = await fetch(new URL('./assets/tokyo-colliders.json', import.meta.url))
-  if (!response.ok) throw new Error('城市建筑碰撞数据加载失败')
-  const data = await response.json() as UrbanCollisionData
+export async function addUrbanBuildingColliders(player: playerController, mesh?: UrbanBuildingMesh): Promise<UrbanBuildingMesh['counts']> {
+  const data = mesh ?? await loadUrbanBuildingMesh()
   if (data.schemaVersion !== 1 || data.positions.length % 3 || data.indices.length % 3
     || data.counts.triangleCount < 1 || data.originEcef.length !== 3
     || data.coverageBbox.some((value, index) => value !== URBAN_COLLISION_BOUNDS[index])) {

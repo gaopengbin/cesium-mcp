@@ -1,6 +1,6 @@
 # Cesium × cesium-mcp × Jev 场景实验
 
-本实验让用户在东京丸之内的真实纹理建筑区自由点选起终点，观察橙色 RobotExpressive 人形角色怎样前往目标。几何算法提供路线候选，Jev 选择路线并持续决定短段动作，cesium-mcp Bridge SDK 传递选择与运动意图，Rapier 和本地控制器执行。
+本实验让用户在东京丸之内的真实建筑区自由点选起终点，观察橙色 RobotExpressive 人形角色怎样前往目标。默认显示由 PLATEAU 建筑几何生成的本地无纹理白模，也可切换在线纹理建筑。几何算法提供路线候选，Jev 选择路线并持续决定短段动作，cesium-mcp Bridge SDK 传递选择与运动意图，Rapier 和本地控制器执行。
 
 开发分支：`codex/cesium-jev-demo`。本地新入口：[东京建筑区](http://127.0.0.1:4192/?planner=jev&scene=city)。原 `4186` 演示保留，当前版本尚未部署公网。
 
@@ -18,7 +18,7 @@ rtk npm --prefix experiments/embodied-world-lab ci
 rtk npm --prefix experiments/embodied-world-lab run dev
 ```
 
-页面默认选择 `city` 自由任务场景，并载入约 1.5 公里的任务；用户仍可自行点选 A/B。等待场景、角色和碰撞数据就绪后再开始，加载页面不会自动导航。碰撞 JSON 已随实验保存，首次运行不必重新下载生成。建筑显示、影像和模型接口仍需要联网。密钥由本地 Vite 服务端读取，浏览器通过同源 `/api/jev/route` 请求路线选择、通过 `/api/jev/plan` 请求短段动作；不要将密钥放入前端配置或 Git。模型调用产生 API 用量，纯静态部署不包含服务端代理。
+页面默认选择 `city` 自由任务场景，并载入约 1.5 公里的任务；用户仍可自行点选 A/B。等待场景、角色和碰撞数据就绪后再开始，加载页面不会自动导航。本地白模、导航与碰撞共用随实验保存的 `src/assets/tokyo-buildings.bin`，首次运行不必重新下载生成，也不请求在线建筑纹理瓦片。底图和模型接口仍需要联网。Jev 密钥由本地 Vite 服务端读取，浏览器通过同源 `/api/jev/route` 请求路线选择、通过 `/api/jev/plan` 请求短段动作；不要将 Jev 密钥放入前端配置或 Git。模型调用产生 API 用量，纯静态部署不包含服务端代理。
 
 碰撞数据的准备脚本为 [`scripts/prepare-city-colliders.mjs`](scripts/prepare-city-colliders.mjs)。可先运行不联网、不改输出的坐标变换自测：
 
@@ -27,6 +27,37 @@ rtk npm --prefix experiments/embodied-world-lab run prepare:city -- --self-test
 ```
 
 需要重新生成数据时，运行不带 `--self-test` 的 `prepare:city`。该操作会从固定 PLATEAU 源下载选定叶节点、检查坐标与射线，并覆盖 `src/assets/tokyo-colliders.json`；不是每次启动的必需步骤。
+
+JSON 更新后，再从仓库根目录运行下面的离线转换，生成运行时共用的二进制网格及来源元数据；此步骤不会请求网络，也不会简化或删减建筑三角形：
+
+```powershell
+rtk proxy node experiments/embodied-world-lab/scripts/prepare-city-binary.mjs
+```
+
+## 建筑显示方式
+
+页面的建筑显示选项对应 URL 参数 `buildings`，切换后重新载入所选数据源：
+
+| 参数 | 显示内容 | 导航 |
+| --- | --- | --- |
+| `white`（默认） | 本地 PLATEAU 建筑无纹理白模、Esri 浅灰底图 | 可选点并运行 Jev；显示、导航和碰撞共用几何 |
+| `plateau` | 在线 PLATEAU LOD2 纹理建筑、Esri 影像 | 可选点并运行 Jev；沿用同源本地建筑碰撞网格 |
+| `google` | Google Photorealistic 3D Tiles | **仅浏览，禁用人物导航**；没有对应的导航与碰撞数据 |
+
+**默认白模不是 Google 数据，也不是全球建筑服务。** 它保留东京已准备区域的真实 PLATEAU 建筑形状，省去纹理与远程瓦片层级切换。Google 提供的是实景纹理网格；Cesium OSM Buildings 是另一项全球建筑服务，当前未接入。
+
+Google 浏览模式需要在本地 `.env.local` 配置以下任意一项，并重启 Vite：
+
+```dotenv
+# Google Maps Platform：已启用 Map Tiles API 的受限制浏览器 key
+VITE_GOOGLE_MAPS_API_KEY=
+# 或：已启用 Google Photorealistic 3D Tiles 资产的 Cesium ion token
+VITE_CESIUM_ION_TOKEN=
+```
+
+这些 `VITE_` 变量会进入浏览器，须使用按来源域名和所需 API/资产限制权限的凭据；它们不同于仅由服务端持有的 `TYPESAFE_API_KEY`。不要把真实值提交 Git。Google 直连需要项目启用计费；Ion 路径使用自己的账户及资产权限，不依赖 Cesium 库内置演示 token。配置要求见 [Cesium 官方教程](https://cesium.com/learn/cesiumjs-learn/cesiumjs-photorealistic-3d-tiles/)及 [Google Map Tiles API 使用与计费](https://developers.google.com/maps/documentation/tile/usage-and-billing)。
+
+当前环境未配置这两项凭据，**Google 在线加载尚未验证**。未配置时选择项显示“需配置”；直接打开 `buildings=google` 会明确提示并显示本地白模，不伪称已加载 Google。配置 Google 后只开放浏览，不把东京 PLATEAU 碰撞网格套用到另一份实景数据上。Google 标识与数据署名须保持可见。
 
 ## 自由选择任务
 
@@ -69,20 +100,26 @@ rtk npm --prefix experiments/embodied-world-lab run prepare:city -- --self-test
 
 ## 城市场景与数据边界
 
-默认城市位于东京站西侧的丸之内街区，建筑来自 **国土交通省 Project PLATEAU 千代田区 2025 年度带纹理 LOD2 3D Tiles**。已纳入版本控制的 [`src/assets/tokyo-colliders.json`](src/assets/tokyo-colliders.json) 保存源地址、瓦片哈希、建筑标识、坐标编码与验证记录；生成过程见[准备脚本](scripts/prepare-city-colliders.mjs)。这是真实城市建筑数据，不是随机生成的楼群。
+默认城市位于东京站西侧的丸之内街区，建筑几何来自 **国土交通省 Project PLATEAU 千代田区 2025 年度带纹理 LOD2 3D Tiles**；默认白模去掉纹理，不替换建筑形状。已纳入版本控制的 [`src/assets/tokyo-colliders.json`](src/assets/tokyo-colliders.json) 保存源地址、瓦片哈希、建筑标识、坐标编码与验证记录；源数据生成过程见[准备脚本](scripts/prepare-city-colliders.mjs)。这是真实城市建筑数据，不是随机生成的楼群。
 
-渲染建筑不会自动成为 Rapier 碰撞体。本实验已从同源 **64 个最高细节源瓦片、879 个唯一源建筑标识**提取并保留 **317,525 个三角形**作为碰撞网格，JSON 约 **29.79 MB**，gzip 约 **6.09 MB**。转换保留源建筑几何，省去纹理与材质，应用源坐标变换后存为局部 ECEF 偏移；没有使用 OSM footprint 拉伸或建筑高程偏移。坐标变换、源包围区域和射线检查已通过；路线几何检查与模型实际执行轨迹的审计分别记录。
+渲染建筑不会自动成为 Rapier 碰撞体。本实验已从同源 **64 个最高细节源瓦片、879 个唯一源建筑标识**提取并保留 **317,525 个三角形**。原始碰撞 JSON 为 **29,790,254 字节**；当前运行时二进制网格为 **5,861,120 字节**，约减少 **80.3%**，包含文件头与来源元数据。这是文件体积对比，不是加载时间或帧率测量。白模显示、导航和碰撞共用该二进制网格，原 JSON 保留为可追溯来源与审计输入。
+
+[`scripts/prepare-city-binary.mjs`](scripts/prepare-city-binary.mjs) 仅合并完全相同的源顶点，将 **952,575** 个顶点记录去重为 **170,759** 个，再编码为 Float32 局部 ECEF 偏移与 Uint32 索引；三角形数量、顺序及绕序保留。相对于原 JSON，Float32 最大单坐标误差约 **0.00006055 米**。二进制哈希、源 JSON 哈希与处理说明见 [`src/assets/tokyo-buildings.meta.json`](src/assets/tokyo-buildings.meta.json)。没有使用 OSM footprint 拉伸、几何简化或建筑高程偏移。源转换的坐标变换、包围区域和射线检查已有记录；路线几何检查与模型实际执行轨迹的审计分别记录。
 
 碰撞覆盖范围为 **`[139.758, 35.676, 139.7678, 35.692]`**，约东西 0.89 公里、南北 1.78 公里，总计约 **1.6 平方公里**。与该范围相交的叶节点保留完整几何，范围之外不保证覆盖完整。源碰撞数据仅包含建筑，不将建筑底面当成真实道路表面。
 
 城市地面明确采用 **38 米恒定椭球高的全区地面网格近似**，碰撞地面与显示地面使用同一高度基准，仍不是实测道路地形。东京附近 ArcGIS 高程样本约为 2.9 米，但服务声明使用正高；其基准与建筑数据存在差异，不能将该数值静默当作椭球高。建筑 mesh 不做高程偏移。角色按此地面放置，这不代表真实道路坡度或测量精度。
 
-建筑显示当前使用 `maximumScreenSpaceError: 16`，关闭移动期间的请求裁剪和 foveated 加载延迟，缓存预算设为 **1 GiB + 256 MiB 溢出额度**。此前该街区调试中 512 MiB 缓存不足，因此提高了预算；当前运行仍观察到瓦片卸载，不能称为零卸载或完全稳定。这些设置是当前本地演示的取舍，不代表手机内存占用或任意设备性能保证。
+默认白模用本地 Cesium 几何显示，不请求 PLATEAU 纹理瓦片，也没有该纹理瓦片的 LOD 加载与逐出过程。选择 `plateau` 时，在线建筑仍使用 `maximumScreenSpaceError: 16`，关闭移动期间的请求裁剪和 foveated 加载延迟，缓存预算为 **1 GiB + 256 MiB 溢出额度**。此前纹理版本调试中 512 MiB 缓存不足，提高预算后仍观察到瓦片卸载；下方历史结果只适用于当时纹理版本，不能作为白模性能结果，也不代表手机内存占用或任意设备性能保证。
+
+白模底图使用 **Esri World Light Gray Base**，保留服务署名 `Esri, HERE, Garmin, (c) OpenStreetMap contributors, and the GIS user community`。该服务元数据列出的最高层级不等于每处实际覆盖；东京范围的瓦片可用性元数据显示 16 级有数据、17 级及以上样本无数据，因此当前底图明确限制 **`maximumLevel: 16`**。这是简洁背景，近距离道路细节有限；[官方服务元数据](https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer?f=pjson)提供来源与服务说明。
 
 | 数据或组件 | 来源及作用 |
 | --- | --- |
-| 城市纹理建筑 | PLATEAU / 国土交通省，千代田区 2025；用于建筑显示与同源碰撞数据处理 |
-| 底图影像 | Esri World Imagery，仅用于显示，不传给 Jev 作为视觉证据 |
+| 默认城市白模与可选纹理建筑 | PLATEAU / 国土交通省，千代田区 2025；白模去纹理并使用同源几何，保留独立处理说明 |
+| 白模底图 | Esri World Light Gray Base；东京限制至 16 级，保留 Esri、HERE、Garmin、OpenStreetMap 与 GIS 社区署名 |
+| 可选实景浏览 | Google Photorealistic 3D Tiles；需配置访问凭据，尚未在线验证，不开放人物导航 |
+| 纹理场景底图影像 | Esri World Imagery，仅用于显示，不传给 Jev 作为视觉证据 |
 | 旧山地场景高程 | ArcGIS World Elevation，用于旧山地预设；不作为城市恒高地面网格的测量来源 |
 | 当前城市角色 | Three.js 官方示例中的 RobotExpressive：Tomás Laulhé（Quaternius）建模、Don McCurdy 修改，CC0；使用橙色材质和具名步行动画，见 [模型许可](src/assets/RobotExpressive.LICENSE.md) |
 | 保留的 Fox 资产 | Khronos glTF Sample Assets 的未修改资产；作者与许可见 [第三方归属](public/THIRD_PARTY_NOTICES.md) 和 [Fox 许可](src/assets/Fox.LICENSE.md) |
@@ -109,7 +146,19 @@ Jev 接收候选路线摘要，以及目标距离、方位差、接地状态、�
 
 历史滑块查看已记录的位置与观测，不调用模型，也不移动当前活角色；它不是重新执行物理模拟。运行记录通过“查看记录”打开只读 JSON，可全选后手动复制，无需浏览器下载或自动剪贴板支持。
 
-## 当前验证记录
+## 2026-09-22 白模与界面验收
+
+界面按 Google Workspace 的白底蓝色工作台风格重做，使用系统字体；主区域保留 A/B、选点、速度、镜头和固定开始/停止操作。场景设置、预设路线、决策详情、日志回放和其他实验默认折叠。浏览器已检查 1280、1024 与 390 像素宽度，无横向溢出；原生下拉框、折叠组、蓝色键盘焦点、记录弹窗与回放操作正常。PLATEAU 实景和白模双向切换保留原始起终点，Google 无凭据时禁用选项。
+
+白模页面实际只请求一次 **5,861,120 字节**建筑二进制，没有请求旧碰撞 JSON 或 PLATEAU 远程建筑纹理。类型检查、生产构建及 **22 个测试文件、216 项测试**通过；构建产物不包含旧 29.79 MB JSON。
+
+相同用户点对 `139.761788,35.676708` → `139.766056,35.683870` 在白模模式下完成真实 **jev-1.13.0** 导航：12 米/秒上限，31 次响应全部接受，实际行程 **942.707 米**，位置记录跨度 **97.611 秒**，最终距目标 **2.426 米**并停止。导航网格与碰撞几何没有因显示改版而放宽安全距离。见[完整记录](../../artifacts/jev-white-user-route-run.json)及[到达画面](../../artifacts/jev-white-arrived.png)。
+
+[原始建筑网格审计](../../artifacts/jev-white-user-route-audit.json)将 1,628 个位置记录插值为 4,152 个样本，记录轨迹与建筑三角形 **0 次相交**，保守身体表面净距下界 **2.121 米**。最大记录间隔 69.9 毫秒。结论仅覆盖这次记录的插值轨迹，未做帧率基准测试；Google 在线加载仍未验证。
+
+## 历史记录：1 米导航网格修复（纹理版本）
+
+以下路线、模型运行、测试与截图记录来自此次白模和界面调整之前的纹理版本。保留为可复查的历史证据，不作为新显示方式、Google 接入或新界面的验收结果。
 
 用户反馈的起点 `139.761788,35.676708` 与终点 `139.766056,35.683870` 在旧 2 米网格中都有效，却被分到不同连通区，导致直接拒绝搜索。保守投影与整格膨胀的离散误差封闭了可通行出口。改为 **1 米网格、仍保留 2 米安全净距**后，原样坐标得到 **951.281 米、11 个拐点**的 `detour`；候选每段均通过独立原始建筑三角网求交检查。对比结果、网格哈希与候选坐标见 [网格回归记录](../../artifacts/jev-user-route-grid-fix.json)。
 

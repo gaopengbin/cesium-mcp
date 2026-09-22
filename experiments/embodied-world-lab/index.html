@@ -3,136 +3,135 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#061015">
-    <title>Cesium × cesium-mcp × Jev · 世界感知实验</title>
+    <meta name="theme-color" content="#ffffff">
+    <title>Cesium × Jev · 城市漫游</title>
   </head>
   <body>
     <main class="world-shell">
       <section class="map-stage" aria-label="Cesium 三维自主导航场景">
         <div id="cesiumContainer"></div>
         <header class="map-header">
-          <div class="brand">
-            <span class="brand-mark" aria-hidden="true">CJ</span>
-            <div><strong>Cesium × cesium-mcp × Jev</strong><small>WORLD PERCEPTION LAB</small></div>
-          </div>
-          <span id="worldStatus" class="world-status" data-state="loading"><i></i><span>加载三维场景</span></span>
+          <div class="brand"><strong>Cesium <span>×</span> Jev</strong><small>由 cesium-mcp 驱动</small></div>
+          <span id="worldStatus" class="world-status" data-state="loading"><i aria-hidden="true"></i><span>加载三维场景</span></span>
         </header>
         <div id="mapPickHint" class="map-pick-hint" role="status" hidden>
-          <span id="mapPickText">点击地面设置起点</span>
-          <button id="cancelMapPick" type="button">取消选点</button>
+          <span id="mapPickText">点击地面设置起点</span><button id="cancelMapPick" type="button">取消选点</button>
         </div>
         <section class="map-evidence" aria-live="polite">
-          <span id="phaseLabel">BOOT</span>
-          <strong id="phaseTitle">正在建立执行器与局部世界</strong>
-          <p id="phaseDetail">AI 尚未开始移动。</p>
+          <div class="map-progress"><span id="phaseLabel">BOOT</span><span id="distanceMetric">目标距离 --</span></div>
+          <strong id="phaseTitle">正在准备城市</strong>
+          <p id="phaseDetail">选一段路线，看 Jev 如何行动。</p>
         </section>
         <footer class="map-footer">
-          <a id="foxCredits" class="asset-credit" target="_blank" rel="noreferrer">Fox asset credits</a>
-          <span id="sceneCredit">ArcGIS World Elevation · Esri Imagery</span>
-          <span id="distanceMetric">目标距离 --</span>
+          <a id="foxCredits" class="asset-credit" target="_blank" rel="noreferrer">人物模型来源</a>
+          <span id="sceneCredit">Esri Imagery</span>
         </footer>
       </section>
-      <aside class="agent-chat" aria-label="场景任务与决策记录">
-        <header>
-          <div><span>SCENE → BRIDGE → JEV → ACT</span><strong>在三维世界中连续感知与行动</strong></div>
-          <span id="modelStatus" class="model-status">JEV · 等待就绪</span>
+      <aside class="agent-chat" aria-label="城市漫游控制台">
+        <header class="panel-heading">
+          <div><span class="eyebrow">城市漫游</span><h1>下一站，去哪里？</h1></div>
+          <span id="modelStatus" class="model-status">Jev · 等待就绪</span>
         </header>
         <div class="agent-content">
           <section id="urbanMissionEditor" class="mission-editor" aria-label="自定义城市任务" hidden>
-            <header><strong>自己选一条路</strong><span>东京 · 大范围探索</span></header>
-            <p>在地图上选择起终点，让 Jev 尝试你设定的任务。</p>
-            <button id="pickMission" class="mission-primary" type="button">在地图上依次选起点和终点</button>
+            <p class="section-intro">在地图上选起点和终点，交给 Jev 带路。</p>
             <div class="mission-points">
-              <button id="pickStart" type="button" aria-label="修改起点"><b>A · 起点</b><span id="startCoordinates">加载中…</span></button>
-              <button id="pickGoal" type="button" aria-label="修改终点"><b>B · 终点</b><span id="goalCoordinates">加载中…</span></button>
+              <button id="pickStart" type="button" aria-label="修改起点"><b><span class="point-letter">A</span> 起点</b><span id="startCoordinates">加载中…</span></button>
+              <button id="pickGoal" type="button" aria-label="修改终点"><b><span class="point-letter">B</span> 终点</b><span id="goalCoordinates">加载中…</span></button>
             </div>
-            <p id="missionStatus" class="mission-status" role="status">正在检查已加载的街区。</p>
-            <div class="control-actions">
-              <button id="districtView" type="button">街区全景</button>
+            <div class="mission-edit-actions">
+              <button id="pickMission" class="mission-primary" type="button">地图选点</button>
               <button id="swapMission" type="button">交换起终点</button>
               <button id="resetMission" type="button">回到起点</button>
             </div>
+            <p id="missionStatus" class="mission-status" role="status">正在检查街区。</p>
             <div class="field-row mission-view-settings">
-              <label>行走速度<select id="citySpeed"><option value="3">慢速 · 3 m/s</option><option value="8" selected>快速 · 8 m/s</option><option value="12">长途 · 12 m/s</option></select></label>
-              <label>跟随镜头高度<select id="cityCameraHeight"><option value="35">近景 · 35 m</option><option value="70" selected>街景 · 70 m</option><option value="120">远景 · 120 m</option></select></label>
+              <label for="citySpeed">行走速度<select id="citySpeed"><option value="3">慢速 · 3 m/s</option><option value="8" selected>快速 · 8 m/s</option><option value="12">长途 · 12 m/s</option></select></label>
+              <label for="cityCameraHeight">镜头高度<select id="cityCameraHeight"><option value="35">近景 · 35 m</option><option value="70" selected>街景 · 70 m</option><option value="120">远景 · 120 m</option></select></label>
             </div>
-            <small>转弯与接近终点时自动减速；高位镜头遇到建筑遮挡时调整机位。</small>
-            <details class="mission-examples"><summary>示例任务与链接</summary>
+          </section>
+          <details class="panel-details scene-display"><summary>场景与显示</summary>
+            <div class="details-body">
+              <label class="source-field" for="cityBuildingSource">建筑显示<select id="cityBuildingSource"><option value="white" selected>轻量白模</option><option value="plateau">实景建筑</option><option value="google">Google 3D</option></select></label>
+              <p id="citySourceNote" class="scope-note">选择建筑显示方式。</p>
+              <div class="control-actions"><button id="districtView" type="button">街区全景</button></div>
+              <p class="scope-note">转弯与到点时自动减速。跟随镜头会避开建筑遮挡。</p>
+              <p id="cityCoverage" class="scope-note">正在加载可行走范围。</p>
+            </div>
+          </details>
+          <details class="panel-details mission-examples"><summary>试试其他路线</summary>
+            <div class="details-body">
               <div class="control-actions">
                 <button id="restoreMission" type="button">单楼绕行</button>
                 <button id="crossDistrictMission" type="button" hidden>穿越街区</button>
                 <button id="longMission" type="button">1.5 公里长途</button>
                 <button id="shareMission" type="button">生成任务链接</button>
               </div>
-              <label id="missionLinkField" class="mission-link" hidden>复制地址可恢复这组起终点
-                <input id="missionLink" aria-label="当前任务链接" type="text" readonly />
-              </label>
-            </details>
-            <small id="cityCoverage">正在加载城市碰撞覆盖范围。地图可拖动平移、滚轮缩放。</small>
-          </section>
-          <details id="otherScenarios" class="other-scenarios"><summary>其他实验场景</summary>
-          <section class="scenario-controls" aria-label="选择场景">
-            <div class="field-row">
-              <label>场景<select id="sceneSelect"></select></label>
-              <label>种子<input id="sceneSeed" type="number" min="1" max="999999" step="1"></label>
+              <label id="missionLinkField" class="mission-link" hidden>复制地址可恢复这组起终点<input id="missionLink" aria-label="当前任务链接" type="text" readonly></label>
             </div>
-            <p id="sceneDescription"></p>
-            <div class="control-actions">
-              <button id="applyScene" type="button">应用场景</button>
-              <button id="randomScene" type="button">随机一个</button>
-              <button id="shareScene" type="button">复制场景链接</button>
-            </div>
-            <small id="sceneScope">城市使用真实纹理建筑；街道路面为局部近似。</small>
-          </section>
           </details>
-          <section class="execution-panel" aria-label="执行通道">
-            <div id="urbanRoutePanel" class="route-panel">
-              <strong id="routeDecision">直线被建筑阻挡，等待 Jev 选择</strong>
-              <p id="routeOptions">正在检查左右绕行空间…</p>
-              <small>红虚线：受阻直达方向 · 彩线：候选路线 · 绿线：选定路线。建筑几何生成候选，Jev 选择路线和后续动作。</small>
+          <details class="panel-details execution-panel"><summary>路线与模型决策</summary>
+            <div class="details-body">
+              <div id="urbanRoutePanel" class="route-panel">
+                <strong id="routeDecision">等待 Jev 选择路线</strong>
+                <p id="routeOptions">正在检查绕行空间…</p>
+                <p class="scope-note">红虚线表示受阻方向，彩线是候选路线，绿线为选定路线。Jev 从建筑几何生成的候选中选择路线，并持续决定动作。</p>
+              </div>
+              <div class="execution-stats"><span id="bridgeStatus">Bridge 初始化中</span><span>已接受决策 <b id="decisionCount">0</b></span></div>
+              <details class="technical-details">
+                <summary>cesium-mcp 调用记录</summary>
+                <p class="scope-note">通过 Bridge SDK 执行；独立 MCP stdio/HTTP 传输尚未接入。</p>
+                <ol id="bridgeCalls" class="bridge-calls"><li>开始导航后显示实际调用。</li></ol>
+              </details>
+              <div class="runtime-meta"><span id="loopStatus">SENSE → PLAN → ACT</span><span id="revisionStatus">WORLD r0</span></div>
             </div>
-            <div class="execution-stats"><span id="bridgeStatus">Bridge 初始化中</span><span>已接受决策 <b id="decisionCount">0</b></span></div>
-            <details>
-              <summary>查看 cesium-mcp 调用记录</summary>
-              <p class="scope-note">当前通过 Bridge SDK 执行工具；独立 MCP stdio/HTTP 传输尚未接入。</p>
-              <ol id="bridgeCalls" class="bridge-calls"><li>开始导航后显示实际调用。</li></ol>
-            </details>
-          </section>
-          <div id="chatMessages" class="chat-messages" role="log" aria-live="polite">
-            <article class="message assistant"><p>Jev 读取角色周边的地形、方向和通行信息，选择短时动作。Cesium 呈现场景，cesium-mcp Bridge 提交动作，本地安全循环负责及时制动。</p></article>
+          </details>
+          <details class="panel-details"><summary>导航记录与回放</summary>
+            <div class="details-body">
+              <section class="replay-controls" aria-label="历史轨迹回放">
+                <div class="execution-stats"><label for="replaySlider">历史位置</label><button id="exportTrace" type="button">查看记录</button></div>
+                <input id="replaySlider" type="range" min="0" max="0" value="0" disabled>
+                <small id="replayStatus">停止导航后，拖动滑块查看历史位置。</small>
+                <button id="exitReplay" type="button" hidden>退出回放</button>
+              </section>
+              <div id="chatMessages" class="chat-messages" role="log" aria-live="polite">
+                <article class="message assistant"><p>Jev 读取周边地形、方向与通行信息，选择下一步动作。Cesium 呈现场景，cesium-mcp Bridge 提交动作，本地安全循环及时制动。</p></article>
+              </div>
+            </div>
+          </details>
+          <details class="panel-details command-details"><summary>场景指令</summary>
+            <form id="chatForm" class="composer">
+              <label class="sr-only" for="chatInput">输入场景任务</label>
+              <textarea id="chatInput" rows="2" maxlength="500" placeholder="例如：查看场景、记录现场"></textarea>
+              <button id="sendButton" type="submit" aria-label="发送任务"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 15-7-4.7 14-3-5.2L4 12Z"/><path d="m11.3 13.8 3.5-3.4"/></svg></button>
+            </form>
+          </details>
+          <details id="otherScenarios" class="panel-details other-scenarios"><summary>其他实验场景</summary>
+            <section class="details-body scenario-controls" aria-label="选择场景">
+              <div class="field-row">
+                <label for="sceneSelect">场景<select id="sceneSelect"></select></label>
+                <label for="sceneSeed">种子<input id="sceneSeed" type="number" min="1" max="999999" step="1"></label>
+              </div>
+              <p id="sceneDescription"></p>
+              <div class="control-actions"><button id="applyScene" type="button">应用场景</button><button id="randomScene" type="button">随机一个</button><button id="shareScene" type="button">复制场景链接</button></div>
+              <small id="sceneScope">城市街道路面为局部近似。</small>
+            </section>
+          </details>
+        </div>
+        <footer class="navigation-dock">
+          <div class="suggestions" aria-label="快捷任务">
+            <button type="button" data-command="start">开始导航</button><button type="button" data-command="stop">停止</button><button type="button" data-command="view">切换视角</button>
           </div>
-          <section class="replay-controls" aria-label="历史轨迹回放">
-            <div class="execution-stats"><label for="replaySlider">历史位置回放</label><button id="exportTrace" type="button">查看记录</button></div>
-            <input id="replaySlider" type="range" min="0" max="0" value="0" disabled>
-            <small id="replayStatus">停止导航后，拖动滑块查看历史位置。</small>
-            <button id="exitReplay" type="button" hidden>退出回放</button>
-          </section>
-        </div>
-        <div class="suggestions" aria-label="快捷任务">
-          <button type="button" data-command="start">开始导航</button>
-          <button type="button" data-command="view">切换视角</button>
-          <button type="button" data-command="stop">停止任务</button>
-        </div>
-        <form id="chatForm" class="composer">
-          <label class="sr-only" for="chatInput">输入场景任务</label>
-          <textarea id="chatInput" rows="1" maxlength="500" placeholder="场景指令：开始、停止、查看场景"></textarea>
-          <button id="sendButton" type="submit" aria-label="发送任务"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 15-7-4.7 14-3-5.2L4 12Z"/><path d="m11.3 13.8 3.5-3.4"/></svg></button>
-        </form>
-        <footer><span id="loopStatus">SENSE → PLAN → ACT</span><span id="revisionStatus">WORLD r0</span></footer>
+          <p>选好路线，即可开始探索。</p>
+        </footer>
       </aside>
     </main>
     <dialog id="traceDialog" class="trace-dialog" aria-labelledby="traceDialogTitle" aria-describedby="traceDialogDescription">
-      <header>
-        <h2 id="traceDialogTitle">本次导航记录</h2>
-        <button id="closeTraceDialog" type="button" autofocus>关闭</button>
-      </header>
+      <header><h2 id="traceDialogTitle">本次导航记录</h2><button id="closeTraceDialog" type="button" autofocus>关闭</button></header>
       <p id="traceDialogDescription">这是打开时的完整记录快照。查看和全选不会再次执行动作或调用模型。</p>
       <label class="sr-only" for="traceJson">完整 JSON 记录</label>
       <textarea id="traceJson" readonly spellcheck="false" wrap="off"></textarea>
-      <footer>
-        <p>点击全选后按 Ctrl+C 复制；手机上可长按文本复制。</p>
-        <button id="selectTraceJson" type="button">全选</button>
-      </footer>
+      <footer><p>全选后按 Ctrl+C 复制；手机上可长按文本复制。</p><button id="selectTraceJson" type="button">全选</button></footer>
     </dialog>
     <script type="module" src="/src/main.ts"></script>
   </body>

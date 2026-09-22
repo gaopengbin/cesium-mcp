@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "byteOrder": "little-endian",
+  "coordinateEncoding": "Float32 ECEF offsets in metres; add originEcef. Identical source vertices deduplicated; triangle order and winding retained.",
+  "originEcef": [
+    -3959562.0348938904,
+    3350267.216373901,
+    3699520.9331055703
+  ],
+  "coverageBbox": [
+    139.758,
+    35.676,
+    139.7678,
+    35.692
+  ],
+  "counts": {
+    "tileCount": 64,
+    "vertexCount": 170759,
+    "sourceVertexCount": 952575,
+    "triangleCount": 317525,
+    "uniqueBuildingIdCount": 879
+  },
+  "source": {
+    "name": "PLATEAU Chiyoda 2025 LOD2 textured building meshes",
+    "tilesetUrl": "https://assets.cms.plateau.reearth.io/assets/28/07d0a1-b6be-46ef-bd87-4f0683b5ef6e/13101_chiyoda-ku_pref_2025_citygml_1_op_bldg_3dtiles_13101_chiyoda-ku_lod2/tileset.json",
+    "tilesetSha256": "8f6f92f7b1883e60d2e3a468b6e894ac3ccd494f8da59d9cfb4b07d2bf0eff08",
+    "attribution": "出典：国土交通省 Project PLATEAU（千代田区・2025年度）",
+    "policyUrl": "https://www.mlit.go.jp/plateau/site-policy/",
+    "modification": "Original highest-detail building triangles decoded for collision; textures/materials omitted, RTC and transforms applied, vertices stored in a local ECEF frame. No footprint extrusion or height shift. Identical vertices deduplicated and positions encoded as Float32 for shared rendering, collision and navigation. White rendering omits source textures.",
+    "licenseBasis": "PLATEAU general PDL1.0 terms and compatible CC BY 4.0 permission, unless separate resource rights apply.",
+    "heightDatum": "Original source WGS84 ECEF positions are retained. Any 38 m local walking plane is a separate application approximation.",
+    "originalJsonSha256": "1b44861fd22078b49cf7280fc4667c04a024c0e3e72d551a298ef4fe7ca9f17f",
+    "maxCoordinateErrorMeters": 0.000060546874919964466
+  },
+  "byteLength": 5861120,
+  "binarySha256": "9c46c76a2fd7e7b90e06142b827785d0bc73813597e3388977bfbc720da3e434"
+}

@@ -59,8 +59,11 @@ import {
   SCENARIO_PRESETS,
 } from './scenario.js'
 import type { ScenarioPreset } from './scenario.js'
-import { addUrbanBuildingColliders, addUrbanGroundCollider, createUrbanGround, createUrbanScenario, insideUrbanCoverage, loadUrbanBuildings, URBAN_COLLISION_BOUNDS, URBAN_GROUND_HEIGHT, URBAN_METADATA } from './urban-scene.js'
+import { addUrbanBuildingColliders, addUrbanGroundCollider, createUrbanGround, createUrbanScenario, insideUrbanCoverage, URBAN_COLLISION_BOUNDS, URBAN_GROUND_HEIGHT, URBAN_METADATA } from './urban-scene.js'
 import type { UrbanVisualState } from './urban-scene.js'
+import { loadUrbanBuildingMesh } from './urban-building-mesh.js'
+import { GRAY_BASEMAP_CREDIT, GRAY_BASEMAP_URL, loadUrbanBuildingLayer, resolveUrbanBuildingSource, URBAN_SOURCE_LABELS } from './urban-building-source.js'
+import { URBAN_WHITE_BUILDINGS_ID } from './urban-white-buildings.js'
 import { createMovementContinuity } from './movement-continuity.js'
 import { createUrbanNavigation } from './urban-navigation.js'
 import type { UrbanRouteCandidate } from './urban-navigation.js'
@@ -87,6 +90,11 @@ const displayScenarios = [URBAN_METADATA, ...SCENARIO_PRESETS]
 const selectedPreset = displayScenarios.some(item => item.id === sceneQuery.get('scene'))
   ? sceneQuery.get('scene') as ScenarioPreset | 'city' : 'city'
 const isUrban = selectedPreset === 'city'
+const buildingCredentials = {
+  googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+  cesiumIonToken: import.meta.env.VITE_CESIUM_ION_TOKEN,
+}
+const buildingChoice = resolveUrbanBuildingSource(sceneQuery.get('buildings'), buildingCredentials)
 const useJev = isUrban || sceneQuery.get('planner') !== 'hosted'
 const selectedSeed = Math.max(1, Math.min(999999, Number(sceneQuery.get('seed')) || 260921)) | 0
 const scenario = isUrban ? createUrbanScenario(selectedSeed) : createScenario(selectedPreset as ScenarioPreset, selectedSeed)
@@ -205,11 +213,11 @@ void bootstrap().catch((error: unknown) => {
 })
 
 async function bootstrap(): Promise<void> {
-  setPhase('BOOT', '正在加载真实地形', '慢速网络工作只发生在启动阶段，不进入控制快循环。')
+  setPhase('BOOT', '正在准备场景', '加载完成后即可选择路线。')
   const baseLayer = new ImageryLayer(new UrlTemplateImageryProvider({
-    url: ESRI_WORLD_IMAGERY_URL,
-    maximumLevel: 18,
-    credit: 'Esri World Imagery',
+    url: isUrban && buildingChoice.source === 'white' ? GRAY_BASEMAP_URL : ESRI_WORLD_IMAGERY_URL,
+    maximumLevel: isUrban && buildingChoice.source === 'white' ? 16 : 18,
+    credit: isUrban && buildingChoice.source === 'white' ? GRAY_BASEMAP_CREDIT : 'Esri World Imagery',
   }))
   viewer = new Viewer('cesiumContainer', {
     baseLayer,
@@ -224,21 +232,22 @@ async function bootstrap(): Promise<void> {
     selectionIndicator: false,
     infoBox: false,
   })
-  viewer.scene.globe.baseColor = Color.fromCssColorString('#0a2528')
-  viewer.scene.backgroundColor = Color.fromCssColorString('#02090c')
+  viewer.scene.globe.baseColor = Color.fromCssColorString('#e8eaed')
+  viewer.scene.backgroundColor = Color.fromCssColorString('#f1f3f4')
   viewer.scene.globe.depthTestAgainstTerrain = true
   viewer.scene.screenSpaceCameraController.enableCollisionDetection = true
 
   let terrainProvider: TerrainProvider
   let terrainDegraded = false
   if (isUrban) {
-    terrainProvider = createUrbanGround()
+    terrainProvider = buildingChoice.source === 'google' ? new EllipsoidTerrainProvider() : createUrbanGround()
     viewer.scene.terrainProvider = terrainProvider
     terrainField = { heightAt: () => URBAN_GROUND_HEIGHT }
-    setPhase('CITY', '正在加载东京实景建筑', 'PLATEAU 2025 带纹理三维建筑；街道路面使用局部平面近似。')
-    await loadUrbanBuildings(viewer, recordUrbanVisualState, cleanup => { removeUrbanVisualWatcher = cleanup })
-    setPhase('BUILDING MAP', '正在读取楼体与可通行空间', '起终点之间有真实建筑阻挡，先建立左右候选走廊。')
-    const mesh = await fetch(new URL('./assets/tokyo-colliders.json', import.meta.url)).then(response => response.json())
+    setPhase('CITY', `正在加载${URBAN_SOURCE_LABELS[buildingChoice.source]}`, '建筑与路线准备中。')
+    const mesh = await loadUrbanBuildingMesh()
+    removeUrbanVisualWatcher = await loadUrbanBuildingLayer(viewer, mesh, buildingChoice.source, buildingCredentials, recordUrbanVisualState)
+    if (buildingChoice.source === 'google') viewer.scene.globe.show = false
+    setPhase('BUILDING MAP', '正在准备可行走区域', '首次进入需要几秒钟。')
     urbanNavigation = createUrbanNavigation(mesh)
     Object.assign(NAMCHE_START, CITY_LONG_MISSION.start)
     Object.assign(NAMCHE_GOAL, CITY_LONG_MISSION.goal)
@@ -363,6 +372,7 @@ async function bootstrap(): Promise<void> {
     urbanCollisionCounts = await addUrbanBuildingColliders(player)
     const actorModel = player.getPlayerModel()
     if (actorModel) {
+      actorModel.show = buildingChoice.navigationAvailable
       actorModel.scale = 2
       actorModel.minimumPixelSize = 110
       actorModel.maximumScale = 5
@@ -453,10 +463,10 @@ async function bootstrap(): Promise<void> {
   }
   if (isUrban) foxCredits.textContent = '人物及地图来源'
   element('bridgeStatus').textContent = 'Bridge 已连接'
-  if (urbanCollisionCounts) appendMessage('event', `建筑碰撞已加载：${urbanCollisionCounts.tileCount} 个真实建筑数据块，${urbanCollisionCounts.triangleCount.toLocaleString()} 个三角面。`)
+  if (urbanCollisionCounts) appendMessage('event', `建筑碰撞已加载：${urbanCollisionCounts.tileCount} 个源数据块，${urbanCollisionCounts.triangleCount.toLocaleString()} 个三角面。${buildingChoice.source === 'white' ? '白模与碰撞共用同一份本地几何，不请求远程纹理瓦片。' : ''}`)
   setWorldStatus(terrainDegraded ? 'degraded' : 'ready', terrainDegraded
     ? '椭球地面 · 可演示'
-    : isUrban ? '城市碰撞 · 已就绪' : '真实地形 · 已就绪')
+    : isUrban ? '场景已就绪' : '真实地形 · 已就绪')
   setPhase(
     missionError ? 'CHECK ROUTE' : 'READY',
     missionError ? '起终点已保留，路线尚未确认' : `${scenario.title} · 已就绪`,
@@ -468,8 +478,12 @@ async function bootstrap(): Promise<void> {
   )
   appendMessage(
     'event',
-    isUrban ? '场景来源：PLATEAU 2025 东京千代田区实景纹理建筑。街道路面使用 38m 椭球高的局部平面近似，未模拟交通流与其他行人。' : '实验边界：落石区是可重复评测 fixture；地形高度与角色坐标系 Rapier 扇形射线来自正在运行的场景。',
+    isUrban ? buildingChoice.source === 'google'
+      ? 'Google 实景为独立浏览源；未将 PLATEAU 碰撞当作 Google 建筑的碰撞，当前不开放导航。'
+      : `场景来源：PLATEAU 2025 东京千代田区${buildingChoice.source === 'white' ? '本地无纹理白模' : '实景纹理建筑'}。街道路面使用 38m 椭球高近似，未模拟交通流与其他行人。`
+      : '实验边界：落石区是可重复评测 fixture；地形高度与角色坐标系 Rapier 扇形射线来自正在运行的场景。',
   )
+  if (isUrban && buildingChoice.notice) appendMessage('event', buildingChoice.notice)
   exposeDebugApi()
 }
 
@@ -822,6 +836,7 @@ function drawUrbanRoutes(start = NAMCHE_START): void {
     delete routeEntities[id]
   }
   viewer.entities.removeById('blocked-direct-route')
+  if (!buildingChoice.navigationAvailable) return
   viewer.entities.add({
     id: 'blocked-direct-route',
     polyline: {
@@ -930,7 +945,7 @@ function setNativeMapControl(enabled: boolean): void {
   control.enableTilt = enabled
   control.enableLook = enabled
   control.minimumZoomDistance = 45
-  control.maximumZoomDistance = 15_000
+  control.maximumZoomDistance = buildingChoice.source === 'google' ? 40_000_000 : 15_000
 }
 
 function frameUrbanMap(district: boolean): void {
@@ -970,14 +985,17 @@ function updatePickUi(): void {
   const status = element('missionStatus')
   status.textContent = pendingPair
     ? mapPickMode === 'start' ? '请依次选择起点和终点，选完后检查路线。' : '起点已设置，请选择终点，选完后检查路线。'
-    : missionError || `直线 ${Math.round(distanceMeters(NAMCHE_START, NAMCHE_GOAL))}m · ${urbanCandidates.length} 条可行候选 · 尚未调用 Jev`
+    : missionError || `直线 ${Math.round(distanceMeters(NAMCHE_START, NAMCHE_GOAL))} m · 路线已就绪`
   status.dataset.error = String(!pendingPair && !!missionError)
   if (viewer) viewer.canvas.style.cursor = mapPickMode ? 'crosshair' : ''
   document.querySelectorAll<HTMLButtonElement>('[data-command="start"]').forEach(button => { button.disabled = !!mapPickMode || !!missionError || !ready })
+  for (const id of ['pickStart', 'pickGoal', 'pickMission', 'swapMission', 'resetMission', 'restoreMission', 'crossDistrictMission', 'longMission', 'citySpeed', 'cityCameraHeight']) {
+    element<HTMLButtonElement | HTMLSelectElement>(id).disabled = !buildingChoice.navigationAvailable || !ready
+  }
 }
 
 function beginMapPick(mode: 'start' | 'goal', pair = false): void {
-  if (!ready || !isUrban) return
+  if (!ready || !isUrban || !buildingChoice.navigationAvailable) return
   if (active) stopTask()
   mapPickMode = mode
   pickPair = pair
@@ -1035,12 +1053,12 @@ function updateMissionPreview(): void {
   if (!viewer || !urbanNavigation) return
   urbanCandidates = urbanNavigation.planCandidates(NAMCHE_START, NAMCHE_GOAL)
   const directDistance = distanceMeters(NAMCHE_START, NAMCHE_GOAL)
-  missionError = missionUrlError || (directDistance < 8 ? '起终点太近，请选至少相距 8 米的两个位置。'
+  missionError = !buildingChoice.navigationAvailable ? 'Google 实景仅供浏览，切回轻量白模即可导航。' : missionUrlError || (directDistance < 8 ? '起终点太近，请选至少相距 8 米的两个位置。'
     : urbanCandidates.length === 0 ? '当前导航网格未找到连接路线，不代表实际无路。起终点已保留，尚未调用 Jev。' : '')
   element('startCoordinates').textContent = `${NAMCHE_START.longitude.toFixed(6)}, ${NAMCHE_START.latitude.toFixed(6)}`
   element('goalCoordinates').textContent = `${NAMCHE_GOAL.longitude.toFixed(6)}, ${NAMCHE_GOAL.latitude.toFixed(6)}`
-  element('routeDecision').textContent = missionError ? '本地路线校验未通过，Jev 尚未参与' : urbanNavigation.isSegmentWalkable(NAMCHE_START, NAMCHE_GOAL)
-    ? '直线可通行，等待 Jev 决定行动' : '建筑阻挡直达，等待 Jev 选择绕行'
+  element('routeDecision').textContent = missionError ? '路线尚未确认' : urbanNavigation.isSegmentWalkable(NAMCHE_START, NAMCHE_GOAL)
+    ? '可直达目标' : '将绕过建筑前往目标'
   distanceMetric.textContent = `直线距离 ${Math.round(directDistance)} m`
   const goal = viewer.entities.getById('embodied-goal')
   if (goal) goal.position = new ConstantPositionProperty(Cartesian3.fromDegrees(NAMCHE_GOAL.longitude, NAMCHE_GOAL.latitude, URBAN_GROUND_HEIGHT + 1))
@@ -1072,6 +1090,13 @@ function installUrbanMissionEditor(): void {
   })
   const goal = viewer.entities.getById('embodied-goal')
   if (goal?.label) goal.label.text = new ConstantProperty('B · 终点')
+  if (!buildingChoice.navigationAvailable) {
+    for (const id of ['mission-coverage', 'mission-start', 'embodied-goal']) {
+      const entity = viewer.entities.getById(id)
+      if (entity) entity.show = false
+    }
+    element('cityCoverage').textContent = '当前为 Google 实景浏览；导航需要与所选区域对应的碰撞数据。'
+  }
   element('pickMission').addEventListener('click', () => beginMapPick('start', true))
   element('pickStart').addEventListener('click', () => beginMapPick('start'))
   element('pickGoal').addEventListener('click', () => beginMapPick('goal'))
@@ -1122,6 +1147,10 @@ function installUrbanMissionEditor(): void {
       element('mapPickText').textContent = message
       element('missionStatus').textContent = message
       element('missionStatus').dataset.error = 'true'
+    }
+    if (buildingChoice.source === 'white' && viewer.scene.pick(event.position)?.id === URBAN_WHITE_BUILDINGS_ID) {
+      reject('这里是建筑表面，请点击街道或空地。')
+      return
     }
     const surface = viewer.scene.pickPositionSupported ? viewer.scene.pickPosition(event.position) : undefined
     if (surface && Cartographic.fromCartesian(surface).height > URBAN_GROUND_HEIGHT + 3) {
@@ -1195,7 +1224,7 @@ function installInteractions(): void {
   })
   chatInput.addEventListener('input', resizeComposer)
   chatInput.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
       event.preventDefault()
       chatForm.requestSubmit()
     }
@@ -1385,10 +1414,29 @@ function updateTrail(position: { x: number, y: number, z: number }, force = fals
 }
 
 function installScenarioControls(): void {
-  element('sceneCredit').textContent = isUrban ? 'PLATEAU 2025 · Esri Imagery' : 'ArcGIS World Elevation · Esri Imagery'
+  element('sceneCredit').textContent = isUrban ? buildingChoice.source === 'google' ? 'Google 3D · 仅浏览'
+    : buildingChoice.source === 'white' ? 'PLATEAU 白模 · Esri 底图' : 'PLATEAU 实景 · Esri 影像' : 'ArcGIS World Elevation · Esri Imagery'
   element('sceneScope').textContent = isUrban
-    ? '真实纹理建筑及建筑网格碰撞；街道路面为局部近似。'
+    ? buildingChoice.navigationAvailable ? '建筑与碰撞来自同源数据；街道路面为局部近似。' : 'Google 实景独立浏览，尚未准备对应碰撞数据。'
     : '同一片真实地形；目标与风险区为实验配置。'
+  const buildingSelect = document.getElementById('cityBuildingSource') as HTMLSelectElement | null
+  if (buildingSelect) {
+    buildingSelect.value = buildingChoice.source
+    const google = buildingSelect.querySelector<HTMLOptionElement>('option[value="google"]')
+    if (google && !buildingChoice.googleAvailable) {
+      google.disabled = true
+      google.textContent = 'Google 3D · 需配置'
+    }
+    const note = document.getElementById('citySourceNote')
+    if (note) note.textContent = buildingChoice.notice || (buildingChoice.source === 'white' ? '本地无纹理建筑，加载更轻。来源：PLATEAU。'
+      : buildingChoice.source === 'google' ? '仅实景浏览；切回白模继续导航。' : '在线纹理建筑，需要加载远程瓦片。')
+    buildingSelect.addEventListener('change', () => {
+      if (active) stopTask()
+      const url = writeUrbanMission(new URL(location.href), NAMCHE_START, NAMCHE_GOAL)
+      url.searchParams.set('buildings', buildingSelect.value)
+      location.assign(url.href)
+    })
+  }
   const select = element<HTMLSelectElement>('sceneSelect')
   const seed = element<HTMLInputElement>('sceneSeed')
   for (const preset of displayScenarios) select.add(new Option(preset.title, preset.id))
@@ -1470,9 +1518,10 @@ function recordUrbanVisualState(state: UrbanVisualState): void {
     worldStatus.after(badge)
   }
   badge.dataset.state = state.status === 'partial' ? 'degraded' : state.status
-  badge.textContent = state.status === 'ready' ? '当前视野建筑已加载'
-    : state.status === 'partial' ? `建筑画面部分失败 (${state.failedTiles})` : '建筑画面加载中'
-  badge.title = `已加载 ${state.loadedTiles} 个数据块，等待 ${state.pendingRequests}，处理中 ${state.processingTiles}；仅报告当前视野，碰撞状态单独显示。`
+  badge.textContent = state.status === 'ready' ? URBAN_SOURCE_LABELS[buildingChoice.source]
+    : state.status === 'partial' ? '部分建筑加载失败' : '建筑加载中'
+  badge.title = buildingChoice.source === 'white' ? 'PLATEAU 本地白模，与导航和碰撞共用几何；不加载远程纹理。'
+    : `已加载 ${state.loadedTiles} 个数据块，等待 ${state.pendingRequests}，处理中 ${state.processingTiles}；仅报告当前视野。`
 }
 
 function refreshReplayControls(): void {
@@ -1769,6 +1818,8 @@ function exposeDebugApi(): void {
       urbanCollisionCounts,
       urbanVisualState,
       navigation: {
+        buildingSource: buildingChoice.source,
+        navigationAvailable: buildingChoice.navigationAvailable,
         editor: { pickMode: mapPickMode, missionError, start: { ...NAMCHE_START }, goal: { ...NAMCHE_GOAL } },
         grid: urbanNavigation?.grid,
         selectedRouteId,
