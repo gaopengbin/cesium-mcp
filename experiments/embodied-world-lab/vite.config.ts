@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url)
 const cesiumBuild = join(dirname(require.resolve('cesium/package.json')), 'Build', 'Cesium')
 
 export default defineConfig(({ mode }) => ({
+  base: process.env.VITE_BASE_PATH || '/',
   plugins: [jevApiPlugin({ apiKey: process.env.TYPESAFE_API_KEY ?? loadEnv(mode, process.cwd(), '').TYPESAFE_API_KEY })],
   resolve: {
     dedupe: ['cesium', 'heatmap.js'],
@@ -20,7 +21,7 @@ export default defineConfig(({ mode }) => ({
     assetsDir: 'app-assets',
   },
   define: {
-    CESIUM_BASE_URL: JSON.stringify('/'),
+    CESIUM_BASE_URL: JSON.stringify(process.env.VITE_BASE_PATH || '/'),
     global: 'globalThis',
   },
   publicDir: cesiumBuild,

@@ -109,7 +109,9 @@ a:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 .map-pick-hint wa-button::part(button) { flex-shrink: 0; background: var(--background); color: var(--accent-foreground); border-color: #a8c7fa; }
 
 .agent-chat { position: relative; z-index: 4; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; border-left: 1px solid var(--border); background: var(--background); }
-.panel-heading { display: grid; gap: 12px; padding: 23px 20px 18px; border-bottom: 1px solid var(--border); }
+.panel-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 23px 20px 18px; border-bottom: 1px solid var(--border); }
+.panel-heading .model-status { grid-column: 1 / -1; }
+#languageSwitch { justify-self: end; }
 .eyebrow { color: var(--muted-foreground); font-size: 11px; line-height: 1.5; }
 .panel-heading h1 { margin: 6px 0 0; font-size: 21px; line-height: 1.4; letter-spacing: -0.5px; font-weight: 500; }
 .model-status { color: var(--accent-foreground); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
@@ -206,9 +208,9 @@ a:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
   body { overflow-y: auto; }
   .world-shell { height: auto; min-height: 100dvh; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(330px, 55dvh) auto; }
   .agent-chat { display: flex; flex-direction: column; min-height: 45dvh; border-top: 1px solid var(--border); border-left: 0; }
-  .panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 16px; }
+  .panel-heading { display: grid; gap: 8px 14px; padding: 16px; }
   .panel-heading h1 { margin-top: 3px; font-size: 19px; }
-  .model-status { max-width: 130px; text-align: right; font-size: 10px; }
+  .model-status { text-align: left; font-size: 10px; }
   .agent-content { overflow: visible; }
   .mission-editor { padding: 16px; }
   .section-intro { margin-bottom: 12px; }

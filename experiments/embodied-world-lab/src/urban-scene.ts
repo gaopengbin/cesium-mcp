@@ -1,3 +1,4 @@
+import { t } from './i18n.js'
 import {
   Cartesian3,
   Cesium3DTileset,
@@ -83,8 +84,8 @@ export function watchUrbanVisualState(
 export const URBAN_GROUND_HEIGHT = 38
 export const URBAN_METADATA = {
   id: 'city' as const,
-  title: '东京 · 自由探索',
-  description: '在真实建筑街区内点选起终点，预览候选路线，再让 Jev 控制人物行动。',
+  title: t('东京 · 自由探索'),
+  description: t('在真实建筑街区内点选起终点，预览候选路线，再让 Jev 控制人物行动。'),
 }
 // Selected on the rendered road surface west of Tokyo Station; not inside a building.
 export const URBAN_START: GeoPoint = { longitude: 139.764624924, latitude: 35.681082469, height: URBAN_GROUND_HEIGHT }
@@ -111,7 +112,7 @@ export function createUrbanScenario(seed: number) {
     goal: { ...URBAN_GOAL },
     // Urban sensing uses the physical building mesh, not an artificial risk circle.
     hazard: {
-      id: 'urban-unused-fixture', name: '城市建筑',
+      id: 'urban-unused-fixture', name: t('城市建筑'),
       center: { longitude: 139.77, latitude: 35.7, height: URBAN_GROUND_HEIGHT },
       radiusMeters: 1, sensorRangeMeters: 1,
     },
@@ -122,7 +123,7 @@ export function createUrbanGround(): CustomHeightmapTerrainProvider {
   return new CustomHeightmapTerrainProvider({
     width: 32, height: 32,
     callback: () => new Float32Array(32 * 32).fill(URBAN_GROUND_HEIGHT),
-    credit: '局部路面：38m 椭球高简化平面',
+    credit: t('局部路面：38m 椭球高简化平面'),
   })
 }
 
@@ -153,7 +154,7 @@ export async function loadUrbanBuildings(
   viewer.shadows = false
   viewer.clock.currentTime = JulianDate.fromIso8601('2026-09-21T03:00:00Z')
   viewer.cesiumWidget.creditDisplay.addStaticCredit(new Credit(
-    '<a href="https://www.mlit.go.jp/plateau/" target="_blank">出典：PLATEAU / 国土交通省 · 千代田区2025</a>',
+    t('<a href="https://www.mlit.go.jp/plateau/" target="_blank">出典：PLATEAU / 国土交通省 · 千代田区2025</a>'),
     true,
   ))
   viewer.camera.setView({
@@ -198,7 +199,7 @@ export async function addUrbanBuildingColliders(player: playerController, mesh?:
   if (data.schemaVersion !== 1 || data.positions.length % 3 || data.indices.length % 3
     || data.counts.triangleCount < 1 || data.originEcef.length !== 3
     || data.coverageBbox.some((value, index) => value !== URBAN_COLLISION_BOUNDS[index])) {
-    throw new Error('城市建筑碰撞数据不完整，暂不能开始导航')
+    throw new Error(t('城市建筑碰撞数据不完整，暂不能开始导航'))
   }
   const positions = new Float32Array(data.positions.length)
   for (let i = 0; i < data.positions.length; i += 3) {

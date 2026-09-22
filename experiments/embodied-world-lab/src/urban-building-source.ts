@@ -1,3 +1,4 @@
+import { t } from './i18n.js'
 import { Cesium3DTileset, Credit, IonResource, JulianDate, createGooglePhotorealistic3DTileset } from 'cesium'
 import type { Viewer } from 'cesium'
 import { loadUrbanBuildings, watchUrbanVisualState } from './urban-scene.js'
@@ -19,11 +20,11 @@ export function resolveUrbanBuildingSource(requested: string | null, credentials
     source,
     googleAvailable,
     navigationAvailable: source !== 'google',
-    notice: requested === 'google' && !googleAvailable ? 'Google 3D 未配置访问凭据，当前显示本地白模。' : '',
+    notice: requested === 'google' && !googleAvailable ? t('Google 3D 未配置访问凭据，当前显示本地白模。') : '',
   }
 }
 
-export const URBAN_SOURCE_LABELS = { white: '轻量白模', plateau: 'PLATEAU 实景', google: 'Google 3D · 浏览' }
+export const URBAN_SOURCE_LABELS = { white: t('轻量白模'), plateau: t('PLATEAU 实景'), google: t('Google 3D · 浏览') }
 export const GRAY_BASEMAP_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'
 export const GRAY_BASEMAP_CREDIT = 'Esri, HERE, Garmin, (c) OpenStreetMap contributors, and the GIS user community'
 
@@ -44,7 +45,7 @@ export async function loadUrbanBuildingLayer(
   }
   if (source === 'google') {
     // Never fall back to Cesium's shared example credential.
-    if (!resolveUrbanBuildingSource('google', credentials).googleAvailable) throw new Error('Google 3D 需要配置访问凭据')
+    if (!resolveUrbanBuildingSource('google', credentials).googleAvailable) throw new Error(t('Google 3D 需要配置访问凭据'))
     const options = { maximumScreenSpaceError: 24, cacheBytes: 512 * 1024 * 1024, maximumCacheOverflowBytes: 128 * 1024 * 1024 }
     const buildings = credentials.googleMapsApiKey?.trim()
       ? await createGooglePhotorealistic3DTileset({ key: credentials.googleMapsApiKey.trim(), onlyUsingWithGoogleGeocoder: true }, options)
@@ -60,7 +61,7 @@ export async function loadUrbanBuildingLayer(
   viewer.scene.globe.enableLighting = false
   viewer.shadows = false
   viewer.clock.currentTime = JulianDate.fromIso8601('2026-09-21T03:00:00Z')
-  const credit = new Credit('<a href="https://www.mlit.go.jp/plateau/" target="_blank">PLATEAU 2025 · 本地无纹理白模</a>', true)
+  const credit = new Credit(t('<a href="https://www.mlit.go.jp/plateau/" target="_blank">PLATEAU 2025 · 本地无纹理白模</a>'), true)
   viewer.cesiumWidget.creditDisplay.addStaticCredit(credit)
   const state = (ready: boolean): UrbanVisualState => ({
     status: ready ? 'ready' : 'loading', loadedTiles: ready ? 1 : 0, failedTiles: 0,

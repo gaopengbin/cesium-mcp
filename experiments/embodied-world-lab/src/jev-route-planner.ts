@@ -34,7 +34,7 @@ export async function requestJevRoute(
   options: { signal?: AbortSignal } = {},
 ): Promise<JevRouteResult> {
   const input = validateNavigationRouteObservation(observation)
-  const response = await fetch('/api/jev/route', {
+  const response = await fetch(`${import.meta.env.BASE_URL}api/jev/route`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input), signal: options.signal,
   })

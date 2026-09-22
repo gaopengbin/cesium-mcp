@@ -1,3 +1,4 @@
+import { t } from './i18n.js'
 export interface UrbanBuildingMeshMetadata {
   schemaVersion: 1
   byteOrder: 'little-endian'
@@ -28,7 +29,7 @@ export interface UrbanBuildingMesh extends UrbanBuildingMeshMetadata {
 }
 
 function invalidMesh(): Error {
-  return new Error('城市建筑数据不完整，暂不能开始导航')
+  return new Error(t('城市建筑数据不完整，暂不能开始导航'))
 }
 
 export function decodeUrbanBuildingMesh(buffer: ArrayBuffer): UrbanBuildingMesh {
@@ -73,7 +74,7 @@ let cachedMesh: Promise<UrbanBuildingMesh> | undefined
 export function loadUrbanBuildingMesh(): Promise<UrbanBuildingMesh> {
   cachedMesh ??= (async () => {
     const response = await fetch(new URL('./assets/tokyo-buildings.bin', import.meta.url))
-    if (!response.ok) throw new Error('城市建筑数据加载失败，请重试')
+    if (!response.ok) throw new Error(t('城市建筑数据加载失败，请重试'))
     return decodeUrbanBuildingMesh(await response.arrayBuffer())
   })().catch(error => {
     cachedMesh = undefined

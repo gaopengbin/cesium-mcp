@@ -1,3 +1,4 @@
+import { t } from './i18n.js'
 import { offsetGeoPoint } from './world-sensor.js'
 import type { CircularHazard, GeoPoint } from './world-sensor.js'
 
@@ -22,23 +23,23 @@ export interface WorldScenario {
 export const SCENARIO_PRESETS: readonly ScenarioMetadata[] = [
   {
     id: 'inspection',
-    title: '山坡巡检',
-    description: '复用南池地形上的原始实验路线；途中圆形风险区为人工配置。',
+    title: t('山坡巡检'),
+    description: t('复用南池地形上的原始实验路线；途中圆形风险区为人工配置。'),
   },
   {
     id: 'wide-detour',
-    title: '宽侧绕行',
-    description: '扩大前方的实验风险圆，观察角色如何选择绕行方向。',
+    title: t('宽侧绕行'),
+    description: t('扩大前方的实验风险圆，观察角色如何选择绕行方向。'),
   },
   {
     id: 'near-risk',
-    title: '近处风险',
-    description: '将实验风险区移近起点，观察较早发现风险后的决策变化。',
+    title: t('近处风险'),
+    description: t('将实验风险区移近起点，观察较早发现风险后的决策变化。'),
   },
   {
     id: 'random',
-    title: '随机场景',
-    description: '用种子生成实验目标与风险布局；地形不变，不保证角色能够抵达。',
+    title: t('随机场景'),
+    description: t('用种子生成实验目标与风险布局；地形不变，不保证角色能够抵达。'),
   },
 ]
 
@@ -53,7 +54,7 @@ export const LANDSLIDE_CENTER: GeoPoint = offsetGeoPoint(NAMCHE_START, 100, 45)
 
 export const LANDSLIDE_HAZARD = {
   id: 'namche-landslide-01',
-  name: '临时落石风险区',
+  name: t('临时落石风险区'),
   center: LANDSLIDE_CENTER,
   radiusMeters: 22,
   sensorRangeMeters: 105,
@@ -72,7 +73,7 @@ export function createScenario(preset: ScenarioPreset, seed: number): WorldScena
     hazard = {
       ...hazard,
       id: 'namche-wide-detour',
-      name: '实验风险区 · 宽侧绕行',
+      name: t('实验风险区 · 宽侧绕行'),
       center: offsetGeoPoint(start, 85, 35),
       radiusMeters: 29,
     }
@@ -81,7 +82,7 @@ export function createScenario(preset: ScenarioPreset, seed: number): WorldScena
     hazard = {
       ...hazard,
       id: 'namche-near-risk',
-      name: '实验风险区 · 近处风险',
+      name: t('实验风险区 · 近处风险'),
       center: offsetGeoPoint(start, 55, 32),
       radiusMeters: 26,
     }
@@ -97,7 +98,7 @@ export function createScenario(preset: ScenarioPreset, seed: number): WorldScena
     hazard = {
       ...hazard,
       id: `namche-random-${normalizedSeed}`,
-      name: '实验风险区 · 随机配置',
+      name: t('实验风险区 · 随机配置'),
       center: offsetGeoPoint(
         start,
         east * fraction - north / distance * sideOffset,

@@ -1,0 +1,44 @@
+name: Build Cesium Jev demo
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/cesium-jev-demo]
+    paths:
+      - experiments/embodied-world-lab/**
+      - packages/cesium-mcp-bridge/**
+      - packages/cesium-mcp-contracts/**
+      - packages/cesium-mcp-spatial/**
+      - .github/workflows/jev-demo.yml
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            experiments/embodied-world-lab/package-lock.json
+      - run: npm ci --no-fund
+      - run: npm ci --prefix experiments/embodied-world-lab --no-fund
+      - run: npm --prefix experiments/embodied-world-lab run typecheck
+      - run: npm --prefix experiments/embodied-world-lab test
+      - run: node scripts/build-release.mjs
+        working-directory: experiments/embodied-world-lab
+      - run: mkdir -p artifacts
+      - run: node scripts/package-release.mjs
+        working-directory: experiments/embodied-world-lab
+      - run: sha256sum cesium-jev-site.tgz > SHA256SUMS
+        working-directory: artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cesium-jev-release
+          path: |
+            artifacts/cesium-jev-site.tgz
+            artifacts/SHA256SUMS
+          retention-days: 14

@@ -11,7 +11,7 @@ export async function requestJevMotionPlan(
   snapshot: EmbodiedWorldSnapshot,
   options: { signal?: AbortSignal } = {},
 ): Promise<JevPlanResult> {
-  const response = await fetch('/api/jev/plan', {
+  const response = await fetch(`${import.meta.env.BASE_URL}api/jev/plan`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(snapshot), signal: options.signal,
   })

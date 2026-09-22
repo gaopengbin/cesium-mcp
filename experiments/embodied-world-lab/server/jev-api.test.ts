@@ -1,4 +1,4 @@
-import { createServer } from 'node:http'
+import { createServer, request } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { buildJevRequest, createJevMiddleware, parseJevResult } from './jev-api.js'
 
@@ -19,6 +19,37 @@ const realFetch = globalThis.fetch
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Jev motion adapter', () => {
+  it('requires the production Host and Origin and applies budget before an upstream request', async () => {
+    const upstream = vi.fn().mockResolvedValue(new Response(JSON.stringify(answer)))
+    vi.stubGlobal('fetch', upstream)
+    const authorize = vi.fn().mockReturnValue('Demo quota exhausted')
+    const middleware = createJevMiddleware({ apiKey: 'private', publicOrigin: 'https://demo.example', authorizeRequest: authorize })
+    const server = createServer((req, res) => middleware(req, res, () => res.end()))
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+    const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/jev/plan`
+    const post = (host: string, origin?: string) => new Promise<{ status: number }>((resolve, reject) => {
+      const req = request(url, { method: 'POST', headers: { Host: host, ...(origin ? { Origin: origin } : {}) } }, res => {
+        res.resume()
+        res.once('end', () => resolve({ status: res.statusCode! }))
+      })
+      req.on('error', reject)
+      req.end(JSON.stringify({ ...snapshot, capturedAt: new Date().toISOString() }))
+    })
+    try {
+      expect((await post('demo.example')).status).toBe(403)
+      expect((await post('evil.example', 'https://demo.example')).status).toBe(403)
+      expect((await post('demo.example', 'https://evil.example')).status).toBe(403)
+      expect(authorize).not.toHaveBeenCalled()
+      expect((await post('demo.example', 'https://demo.example')).status).toBe(429)
+      expect(upstream).not.toHaveBeenCalled()
+      authorize.mockReturnValue(undefined)
+      expect((await post('demo.example', 'https://demo.example')).status).toBe(200)
+      expect(upstream).toHaveBeenCalledTimes(1)
+    } finally {
+      server.closeAllConnections()
+      await new Promise<void>(resolve => server.close(() => resolve()))
+    }
+  })
   it('labels the simulated ground outside mapped buildings instead of claiming global perception', () => {
     const request = buildJevRequest({ ...snapshot, dataCoverage: 'unmapped' })
     expect(JSON.parse(request.state).dataCoverage).toBe('unmapped')

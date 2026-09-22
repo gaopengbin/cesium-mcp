@@ -1,3 +1,4 @@
+import { t } from './i18n.js'
 import type { GeoPoint } from './world-sensor.js'
 
 export interface UrbanMission {
@@ -15,7 +16,7 @@ export function readUrbanMission(search: URLSearchParams): UrbanMission | undefi
   const to = search.getAll('to')
   if (from.length === 0 && to.length === 0) return undefined
   if (from.length !== 1 || to.length !== 1) {
-    throw new Error('地图任务链接必须同时包含且仅包含一个 from 和一个 to')
+    throw new Error(t('地图任务链接必须同时包含且仅包含一个 from 和一个 to'))
   }
 
   return {
@@ -38,7 +39,7 @@ export function writeUrbanMission(url: URL, start: GeoPoint, goal: GeoPoint): UR
 function parsePoint(value: string, key: CoordinateKey): GeoPoint {
   const parts = value.split(',').map(part => part.trim())
   if (parts.length !== 2 || parts.some(part => !DECIMAL_COORDINATE.test(part))) {
-    throw new Error(`地图任务链接的 ${key} 必须是十进制经度,纬度`)
+    throw new Error(t('地图任务链接的 {0} 必须是十进制经度,纬度', key))
   }
   return checkedPoint(Number(parts[0]), Number(parts[1]), key)
 }
@@ -46,7 +47,7 @@ function parsePoint(value: string, key: CoordinateKey): GeoPoint {
 function checkedPoint(longitude: number, latitude: number, key: CoordinateKey): GeoPoint {
   if (!Number.isFinite(longitude) || !Number.isFinite(latitude)
     || longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
-    throw new Error(`地图任务 ${key} 坐标超出 WGS84 范围：经度 -180～180，纬度 -90～90`)
+    throw new Error(t('地图任务 {0} 坐标超出 WGS84 范围：经度 -180～180，纬度 -90～90', key))
   }
   return { longitude, latitude, height: MISSION_HEIGHT }
 }

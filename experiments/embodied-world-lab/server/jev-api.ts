@@ -13,7 +13,12 @@ const criteria: Record<EmbodiedMotionIntent, string> = {
   'inspect-right': 'Slowly rotate right in place to gather missing observations.',
   hold: 'Stay still when not grounded, already at the goal, or no safe action is supported.',
 }
-interface JevConfig { apiKey?: string }
+interface JevConfig {
+  apiKey?: string
+  publicOrigin?: string
+  maxConcurrent?: number
+  authorizeRequest?: (request: IncomingMessage) => string | undefined
+}
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
@@ -120,7 +125,7 @@ export function jevApiPlugin(config: JevConfig): Plugin {
 }
 
 export function createJevMiddleware(config: JevConfig) {
-  let busy = false
+  let running = 0
   return (request: IncomingMessage, response: ServerResponse, next: () => void): void => {
     const path = request.url?.split('?')[0]
     if (path !== '/api/jev/plan' && path !== '/api/jev/route' && path !== '/api/jev/status') return next()
@@ -137,8 +142,11 @@ export function createJevMiddleware(config: JevConfig) {
       local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) && url.host === host
         && !url.username && !url.password && url.pathname === '/'
     } catch { /* Reject malformed Host. */ }
-    if (!local || !remote || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remote)
-      || (request.headers.origin && request.headers.origin !== `http://${host}`)
+    const expectedOrigin = config.publicOrigin ?? `http://${host}`
+    const publicHost = config.publicOrigin ? new URL(config.publicOrigin).host : undefined
+    if (!(config.publicOrigin ? host === publicHost : local) || !remote || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remote)
+      || (request.headers.origin && request.headers.origin !== expectedOrigin)
+      || (config.publicOrigin && request.method === 'POST' && request.headers.origin !== expectedOrigin)
       || (request.headers['sec-fetch-site'] && request.headers['sec-fetch-site'] !== 'same-origin')) {
       send(403, { error: 'Only same-origin localhost requests are allowed' })
       return
@@ -155,11 +163,11 @@ export function createJevMiddleware(config: JevConfig) {
       send(503, { error: 'TYPESAFE_API_KEY is not configured' })
       return
     }
-    if (busy) {
+    if (running >= (config.maxConcurrent ?? 1)) {
       send(429, { error: 'A Jev decision is already running' })
       return
     }
-    busy = true
+    running += 1
     const controller = new AbortController()
     const timeout = setTimeout(() => {
       controller.abort()
@@ -188,6 +196,12 @@ export function createJevMiddleware(config: JevConfig) {
           send(400, { error: 'Invalid or stale world observation' })
           return
         }
+        const denied = config.authorizeRequest?.(request)
+        if (denied) {
+          response.setHeader('Retry-After', '60')
+          send(429, { error: denied })
+          return
+        }
         const started = performance.now()
         const upstream = await fetch(ENDPOINT, {
           method: 'POST',
@@ -211,7 +225,7 @@ export function createJevMiddleware(config: JevConfig) {
       } finally {
         clearTimeout(timeout)
         response.removeListener('close', onClose)
-        busy = false
+        running -= 1
       }
     })()
   }
