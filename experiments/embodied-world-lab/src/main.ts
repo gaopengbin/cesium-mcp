@@ -1,3 +1,5 @@
+import './ui-components.js'
+import type { UiButton, UiDetails, UiDialog, UiInput, UiOption, UiSelect, UiSlider, UiTextarea } from './ui-components.js'
 import {
   ArcGISTiledElevationTerrainProvider,
   CallbackProperty,
@@ -122,7 +124,7 @@ const distanceMetric = element<HTMLElement>('distanceMetric')
 const modelStatus = element<HTMLElement>('modelStatus')
 const chatMessages = element<HTMLElement>('chatMessages')
 const chatForm = element<HTMLFormElement>('chatForm')
-const chatInput = element<HTMLTextAreaElement>('chatInput')
+const chatInput = element<UiTextarea>('chatInput')
 const loopStatus = element<HTMLElement>('loopStatus')
 const revisionStatus = element<HTMLElement>('revisionStatus')
 const foxCredits = element<HTMLAnchorElement>('foxCredits')
@@ -136,7 +138,7 @@ if (useJev) {
 }
 element('urbanRoutePanel').hidden = !isUrban
 element('urbanMissionEditor').hidden = !isUrban
-element<HTMLDetailsElement>('otherScenarios').open = !isUrban
+element<UiDetails>('otherScenarios').open = !isUrban
 
 let viewer: Viewer | undefined
 let player: playerController | undefined
@@ -988,9 +990,9 @@ function updatePickUi(): void {
     : missionError || `直线 ${Math.round(distanceMeters(NAMCHE_START, NAMCHE_GOAL))} m · 路线已就绪`
   status.dataset.error = String(!pendingPair && !!missionError)
   if (viewer) viewer.canvas.style.cursor = mapPickMode ? 'crosshair' : ''
-  document.querySelectorAll<HTMLButtonElement>('[data-command="start"]').forEach(button => { button.disabled = !!mapPickMode || !!missionError || !ready })
+  document.querySelectorAll<UiButton>('[data-command="start"]').forEach(button => { button.disabled = !!mapPickMode || !!missionError || !ready })
   for (const id of ['pickStart', 'pickGoal', 'pickMission', 'swapMission', 'resetMission', 'restoreMission', 'crossDistrictMission', 'longMission', 'citySpeed', 'cityCameraHeight']) {
-    element<HTMLButtonElement | HTMLSelectElement>(id).disabled = !buildingChoice.navigationAvailable || !ready
+    element<UiButton | UiSelect>(id).disabled = !buildingChoice.navigationAvailable || !ready
   }
 }
 
@@ -1109,11 +1111,11 @@ function installUrbanMissionEditor(): void {
   element('cancelMapPick').addEventListener('click', cancelPick)
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && mapPickMode) cancelPick() })
   element('districtView').addEventListener('click', showDistrictView)
-  element<HTMLSelectElement>('citySpeed').addEventListener('change', event => {
-    citySpeedMetersPerSecond = Number((event.target as HTMLSelectElement).value)
+  element<UiSelect>('citySpeed').addEventListener('change', event => {
+    citySpeedMetersPerSecond = Number((event.target as UiSelect).value)
   })
-  element<HTMLSelectElement>('cityCameraHeight').addEventListener('change', event => {
-    cityCameraHeightMeters = Number((event.target as HTMLSelectElement).value)
+  element<UiSelect>('cityCameraHeight').addEventListener('change', event => {
+    cityCameraHeightMeters = Number((event.target as UiSelect).value)
     setOverviewView(false, false)
   })
   element('swapMission').addEventListener('click', () => { applyUrbanMission({ ...NAMCHE_GOAL }, { ...NAMCHE_START }); cancelPick() })
@@ -1180,9 +1182,11 @@ function installUrbanMissionEditor(): void {
 async function shareCurrentMission(buttonId: string): Promise<void> {
   const url = isUrban ? writeUrbanMission(new URL(location.href), NAMCHE_START, NAMCHE_GOAL) : new URL(location.href)
   if (isUrban) {
-    const input = element('missionLink') as HTMLInputElement
+    const input = element<UiInput>('missionLink')
     input.value = url.href
     element('missionLinkField').hidden = false
+    await input.updateComplete
+    input.focus({ preventScroll: true })
     input.select()
     element(buttonId).textContent = '任务链接已生成'
     return
@@ -1216,20 +1220,18 @@ function applyCameraTransitionFrame(nowMs: number): void {
 function installInteractions(): void {
   chatForm.addEventListener('submit', (event) => {
     event.preventDefault()
-    const command = chatInput.value.trim()
+    const command = (chatInput.value ?? '').trim()
     if (!command) return
     chatInput.value = ''
-    resizeComposer()
     handleCommand(command)
   })
-  chatInput.addEventListener('input', resizeComposer)
   chatInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
       event.preventDefault()
       chatForm.requestSubmit()
     }
   })
-  document.querySelectorAll<HTMLButtonElement>('[data-command]').forEach((button) => {
+  document.querySelectorAll<UiButton>('[data-command]').forEach((button) => {
     button.addEventListener('click', () => {
       const command = button.dataset.command
       if (command === 'view') {
@@ -1419,10 +1421,10 @@ function installScenarioControls(): void {
   element('sceneScope').textContent = isUrban
     ? buildingChoice.navigationAvailable ? '建筑与碰撞来自同源数据；街道路面为局部近似。' : 'Google 实景独立浏览，尚未准备对应碰撞数据。'
     : '同一片真实地形；目标与风险区为实验配置。'
-  const buildingSelect = document.getElementById('cityBuildingSource') as HTMLSelectElement | null
+  const buildingSelect = document.getElementById('cityBuildingSource') as UiSelect | null
   if (buildingSelect) {
     buildingSelect.value = buildingChoice.source
-    const google = buildingSelect.querySelector<HTMLOptionElement>('option[value="google"]')
+    const google = buildingSelect.querySelector<UiOption>('wa-option[value="google"]')
     if (google && !buildingChoice.googleAvailable) {
       google.disabled = true
       google.textContent = 'Google 3D · 需配置'
@@ -1433,17 +1435,22 @@ function installScenarioControls(): void {
     buildingSelect.addEventListener('change', () => {
       if (active) stopTask()
       const url = writeUrbanMission(new URL(location.href), NAMCHE_START, NAMCHE_GOAL)
-      url.searchParams.set('buildings', buildingSelect.value)
+      url.searchParams.set('buildings', String(buildingSelect.value ?? 'white'))
       location.assign(url.href)
     })
   }
-  const select = element<HTMLSelectElement>('sceneSelect')
-  const seed = element<HTMLInputElement>('sceneSeed')
-  for (const preset of displayScenarios) select.add(new Option(preset.title, preset.id))
+  const select = element<UiSelect>('sceneSelect')
+  const seed = element<UiInput>('sceneSeed')
+  for (const preset of displayScenarios) {
+    const option = document.createElement('wa-option')
+    option.value = preset.id
+    option.textContent = preset.title
+    select.append(option)
+  }
   select.value = selectedPreset
   seed.value = String(selectedSeed)
   const updateDescription = (): void => {
-    element('sceneDescription').textContent = displayScenarios.find(item => item.id === select.value)?.description ?? ''
+    element('sceneDescription').textContent = displayScenarios.find(item => item.id === (select.value ?? selectedPreset))?.description ?? ''
   }
   updateDescription()
   select.addEventListener('change', updateDescription)
@@ -1452,14 +1459,15 @@ function installScenarioControls(): void {
     stopTask()
     const url = new URL(location.href)
     url.searchParams.set('planner', 'jev')
-    url.searchParams.set('scene', select.value)
+    url.searchParams.set('scene', String(select.value ?? selectedPreset))
     url.searchParams.set('seed', String(Math.trunc(Number(seed.value) || selectedSeed)))
     location.assign(url.href)
   }
   element('applyScene').addEventListener('click', apply)
-  element('randomScene').addEventListener('click', () => {
+  element('randomScene').addEventListener('click', async () => {
     select.value = 'random'
     seed.value = String(crypto.getRandomValues(new Uint32Array(1))[0]! % 999999 + 1)
+    await seed.updateComplete
     apply()
   })
   element('shareScene').addEventListener('click', () => {
@@ -1471,12 +1479,12 @@ function installScenarioControls(): void {
       element('shareScene').textContent = '已复制当前场景'
     }).catch(() => appendMessage('event', `当前场景链接：${url.href}`))
   })
-  element<HTMLInputElement>('replaySlider').addEventListener('input', event => {
-    showReplay(Number((event.target as HTMLInputElement).value))
+  element<UiSlider>('replaySlider').addEventListener('input', event => {
+    showReplay((event.target as UiSlider).value)
   })
   element('exitReplay').addEventListener('click', exitReplay)
-  const traceDialog = element<HTMLDialogElement>('traceDialog')
-  const traceJson = element<HTMLTextAreaElement>('traceJson')
+  const traceDialog = element<UiDialog>('traceDialog')
+  const traceJson = element<UiTextarea>('traceJson')
   element('exportTrace').addEventListener('click', () => {
     traceJson.value = JSON.stringify({
       version: 1, scenario, planner: useJev ? 'jev' : 'hosted',
@@ -1484,13 +1492,13 @@ function installScenarioControls(): void {
       decisions: decisionTrace, calls: bridgeTrace, frames: replayFrames, continuity, urbanVisualState,
       navigation: isUrban ? { selectedRouteId, offer: routeOffer, candidates: urbanCandidates, motionSamples: urbanMotionSamples } : undefined,
     }, null, 2)
-    if (!traceDialog.open) traceDialog.showModal()
+    traceDialog.open = true
   })
-  element('closeTraceDialog').addEventListener('click', () => traceDialog.close())
+  element('closeTraceDialog').addEventListener('click', () => { traceDialog.open = false })
   element('selectTraceJson').addEventListener('click', () => {
     traceJson.focus({ preventScroll: true })
     traceJson.select()
-    traceJson.setSelectionRange(0, traceJson.value.length)
+    traceJson.setSelectionRange(0, traceJson.value?.length ?? 0)
   })
 }
 
@@ -1525,8 +1533,8 @@ function recordUrbanVisualState(state: UrbanVisualState): void {
 }
 
 function refreshReplayControls(): void {
-  const slider = element<HTMLInputElement>('replaySlider')
-  slider.max = String(Math.max(0, replayFrames.length - 1))
+  const slider = element<UiSlider>('replaySlider')
+  slider.max = Math.max(0, replayFrames.length - 1)
   slider.disabled = active || replayFrames.length < 2
   if (!replaying) {
     slider.value = slider.max
@@ -1697,11 +1705,6 @@ function appendMessage(className: string, text: string): void {
       chatMessages.scrollTop = chatMessages.scrollHeight
     })
   }
-}
-
-function resizeComposer(): void {
-  chatInput.style.height = 'auto'
-  chatInput.style.height = `${Math.min(112, chatInput.scrollHeight)}px`
 }
 
 function intentLabel(intent: string): string {

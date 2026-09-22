@@ -14,6 +14,7 @@
     "prepare:city": "node scripts/prepare-city-colliders.mjs"
   },
   "dependencies": {
+    "@awesome.me/webawesome": "3.13.0",
     "@dimforge/rapier3d-compat": "^0.14.0",
     "cesium": "~1.143.0",
     "cesium-player-controller": "0.2.1",
