@@ -29,3 +29,16 @@ The proxy requires matching Host and Origin for model POST requests, accepts onl
 PLATEAU buildings cover the prepared Tokyo area. Outside it, navigation runs on explicitly simplified ground. Jev selects geometry-generated candidates and short motion intents; local code performs pathfinding, collision checking and character movement. This is not global autonomous driving, visual world understanding or a production robot controller.
 
 Verify both languages, a real model response and a completed route on the public site after activation. HTTP health alone is not product acceptance.
+
+## Release verification — 2026-09-22
+
+- Deployed revision: `e2ee8d66f7b04857083e7ffa7915a50ce028ec2e`.
+- Linux CI: https://github.com/gaopengbin/cesium-mcp/actions/runs/35690495306 — type checking, 306 tests and release build passed.
+- Artifact SHA-256: `10344cb02e493b14a849321633347ecb3a6d5e72a8b84118a1f04c01bc987ad6`.
+- Public index, JavaScript bundle and `/cesium-jev/health` returned successfully. Health reports the deployed revision.
+- A public POST to `/cesium-jev/api/jev/plan` with a synthetic validated observation returned HTTP 200, model `jev-1.13.0`, intent `advance`, and upstream latency 726 ms. This checks the hosted model path, not a completed browser route.
+- English rendering and English-to-Chinese switching were verified in the local browser. Public browser automation repeatedly timed out; a complete public navigation run and mobile visual acceptance remain unverified.
+- Release directory: `/srv/laogao/releases/cesium-jev/20260922133400-e2ee8d66`.
+- Pre-activation Nginx backup: `/srv/laogao/backups/cesium-jev-20260922133400-e2ee8d66/nginx.conf`.
+
+The first activation check encountered an Nginx reload timing race and restored the previous configuration. The deployment script now retries the public health check and avoids treating a nonexistent first-release link as a rollback target. The subsequent activation completed successfully.

@@ -1,5 +1,9 @@
 # Embodied World Lab
 
+**在线城市实验 / Live city demo:** [中文](https://laogao.xyz/cesium-jev/?planner=jev&scene=city&lang=zh-CN) · [English](https://laogao.xyz/cesium-jev/?planner=jev&scene=city&lang=en)
+
+城市模式支持地图选起终点、轻量 PLATEAU 建筑、可调速度与镜头高度，以及 Jev 路线/动作决策。建筑范围之外使用简化地面。公开体验有调用额度，模型密钥保留在服务端。部署与验证边界见 [PUBLIC-DEPLOYMENT.md](./PUBLIC-DEPLOYMENT.md)。
+
 一个隔离的 CesiumJS 具身控制实验。它把本地快速安全控制、异步结构化模型规划和确定性风险 fixture 放进同一个可执行山地场景，但不把三者混称为“模型看见了真实危险”。
 
 ## 运行
