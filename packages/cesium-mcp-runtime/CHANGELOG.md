@@ -1,5 +1,18 @@
 # cesium-mcp-runtime
 
+## 1.146.0
+
+### Minor Changes
+
+- [#53](https://github.com/gaopengbin/cesium-mcp/pull/53) [`298232d`](https://github.com/gaopengbin/cesium-mcp/commit/298232d626012bc597d07146be0e545c024d0c05) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Add session-scoped resource handles for storing GeoJSON and CZML once, then resolving `resourceId` across MCP, WebMCP, and the hosted function-calling agent.
+
+### Patch Changes
+
+- [#53](https://github.com/gaopengbin/cesium-mcp/pull/53) [`298232d`](https://github.com/gaopengbin/cesium-mcp/commit/298232d626012bc597d07146be0e545c024d0c05) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Separate model-facing tool names from stable browser Bridge actions across the canonical contracts, MCP Runtime, WebMCP, and browser function-calling adapter. Existing public tool names and actions remain unchanged. Add a bilingual 61-tool naming audit and a compatibility-first migration policy for future naming improvements.
+
+- Updated dependencies [[`298232d`](https://github.com/gaopengbin/cesium-mcp/commit/298232d626012bc597d07146be0e545c024d0c05), [`298232d`](https://github.com/gaopengbin/cesium-mcp/commit/298232d626012bc597d07146be0e545c024d0c05)]:
+  - cesium-mcp-contracts@0.7.0
+
 ## 1.145.3
 
 ### Patch Changes

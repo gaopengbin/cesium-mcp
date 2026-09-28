@@ -1,5 +1,12 @@
 # cesium-mcp-bridge
 
+## 1.146.0
+
+### Patch Changes
+
+- Updated dependencies [[`298232d`](https://github.com/gaopengbin/cesium-mcp/commit/298232d626012bc597d07146be0e545c024d0c05), [`298232d`](https://github.com/gaopengbin/cesium-mcp/commit/298232d626012bc597d07146be0e545c024d0c05)]:
+  - cesium-mcp-contracts@0.7.0
+
 ## 1.145.3
 
 ### Patch Changes
