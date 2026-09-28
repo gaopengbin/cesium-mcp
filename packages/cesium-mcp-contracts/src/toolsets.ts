@@ -119,6 +119,10 @@ export const cesiumBrowserToolContracts: readonly CesiumToolContract[] =
 export const cesiumSharedToolNames: readonly string[] =
   cesiumBrowserToolContracts.map(tool => tool.name)
 
+export function getCesiumToolAction(tool: CesiumToolContract): string {
+  return tool.action ?? tool.name
+}
+
 export function selectCesiumToolContracts(
   selection: CesiumToolsetSelection = 'core',
 ): readonly CesiumToolContract[] {

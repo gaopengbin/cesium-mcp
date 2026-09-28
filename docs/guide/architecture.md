@@ -112,7 +112,7 @@ The bridge runs **inside the browser** alongside your CesiumJS application. It:
 
 ### cesium-mcp-webmcp (Browser Adapter)
 
-The WebMCP package registers the shared contracts on the native `document.modelContext` API. It exposes 15 core tools by default or all 61 browser-safe tools across 12 toolsets. It does not include an AI model, chat UI, MCP server, WebSocket transport, or polyfill.
+The WebMCP package registers the shared contracts on the native `document.modelContext` API. It exposes 15 core tools by default or all 61 browser-safe tools across 12 toolsets. Applications can opt into 3 adapter-local [resource handle](/guide/resource-handles) tools without changing the Bridge protocol. It does not include an AI model, chat UI, MCP server, WebSocket transport, or polyfill.
 
 This adapter is intentionally separate from `cesium-mcp-runtime`; see the [WebMCP integration guide](/guide/webmcp).
 

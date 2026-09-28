@@ -92,4 +92,19 @@ describe('cross-entry Cesium tool contract parity', () => {
       params: input,
     })
   })
+
+  it('keeps function-calling names independent from Bridge actions', () => {
+    const contract = {
+      ...cesiumBrowserToolContracts.find(tool => tool.name === 'addGeoJsonLayer')!,
+      name: 'loadGeoJson',
+      action: 'addGeoJsonLayer',
+    }
+
+    const [functionTool] = context.CesiumFunctionTools.toFunctionTools([contract])
+    expect(functionTool.function.name).toBe('loadGeoJson')
+    expect(context.CesiumFunctionTools.toBridgeCommand('loadGeoJson', {})).toEqual({
+      action: 'addGeoJsonLayer',
+      params: {},
+    })
+  })
 })

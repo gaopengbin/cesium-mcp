@@ -28,7 +28,7 @@ cesium-mcp 提供 **四种接入路径**，它们共享同一套 Cesium 命令�
 | **是否需要 MCP 服务** | 否 | 否 | 否 | 是 |
 | **默认安装包** | `cesium-mcp-webmcp` | 无 | `cesium-mcp-bridge` | `cesium-mcp-runtime` |
 | **包是否要求模型** | 否 | 演示站提供 | 是，由应用管理 | 由 MCP 客户端管理 |
-| **工具范围** | 15 个核心或 61 个浏览器安全工具 | 自动调度至多 20 个，也可选择全部 61 个 + 61 个 WebMCP 工具 | 应用自行选择 | Runtime 工具集 |
+| **工具范围** | 15 个核心工具，可选 3 个资源工具；全量模式 61 个浏览器安全工具 | 自动调度 Cesium 工具并附加 3 个资源工具，也可选择全部 61 + 3 个工具 | 应用自行选择 | Runtime 工具集 + 3 个资源工具 |
 | **最适合** | 面向智能体的网站 | 体验和演示 | 产品内 AI 助手 | 接入 MCP 生态 |
 | **从这里开始** | [WebMCP 指南](/zh-CN/guide/webmcp) | [在线体验](https://cesium-browser-agent.pages.dev/) | [Browser Agent 源码](https://github.com/gaopengbin/cesium-mcp/tree/main/examples/browser-agent) | [快速开始](/zh-CN/guide/getting-started) |
 

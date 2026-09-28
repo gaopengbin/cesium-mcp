@@ -219,6 +219,7 @@ function contract(
   const fullDescription = `${description} ${resultDescription}`
   return {
     name,
+    action: name,
     description: fullDescription,
     inputSchema,
     outputSchema,
@@ -344,10 +345,16 @@ export const cesiumCoreToolContracts: readonly CesiumToolContract[] = [
       type: 'object',
       properties: {
         data: geoJsonSchema,
+        resourceId: {
+          type: 'string',
+          minLength: 1,
+          maxLength: 200,
+          description: 'Stored GeoJSON resource ID (mutually exclusive with data)',
+        },
         field: { type: 'string', minLength: 1, maxLength: 100 },
         style: labelStyleSchema,
       },
-      required: ['data', 'field'],
+      required: ['field'],
       additionalProperties: false,
     },
     bridgeResultSchema({
@@ -368,6 +375,12 @@ export const cesiumCoreToolContracts: readonly CesiumToolContract[] = [
         name: { type: 'string', minLength: 1, maxLength: 200 },
         data: geoJsonSchema,
         url: { type: 'string', minLength: 1, maxLength: 4096 },
+        resourceId: {
+          type: 'string',
+          minLength: 1,
+          maxLength: 200,
+          description: 'Stored GeoJSON resource ID (mutually exclusive with data or url)',
+        },
         style: layerStyleSchema,
       },
       additionalProperties: false,

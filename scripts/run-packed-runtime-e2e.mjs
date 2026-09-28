@@ -324,11 +324,22 @@ try {
   }
 
   if (!requestedRuntime) {
+    const stored = await postCommand(baseUrl, sessionId, 'storeResource', {
+      kind: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    })
+    const fromResource = await postCommand(baseUrl, sessionId, 'addGeoJsonLayer', {
+      id: 'packed-resource', resourceId: stored.resourceId,
+    })
+    const otherSession = await postCommand(baseUrl, `${sessionId}-other`, 'listResources')
+    if (!fromResource.success || otherSession.resources.length !== 0) {
+      throw new Error('Resource handles did not preserve browser session isolation')
+    }
     await page.addScriptTag({ content: await readFile(join(root,
       'packages/cesium-mcp-webmcp/dist/cesium-mcp-webmcp.browser.global.js'), 'utf8') })
     const cancelled = await page.evaluate(async () => {
       const controller = new AbortController()
-      const tool = window.CesiumMcpWebMcp.buildCesiumWebMcpTools(window.b)
+      const tool = window.CesiumMcpWebMcp.buildCesiumWebMcpTools(window.b, { enableResources: true })
         .find(tool => tool.name === 'flyTo')
       const pending = tool.execute({ longitude: 10, latitude: 20, duration: 30 }, { signal: controller.signal })
       controller.abort()
@@ -350,6 +361,7 @@ try {
     tools: toolsPayload.tools.length,
     authenticated: Boolean(authToken),
     cancellation: requestedRuntime ? 'not checked' : 'passed',
+    resources: requestedRuntime ? 'not checked' : 'passed',
     command: 'setView -> getView; addGeoJsonLayer -> listLayers',
   }))
 } catch (error) {

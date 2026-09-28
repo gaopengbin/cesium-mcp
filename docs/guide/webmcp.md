@@ -6,7 +6,7 @@ Use WebMCP when you want a compatible browser agent to discover and call Cesium 
 
 ## Try the hosted demo
 
-Open the [Cesium Agent Lab](https://cesium-browser-agent.pages.dev/) in Chrome. The status panel should report **WebMCP ready — 61 page tools registered**.
+Open the [Cesium Agent Lab](https://cesium-browser-agent.pages.dev/) in Chrome. The status panel should report **WebMCP ready — 64 page tools registered**: 61 Cesium tools plus 3 page-local resource tools.
 
 The demo has two independent AI paths:
 

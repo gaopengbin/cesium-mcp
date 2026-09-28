@@ -20,10 +20,10 @@ function createModelContext(): WebMcpModelContext & { registered: Array<{ tool: 
 }
 
 describe('registerCesiumWebMcp', () => {
-  it('forwards execution cancellation independently of registration', async () => {
+  it.each([false, true])('forwards execution cancellation with resources enabled: %s', async (enableResources) => {
     const execution = new AbortController()
     const execute = vi.fn().mockResolvedValue({ success: true })
-    const [tool] = buildCesiumWebMcpTools({ execute })
+    const [tool] = buildCesiumWebMcpTools({ execute }, { enableResources })
     await tool!.execute({}, { signal: execution.signal })
     expect(execute).toHaveBeenCalledWith(expect.any(Object), { signal: execution.signal })
     execution.abort()
@@ -156,6 +156,45 @@ describe('registerCesiumWebMcp', () => {
     )
     expect(bridgeRegistration.registered).toHaveLength(60)
     expect(bridgeRegistration.registered).not.toContain('geocode')
+  })
+
+  it('keeps a renamed public tool bound to its stable Bridge action', async () => {
+    const execute = vi.fn().mockResolvedValue({ success: true })
+    const renamed = {
+      ...cesiumCoreToolContracts.find(tool => tool.name === 'addGeoJsonLayer')!,
+      name: 'loadGeoJson',
+      action: 'addGeoJsonLayer',
+    }
+
+    const tool = buildCesiumWebMcpTools({ execute }, { tools: [renamed] })[0]!
+    await tool.execute({ data: { type: 'FeatureCollection', features: [] } })
+
+    expect(tool.name).toBe('loadGeoJson')
+    expect(execute).toHaveBeenCalledWith({
+      action: 'addGeoJsonLayer',
+      params: { data: { type: 'FeatureCollection', features: [] } },
+    })
+  })
+
+  it('stores large inputs once and resolves resourceId before Bridge execution', async () => {
+    const modelContext = createModelContext()
+    const execute = vi.fn().mockResolvedValue({ success: true })
+    const registration = await registerCesiumWebMcp({ execute }, {
+      modelContext,
+      enableResources: true,
+    })
+    const geoJson = { type: 'FeatureCollection', features: [] }
+    const storeResource = modelContext.registered.find(item => item.tool.name === 'storeResource')!.tool
+    const addGeoJsonLayer = modelContext.registered.find(item => item.tool.name === 'addGeoJsonLayer')!.tool
+    const stored = await storeResource.execute({ kind: 'geojson', data: geoJson })
+
+    expect(registration.registered).toHaveLength(18)
+    expect(registration.resourceStore?.list()).toHaveLength(1)
+    await addGeoJsonLayer.execute({ resourceId: stored.resourceId, name: 'Cities' })
+    expect(execute).toHaveBeenCalledWith({
+      action: 'addGeoJsonLayer',
+      params: { data: geoJson, name: 'Cities' },
+    })
   })
 
   it('rolls back earlier registrations when one registration fails', async () => {
