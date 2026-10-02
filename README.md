@@ -51,6 +51,19 @@
 
 ---
 
+## Cesium Map in Codex
+
+Install the hosted map plugin from this repository's **Cesium Map Community** source:
+
+```text
+codex plugin marketplace add gaopengbin/cesium-mcp --ref main
+codex plugin add cesium-map@cesium-community
+```
+
+Restart Codex and ask “Open a map of Manhattan.” Uses native host chat, with no local map server or separate model API key. Requires a compatible MCP Apps host. This is a community beta, separate from the OpenAI public directory.
+
+[Installation and compatibility](plugins/cesium-map/README.md) · [ZIP download](https://github.com/gaopengbin/cesium-mcp/releases/tag/cesium-map-plugin-v0.1.0) · [Product website](https://laogao.xyz/cesium-map/)
+
 ## Demo
 
 https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908

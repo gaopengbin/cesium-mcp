@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "cesium-map": {
+      "type": "streamable-http",
+      "url": "https://laogao.xyz/cesium-map/mcp"
+    }
+  }
+}

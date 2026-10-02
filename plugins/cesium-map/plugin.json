@@ -1,0 +1,49 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "cesium-map",
+  "version": "0.1.0",
+  "description": "Open a Cesium 3D map, navigate, add objects and GeoJSON layers, and inspect selected map objects through MCP.",
+  "author": {
+    "name": "gaopengbin",
+    "url": "https://github.com/gaopengbin"
+  },
+  "repository": "https://github.com/gaopengbin/cesium-mcp",
+  "homepage": "https://laogao.xyz/cesium-map/",
+  "license": "MIT",
+  "keywords": [
+    "cesium",
+    "mcp-apps",
+    "maps",
+    "geospatial"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Cesium Map",
+        "shortDescription": "Explore and edit a 3D globe",
+        "longDescription": "Explore and edit an interactive Cesium 3D globe from native Codex or ChatGPT conversations. Navigate the map, create markers and GeoJSON layers, inspect selected objects, change building heights and capture the actual map. The map follows host theme and language. Built-in San Francisco, New York and Los Angeles scenes use illustrative values and objects, with real rendered screenshots. Requires an MCP Apps host with WebGL support. The public beta uses temporary private map capabilities; no Node installation or separate model key is required.",
+        "developerName": "gaopengbin",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "Open a 3D map of Manhattan and add a marker near City Hall.",
+          "Show my GeoJSON on the map, then inspect the selected object.",
+          "打开纽约立体街区示例，把选中建筑拉伸到 180 米，再读回核对。"
+        ],
+        "brandColor": "#16866B",
+        "brandColorDark": "#70E1B4",
+        "composerIcon": "./assets/icon.svg",
+        "composerIconDark": "./assets/icon-dark.svg",
+        "logo": "./assets/logo.svg",
+        "logoDark": "./assets/logo-dark.svg",
+        "websiteURL": "https://laogao.xyz/cesium-map/",
+        "supportURL": "https://laogao.xyz/cesium-map/support.html",
+        "privacyPolicyURL": "https://laogao.xyz/cesium-map/privacy.html",
+        "termsOfServiceURL": "https://laogao.xyz/cesium-map/terms.html"
+      }
+    }
+  }
+}

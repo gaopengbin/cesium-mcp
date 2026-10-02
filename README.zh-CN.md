@@ -54,6 +54,19 @@
 
 ---
 
+## 在 Codex 中使用 Cesium Map
+
+从本仓库的 **Cesium Map Community** 插件源安装：
+
+```text
+codex plugin marketplace add gaopengbin/cesium-mcp --ref main
+codex plugin add cesium-map@cesium-community
+```
+
+重启 Codex，然后说“打开纽约曼哈顿地图”。沿用宿主原生对话，无需启动本地地图服务或单独填写模型 API 密钥；需要兼容 MCP Apps 的客户端。这是社区测试版，尚未进入 OpenAI 官方公共目录。
+
+[安装与兼容性说明](plugins/cesium-map/README.zh-CN.md) · [ZIP 下载](https://github.com/gaopengbin/cesium-mcp/releases/tag/cesium-map-plugin-v0.1.0) · [产品网站](https://laogao.xyz/cesium-map/)
+
 ## 演示
 
 https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908

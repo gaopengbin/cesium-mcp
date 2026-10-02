@@ -1,0 +1,20 @@
+{
+  "name": "cesium-community",
+  "interface": {
+    "displayName": "Cesium Map Community"
+  },
+  "plugins": [
+    {
+      "name": "cesium-map",
+      "source": {
+        "source": "local",
+        "path": "./plugins/cesium-map"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
