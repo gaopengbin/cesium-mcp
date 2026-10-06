@@ -33,6 +33,19 @@ Conversations use the native host chat. Click an object and choose **Ask in Code
 
 Generated buildings, heatmap points and activity values in the US scenes are demonstration data, not surveyed building heights or official statistics. Imagery is provided by the selected third-party basemap provider.
 
+## Map previews
+
+![Cesium Map development preview showing Manhattan's 3D city blocks](../../docs/public/screenshots/cesium-map/new-york-workspace.jpg)
+
+Actual running screenshot: the development preview is connected to the hosted HTTPS MCP service. The native conversation UI is provided by Codex; it is not pictured here.
+
+| San Francisco · City activity | New York · 3D city blocks | Los Angeles · Hotspots |
+| --- | --- | --- |
+| ![San Francisco activity hexagons](../../docs/public/screenshots/cesium-map/san-francisco.jpg) | ![Manhattan illustrative buildings](../../docs/public/screenshots/cesium-map/new-york.jpg) | ![Los Angeles heatmap and route](../../docs/public/screenshots/cesium-map/los-angeles.jpg) |
+| Inspect feature values and change classification colors | Select buildings, edit extrusion heights and read back properties | Combine a heatmap, markers and connecting routes |
+
+These covers come from rendered map scenes. Buildings, activity values and heatmap points are demonstration data, not surveyed heights or official statistics. Basemap imagery: Esri and its imagery contributors.
+
 ## Service and privacy
 
 The MCP endpoint is `https://laogao.xyz/cesium-map/mcp`. Every map operation requires the map's issued `sessionId`. Treat this value as a temporary bearer access credential and do not share it. Maps expire after 30 minutes of inactivity or 24 hours total. Public service capacity and payload limits apply.

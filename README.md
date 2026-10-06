@@ -64,6 +64,27 @@ Restart Codex and ask “Open a map of Manhattan.” Uses native host chat, with
 
 [Installation and compatibility](plugins/cesium-map/README.md) · [ZIP download](https://github.com/gaopengbin/cesium-mcp/releases/tag/cesium-map-plugin-v0.1.0) · [Product website](https://laogao.xyz/cesium-map/)
 
+### Continue in native Codex chat
+
+- “Open the New York 3D city blocks scene, change the selected building height to 180 metres, then read it back.”
+- “Explain the selected hexagon in the San Francisco city activity scene.”
+- “Show the Los Angeles hotspots scene, then zoom in on the route.”
+
+Select a scene in the map, click an object and choose **Ask in Codex** to continue with its map context. The host controls chat placement and map expansion.
+
+### Map previews
+
+![Cesium Map development preview showing Manhattan's 3D city blocks](docs/public/screenshots/cesium-map/new-york-workspace.jpg)
+
+Actual running screenshot: the development preview is connected to the hosted HTTPS MCP service. The native conversation UI is provided by Codex; it is not pictured here.
+
+| San Francisco · City activity | New York · 3D city blocks | Los Angeles · Hotspots |
+| --- | --- | --- |
+| ![San Francisco activity hexagons](docs/public/screenshots/cesium-map/san-francisco.jpg) | ![Manhattan illustrative buildings](docs/public/screenshots/cesium-map/new-york.jpg) | ![Los Angeles heatmap and route](docs/public/screenshots/cesium-map/los-angeles.jpg) |
+| Inspect feature values and change classification colors | Select buildings, edit extrusion heights and read back properties | Combine a heatmap, markers and connecting routes |
+
+These covers come from rendered map scenes. Buildings, activity values and heatmap points are demonstration data, not surveyed heights or official statistics. Basemap imagery: Esri and its imagery contributors.
+
 ## Demo
 
 https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908

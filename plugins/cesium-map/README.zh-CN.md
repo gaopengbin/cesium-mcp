@@ -33,6 +33,19 @@ Windows 的 PATH 里可能仍是旧版 `codex`。若提示不认识 `plugin` 命
 
 美国样例中的建筑、热点与活力数值是演示数据，不代表实测楼高或官方统计。底图影像来自当前选择的第三方底图服务。
 
+## 地图截图与样例
+
+![Cesium Map 开发预览中的纽约立体街区](../../docs/public/screenshots/cesium-map/new-york-workspace.jpg)
+
+真实运行截图：开发预览连接公开 HTTPS MCP 服务。对话由 Codex 原生界面提供，图中展示的是地图预览。
+
+| 旧金山 · 城市活力图 | 纽约 · 立体街区 | 洛杉矶 · 活动热点 |
+| --- | --- | --- |
+| ![旧金山活力分级六边形](../../docs/public/screenshots/cesium-map/san-francisco.jpg) | ![纽约曼哈顿演示建筑](../../docs/public/screenshots/cesium-map/new-york.jpg) | ![洛杉矶热力与连线](../../docs/public/screenshots/cesium-map/los-angeles.jpg) |
+| 读取对象数值、调整分级与配色 | 选中建筑、修改拉伸高度、读回属性 | 组合热力图、标记和连接路线 |
+
+封面来自真实渲染的地图场景。建筑、活力数值与热点是演示数据，不代表实测楼高或官方统计。底图影像：Esri 及其影像贡献者。
+
 ## 服务与隐私
 
 服务地址：`https://laogao.xyz/cesium-map/mcp`。所有地图操作必须携带该地图返回的 `sessionId`；它是临时访问凭据，请勿分享。地图会话在 30 分钟无活动或累计 24 小时后过期；公开服务有容量与数据量限制。

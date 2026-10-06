@@ -67,6 +67,27 @@ codex plugin add cesium-map@cesium-community
 
 [安装与兼容性说明](plugins/cesium-map/README.zh-CN.md) · [ZIP 下载](https://github.com/gaopengbin/cesium-mcp/releases/tag/cesium-map-plugin-v0.1.0) · [产品网站](https://laogao.xyz/cesium-map/)
 
+### 在 Codex 原生对话里继续操作
+
+- “打开纽约立体街区，把选中建筑拉伸到 180 米，再读取属性确认。”
+- “解释旧金山城市活力图中我选中的六边形。”
+- “显示洛杉矶活动热点，放大查看连接路线。”
+
+在地图中选择样例、点击对象，再点“询问此对象”，即可携带地图上下文继续对话。聊天位置与地图展开布局由宿主控制。
+
+### 地图截图与样例
+
+![Cesium Map 开发预览中的纽约立体街区](docs/public/screenshots/cesium-map/new-york-workspace.jpg)
+
+真实运行截图：开发预览连接公开 HTTPS MCP 服务。对话由 Codex 原生界面提供，图中展示的是地图预览。
+
+| 旧金山 · 城市活力图 | 纽约 · 立体街区 | 洛杉矶 · 活动热点 |
+| --- | --- | --- |
+| ![旧金山活力分级六边形](docs/public/screenshots/cesium-map/san-francisco.jpg) | ![纽约曼哈顿演示建筑](docs/public/screenshots/cesium-map/new-york.jpg) | ![洛杉矶热力与连线](docs/public/screenshots/cesium-map/los-angeles.jpg) |
+| 读取对象数值、调整分级与配色 | 选中建筑、修改拉伸高度、读回属性 | 组合热力图、标记和连接路线 |
+
+封面来自真实渲染的地图场景。建筑、活力数值与热点是演示数据，不代表实测楼高或官方统计。底图影像：Esri 及其影像贡献者。
+
 ## 演示
 
 https://github.com/user-attachments/assets/8a40565a-fcdd-47bf-ae67-bc870611c908
