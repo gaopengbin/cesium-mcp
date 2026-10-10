@@ -245,6 +245,30 @@ function makePrimitiveCollection(materials: Array<Record<string, unknown>>) {
   }
 }
 
+describe('LayerManager JSON output', () => {
+  it('lets a workflow load GeoJSON without a competing automatic camera flight', async () => {
+    const viewer = makeViewer()
+    mockDsEntities.length = 0
+    const context = { beginPath: vi.fn(), arc: vi.fn(), fill: vi.fn(), stroke: vi.fn() }
+    vi.stubGlobal('window', { devicePixelRatio: 1 })
+    vi.stubGlobal('document', { createElement: () => ({ getContext: () => context }) })
+    try {
+      await new LayerManager(viewer).addGeoJsonLayer({ data: { type: 'FeatureCollection', features: [] }, flyTo: false })
+      expect(viewer.flyTo).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('returns contract-valid layer metadata when optional fields are absent', () => {
+    const manager = new LayerManager(makeViewer())
+    manager.layers.push({ id: 'layer-1', name: 'Test', type: '点', visible: true, color: '#3B82F6' })
+    expect(validateCesiumToolOutput('addGeoJsonLayer', {
+      success: true, data: manager.listLayers()[0],
+    }).issues).toEqual([])
+  })
+})
+
 describe('detectGeometryType', () => {
   it('keeps existing content and discards a CZML load completed after cancellation', async () => {
     let finish!: (value: any) => void

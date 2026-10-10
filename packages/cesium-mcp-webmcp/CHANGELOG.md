@@ -1,5 +1,19 @@
 # cesium-mcp-webmcp
 
+## 0.5.0
+
+### Minor Changes
+
+- Add vector 3D Tiles and native MVT loading, metadata from clicked managed features, and expression-based layer styling including line widths. Share selection across browser and MCP Apps integrations, clear stale selection during layer lifecycle changes, and declare configurable custom data origins for map panels.
+
+  Require CesiumJS 1.145 and support vector draping on terrain, 3D Tiles or both. Bound excessive MVT tile hierarchies, preserve existing layers on failed replacement, return applied styles with layer schemas, and preserve expressions during partial updates. Report failed browser commands as MCP errors so agents can correct their arguments. Accept Codex turns that complete after reconnect notifications and use an ephemeral HTTPS provider for the local preview.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - cesium-mcp-bridge@1.147.0
+  - cesium-mcp-contracts@0.8.0
+
 ## 0.4.0
 
 ### Minor Changes

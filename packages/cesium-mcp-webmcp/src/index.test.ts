@@ -134,7 +134,7 @@ describe('registerCesiumWebMcp', () => {
       { modelContext: allContext, toolsets: 'all' },
     )
     expect(allRegistration.registered).toEqual(cesiumBrowserToolContracts.map(tool => tool.name))
-    expect(allContext.registered).toHaveLength(61)
+    expect(allContext.registered).toHaveLength(63)
 
     const selectedContext = createModelContext()
     const selectedRegistration = await registerCesiumWebMcp(
@@ -154,7 +154,7 @@ describe('registerCesiumWebMcp', () => {
       { execute: vi.fn() },
       { modelContext: bridgeContext, toolsets: 'all', excludeTools: ['geocode'] },
     )
-    expect(bridgeRegistration.registered).toHaveLength(60)
+    expect(bridgeRegistration.registered).toHaveLength(62)
     expect(bridgeRegistration.registered).not.toContain('geocode')
   })
 

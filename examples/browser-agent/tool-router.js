@@ -1,7 +1,12 @@
 (function attachCesiumToolRouter(global) {
-  const MAX_AUTO_TOOLS = 20
+  const MAX_AUTO_TOOLS = 21
 
   const routes = [
+    {
+      name: 'vector',
+      pattern: /\b(mvt|vector\s*tiles?|river\s*tiles?)\b|矢量瓦片|河流瓦片/i,
+      toolsets: ['tiles', 'layer', 'view'],
+    },
     {
       name: 'tiles',
       pattern: /\b(3d\s*tiles?|tilesets?|terrain|wms|wmts|imagery|czml|kml|kmz|gaussian\s*splats?)\b|三维瓦片|瓦片集|地形|影像|高斯|倾斜摄影/i,

@@ -33,6 +33,12 @@ npm 包会直接携带浏览器 Bridge bundle，因此 `http://localhost:9100/` 
 | **stdio**（默认） | 本地 AI 客户端（Claude Desktop、VS Code、Cursor） | 标准输入输出 |
 | **http** | 远程/云端 MCP 客户端（Dify、自定义后端） | [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) |
 
+## 矢量瓦片
+
+通过 `CESIUM_TOOLSETS=view,entity,layer,interaction,tiles` 或 `enable_toolset` 启用 `tiles` 工具组。`loadVectorTiles` 可加载 MVT 的 `/{z}/{x}/{y}` 地址和矢量 3D Tiles；点击后用 `getSelectedTileFeature` 读取属性，再用 `updateLayerStyle` 的 `tileStyle.color`、`tileStyle.lineWidth` 修改图层。修改后通过 `getLayerSchema.metadata.tileStyle` 读回实际表达式。
+
+矢量渲染与贴地需要 CesiumJS 1.145，贴地线和面的拾取使用有查询预算的实验适配器。MCP Apps 面板加载外部数据时须用 `CESIUM_MAP_DATA_ORIGINS` 配置准确来源。详见[矢量瓦片指南](https://gaopengbin.github.io/cesium-mcp/zh-CN/guide/vector-tiles)。
+
 ## 安装与运行
 
 ```bash

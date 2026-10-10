@@ -147,6 +147,12 @@ The project author was an early contributor to `CesiumGS/cesium-ai-integrations`
 
 ## Quick Start
 
+### MCP Apps map panel
+
+Open an interactive Cesium map inside a compatible MCP Apps host with `openCesiumMap`. The panel uses existing MCP tools, publishes camera/layer/selection context, and can send a selected object to the conversation. OpenAI global/thread entrypoint metadata is included; availability depends on the host.
+
+Try the local preview with `npm run app:preview -w packages/cesium-mcp-runtime` after `npm ci` and `npm run build`, then open http://127.0.0.1:19311/. See the [MCP Apps guide](docs/guide/mcp-apps.md) for host configuration and verification boundaries.
+
 ### Path 0 — Try in 30 seconds (browser agent, recommended)
 
 Open the [live demo](https://cesium-browser-agent.pages.dev/) and ask—the hosted model is ready without a browser API key:

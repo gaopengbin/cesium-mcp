@@ -54,8 +54,8 @@ export const cesiumBrowserToolsetDefinitions: Readonly<
     names: ['addMarker', 'addLabel', 'addModel', 'addPolygon', 'addPolyline', 'updateEntity', 'removeEntity', 'batchAddEntities', 'queryEntities', 'getEntityProperties'],
   },
   layer: {
-    description: 'GeoJSON, layer discovery, visibility, styling, removal, and basemaps',
-    names: ['addGeoJsonLayer', 'addGeoJsonPrimitive', 'listLayers', 'getLayerSchema', 'removeLayer', 'clearAll', 'setLayerVisibility', 'updateLayerStyle', 'setBasemap'],
+    description: 'GeoJSON, vector tile selection, layer discovery, visibility, styling, removal, and basemaps',
+    names: ['addGeoJsonLayer', 'addGeoJsonPrimitive', 'listLayers', 'getLayerSchema', 'getSelectedTileFeature', 'removeLayer', 'clearAll', 'setLayerVisibility', 'updateLayerStyle', 'setBasemap'],
   },
   camera: {
     description: 'Advanced camera targeting, orbit, and input options',
@@ -74,8 +74,8 @@ export const cesiumBrowserToolsetDefinitions: Readonly<
     names: ['setSceneOptions', 'setPostProcess'],
   },
   tiles: {
-    description: '3D Tiles, Gaussian Splats, terrain, imagery, CZML, KML, and edge display',
-    names: ['load3dTiles', 'load3dGaussianSplat', 'loadTerrain', 'loadImageryService', 'loadCzml', 'loadKml', 'setEdgeDisplayMode'],
+    description: '3D Tiles, vector tiles/MVT, Gaussian Splats, terrain, imagery, CZML, KML, and edge display',
+    names: ['load3dTiles', 'loadVectorTiles', 'load3dGaussianSplat', 'loadTerrain', 'loadImageryService', 'loadCzml', 'loadKml', 'setEdgeDisplayMode'],
   },
   interaction: {
     description: 'Screenshot, feature highlighting, and measurement',

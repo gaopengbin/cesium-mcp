@@ -21,6 +21,7 @@ import type {
   UpdateEntityParams,
   SetBasemapParams,
   Load3dTilesParams,
+  LoadVectorTilesParams,
   AddGaussianSplatParams,
   LoadTerrainParams,
   LoadImageryServiceParams,
@@ -66,6 +67,7 @@ import type {
 } from './types'
 import { flyTo, setView, getView, zoomToExtent, saveViewpoint, loadViewpoint, listViewpoints, clearViewpoints } from './commands/view'
 import { LayerManager } from './commands/layer'
+import type { TileFeatureResult } from './commands/tile-selection.js'
 import { addLabels, addMarker, addPolyline, addPolygon, addModel, updateEntity, removeEntity, batchAddEntities, queryEntities, getEntityProperties } from './commands/entity'
 import { screenshot, highlight, measure } from './commands/interaction'
 import { playTrajectory as playTrajectoryCmd } from './commands/trajectory'
@@ -113,6 +115,9 @@ export class CesiumBridge {
   private _executors: Map<string, BridgeExecutor>
   private _operationAbortController = new AbortController()
   private _disposed = false
+  private _tileSelectionHandler?: Cesium.ScreenSpaceEventHandler
+  private _vectorResizeObserver?: ResizeObserver
+  private _vectorResizeCleanup?: () => void
 
   constructor(viewer: Cesium.Viewer, options: CesiumBridgeOptions = {}) {
     this._viewer = viewer
@@ -124,6 +129,26 @@ export class CesiumBridge {
       ...internalBridgeExecutors,
       ...options.executors,
     }))
+    if (typeof document !== 'undefined' && viewer.scene?.canvas) {
+      this._tileSelectionHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas)
+      this._tileSelectionHandler.setInputAction((movement: { position: Cesium.Cartesian2 }) => {
+        const feature = this._layerManager.selectTileFeature(this._layerManager.pickTileFeature(movement.position))
+        this._emit('tileFeatureSelected', { feature })
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
+      if (typeof ResizeObserver !== 'undefined') {
+        this._vectorResizeObserver = new ResizeObserver(() => {
+          this._vectorResizeCleanup?.()
+          this._vectorResizeCleanup = viewer.scene.postRender.addEventListener(() => {
+            if (!viewer.scene.globe.tilesLoaded) return
+            this._vectorResizeCleanup?.()
+            this._vectorResizeCleanup = undefined
+            this._layerManager.refreshVectorStyles()
+          })
+          viewer.scene.requestRender()
+        })
+        this._vectorResizeObserver.observe(viewer.scene.canvas)
+      }
+    }
   }
 
   get viewer(): Cesium.Viewer {
@@ -235,9 +260,12 @@ export class CesiumBridge {
    * this Bridge. The Viewer and scene content remain owned by the application.
    */
   dispose(): void {
+    this._vectorResizeObserver?.disconnect()
+    this._vectorResizeCleanup?.()
     if (this._disposed) return
     this._disposed = true
     this._operationAbortController.abort()
+    this._tileSelectionHandler?.destroy()
     this._viewer.camera?.cancelFlight?.()
     this._stopManagedActivity()
     clearViewpoints(this._viewer)
@@ -296,6 +324,14 @@ export class CesiumBridge {
 
   load3dTiles(params: Load3dTilesParams, signal?: AbortSignal): Promise<LayerInfo> {
     return this._layerManager.load3dTiles(params, this._operationSignal(signal))
+  }
+
+  loadVectorTiles(params: LoadVectorTilesParams, signal?: AbortSignal): Promise<LayerInfo> {
+    return this._layerManager.loadVectorTiles(params, this._operationSignal(signal))
+  }
+
+  getSelectedTileFeature(): TileFeatureResult | null {
+    return this._layerManager.getSelectedTileFeature()
   }
 
   load3dGaussianSplat(params: AddGaussianSplatParams, signal?: AbortSignal): Promise<LayerInfo> {

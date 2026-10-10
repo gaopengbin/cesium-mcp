@@ -19,8 +19,8 @@ describe('cesiumCoreToolContracts', () => {
   })
 
   it('groups every browser-safe bridge action into selectable toolsets', () => {
-    expect(cesiumBrowserToolContracts).toHaveLength(61)
-    expect(new Set(cesiumBrowserToolContracts.map(tool => tool.name)).size).toBe(61)
+    expect(cesiumBrowserToolContracts).toHaveLength(63)
+    expect(new Set(cesiumBrowserToolContracts.map(tool => tool.name)).size).toBe(63)
     expect(cesiumBrowserToolContracts.some(tool => tool.name === 'setIonToken')).toBe(false)
     expect(cesiumBrowserToolContracts.every(tool => tool.action?.length)).toBe(true)
     expect(cesiumBrowserToolContracts.every(tool => tool.action === tool.name)).toBe(true)

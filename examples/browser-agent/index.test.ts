@@ -7,6 +7,8 @@ import {
 } from '../../packages/cesium-mcp-contracts/src/index.js'
 
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8')
+const bridgeVersion = JSON.parse(readFileSync(new URL('../../packages/cesium-mcp-bridge/package.json', import.meta.url), 'utf8')).version
+const webMcpVersion = JSON.parse(readFileSync(new URL('../../packages/cesium-mcp-webmcp/package.json', import.meta.url), 'utf8')).version
 
 describe('browser-agent startup order', () => {
   it('enables the WebMCP origin trial for remote scanners', () => {
@@ -53,13 +55,13 @@ describe('browser-agent startup order', () => {
     expect(html).not.toContain('<script\n    src="../../packages/cesium-mcp-bridge')
     expect(html).not.toContain("BRIDGE_SCRIPT_URL = '/packages/cesium-mcp-bridge/")
     expect(html).toContain(
-      "BRIDGE_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/cesium-mcp-bridge@1.145.3/dist/cesium-mcp-bridge.browser.global.js'",
+      `BRIDGE_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/cesium-mcp-bridge@${bridgeVersion}/dist/cesium-mcp-bridge.browser.global.js'`,
     )
     expect(html).not.toContain('src="/packages/cesium-mcp-webmcp/')
     expect(html).toContain(
-      'https://cdn.jsdelivr.net/npm/cesium-mcp-webmcp@0.4.0/dist/cesium-mcp-webmcp.browser.global.js',
+      `https://cdn.jsdelivr.net/npm/cesium-mcp-webmcp@${webMcpVersion}/dist/cesium-mcp-webmcp.browser.global.js`,
     )
-    expect(html).toContain('cesium-mcp-webmcp@0.3.0/dist/cesium-mcp-webmcp.browser.global.js')
+    expect(html).toContain('cesium-mcp-webmcp@0.4.0/dist/cesium-mcp-webmcp.browser.global.js')
     expect(html).toContain('await CesiumMcpWebMcp.registerCesiumWebMcp(executor, {')
     expect(html).toContain('pageResourceStore ? { resourceStore: pageResourceStore } : {}')
     expect(html).not.toContain('document.modelContext.registerTool')
@@ -70,7 +72,7 @@ describe('browser-agent startup order', () => {
     const byName = Object.fromEntries(cesiumCoreToolContracts.map(tool => [tool.name, tool]))
 
     expect(cesiumCoreToolContracts).toHaveLength(15)
-    expect(cesiumBrowserToolContracts).toHaveLength(61)
+    expect(cesiumBrowserToolContracts).toHaveLength(63)
     expect(cesiumCoreToolContracts.every(tool => tool.outputSchema.type === 'object')).toBe(true)
     expect((byName.flyTo.inputSchema as any).properties.longitude).toMatchObject({ minimum: -180, maximum: 180 })
     expect((byName.flyTo.inputSchema as any).properties.latitude).toMatchObject({ minimum: -90, maximum: 90 })

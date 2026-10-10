@@ -1,0 +1,63 @@
+{
+  "captureMethod": "MCP screenshot tool on the live Cesium Viewer",
+  "demoSourceSha256": "6fab7c15455163ade56066f0eaf8a8bdcca4abe213b417be828f0a2ef3137914",
+  "covers": [
+    {
+      "id": "choropleth",
+      "file": "choropleth.jpg",
+      "width": 601,
+      "height": 325,
+      "sha256": "56f47aa3e2e80f0c9edf5984c3cf6d35e2118b7e293e5a7eef17ad77c0b6d49f",
+      "sourcePngSha256": "60bf94e035807e76c77ff6c9b679a6d5dcbd2378104d37e9b2e209e028274681",
+      "scene": "旧金山 · 城市活力图",
+      "view": {
+        "longitude": -122.41400000000003,
+        "latitude": 37.77635,
+        "height": 1699.9999999986908,
+        "heading": 12.000000000004343,
+        "pitch": -89.9999502534881,
+        "roll": 0
+      },
+      "dataSource": "内置演示数据",
+      "baseMap": "Esri World Imagery"
+    },
+    {
+      "id": "buildings",
+      "file": "buildings.jpg",
+      "width": 601,
+      "height": 325,
+      "sha256": "7a533616168ccbe7a341951ffcfe84d9cb449d2804df4d539a840a8ea39fa781",
+      "sourcePngSha256": "a3b79c94bed977bcafafbea0d9e8d3a3b54f2a97e92859e11b94285bafd25a87",
+      "scene": "曼哈顿 · 立体街区",
+      "view": {
+        "longitude": -73.99929560115402,
+        "latitude": 40.70425236193073,
+        "height": 1200.1604861427822,
+        "heading": 325.0063271284321,
+        "pitch": -40.01283007468729,
+        "roll": 3.608868632197105e-06
+      },
+      "dataSource": "内置演示数据",
+      "baseMap": "Esri World Imagery"
+    },
+    {
+      "id": "heatmap",
+      "file": "heatmap.jpg",
+      "width": 601,
+      "height": 325,
+      "sha256": "0a5da7457355d7b1516a24edffbcd22018027b70c3f8701d8c5edf144d5ce52c",
+      "sourcePngSha256": "bff08031d966294c052ef76cda4b3c2a523c3989aa34b0adfd40b6269b01798e",
+      "scene": "洛杉矶 · 活动热点",
+      "view": {
+        "longitude": -118.25150000000001,
+        "latitude": 34.045500000000004,
+        "height": 6800.000000000171,
+        "heading": 8.000000000043674,
+        "pitch": -89.99980942670605,
+        "roll": 0
+      },
+      "dataSource": "内置演示数据",
+      "baseMap": "Esri World Imagery"
+    }
+  ]
+}

@@ -12,5 +12,9 @@ await stat(source).catch(() => {
 })
 await mkdir(dirname(target), { recursive: true })
 await copyFile(source, target)
+await copyFile(
+  join(root, 'packages', 'cesium-mcp-runtime', 'assets', 'map-icon.svg'),
+  join(root, 'packages', 'cesium-mcp-runtime', 'dist', 'map-icon.svg'),
+)
 
 console.log(`Copied browser Bridge bundle to ${target}`)

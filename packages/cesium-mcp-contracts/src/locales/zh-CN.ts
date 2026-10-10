@@ -4,6 +4,8 @@
  */
 
 export const toolDescriptions: Record<string, string> = {
+  loadVectorTiles: '加载矢量 3D Tiles 或指定范围的 MVT 数据源',
+  getSelectedTileFeature: '读取点击的矢量瓦片要素属性和 layerId，使用 updateLayerStyle 的 tileStyle 修改样式',
   // — view
   flyTo: '飞行到指定经纬度位置（带动画过渡）',
   setView: '瞬间切换到指定经纬度视角（无动画）',
@@ -19,7 +21,7 @@ export const toolDescriptions: Record<string, string> = {
   addModel: '在指定经纬度放置 3D 模型（glTF/GLB），返回 entityId',
   addPolygon: '在地图上添加多边形区域（面积、边界），返回 entityId',
   addPolyline: '在地图上添加折线（路径、线段），返回 entityId',
-  updateEntity: '更新已有实体的属性（位置、颜色、标签、缩放、可见性）',
+  updateEntity: '更新已有实体的属性（位置、颜色、标签、缩放、可见性、多边形拉伸高度）',
   removeEntity: '移除单个实体（通过 entityId）',
   batchAddEntities: '批量添加多个实体（一次调用创建多个 marker/polyline/polygon/model 等），返回所有 entityId',
   queryEntities: '查询已有实体 — 按名称、类型、空间范围过滤，返回 entityId/name/type/position 列表',
@@ -28,10 +30,10 @@ export const toolDescriptions: Record<string, string> = {
   addGeoJsonLayer: '添加 GeoJSON 图层到地图（支持 Point/Line/Polygon，可配置颜色/分级/分类渲染）。data 和 url 二选一',
   addGeoJsonPrimitive: '高性能加载大规模 GeoJSON 数据（10万+ 要素）。绕过 Entity 系统，直接使用 Primitive 渲染，适合海量数据可视化。data 和 url 二选一',
   listLayers: '获取当前所有图层列表（含 ID、名称、类型、可见性）',
-  getLayerSchema: '获取图层的属性字段结构 — 返回字段名、类型、示例值，适用于 GeoJSON/CZML/KML/3D Tiles 图层',
+  getLayerSchema: '获取图层字段、示例值和元数据；矢量/3D Tiles 在 metadata.tileStyle 返回实际生效的样式表达式，用于修改后读回。适用于 GeoJSON/CZML/KML/3D Tiles/MVT 图层',
   removeLayer: '从地图上移除指定图层（按图层ID）',
   setLayerVisibility: '设置图层可见性',
-  updateLayerStyle: '修改已有图层的样式（颜色、透明度、标注样式、3D Tiles 样式等）',
+  updateLayerStyle: '更新图层样式。矢量 3D Tiles 和 MVT 使用 tileStyle（颜色表达式、lineWidth、show）；layerStyle 仅用于 GeoJSON 实体图层。layerId 必须与选中要素或图层列表中的 ID 一致。',
   setBasemap: '切换底图风格（暗色/卫星/标准/OSM/ArcGIS/浅色/天地图/高德等）',
 
   // — camera
@@ -97,6 +99,15 @@ export const toolDescriptions: Record<string, string> = {
 }
 
 export const paramDescriptions: Record<string, Record<string, string>> = {
+  loadVectorTiles: {
+    source: '数据格式：tileset 或 mvt',
+    id: '图层 ID', name: '图层名称', url: '3D Tiles URL 或 MVT /{z}/{x}/{y} URL',
+    ionAssetId: 'Cesium ion 资产 ID', minZoom: '最小缩放级别', maxZoom: '最大缩放级别',
+    extent: '经纬度范围 [西, 南, 东, 北]', featureIdProperty: '源数据中的稳定要素 ID 字段',
+    flyTo: '加载后飞到图层', clampToGround: '将矢量贴到地形（快捷参数）',
+    clampTarget: '贴附目标：none、terrain、3d-tiles 或 ground（两者）；优先于 clampToGround，改变目标需重新加载',
+    maximumScreenSpaceError: '屏幕空间误差', tileStyle: 'Cesium3DTileStyle 表达式，支持条件颜色、线宽及显隐',
+  },
   flyTo: {
     longitude: '经度（-180 ~ 180）',
     latitude: '纬度（-90 ~ 90）',
@@ -170,6 +181,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     label: '折线标注文本',
   },
   updateEntity: {
+    extrudedHeight: '多边形拉伸高度（米），也支持 GeoJSON 图层中的多边形',
     entityId: '实体ID（addMarker/addPolyline 等返回的 entityId）',
     position: '新位置坐标',
     label: '新标注文本',
@@ -195,6 +207,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     url: 'GeoJSON 文件 URL（与 data 二选一，浏览器端 fetch 加载）',
     resourceId: '已存储的 GeoJSON 资源 ID（与 data 或 url 互斥）',
     style: '样式配置（color, opacity, pointSize, choropleth, category）',
+    flyTo: '是否自动定位图层（默认 true；单独控制视角时设为 false）',
   },
   addGeoJsonPrimitive: {
     id: '图层ID（不传则自动生成）',
@@ -448,6 +461,9 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     ionAssetId: 'Cesium Ion 3D Tiles 资产 ID',
     maximumScreenSpaceError: '最大屏幕空间误差（值越小越精细）',
     heightOffset: '高度偏移（米）',
+    flyTo: '加载后飞到图层', clampToGround: '将矢量贴到地形（快捷参数）',
+    clampTarget: '矢量贴附目标：none、terrain、3d-tiles 或 ground',
+    tileStyle: '初始 Cesium3DTileStyle 表达式',
   },
   load3dGaussianSplat: {
     id: '图层ID',

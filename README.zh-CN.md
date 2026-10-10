@@ -150,6 +150,12 @@ CesiumGS 新一代 AI 工作主要拆分到两个仓库：[`cesiumjs-ai-starter-
 
 ## 快速开始
 
+### MCP Apps 地图面板
+
+兼容 MCP Apps 的宿主可以通过 `openCesiumMap` 打开交互式 Cesium 地图。面板调用现有 MCP 工具，回传相机、图层和选中对象上下文，并可把选中对象发送到聊天。已声明 OpenAI global/thread 入口提示，实际支持取决于宿主。
+
+执行 `npm ci` 和 `npm run build` 后，用 `npm run app:preview -w packages/cesium-mcp-runtime` 启动本地预览，再打开 http://127.0.0.1:19311/。宿主配置和验证范围见 [MCP Apps 接入指南](docs/zh-CN/guide/mcp-apps.md)。
+
 ### 路径 0 — 30 秒体验（浏览器 Agent，推荐）
 
 打开 [在线 demo](https://cesium-browser-agent.pages.dev/) 直接提问；托管模型已经就绪，浏览器无需填写 API key：

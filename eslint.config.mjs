@@ -12,7 +12,7 @@ export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['packages/*/src/**/*.ts'],
+    files: ['packages/*/src/**/*.ts', 'packages/cesium-mcp-runtime/app/**/*.ts'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',

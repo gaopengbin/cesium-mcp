@@ -9,7 +9,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * structured result channel.
  */
 export function attachStructuredContent(result: CallToolResult): CallToolResult {
-  if (result.structuredContent !== undefined) return result
+  if (result.structuredContent !== undefined) {
+    return isRecord(result.structuredContent) && result.structuredContent.success === false ? { ...result, isError: true } : result
+  }
 
   const text = result.content.find(item => item.type === 'text')?.text
   if (!text) return result
@@ -17,7 +19,7 @@ export function attachStructuredContent(result: CallToolResult): CallToolResult 
   try {
     const parsed = JSON.parse(text) as unknown
     return isRecord(parsed)
-      ? { ...result, structuredContent: parsed }
+      ? { ...result, structuredContent: parsed, ...(parsed.success === false ? { isError: true } : {}) }
       : result
   } catch {
     return result

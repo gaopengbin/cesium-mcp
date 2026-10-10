@@ -223,8 +223,17 @@ export function addModel(viewer: Cesium.Viewer, params: AddModelParams): Cesium.
  * 更新已有实体属性
  */
 export function updateEntity(viewer: Cesium.Viewer, params: UpdateEntityParams): boolean {
-  const entity = viewer.entities.getById(params.entityId)
+  const entity = findEntityById(viewer, params.entityId)
   if (!entity) return false
+
+  if (params.extrudedHeight !== undefined) {
+    if (!Number.isFinite(params.extrudedHeight) || params.extrudedHeight < 0) throw new Error('Extruded height must be a finite non-negative number')
+    if (!entity.polygon) throw new Error('Extruded height editing requires a polygon entity')
+    entity.polygon.extrudedHeight = new Cesium.ConstantProperty(params.extrudedHeight)
+    entity.polygon.heightReference = new Cesium.ConstantProperty(Cesium.HeightReference.NONE)
+    entity.polygon.extrudedHeightReference = new Cesium.ConstantProperty(Cesium.HeightReference.NONE)
+    entity.polygon.height ??= new Cesium.ConstantProperty(0)
+  }
 
   if (params.position) {
     const { longitude, latitude, height } = params.position

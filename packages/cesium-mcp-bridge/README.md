@@ -25,6 +25,10 @@ npm install cesium-mcp-bridge cesium
 
 > `cesium` is a peer dependency (compatible with `~1.143.0 || ~1.145.0`).
 
+## Vector tiles
+
+With CesiumJS 1.145, `bridge.loadVectorTiles()` loads MVT URL templates or vector 3D Tiles. `bridge.getSelectedTileFeature()` reads attributes from the clicked feature. Use `bridge.layerManager.updateLayerStyle({ layerId, tileStyle: { color: "color('#ff8800')", lineWidth: 7 } })` to restyle its layer, then inspect `getLayerSchema().metadata.tileStyle`. Clamping supports terrain, 3D Tiles or both. Clamped line/polygon picking is experimental and bounded; see the [vector tiles guide](https://gaopengbin.github.io/cesium-mcp/guide/vector-tiles).
+
 ## Quick Start
 
 ```typescript

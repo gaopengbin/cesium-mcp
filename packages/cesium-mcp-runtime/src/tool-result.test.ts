@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { attachStructuredContent } from './tool-result.js'
 
 describe('attachStructuredContent', () => {
+  it('marks failed browser commands as MCP errors so agents can correct their arguments', () => {
+    expect(attachStructuredContent({ content: [{ type: 'text', text: '{"success":false,"error":"Use tileStyle for MVT"}' }] })).toMatchObject({ isError: true, structuredContent: { success: false } })
+    expect(attachStructuredContent({ content: [], structuredContent: { success: false } })).toMatchObject({ isError: true })
+  })
   it('mirrors JSON object text into structuredContent', () => {
     const result = attachStructuredContent({
       content: [{ type: 'text', text: '{"success":true,"message":"done"}' }],

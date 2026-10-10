@@ -40,6 +40,9 @@ export const layerExecutors = {
       message: `Layer '${result.layerName}' has ${result.fields.length} fields, ${result.entityCount} entities`,
     }
   },
+  getSelectedTileFeature(_params, bridge) {
+    return { success: true, data: { feature: bridge.layerManager.getSelectedTileFeature() } }
+  },
   removeLayer(params, bridge) {
     const id = params.id as string
     bridge.removeLayer(id)
@@ -64,13 +67,13 @@ export const layerExecutors = {
   },
   updateLayerStyle(params, bridge) {
     const input = params as unknown as UpdateLayerStyleParams
+    if (bridge.layerManager.getCesiumRefs(input.layerId)?.tileset && !input.tileStyle) {
+      return { success: false, error: 'Vector 3D Tiles and MVT require tileStyle, for example { color: "color(\'#ff8800\')", lineWidth: 7 }. layerStyle is only for GeoJSON entities.' }
+    }
     const updated = bridge.updateLayerStyle(input)
     return {
       success: updated,
-      message: updated ? 'Layer style updated' : undefined,
-      error: updated
-        ? undefined
-        : `图层未找到或不支持样式修改: ${input.layerId}`,
+      ...(updated ? { message: 'Layer style updated' } : { error: `图层未找到或不支持样式修改: ${input.layerId}` }),
     }
   },
   setBasemap(params, bridge) {
@@ -78,7 +81,7 @@ export const layerExecutors = {
     return {
       success: true,
       data: { basemap },
-      message: `Basemap set to '${basemap}'`,
+      message: `Basemap provider set to '${basemap}'; imagery tiles load asynchronously`,
     }
   },
 } satisfies Readonly<Record<string, BridgeExecutor>>
