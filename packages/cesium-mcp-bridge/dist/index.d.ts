@@ -104,6 +104,8 @@ interface AddGeoJsonLayerParams {
     url?: string;
     style?: LayerStyle;
     dataRefId?: string;
+    /** Disable automatic framing when a workflow controls the camera separately. */
+    flyTo?: boolean;
     labelField?: string;
     labelStyle?: {
         font?: string;
@@ -147,6 +149,17 @@ interface Load3dTilesParams {
     ionAssetId?: number;
     maximumScreenSpaceError?: number;
     heightOffset?: number;
+    flyTo?: boolean;
+    clampToGround?: boolean;
+    clampTarget?: 'none' | 'terrain' | '3d-tiles' | 'ground';
+    tileStyle?: UpdateLayerStyleParams['tileStyle'];
+}
+interface LoadVectorTilesParams extends Load3dTilesParams {
+    source: 'tileset' | 'mvt';
+    minZoom?: number;
+    maxZoom?: number;
+    extent?: [number, number, number, number];
+    featureIdProperty?: string;
 }
 interface AddGaussianSplatParams {
     id?: string;
@@ -255,6 +268,7 @@ interface UpdateEntityParams {
     color?: ColorInput;
     scale?: number;
     show?: boolean;
+    extrudedHeight?: number;
 }
 interface RemoveEntityParams {
     entityId: string;
@@ -276,9 +290,14 @@ interface UpdateLayerStyleParams {
     imageryStyle?: ImageryLayerStyle;
     primitiveStyle?: PrimitiveLayerStyle;
     tileStyle?: {
-        color?: string;
-        show?: string;
-        pointSize?: string;
+        color?: string | {
+            conditions: [string, string][];
+        };
+        show?: string | boolean;
+        pointSize?: string | number;
+        lineWidth?: string | number;
+        pointOutlineColor?: string;
+        pointOutlineWidth?: string | number;
         meta?: Record<string, string>;
     };
 }
@@ -358,9 +377,10 @@ interface LayerSchemaResult {
             radius: number;
         };
         extras?: Record<string, unknown>;
+        tileStyle?: Record<string, unknown>;
     };
 }
-type BridgeEventType = 'layerAdded' | 'layerRemoved' | 'viewChanged' | 'error';
+type BridgeEventType = 'layerAdded' | 'layerRemoved' | 'viewChanged' | 'tileFeatureSelected' | 'error';
 interface BridgeEvent {
     type: BridgeEventType;
     data: unknown;
@@ -648,11 +668,17 @@ interface LoadViewpointParams {
     duration?: number;
 }
 
+interface TileFeatureResult {
+    layerId: string;
+    properties: Record<string, unknown>;
+}
+
 interface CesiumRefs {
     dataSource?: Cesium.GeoJsonDataSource | Cesium.CzmlDataSource | Cesium.KmlDataSource;
     entity?: Cesium.Entity;
     labelEntities?: Cesium.Entity[];
     tileset?: Cesium.Cesium3DTileset;
+    provider?: any;
     primitive?: any;
     imageryLayer?: Cesium.ImageryLayer;
     styleEntities?: Cesium.Entity[];
@@ -665,13 +691,22 @@ declare class LayerManager {
     private _layers;
     private _cesiumRefs;
     private _viewer;
+    private _selectedTileFeature;
+    private _vectorRenderCleanup?;
+    selectTileFeature(picked: unknown): TileFeatureResult | null;
+    pickTileFeature(position: Cesium.Cartesian2): unknown;
+    getSelectedTileFeature(): TileFeatureResult | null;
+    /** Reapply expressions after surface tiles are rebuilt for a resized viewport. */
+    refreshVectorStyles(): void;
     constructor(viewer: Cesium.Viewer);
     get layers(): LayerInfo[];
     getCesiumRefs(layerId: string): CesiumRefs | undefined;
     setCesiumRefs(layerId: string, refs: Partial<CesiumRefs>): void;
-    addGeoJsonLayer(params: AddGeoJsonLayerParams): Promise<LayerInfo>;
-    addGeoJsonPrimitive(params: AddGeoJsonPrimitiveParams): Promise<LayerInfo>;
-    addHeatmap(params: AddHeatmapParams): Promise<LayerInfo>;
+    /** Release Bridge-owned bookkeeping without removing application scene content. */
+    dispose(): void;
+    addGeoJsonLayer(params: AddGeoJsonLayerParams, signal?: AbortSignal): Promise<LayerInfo>;
+    addGeoJsonPrimitive(params: AddGeoJsonPrimitiveParams, signal?: AbortSignal): Promise<LayerInfo>;
+    addHeatmap(params: AddHeatmapParams, signal?: AbortSignal): Promise<LayerInfo>;
     removeLayer(id: string): void;
     /** 根据 Cesium Entity 引用反查并移除对应图层记录（不再删除 entity 本身） */
     untrackByEntity(entity: Cesium.Entity): string | undefined;
@@ -688,19 +723,26 @@ declare class LayerManager {
     };
     /** 更新图层列表引用（供外部响应式框架使用） */
     setLayersRef(layers: LayerInfo[]): void;
-    load3dTiles(params: Load3dTilesParams): Promise<LayerInfo>;
-    addGaussianSplat(params: AddGaussianSplatParams): Promise<LayerInfo>;
-    loadTerrain(params: LoadTerrainParams): void;
-    loadImageryService(params: LoadImageryServiceParams): Promise<LayerInfo>;
-    loadCzml(params: LoadCzmlParams): Promise<LayerInfo>;
-    loadKml(params: LoadKmlParams): Promise<LayerInfo>;
+    load3dTiles(params: Load3dTilesParams, signal?: AbortSignal): Promise<LayerInfo>;
+    private vectorDrapeOptions;
+    loadVectorTiles(params: LoadVectorTilesParams, signal?: AbortSignal): Promise<LayerInfo>;
+    addGaussianSplat(params: AddGaussianSplatParams, signal?: AbortSignal): Promise<LayerInfo>;
+    loadTerrain(params: LoadTerrainParams, signal?: AbortSignal): Promise<void>;
+    loadImageryService(params: LoadImageryServiceParams, signal?: AbortSignal): Promise<LayerInfo>;
+    loadCzml(params: LoadCzmlParams, signal?: AbortSignal): Promise<LayerInfo>;
+    loadKml(params: LoadKmlParams, signal?: AbortSignal): Promise<LayerInfo>;
     setBasemap(params: SetBasemapParams): string;
 }
 
-type BridgeExecutor = (params: Record<string, unknown>, bridge: CesiumBridge) => BridgeResult | Promise<BridgeResult>;
+type BridgeExecutor = (params: Record<string, unknown>, bridge: CesiumBridge, context?: BridgeExecutionContext) => BridgeResult | Promise<BridgeResult>;
+interface BridgeExecutionContext {
+    signal?: AbortSignal;
+}
 interface CesiumBridgeOptions {
     /** Validate shared browser-tool input contracts before dispatch. Defaults to true. */
     validateInputs?: boolean;
+    /** Validate shared browser-tool output contracts after dispatch. Defaults to true. */
+    validateOutputs?: boolean;
     /** Override selected commands without replacing the default dispatcher. */
     executors?: Readonly<Record<string, BridgeExecutor>>;
 }
@@ -718,18 +760,24 @@ declare class CesiumBridge {
     private _orbitHandler;
     private _animations;
     private _validateInputs;
+    private _validateOutputs;
     private _executors;
+    private _operationAbortController;
+    private _disposed;
+    private _tileSelectionHandler?;
+    private _vectorResizeObserver?;
+    private _vectorResizeCleanup?;
     constructor(viewer: Cesium.Viewer, options?: CesiumBridgeOptions);
     get viewer(): Cesium.Viewer;
     get layerManager(): LayerManager;
-    execute(cmd: BridgeCommand): Promise<BridgeResult>;
-    flyTo(params: FlyToParams): Promise<void>;
+    execute(cmd: BridgeCommand, context?: BridgeExecutionContext): Promise<BridgeResult>;
+    flyTo(params: FlyToParams, signal?: AbortSignal): Promise<void>;
     setView(params: SetViewParams): void;
     getView(): ViewState;
-    zoomToExtent(params: ZoomToExtentParams): Promise<void>;
-    addGeoJsonLayer(params: AddGeoJsonLayerParams): Promise<LayerInfo>;
-    addGeoJsonPrimitive(params: AddGeoJsonPrimitiveParams): Promise<LayerInfo>;
-    addHeatmap(params: AddHeatmapParams): Promise<LayerInfo>;
+    zoomToExtent(params: ZoomToExtentParams, signal?: AbortSignal): Promise<void>;
+    addGeoJsonLayer(params: AddGeoJsonLayerParams, signal?: AbortSignal): Promise<LayerInfo>;
+    addGeoJsonPrimitive(params: AddGeoJsonPrimitiveParams, signal?: AbortSignal): Promise<LayerInfo>;
+    addHeatmap(params: AddHeatmapParams, signal?: AbortSignal): Promise<LayerInfo>;
     removeLayer(id: string): void;
     clearAll(): {
         removedLayers: number;
@@ -740,6 +788,7 @@ declare class CesiumBridge {
      * this Bridge. The Viewer and scene content remain owned by the application.
      */
     dispose(): void;
+    private _operationSignal;
     private _stopManagedActivity;
     setLayerVisibility(id: string, visible: boolean): void;
     toggleLayer(id: string): void;
@@ -748,12 +797,14 @@ declare class CesiumBridge {
     listLayers(): LayerInfo[];
     getLayerSchema(params: GetLayerSchemaParams): LayerSchemaResult;
     setBasemap(params: SetBasemapParams): string;
-    load3dTiles(params: Load3dTilesParams): Promise<LayerInfo>;
-    load3dGaussianSplat(params: AddGaussianSplatParams): Promise<LayerInfo>;
-    loadTerrain(params: LoadTerrainParams): void;
-    loadImageryService(params: LoadImageryServiceParams): Promise<LayerInfo>;
-    loadCzml(params: LoadCzmlParams): Promise<LayerInfo>;
-    loadKml(params: LoadKmlParams): Promise<LayerInfo>;
+    load3dTiles(params: Load3dTilesParams, signal?: AbortSignal): Promise<LayerInfo>;
+    loadVectorTiles(params: LoadVectorTilesParams, signal?: AbortSignal): Promise<LayerInfo>;
+    getSelectedTileFeature(): TileFeatureResult | null;
+    load3dGaussianSplat(params: AddGaussianSplatParams, signal?: AbortSignal): Promise<LayerInfo>;
+    loadTerrain(params: LoadTerrainParams, signal?: AbortSignal): Promise<void>;
+    loadImageryService(params: LoadImageryServiceParams, signal?: AbortSignal): Promise<LayerInfo>;
+    loadCzml(params: LoadCzmlParams, signal?: AbortSignal): Promise<LayerInfo>;
+    loadKml(params: LoadKmlParams, signal?: AbortSignal): Promise<LayerInfo>;
     private _activeTrajectories;
     playTrajectory(params: PlayTrajectoryParams): {
         entityId: string;
@@ -776,7 +827,7 @@ declare class CesiumBridge {
     updateEntity(params: UpdateEntityParams): boolean;
     removeEntity(entityId: string): boolean;
     getEntityProperties(params: GetEntityPropertiesParams): EntityPropertiesResult;
-    screenshot(): Promise<ScreenshotResult>;
+    screenshot(signal?: AbortSignal): Promise<ScreenshotResult>;
     highlight(params: HighlightParams): void;
     measure(params: MeasureParams): MeasureResult;
     lookAtTransform(params: LookAtTransformParams): void;
@@ -818,4 +869,4 @@ declare class CesiumBridge {
     private _emit;
 }
 
-export { type AddBillboardParams, type AddBoxParams, type AddCorridorParams, type AddCylinderParams, type AddEllipseParams, type AddGaussianSplatParams, type AddGeoJsonLayerParams, type AddGeoJsonPrimitiveParams, type AddHeatmapParams, type AddLabelParams, type AddMarkerParams, type AddModelParams, type AddPolygonParams, type AddPolylineParams, type AddRectangleParams, type AddWallParams, type AnimationInfo, type AnimationWaypoint, type BatchAddEntitiesParams, type BatchEntityDef, type BridgeCommand, type BridgeEvent, type BridgeEventHandler, type BridgeEventType, type BridgeExecutor, type BridgeResult, type CategoryStyle, CesiumBridge, type CesiumBridgeOptions, type ChoroplethStyle, type ClearAllResult, type ColorInput, type ControlAnimationParams, type ControlClockParams, type CreateAnimationParams, type EntityPropertiesResult, type ExportSceneResult, type FlyToParams, type GetEntityPropertiesParams, type HighlightParams, type ImageryLayerStyle, type LayerInfo, LayerManager, type LayerStyle, type Load3dTilesParams, type LoadCzmlParams, type LoadImageryServiceParams, type LoadKmlParams, type LoadTerrainParams, type LoadViewpointParams, type LookAtTransformParams, type MaterialInput, type MaterialSpec, type MeasureParams, type MeasureResult, type OrientationInput, type PlayTrajectoryParams, type PositionDegrees, type PrimitiveLayerStyle, type QueryEntitiesParams, type QueryEntityResult, type RemoveAnimationParams, type RemoveEntityParams, type SaveViewpointParams, type ScreenshotResult, type SetBasemapParams, type SetCameraOptionsParams, type SetEdgeDisplayModeParams, type SetEdgeDisplayModeResult, type SetGlobeLightingParams, type SetPostProcessParams, type SetSceneOptionsParams, type SetViewParams, type StartOrbitParams, type TrackEntityParams, type UpdateAnimationPathParams, type UpdateEntityParams, type UpdateLayerStyleParams, type ViewState, type ZoomToExtentParams };
+export { type AddBillboardParams, type AddBoxParams, type AddCorridorParams, type AddCylinderParams, type AddEllipseParams, type AddGaussianSplatParams, type AddGeoJsonLayerParams, type AddGeoJsonPrimitiveParams, type AddHeatmapParams, type AddLabelParams, type AddMarkerParams, type AddModelParams, type AddPolygonParams, type AddPolylineParams, type AddRectangleParams, type AddWallParams, type AnimationInfo, type AnimationWaypoint, type BatchAddEntitiesParams, type BatchEntityDef, type BridgeCommand, type BridgeEvent, type BridgeEventHandler, type BridgeEventType, type BridgeExecutionContext, type BridgeExecutor, type BridgeResult, type CategoryStyle, CesiumBridge, type CesiumBridgeOptions, type ChoroplethStyle, type ClearAllResult, type ColorInput, type ControlAnimationParams, type ControlClockParams, type CreateAnimationParams, type EntityPropertiesResult, type ExportSceneResult, type FlyToParams, type GetEntityPropertiesParams, type HighlightParams, type ImageryLayerStyle, type LayerInfo, LayerManager, type LayerStyle, type Load3dTilesParams, type LoadCzmlParams, type LoadImageryServiceParams, type LoadKmlParams, type LoadTerrainParams, type LoadVectorTilesParams, type LoadViewpointParams, type LookAtTransformParams, type MaterialInput, type MaterialSpec, type MeasureParams, type MeasureResult, type OrientationInput, type PlayTrajectoryParams, type PositionDegrees, type PrimitiveLayerStyle, type QueryEntitiesParams, type QueryEntityResult, type RemoveAnimationParams, type RemoveEntityParams, type SaveViewpointParams, type ScreenshotResult, type SetBasemapParams, type SetCameraOptionsParams, type SetEdgeDisplayModeParams, type SetEdgeDisplayModeResult, type SetGlobeLightingParams, type SetPostProcessParams, type SetSceneOptionsParams, type SetViewParams, type StartOrbitParams, type TileFeatureResult, type TrackEntityParams, type UpdateAnimationPathParams, type UpdateEntityParams, type UpdateLayerStyleParams, type ViewState, type ZoomToExtentParams };

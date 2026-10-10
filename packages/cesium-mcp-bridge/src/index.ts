@@ -1,6 +1,8 @@
 export { CesiumBridge } from './bridge'
 export type { BridgeExecutor, BridgeExecutionContext, CesiumBridgeOptions } from './bridge'
 export { LayerManager } from './commands/layer'
+export type { TileFeatureResult } from './commands/tile-selection.js'
+export type { LoadVectorTilesParams } from './types.js'
 export type {
   BridgeCommand,
   BridgeResult,

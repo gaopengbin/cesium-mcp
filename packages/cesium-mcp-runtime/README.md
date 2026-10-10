@@ -14,6 +14,20 @@
 > starting point — zero backend, runs in three minutes. See
 > [Which mode should I use?](https://gaopengbin.github.io/cesium-mcp/guide/which-mode.html).
 
+## MCP Apps map panel
+
+`openCesiumMap` serves an interactive Cesium Viewer through the standard `ui://cesium-mcp/map-v10.html` MCP Apps resource. The map occupies the primary area and uses the host's existing native chat through `ui/message`, with no duplicate composer or history. Layout and host theme/locale changes preserve the Viewer, selection and session. The app follows host semantic style variables and fonts, supports Chinese and English, and publishes camera, layers and selected-object context. Local preview controls simulate live host settings and record message delivery. OpenAI global/thread entrypoint and fullscreen hints are included.
+
+The built HTML, embedded Worker graph and Bridge bundle ship in `dist`. A compatible host must support WebGL and Blob module workers in an isolated, stable UI origin. The embedded panel exchanges commands through app-only MCP tools and does not access a local WebSocket. `CESIUM_APP_DOMAIN` optionally declares a dedicated UI origin. External browser Viewers retain the existing WebSocket transport.
+
+For a real local MCP Apps preview, run `npm run app:preview -w packages/cesium-mcp-runtime` from a built repository and open http://127.0.0.1:19311/. See the [full guide](https://gaopengbin.github.io/cesium-mcp/guide/mcp-apps). Client-specific ChatGPT installation is a separate verification step.
+
+## Vector tiles
+
+Enable the `tiles` toolset with `CESIUM_TOOLSETS=view,entity,layer,interaction,tiles` or `enable_toolset`. Use `loadVectorTiles` for MVT `/{z}/{x}/{y}` URLs or vector 3D Tiles, click a feature and read `getSelectedTileFeature`, then update its managed layer using `updateLayerStyle` with `tileStyle.color` and `tileStyle.lineWidth`. Read back `getLayerSchema.metadata.tileStyle` to verify the applied expressions.
+
+Vector rendering and clamping require CesiumJS 1.145. Clamped line/polygon picking uses an experimental bounded adapter. For external data in an MCP Apps panel, configure exact allowed origins with `CESIUM_MAP_DATA_ORIGINS`. See the [vector tiles guide](https://gaopengbin.github.io/cesium-mcp/guide/vector-tiles) for source formats, styling and limits.
+
 ## Architecture
 
 ```

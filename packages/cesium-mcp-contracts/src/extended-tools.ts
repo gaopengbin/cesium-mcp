@@ -74,6 +74,21 @@ const bridgeResultSchema: JsonSchema = {
   required: ['success'],
   additionalProperties: false,
 }
+const expressionNumberSchema: JsonSchema = { oneOf: [numberSchema, stringSchema] }
+const tileStyleSchema: JsonSchema = {
+  type: 'object',
+  description: 'For vector 3D Tiles and MVT use this branch, not layerStyle. Example: {color: "color(\'#ff8800\')", lineWidth: 7}. Unspecified expressions are preserved.',
+  properties: {
+    color: { oneOf: [stringSchema, { type: 'object', properties: { conditions: { type: 'array', items: { type: 'array', items: stringSchema, minItems: 2, maxItems: 2 } } }, required: ['conditions'], additionalProperties: false }] },
+    show: { oneOf: [booleanSchema, stringSchema] },
+    lineWidth: expressionNumberSchema,
+    pointSize: expressionNumberSchema,
+    pointOutlineColor: stringSchema,
+    pointOutlineWidth: expressionNumberSchema,
+    meta: { type: 'object', additionalProperties: stringSchema },
+  },
+  additionalProperties: false,
+}
 
 function objectSchema(
   properties: Record<string, JsonSchema>,
@@ -150,13 +165,14 @@ export const cesiumExtendedToolContracts: readonly CesiumToolContract[] = [
     roll: { ...numberSchema, default: 0 },
     label: { type: 'string', maxLength: 200 },
   }, ['longitude', 'latitude', 'url'], { untrustedContentHint: true }),
-  tool('updateEntity', 'Update the position, appearance, label, or visibility of an entity.', {
+  tool('updateEntity', 'Update the position, appearance, label, visibility, or polygon extrusion height of an entity, including data-source entities.', {
     entityId: idSchema,
     position: positionObjectSchema,
     label: { type: 'string', maxLength: 200 },
     color: colorSchema,
     scale: { type: 'number', minimum: 0, maximum: 100000 },
     show: booleanSchema,
+    extrudedHeight: { type: 'number', minimum: 0, maximum: 100000 },
   }, ['entityId']),
   tool('batchAddEntities', 'Add multiple supported entities in one page operation.', {
     entities: {
@@ -202,7 +218,7 @@ export const cesiumExtendedToolContracts: readonly CesiumToolContract[] = [
     show: booleanSchema,
   }, [], { untrustedContentHint: true }),
   tool('listLayers', 'List all layers currently managed by the page.', {}, [], { readOnlyHint: true }),
-  tool('getLayerSchema', 'Inspect fields, entity counts, and metadata for a layer.', {
+  tool('getLayerSchema', 'Inspect fields, entity counts, and metadata for a layer. For vector/3D Tiles, metadata.tileStyle returns the applied style expressions.', {
     layerId: idSchema,
   }, ['layerId'], { readOnlyHint: true }),
   tool('removeLayer', 'Remove a managed layer from the page.', {
@@ -218,7 +234,7 @@ export const cesiumExtendedToolContracts: readonly CesiumToolContract[] = [
     layerStyle: { type: 'object', additionalProperties: true },
     imageryStyle: { type: 'object', additionalProperties: true },
     primitiveStyle: { type: 'object', additionalProperties: true },
-    tileStyle: { type: 'object', additionalProperties: true },
+    tileStyle: tileStyleSchema,
   }, ['layerId']),
 
   // Camera
@@ -419,6 +435,20 @@ export const cesiumExtendedToolContracts: readonly CesiumToolContract[] = [
   }),
 
   // Tiles and external data
+  tool('getSelectedTileFeature', 'Read the last clicked managed vector/3D Tiles feature attributes and layerId. Use updateLayerStyle with that layerId to style it. Returns feature=null when nothing is selected; metadata is a snapshot, not a whole-dataset query.', {}, [], { readOnlyHint: true }),
+  tool('loadVectorTiles', 'Load vector 3D Tiles or MVT. MVT streams {z}/{x}/{y} tiles; always set regional extent for high zooms.', {
+    source: { type: 'string', enum: ['tileset', 'mvt'] },
+    id: idSchema, name: stringSchema, url: urlSchema,
+    ionAssetId: { type: 'integer', minimum: 1 },
+    minZoom: { type: 'integer', minimum: 0, maximum: 22 },
+    maxZoom: { type: 'integer', minimum: 0, maximum: 22 },
+    extent: { type: 'array', items: numberSchema, minItems: 4, maxItems: 4 },
+    featureIdProperty: stringSchema,
+    flyTo: booleanSchema, clampToGround: booleanSchema,
+    clampTarget: { type: 'string', enum: ['none', 'terrain', '3d-tiles', 'ground'] },
+    maximumScreenSpaceError: { type: 'number', minimum: 0 },
+    tileStyle: tileStyleSchema,
+  }, ['source'], { untrustedContentHint: true }),
   tool('load3dTiles', 'Load a 3D Tiles tileset from a URL or Cesium ion asset.', {
     id: idSchema,
     name: { ...stringSchema, maxLength: 200 },
@@ -426,6 +456,9 @@ export const cesiumExtendedToolContracts: readonly CesiumToolContract[] = [
     ionAssetId: { type: 'integer', minimum: 1 },
     maximumScreenSpaceError: { type: 'number', minimum: 0, default: 16 },
     heightOffset: { ...numberSchema, default: 0 },
+    flyTo: booleanSchema, clampToGround: booleanSchema,
+    clampTarget: { type: 'string', enum: ['none', 'terrain', '3d-tiles', 'ground'] },
+    tileStyle: tileStyleSchema,
   }, [], { untrustedContentHint: true }),
   tool('load3dGaussianSplat', 'Load a 3D Gaussian Splat tileset from a URL.', {
     id: idSchema,

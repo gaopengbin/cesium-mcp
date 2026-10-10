@@ -26,10 +26,33 @@ vi.mock('cesium', () => ({
   ClampToGroundPolyline: class {},
   PolylineDashMaterialProperty: class { constructor() {} },
   ColorMaterialProperty: class { constructor() {} },
+  ConstantProperty: class {
+    constructor(private value: unknown) {}
+    getValue() { return this.value }
+  },
   default: {},
 }))
 
-import { computeFeatureCentroid, centroidOfCoords, batchAddEntities, queryEntities, getEntityProperties } from './entity.js'
+import { computeFeatureCentroid, centroidOfCoords, batchAddEntities, queryEntities, getEntityProperties, updateEntity } from './entity.js'
+
+describe('polygon height editing', () => {
+  it('edits and reads back the extrusion of a polygon in a GeoJSON data source', () => {
+    const entity = { id: 'region-1', polygon: {} }
+    const viewer = {
+      entities: { getById: () => undefined },
+      dataSources: { length: 1, get: () => ({ entities: { getById: () => entity } }) },
+    } as any
+    expect(updateEntity(viewer, { entityId: entity.id, extrudedHeight: 300 } as any)).toBe(true)
+    expect(getEntityProperties(viewer, { entityId: entity.id }).graphicProperties.extrudedHeight).toBe(300)
+  })
+
+  it('rejects invalid heights and editing extrusion on a non-polygon', () => {
+    const viewer = { entities: { getById: () => ({ id: 'marker-1', point: {} }) } } as any
+    expect(() => updateEntity(viewer, { entityId: 'marker-1', extrudedHeight: 300 } as any)).toThrow(/polygon/i)
+    const polygon = { entities: { getById: () => ({ id: 'p', polygon: {} }) } } as any
+    expect(() => updateEntity(polygon, { entityId: 'p', extrudedHeight: -1 } as any)).toThrow(/height/i)
+  })
+})
 
 // ==================== batchAddEntities ====================
 

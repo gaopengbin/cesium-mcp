@@ -382,6 +382,7 @@ export const cesiumCoreToolContracts: readonly CesiumToolContract[] = [
           description: 'Stored GeoJSON resource ID (mutually exclusive with data or url)',
         },
         style: layerStyleSchema,
+        flyTo: { type: 'boolean', description: 'Automatically frame the layer (default true); use false when the workflow controls the camera.' },
       },
       additionalProperties: false,
     },

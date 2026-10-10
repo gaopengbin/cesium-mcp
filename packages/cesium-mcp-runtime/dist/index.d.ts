@@ -1,15 +1,28 @@
+import * as http from 'http';
 import { McpServer, McpHttpHandler } from '@modelcontextprotocol/server';
+import { IncomingMessage, ServerResponse } from 'node:http';
 
+interface NetworkPolicy {
+    host: string;
+    token?: string;
+    allowedHosts: Set<string>;
+    allowedOrigins: Set<string>;
+}
+
+declare function sweepPublicMapSessions(): void;
 declare function isViewerRequest(method: string | undefined, url: string | undefined): boolean;
+declare function createRuntimeHttpServer(policy?: NetworkPolicy): http.Server<typeof IncomingMessage, typeof ServerResponse>;
 interface BuildMcpServerOptions {
     toolsets?: Iterable<string>;
     dynamicDiscovery?: boolean;
     /** Register diagnostic fixtures required by the official MCP conformance suite. */
     conformance?: boolean;
+    /** Anonymous public maps require issued bearer capabilities and never use default routing. */
+    publicMode?: boolean;
 }
 /** Build one isolated MCP server for an HTTP request or stdio connection. */
 declare function buildMcpServer(options?: BuildMcpServerOptions): McpServer;
-declare function createCesiumMcpHttpHandler(): McpHttpHandler;
+declare function createCesiumMcpHttpHandler(options?: BuildMcpServerOptions): McpHttpHandler;
 /**
  * Smithery 扫描时使用的无副作用服务器实例。
  * 返回带有相同工具/资源元数据的独立 McpServer，
@@ -18,4 +31,4 @@ declare function createCesiumMcpHttpHandler(): McpHttpHandler;
 declare function createSandboxServer(): McpServer;
 declare function main(argv?: string[]): Promise<void>;
 
-export { type BuildMcpServerOptions, buildMcpServer, createCesiumMcpHttpHandler, createSandboxServer, isViewerRequest, main };
+export { type BuildMcpServerOptions, buildMcpServer, createCesiumMcpHttpHandler, createRuntimeHttpServer, createSandboxServer, isViewerRequest, main, sweepPublicMapSessions };

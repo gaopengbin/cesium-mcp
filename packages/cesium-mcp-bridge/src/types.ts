@@ -112,6 +112,8 @@ export interface AddGeoJsonLayerParams {
   url?: string
   style?: LayerStyle
   dataRefId?: string
+  /** Disable automatic framing when a workflow controls the camera separately. */
+  flyTo?: boolean
   labelField?: string
   labelStyle?: {
     font?: string
@@ -161,6 +163,18 @@ export interface Load3dTilesParams {
   ionAssetId?: number
   maximumScreenSpaceError?: number
   heightOffset?: number
+  flyTo?: boolean
+  clampToGround?: boolean
+  clampTarget?: 'none' | 'terrain' | '3d-tiles' | 'ground'
+  tileStyle?: UpdateLayerStyleParams['tileStyle']
+}
+
+export interface LoadVectorTilesParams extends Load3dTilesParams {
+  source: 'tileset' | 'mvt'
+  minZoom?: number
+  maxZoom?: number
+  extent?: [number, number, number, number]
+  featureIdProperty?: string
 }
 
 export interface AddGaussianSplatParams {
@@ -281,6 +295,7 @@ export interface UpdateEntityParams {
   color?: ColorInput
   scale?: number
   show?: boolean
+  extrudedHeight?: number
 }
 
 export interface RemoveEntityParams {
@@ -306,9 +321,12 @@ export interface UpdateLayerStyleParams {
   imageryStyle?: ImageryLayerStyle
   primitiveStyle?: PrimitiveLayerStyle
   tileStyle?: {
-    color?: string
-    show?: string
-    pointSize?: string
+    color?: string | { conditions: [string, string][] }
+    show?: string | boolean
+    pointSize?: string | number
+    lineWidth?: string | number
+    pointOutlineColor?: string
+    pointOutlineWidth?: string | number
     meta?: Record<string, string>
   }
 }
@@ -400,12 +418,13 @@ export interface LayerSchemaResult {
     geometricError?: number
     boundingSphere?: { longitude: number; latitude: number; height: number; radius: number }
     extras?: Record<string, unknown>
+    tileStyle?: Record<string, unknown>
   }
 }
 
 // ==================== Event ====================
 
-export type BridgeEventType = 'layerAdded' | 'layerRemoved' | 'viewChanged' | 'error'
+export type BridgeEventType = 'layerAdded' | 'layerRemoved' | 'viewChanged' | 'tileFeatureSelected' | 'error'
 
 export interface BridgeEvent {
   type: BridgeEventType

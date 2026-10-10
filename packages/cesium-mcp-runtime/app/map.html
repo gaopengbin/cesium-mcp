@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cesium Map</title>
+  <script>window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/'</script>
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css">
+  <style>/* APP_STYLE */</style>
+</head>
+<body>
+  <main class="workspace" id="workspace" data-layout="home">
+    <header class="toolbar">
+      <div class="heading"><button id="workspace-home" class="icon-button" aria-label="返回场景" data-i18n-aria-label="返回场景" title="返回场景" data-i18n-title="返回场景" hidden><!-- ICON_ARROW_LEFT --></button><h1 data-i18n="地图">地图</h1><span class="brand">Cesium</span></div>
+      <button id="workspace-resume" class="secondary" hidden><!-- ICON_MAP_PIN --><span data-i18n="继续查看地图">继续查看地图</span></button>
+      <div class="status" id="connection" role="status" data-state="loading" data-i18n="等待地图会话">等待地图会话</div>
+    </header>
+    <div class="map-stage">
+    <section class="map-shell" aria-label="交互式三维地图" data-i18n-aria-label="交互式三维地图">
+      <div id="globe"></div>
+      <nav class="map-actions" aria-label="地图操作" data-i18n-aria-label="地图操作">
+        <button id="new-york" disabled><!-- ICON_LOCATE_FIXED --><span data-i18n="定位纽约">定位纽约</span></button>
+        <button id="marker" disabled><!-- ICON_PLUS --><span data-i18n="添加标记">添加标记</span></button>
+        <button id="world" disabled><!-- ICON_GLOBE --><span data-i18n="全球视角">全球视角</span></button>
+      </nav>
+      <div class="map-display-actions"><div class="basemap-switch" role="group" aria-label="底图样式" data-i18n-aria-label="底图样式">
+        <button id="basemap-map" aria-pressed="false" disabled data-i18n="地图">地图</button>
+        <button id="basemap-satellite" aria-pressed="false" disabled data-i18n="卫星">卫星</button>
+      </div><button id="map-expand" class="map-expand" aria-label="展开地图" data-i18n-aria-label="展开地图" aria-expanded="false"><span class="expand-icon"><!-- ICON_MAXIMIZE --></span><span class="restore-icon"><!-- ICON_MINIMIZE --></span><span id="map-expand-label" data-i18n="展开">展开</span></button></div>
+      <div class="view-caption"><!-- ICON_MAP_PIN --><span id="view-name" data-i18n="正在打开地图">正在打开地图</span></div>
+      <div class="map-hint" data-i18n="拖动旋转 · 滚轮缩放 · 点击对象选择">拖动旋转 · 滚轮缩放 · 点击对象选择</div>
+      <div id="map-error" class="map-error" role="alert" hidden></div>
+    </section>
+    <section class="selection" aria-label="选中对象" data-i18n-aria-label="选中对象">
+      <div class="selection-icon" aria-hidden="true"><!-- ICON_MAP_PIN --></div>
+      <div class="selection-copy"><h2 id="selection-title" data-i18n="在地图上选择一个对象">在地图上选择一个对象</h2><p id="selection-detail" data-i18n="添加标记或点击对象，把它交给聊天分析。">添加标记或点击对象，把它交给聊天分析。</p><dl id="selection-properties" hidden></dl></div>
+      <button id="ask" class="primary" disabled><span data-i18n="询问此对象">询问此对象</span><!-- ICON_ARROW_UP_RIGHT --></button>
+    </section>
+    <section class="demo-panel" id="demo-panel" data-state="loading" aria-labelledby="demo-title" hidden>
+      <div class="demo-heading"><h2 id="demo-title"></h2><span id="demo-state" role="status" data-i18n="正在运行">正在运行</span></div>
+      <p id="demo-summary" role="status"></p>
+      <div class="demo-legend" id="demo-legend" aria-label="示例图例" data-i18n-aria-label="示例图例"></div>
+      <div class="demo-bottom"><span data-i18n="内置演示数据，用于体验可视化与工具操作。">内置演示数据，用于体验可视化与工具操作。</span><div class="demo-actions"><button id="demo-clear" class="secondary" disabled data-i18n="移除示例">移除示例</button><button id="demo-ask" class="primary" disabled><span data-i18n="在 Codex 中分析">在 Codex 中分析</span><!-- ICON_ARROW_UP_RIGHT --></button></div></div>
+    </section>
+    </div>
+    <section class="explore" aria-labelledby="explore-title">
+      <div class="section-heading"><h2 id="explore-title" data-i18n="让地图做更多">让地图做更多</h2><span data-i18n="选择场景，直接运行">选择场景，直接运行</span></div>
+      <div class="place-grid">
+        <button class="place-card" id="demo-choropleth" disabled><!-- DEMO_CHOROPLETH --><span class="place-tag" data-i18n="旧金山 · SAN FRANCISCO">旧金山 · SAN FRANCISCO</span><span class="place-copy"><strong data-i18n="城市活力图">城市活力图</strong><span data-i18n="24 个六边形 · 分级与属性查询">24 个六边形 · 分级与属性查询</span></span><span class="place-arrow" aria-hidden="true"><!-- ICON_ARROW_UP_RIGHT --></span></button>
+        <button class="place-card" id="demo-buildings" disabled><!-- DEMO_BUILDINGS --><span class="place-tag" data-i18n="纽约 · NEW YORK">纽约 · NEW YORK</span><span class="place-copy"><strong data-i18n="立体街区">立体街区</strong><span data-i18n="18 栋规划建筑 · 批量创建与编辑">18 栋规划建筑 · 批量创建与编辑</span></span><span class="place-arrow" aria-hidden="true"><!-- ICON_ARROW_UP_RIGHT --></span></button>
+        <button class="place-card" id="demo-heatmap" disabled><!-- DEMO_HEATMAP --><span class="place-tag" data-i18n="洛杉矶 · LOS ANGELES">洛杉矶 · LOS ANGELES</span><span class="place-copy"><strong data-i18n="活动热点">活动热点</strong><span data-i18n="72 个事件 · 加权热力与联络路线">72 个事件 · 加权热力与联络路线</span></span><span class="place-arrow" aria-hidden="true"><!-- ICON_ARROW_UP_RIGHT --></span></button>
+      </div>
+      <p class="image-credit" data-i18n="封面来自场景运行截图 · 底图：Esri 与影像贡献者。数值、建筑和路线为演示数据，可交给 Agent 读取与修改。">封面来自场景运行截图 · 底图：Esri 与影像贡献者。数值、建筑和路线为演示数据，可交给 Agent 读取与修改。</p>
+    </section>
+    <footer><span id="feedback" role="status" data-i18n="在 Codex 原生聊天中描述想做什么，地图会随对话更新。">在 Codex 原生聊天中描述想做什么，地图会随对话更新。</span><details class="session-details"><summary data-i18n="地图会话">地图会话</summary><span id="session" class="session"></span></details></footer>
+  </main>
+  <script>/* APP_SCRIPT */</script>
+</body>
+</html>

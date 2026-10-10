@@ -2,6 +2,7 @@ import type { BridgeExecutor } from '../bridge.js'
 import type {
   AddGaussianSplatParams,
   Load3dTilesParams,
+  LoadVectorTilesParams,
   LoadCzmlParams,
   LoadImageryServiceParams,
   LoadKmlParams,
@@ -17,6 +18,9 @@ export const tilesExecutors = {
       data: info,
       message: `3D Tiles '${info.name}' loaded`,
     }
+  },
+  async loadVectorTiles(params, bridge, context = {}) {
+    return { success: true, data: await bridge.loadVectorTiles(params as unknown as LoadVectorTilesParams, context.signal) }
   },
   async load3dGaussianSplat(params, bridge, context = {}) {
     const info = await bridge.load3dGaussianSplat(params as unknown as AddGaussianSplatParams, context.signal)

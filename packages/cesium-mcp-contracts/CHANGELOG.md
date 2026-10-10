@@ -1,5 +1,29 @@
 # cesium-mcp-contracts
 
+## 0.8.0
+
+### Minor Changes
+
+- Add vector 3D Tiles and native MVT loading, metadata from clicked managed features, and expression-based layer styling including line widths. Share selection across browser and MCP Apps integrations, clear stale selection during layer lifecycle changes, and declare configurable custom data origins for map panels.
+
+  Require CesiumJS 1.145 and support vector draping on terrain, 3D Tiles or both. Bound excessive MVT tile hierarchies, preserve existing layers on failed replacement, return applied styles with layer schemas, and preserve expressions during partial updates. Report failed browser commands as MCP errors so agents can correct their arguments. Accept Codex turns that complete after reconnect notifications and use an ephemeral HTTPS provider for the local preview.
+
+### Patch Changes
+
+- Add an interactive MCP Apps map resource and openCesiumMap tool with OpenAI global/thread entrypoint metadata. Map controls use existing MCP tools with isolated browser sessions; camera state, layers and selected-object properties flow back through model context, and selections can be sent to the conversation. Include a local preview host with a separate map origin for Cesium workers.
+
+  Replace place-only search with a context-aware conversation composer. Native Apps send messages to the host conversation; local preview uses the signed-in Codex CLI for follow-up questions and real map tool execution, with visible replies and cancellation. Add polygon extrusion-height editing, including GeoJSON data-source entities, to the canonical updateEntity contract and Bridge.
+
+  Preserve explicit browser sessions across parameterless Runtime handlers and omit absent optional layer and entity mutation fields so inline GeoJSON, updateEntity and removeEntity results satisfy their output contracts.
+
+  Include a standalone local development plugin with bundled Runtime dependencies, map operation guidance and a repo marketplace.
+
+  Carry embedded-map commands through app-only MCP exchanges, bundle Cesium workers for Blob startup, and version the UI resource to invalidate the earlier WebSocket-based page. This supports desktop sandbox policies that block local WebSockets and external Worker entry scripts. Preserve session discovery through secondary Runtime relays.
+
+  Replace location-only starter cards with runnable GeoJSON choropleth, batch extruded-building and weighted-heatmap demos. Track demo-owned resources for safe switching and removal, expose their IDs in model context, and send analysis requests through the host conversation. Add an optional GeoJSON flyTo flag so multi-step workflows can control the final camera without competing automatic flights.
+
+  Move the map defaults and demos to the United States. Add San Francisco hexagon styling, a more detailed Manhattan planning scene and Los Angeles heatmap overlays. Use genuine live Viewer screenshots as bundled card covers, with capture provenance and build-time hash checks to keep the images in sync with demo plans.
+
 ## 0.7.0
 
 ### Minor Changes

@@ -9,6 +9,10 @@ import type {
 import { parseColor } from '../utils'
 import { BASEMAP_PRESETS } from './basemap-presets'
 import { awaitOperation, checkOperation, discardResource } from '../operation'
+import { readTileFeature } from './tile-selection.js'
+import { loadedVectorPrimitives, pickDrapedVectorFeature } from './vector-picking.js'
+import type { TileFeatureResult } from './tile-selection.js'
+import type { LoadVectorTilesParams } from '../types.js'
 
 // ==================== 图层状态（由 Bridge 实例持有） ====================
 
@@ -17,6 +21,7 @@ interface CesiumRefs {
   entity?: Cesium.Entity
   labelEntities?: Cesium.Entity[]
   tileset?: Cesium.Cesium3DTileset
+  provider?: any
   primitive?: any
   imageryLayer?: Cesium.ImageryLayer
   styleEntities?: Cesium.Entity[]
@@ -30,6 +35,33 @@ export class LayerManager {
   private _layers: LayerInfo[] = []
   private _cesiumRefs = new Map<string, CesiumRefs>()
   private _viewer: Cesium.Viewer
+  private _selectedTileFeature: TileFeatureResult | null = null
+  private _vectorRenderCleanup?: () => void
+
+  selectTileFeature(picked: unknown): TileFeatureResult | null {
+    this._selectedTileFeature = readTileFeature(picked, [...this._cesiumRefs].flatMap(([id, refs]) => refs.tileset ? [[id, refs.tileset] as [string, Cesium.Cesium3DTileset]] : []))
+    return this.getSelectedTileFeature()
+  }
+
+  pickTileFeature(position: Cesium.Cartesian2): unknown {
+    const picked = this._viewer.scene.pick(position)
+    if (picked?.id instanceof Cesium.Entity) return picked
+    const tilesets = [...this._cesiumRefs.values()].flatMap(refs => refs.tileset ? [refs.tileset] : [])
+    return pickDrapedVectorFeature(this._viewer.scene, position, tilesets, picked) ?? picked
+  }
+
+  getSelectedTileFeature(): TileFeatureResult | null {
+    return this._selectedTileFeature ? structuredClone(this._selectedTileFeature) : null
+  }
+
+  /** Reapply expressions after surface tiles are rebuilt for a resized viewport. */
+  refreshVectorStyles(): void {
+    for (const [layerId, refs] of this._cesiumRefs) {
+      if (refs.tileset?.style && [Cesium.HeightReference.CLAMP_TO_GROUND, Cesium.HeightReference.CLAMP_TO_TERRAIN, Cesium.HeightReference.CLAMP_TO_3D_TILE].includes(refs.tileset.heightReference ?? Cesium.HeightReference.NONE)) {
+        this.updateLayerStyle({ layerId, tileStyle: {} })
+      }
+    }
+  }
 
   constructor(viewer: Cesium.Viewer) {
     this._viewer = viewer
@@ -49,6 +81,9 @@ export class LayerManager {
 
   /** Release Bridge-owned bookkeeping without removing application scene content. */
   dispose(): void {
+    this._vectorRenderCleanup?.()
+    this._vectorRenderCleanup = undefined
+    this._selectedTileFeature = null
     this._layers.length = 0
     this._cesiumRefs.clear()
   }
@@ -204,7 +239,7 @@ export class LayerManager {
     this._cesiumRefs.set(layerId, { dataSource: ds, styleEntities, polygonOutlines })
     this._layers.push(info)
 
-    this._viewer.flyTo(ds, { duration: 1.5 })
+    if (params.flyTo !== false) this._viewer.flyTo(ds, { duration: 1.5 })
     return info
   }
 
@@ -339,6 +374,7 @@ export class LayerManager {
   // ==================== 基础图层操作 ====================
 
   removeLayer(id: string): void {
+    if (this._selectedTileFeature?.layerId === id) this._selectedTileFeature = null
     const idx = this._layers.findIndex(l => l.id === id)
     if (idx === -1) return
     const refs = this._cesiumRefs.get(id)
@@ -348,7 +384,8 @@ export class LayerManager {
       if (refs.labelEntities) {
         for (const e of refs.labelEntities) this._viewer.entities.remove(e)
       }
-      if (refs.tileset) this._viewer.scene.primitives.remove(refs.tileset)
+      if (refs.provider) this._viewer.scene.primitives.remove(refs.provider)
+      else if (refs.tileset) this._viewer.scene.primitives.remove(refs.tileset)
       if (refs.primitive) this._viewer.scene.primitives.remove(refs.primitive)
       if (refs.imageryLayer) this._viewer.imageryLayers.remove(refs.imageryLayer)
       if (refs.movingEntity) this._viewer.entities.remove(refs.movingEntity)
@@ -383,6 +420,8 @@ export class LayerManager {
       for (const e of refs.labelEntities) e.show = visible
     }
     if (refs.tileset) refs.tileset.show = visible
+    if (refs.provider) refs.provider.show = visible
+    if (!visible && this._selectedTileFeature?.layerId === id) this._selectedTileFeature = null
     if (refs.primitive) refs.primitive.show = visible
     if (refs.imageryLayer) refs.imageryLayer.show = visible
     if (refs.movingEntity) refs.movingEntity.show = visible
@@ -490,13 +529,21 @@ export class LayerManager {
     // 3D Tiles 样式更新
     const ts = params.tileStyle
     if (ts && refs?.tileset) {
-      const styleObj: Record<string, unknown> = {}
-      if (ts.color) styleObj.color = ts.color
-      if (ts.show) styleObj.show = ts.show
-      if (ts.pointSize) styleObj.pointSize = ts.pointSize
+      const styleObj: Record<string, unknown> = { ...refs.tileset.style?.style }
+      for (const key of ['color', 'show', 'pointSize', 'lineWidth', 'pointOutlineColor', 'pointOutlineWidth'] as const) {
+        if (ts[key] !== undefined) styleObj[key] = ts[key]
+      }
       if (ts.meta) Object.assign(styleObj, { meta: ts.meta })
       refs.tileset.style = new Cesium.Cesium3DTileStyle(styleObj)
-      if (ts.color) layer.color = ts.color
+      // Vector styling and surface texture rebaking happen in consecutive frames.
+      // requestRenderMode viewers need those follow-up frames as well.
+      this._vectorRenderCleanup?.()
+      let followupFrames = 2
+      this._vectorRenderCleanup = this._viewer.scene.postRender?.addEventListener(() => {
+        if (followupFrames-- > 0) this._viewer.scene.requestRender()
+        else { this._vectorRenderCleanup?.(); this._vectorRenderCleanup = undefined }
+      })
+      this._viewer.scene.requestRender()
       return true
     }
 
@@ -571,9 +618,13 @@ export class LayerManager {
     }
 
     // 方式2：从已加载的 root tile content 的 feature batch table
-    const root = tileset.root
-    if (root?.content && typeof root.content.featuresLength === 'number' && root.content.featuresLength > 0) {
-      const feature = root.content.getFeature(0) as Cesium.Cesium3DTileFeature
+    const pending = tileset.root ? [tileset.root] : []
+    let inspected = 0
+    while (pending.length && inspected++ < 1000) {
+      const tile = pending.pop()!
+      pending.push(...(tile.children ?? []))
+      if (!tile.content || !tile.content.featuresLength) continue
+      const feature = loadedVectorPrimitives(tile.content).next().value?.feature ?? tile.content.getFeature(0) as Cesium.Cesium3DTileFeature
       if (feature && typeof feature.getPropertyIds === 'function') {
         const ids = feature.getPropertyIds()
         for (const id of ids) {
@@ -586,10 +637,12 @@ export class LayerManager {
           })
         }
       }
+      if (fieldMap.size) break
     }
 
     // 提取 3D Tiles / Ion 元数据
     const metadata: LayerSchemaResult['metadata'] = {}
+    if (tileset.style) metadata.tileStyle = structuredClone(tileset.style.style)
     const asset = (tileset as any).asset
     if (asset && typeof asset === 'object') {
       if (asset.version) metadata.assetVersion = String(asset.version)
@@ -628,6 +681,7 @@ export class LayerManager {
   }
 
   clearAll(): { removedLayers: number; removedEntities: number } {
+    this._selectedTileFeature = null
     const removedLayers = this._layers.length
     // 逐个移除所有已注册图层
     const ids = this._layers.map(l => l.id)
@@ -656,26 +710,33 @@ export class LayerManager {
 
     if (!url && !ionAssetId) throw new Error('Either "url" or "ionAssetId" must be provided')
 
+    const options = { maximumScreenSpaceError, ...this.vectorDrapeOptions(params) }
     const tileset = await awaitOperation(ionAssetId
-      ? Cesium.Cesium3DTileset.fromIonAssetId(ionAssetId, { maximumScreenSpaceError })
-      : Cesium.Cesium3DTileset.fromUrl(url!, { maximumScreenSpaceError }), signal, discardResource)
+      ? Cesium.Cesium3DTileset.fromIonAssetId(ionAssetId, options)
+      : Cesium.Cesium3DTileset.fromUrl(url!, options), signal, discardResource)
     checkOperation(signal, tileset)
-    this.removeLayer(layerId)
+    try {
+      if (params.tileStyle) tileset.style = new Cesium.Cesium3DTileStyle(params.tileStyle)
 
-    if (heightOffset !== 0) {
-      const cartographic = Cesium.Cartographic.fromCartesian(tileset.boundingSphere.center)
-      const surface = Cesium.Cartesian3.fromRadians(
-        cartographic.longitude, cartographic.latitude, 0,
-      )
-      const offset = Cesium.Cartesian3.fromRadians(
-        cartographic.longitude, cartographic.latitude, heightOffset,
-      )
-      const translation = Cesium.Cartesian3.subtract(offset, surface, new Cesium.Cartesian3())
-      tileset.modelMatrix = Cesium.Matrix4.fromTranslation(translation)
+      if (heightOffset !== 0) {
+        const cartographic = Cesium.Cartographic.fromCartesian(tileset.boundingSphere.center)
+        const surface = Cesium.Cartesian3.fromRadians(
+          cartographic.longitude, cartographic.latitude, 0,
+        )
+        const offset = Cesium.Cartesian3.fromRadians(
+          cartographic.longitude, cartographic.latitude, heightOffset,
+        )
+        const translation = Cesium.Cartesian3.subtract(offset, surface, new Cesium.Cartesian3())
+        tileset.modelMatrix = Cesium.Matrix4.fromTranslation(translation)
+      }
+
+      this.removeLayer(layerId)
+      this._viewer.scene.primitives.add(tileset)
+    } catch (error) {
+      tileset.destroy()
+      throw error
     }
-
-    this._viewer.scene.primitives.add(tileset)
-    this._viewer.flyTo(tileset, { duration: 1.5 })
+    if (params.flyTo !== false) this._viewer.flyTo(tileset, { duration: 1.5 })
 
     const info: LayerInfo = {
       id: layerId,
@@ -689,8 +750,62 @@ export class LayerManager {
     return info
   }
 
-  // ==================== addGaussianSplat ====================
+  // ==================== Vector tiles ====================
+  private vectorDrapeOptions(params: Load3dTilesParams) {
+    const target = params.clampTarget ?? (params.clampToGround ? 'terrain' : 'none')
+    const references = {
+      none: Cesium.HeightReference.NONE,
+      terrain: Cesium.HeightReference.CLAMP_TO_TERRAIN,
+      '3d-tiles': Cesium.HeightReference.CLAMP_TO_3D_TILE,
+      ground: Cesium.HeightReference.CLAMP_TO_GROUND,
+    }
+    if (!(target in references)) throw new Error('Unknown vector draping target')
+    // The scene is also needed when this tileset receives draped vectors.
+    return { scene: this._viewer.scene, heightReference: references[target] }
+  }
 
+  async loadVectorTiles(params: LoadVectorTilesParams, signal?: AbortSignal): Promise<LayerInfo> {
+    checkOperation(signal)
+    if (params.source === 'tileset') return this.load3dTiles(params, signal)
+    if (params.source !== 'mvt') throw new Error('Unknown vector tile source')
+    if (params.ionAssetId) throw new Error('MVT requires an XYZ URL, not an ion asset ID')
+    if (params.heightOffset) throw new Error('MVT heightOffset is not supported in this Cesium build')
+    if (!params.url || !['{z}', '{x}', '{y}'].every(key => params.url!.includes(key))) throw new Error('MVT URL must include {z}, {x}, and {y}')
+    if (!decodeURIComponent(new URL(params.url).pathname).includes('/{z}/{x}/{y}')) throw new Error('MVT URL must use /{z}/{x}/{y} path order in this Cesium build')
+    const { minZoom = 0, maxZoom = 6, extent } = params
+    if (![minZoom, maxZoom].every(value => Number.isInteger(value) && value >= 0 && value <= 22)) throw new Error('MVT zoom levels must be integers from 0 to 22')
+    if (minZoom > maxZoom || maxZoom > 8 && !extent) throw new Error('MVT requires a bounded extent for zoom levels above 8')
+    if (extent && (extent.length !== 4 || extent[0] >= extent[2] || extent[1] >= extent[3])) throw new Error('Invalid MVT extent')
+    const scheme = new Cesium.WebMercatorTilingScheme()
+    const bounds = extent ?? [-180, -85, 180, 85]
+    if (bounds.some(value => !Number.isFinite(value)) || bounds[0]! < -180 || bounds[2]! > 180 || bounds[1]! < -85.051129 || bounds[3]! > 85.051129) throw new Error('MVT extent must be inside Web Mercator bounds')
+    const northwest = scheme.positionToTileXY(Cesium.Cartographic.fromDegrees(bounds[0]!, bounds[3]!), maxZoom)!
+    const southeast = scheme.positionToTileXY(Cesium.Cartographic.fromDegrees(bounds[2]!, bounds[1]!), maxZoom)!
+    if ((southeast.x - northwest.x + 1) * (southeast.y - northwest.y + 1) > 50000) throw new Error('MVT coverage is too large; reduce extent or maxZoom')
+    const C = Cesium as any
+    if (!C.MVTDataProvider) throw new Error('This Cesium version does not support MVTDataProvider')
+    const provider = await awaitOperation<{ tileset: Cesium.Cesium3DTileset; destroy(): void }>(C.MVTDataProvider.fromUrl(params.url, { minZoom, maxZoom, ...(extent ? { extent: Cesium.Rectangle.fromDegrees(...extent) } : {}), featureIdProperty: params.featureIdProperty, ...this.vectorDrapeOptions(params) }), signal, discardResource)
+    checkOperation(signal, provider)
+    const id = params.id ?? `vector_${Date.now()}`
+    const tileset = provider.tileset as Cesium.Cesium3DTileset
+    try {
+      tileset.maximumScreenSpaceError = params.maximumScreenSpaceError ?? 16
+      if (params.tileStyle) tileset.style = new Cesium.Cesium3DTileStyle(params.tileStyle)
+      this.removeLayer(id)
+      this._viewer.scene.primitives.add(provider)
+    } catch (error) {
+      provider.destroy()
+      throw error
+    }
+    this._cesiumRefs.set(id, { provider, tileset })
+    const info: LayerInfo = { id, name: params.name ?? id, type: 'mvt', visible: true, color: '#38BDF8' }
+    this._layers.push(info)
+    if (params.flyTo !== false) this._viewer.flyTo(tileset, { duration: 1.5 })
+    return info
+  }
+
+
+  // ==================== addGaussianSplat ====================
   async addGaussianSplat(params: AddGaussianSplatParams, signal?: AbortSignal): Promise<LayerInfo> {
     checkOperation(signal)
     const { id, name, url, maximumScreenSpaceError = 16, show = true } = params

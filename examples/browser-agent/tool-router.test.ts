@@ -24,6 +24,13 @@ const contracts = {
 }
 
 describe('browser-agent tool router', () => {
+  it('includes loading, clicked metadata and styling for vector river requests', () => {
+    for (const prompt of ['加载河流矢量瓦片并修改样式', 'Load MVT rivers and change their style']) {
+      const selection = router.resolveToolSelection(prompt, 'auto', contracts)
+      expect(selection.tools.map((tool: any) => tool.name)).toEqual(expect.arrayContaining(['loadVectorTiles', 'getSelectedTileFeature', 'updateLayerStyle']))
+      expect(selection.tools.length).toBeLessThanOrEqual(router.MAX_AUTO_TOOLS)
+    }
+  })
   it('routes Chinese and English 3D data requests to the tiles bundle', () => {
     for (const prompt of [
       '加载这个 tileset：http://localhost/data/tileset.json',
@@ -33,7 +40,7 @@ describe('browser-agent tool router', () => {
 
       expect(selection.toolsetNames).toEqual(['tiles', 'view', 'interaction', 'geolocation'])
       expect(selection.tools.map((tool: any) => tool.name)).toContain('load3dTiles')
-      expect(selection.tools).toHaveLength(19)
+      expect(selection.tools).toHaveLength(20)
     }
   })
 
@@ -42,7 +49,7 @@ describe('browser-agent tool router', () => {
     const animation = router.resolveToolSelection('创建一个沿路径飞行的动画', 'auto', contracts)
 
     expect(layer.toolsetNames).toEqual(['layer', 'view', 'geolocation'])
-    expect(layer.tools).toHaveLength(18)
+    expect(layer.tools).toHaveLength(19)
     expect(animation.toolsetNames).toEqual(['animation', 'entity', 'geolocation'])
     expect(animation.tools).toHaveLength(19)
   })
@@ -65,8 +72,8 @@ describe('browser-agent tool router', () => {
   it('falls back to core tools and supports explicit toolset or full selection', () => {
     expect(router.resolveToolSelection('你好', 'auto', contracts).tools).toHaveLength(15)
     expect(router.resolveToolSelection('', 'core', contracts).tools).toHaveLength(15)
-    expect(router.resolveToolSelection('', 'toolset:tiles', contracts).tools).toHaveLength(7)
-    expect(router.resolveToolSelection('', 'all', contracts).tools).toHaveLength(61)
+    expect(router.resolveToolSelection('', 'toolset:tiles', contracts).tools).toHaveLength(8)
+    expect(router.resolveToolSelection('', 'all', contracts).tools).toHaveLength(63)
   })
 
   it('rewrites only allowlisted HTTP assets through the same-origin proxy', () => {

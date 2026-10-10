@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cesium MCP Apps 本地预览</title>
+  <style>
+    :root { font-family: var(--font-sans, system-ui, sans-serif); color: var(--color-text-primary); background: var(--color-background-primary); }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; scrollbar-width: none; overflow-anchor: none; }
+    html::-webkit-scrollbar, body::-webkit-scrollbar, .details::-webkit-scrollbar { display: none; }
+    header { padding: 16px 28px; border-bottom: 1px solid var(--color-border-primary); display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+    h1 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+    p { margin: 0; color: var(--color-text-secondary); font-size: 11px; line-height: 1.7; }
+    .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    button { min-height: 34px; padding: 0 12px; border: 1px solid var(--color-border-primary); border-radius: 8px; color: var(--color-text-primary); background: var(--color-background-secondary); cursor: pointer; font: inherit; font-size: 11px; }
+    button:hover:not(:disabled) { background: var(--color-background-tertiary); }
+    button:focus-visible { outline: 2px solid #a6d9c9; outline-offset: 3px; }
+    button:disabled { color: #969696; cursor: default; }
+    main { padding-bottom: 24px; }
+    iframe { display: block; width: 100%; height: 1080px; border: 0; }
+    .details { margin: 0 auto; width: min(calc(100% - 40px), 800px); padding: 18px 22px; border: 1px solid #343434; border-radius: 16px; background: #212121; overflow: auto; scrollbar-width: none; }
+    summary { cursor: pointer; font-size: 12px; color: #c8c8c8; list-style: none; }
+    summary::-webkit-details-marker { display: none; }
+    summary:focus-visible { outline: 2px solid #a6d9c9; outline-offset: 4px; }
+    .details[open] summary { margin-bottom: 22px; }
+    h2 { margin: 0 0 10px; font-size: 14px; }
+    pre { margin: 0 0 24px; white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.7 ui-monospace, monospace; color: #c2cbc8; }
+    #status { color: #a6d9c9; }
+    body[data-workspace='map'] main, body[data-workspace='expanded'] main { padding-bottom: 0; }
+    body[data-workspace='map'] .details, body[data-workspace='expanded'] .details { display: none; }
+    @media (max-width: 760px) { header { padding: 14px 18px; } .actions { gap: 6px; } }
+  </style>
+</head>
+<body>
+  <!-- SANDBOX_ORIGIN -->
+  <header>
+    <div><h1 id="preview-title">Cesium Map · 本地预览</h1><p id="preview-note"></p></div>
+    <div class="actions"><button id="theme">主题</button><button id="language">语言</button><button id="new-map" disabled>新建地图</button><button id="san-francisco" disabled>定位旧金山</button><button id="close-map" disabled>关闭地图</button></div>
+  </header>
+  <main>
+    <iframe id="map" title="Cesium 三维地图" sandbox="allow-scripts allow-same-origin"></iframe>
+    <details class="details"><summary>查看连接和上下文</summary>
+      <p id="status" role="status">正在连接 MCP Runtime</p>
+      <h2 style="margin-top:24px">地图上下文</h2><pre id="context">等待地图连接…</pre>
+      <h2>发送到聊天的消息</h2><pre id="messages">选择对象后点击“询问此对象”。</pre>
+      <h2>最近的工具结果</h2><pre id="result">尚未执行地图工具。</pre>
+    </details>
+  </main>
+  <script src="/map-preview.js"></script>
+</body>
+</html>

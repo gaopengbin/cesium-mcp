@@ -4,6 +4,8 @@
  */
 
 export const toolDescriptions: Record<string, string> = {
+  loadVectorTiles: 'Load vector 3D Tiles or bounded MVT sources',
+  getSelectedTileFeature: 'Read clicked vector tile attributes and layerId; use updateLayerStyle with tileStyle',
   // — view
   flyTo: 'Fly to a specific longitude/latitude position (with animation transition)',
   setView: 'Instantly switch to specified longitude/latitude view (no animation)',
@@ -19,7 +21,7 @@ export const toolDescriptions: Record<string, string> = {
   addModel: 'Place a 3D model (glTF/GLB) at specified coordinates, returns entityId',
   addPolygon: 'Add a polygon area on the map (area/boundary), returns entityId',
   addPolyline: 'Add a polyline on the map (path/line segment), returns entityId',
-  updateEntity: 'Update properties of an existing entity (position, color, label, scale, visibility)',
+  updateEntity: 'Update properties of an existing entity (position, color, label, scale, visibility, polygon extrusion height)',
   removeEntity: 'Remove a single entity by entityId',
   batchAddEntities: 'Batch add multiple entities (create multiple markers/polylines/polygons/models in one call), returns all entityIds',
   queryEntities: 'Query existing entities — filter by name, type, spatial extent, returns entityId/name/type/position list',
@@ -28,10 +30,10 @@ export const toolDescriptions: Record<string, string> = {
   addGeoJsonLayer: 'Add GeoJSON layer to map (supports Point/Line/Polygon, configurable color/choropleth/category rendering). data and url are mutually exclusive',
   addGeoJsonPrimitive: 'High-performance GeoJSON loading for massive datasets (100k+ features). Bypasses Entity system, renders directly via Primitives. data and url are mutually exclusive',
   listLayers: 'Get current layer list (with ID, name, type, visibility)',
-  getLayerSchema: 'Get layer field schema — returns field names, types, sample values. Works with GeoJSON/CZML/KML/3D Tiles layers',
+  getLayerSchema: 'Get layer fields, sample values and metadata. For vector/3D Tiles, metadata.tileStyle returns the applied style expressions for readback. Works with GeoJSON/CZML/KML/3D Tiles/MVT layers',
   removeLayer: 'Remove a layer from map by layer ID',
   setLayerVisibility: 'Set layer visibility',
-  updateLayerStyle: 'Update layer style (color, opacity, label style, 3D Tiles style, etc.)',
+  updateLayerStyle: 'Update a layer style. For vector 3D Tiles and MVT use tileStyle (color expression, lineWidth, show); layerStyle is for GeoJSON entity layers only. Use the exact layerId returned by selection or listLayers.',
   setBasemap: 'Switch basemap style (dark/satellite/standard/osm/arcgis/light/tianditu/amap)',
 
   // — camera
@@ -97,6 +99,15 @@ export const toolDescriptions: Record<string, string> = {
 }
 
 export const paramDescriptions: Record<string, Record<string, string>> = {
+  loadVectorTiles: {
+    source: 'Source format: tileset or mvt',
+    id: 'Layer ID', name: 'Layer name', url: 'Tileset URL or MVT {z}/{x}/{y} URL',
+    ionAssetId: 'Cesium ion asset ID', minZoom: 'Minimum zoom', maxZoom: 'Maximum zoom',
+    extent: 'Bounds [west, south, east, north] in degrees', featureIdProperty: 'Stable source feature ID field',
+    flyTo: 'Fly to layer after loading', clampToGround: 'Drape vectors on terrain (shortcut)',
+    clampTarget: 'Drape onto none, terrain, 3d-tiles or ground (both). Takes precedence over clampToGround; reload to change target.',
+    maximumScreenSpaceError: 'Screen space error', tileStyle: 'Cesium3DTileStyle expressions including color conditions and lineWidth',
+  },
   flyTo: {
     longitude: 'Longitude (-180 to 180)',
     latitude: 'Latitude (-90 to 90)',
@@ -170,6 +181,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     label: 'Polyline label text',
   },
   updateEntity: {
+    extrudedHeight: 'Polygon extrusion height in meters; also supports GeoJSON data-source polygons',
     entityId: 'Entity ID (returned by addMarker/addPolyline etc.)',
     position: 'New position coordinates',
     label: 'New label text',
@@ -195,6 +207,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     url: 'GeoJSON file URL (mutually exclusive with data, fetched in browser)',
     resourceId: 'Stored GeoJSON resource ID (mutually exclusive with data or url)',
     style: 'Style config (color, opacity, pointSize, choropleth, category)',
+    flyTo: 'Automatically frame the layer (default true); use false when controlling the camera separately',
   },
   addGeoJsonPrimitive: {
     id: 'Layer ID (auto-generated if omitted)',
@@ -222,7 +235,7 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     layerStyle: 'Entity layer style (color, opacity, strokeWidth, pointSize; GeoJSON thematic styles choropleth/category/randomColor/gradient are mutually exclusive)',
     imageryStyle: 'Imagery visual style (alpha, brightness, contrast, hue, saturation, gamma); use setLayerVisibility for show/hide',
     primitiveStyle: 'GeoJSON Primitive material style (color, opacity, outlineColor, outlineWidth, pointSize, lineWidth); use setLayerVisibility for show/hide',
-    tileStyle: '3D Tiles style (Cesium3DTileStyle expressions: color, show, pointSize, meta)',
+    tileStyle: 'Required style branch for vector 3D Tiles and MVT: e.g. {color: "color(\'#ff8800\')", lineWidth: 7}. Supports expressions, color conditions, show, pointSize and meta. Preserves unspecified fields.',
   },
   setBasemap: {
     basemap: 'Basemap type: dark=dark theme, satellite=satellite imagery, standard=standard, osm=OpenStreetMap, arcgis=ArcGIS streets, light=light theme, tianditu_vec=Tianditu vector, tianditu_img=Tianditu imagery, amap=Amap roads, amap_satellite=Amap satellite',
@@ -448,6 +461,9 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     ionAssetId: 'Cesium Ion 3D Tiles asset ID',
     maximumScreenSpaceError: 'Maximum screen space error (lower = more detailed)',
     heightOffset: 'Height offset (meters)',
+    flyTo: 'Fly to layer after loading', clampToGround: 'Drape vectors on terrain (shortcut)',
+    clampTarget: 'Vector draping target: none, terrain, 3d-tiles or ground',
+    tileStyle: 'Initial Cesium3DTileStyle expressions',
   },
   load3dGaussianSplat: {
     id: 'Layer ID',

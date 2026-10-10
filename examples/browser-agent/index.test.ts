@@ -70,7 +70,7 @@ describe('browser-agent startup order', () => {
     const byName = Object.fromEntries(cesiumCoreToolContracts.map(tool => [tool.name, tool]))
 
     expect(cesiumCoreToolContracts).toHaveLength(15)
-    expect(cesiumBrowserToolContracts).toHaveLength(61)
+    expect(cesiumBrowserToolContracts).toHaveLength(63)
     expect(cesiumCoreToolContracts.every(tool => tool.outputSchema.type === 'object')).toBe(true)
     expect((byName.flyTo.inputSchema as any).properties.longitude).toMatchObject({ minimum: -180, maximum: 180 })
     expect((byName.flyTo.inputSchema as any).properties.latitude).toMatchObject({ minimum: -90, maximum: 90 })

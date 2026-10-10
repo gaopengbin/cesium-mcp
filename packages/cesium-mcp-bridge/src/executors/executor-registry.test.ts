@@ -1,4 +1,4 @@
-import { cesiumSharedToolNames } from 'cesium-mcp-contracts'
+import { cesiumSharedToolNames, validateCesiumToolOutput } from 'cesium-mcp-contracts'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { CesiumBridge } from '../bridge.js'
@@ -87,6 +87,17 @@ function bridgeStub() {
 }
 
 describe('default Bridge executor registry', () => {
+  it.each(['updateEntity', 'removeEntity'] as const)('%s accepts both success and missing-entity results under the wire contract', async (name) => {
+    const bridge = bridgeStub()
+    const executors = createDefaultBridgeExecutors()
+    for (const exists of [true, false]) {
+      vi.mocked(bridge[name]).mockReturnValue(exists)
+      const result = await executors[name]!({ entityId: 'marker-1' }, bridge)
+      expect(result.success).toBe(exists)
+      expect(validateCesiumToolOutput(name, result).valid).toBe(true)
+    }
+  })
+
   it('covers every Bridge shared-tool contract exactly once', () => {
     const expected = cesiumSharedToolNames.filter(name => name !== 'geocode')
 

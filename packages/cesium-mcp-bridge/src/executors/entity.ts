@@ -60,8 +60,7 @@ export const entityExecutors = {
     const updated = bridge.updateEntity(input)
     return {
       success: updated,
-      message: updated ? 'Entity updated' : undefined,
-      error: updated ? undefined : `Entity not found: ${input.entityId}`,
+      ...(updated ? { message: 'Entity updated' } : { error: `Entity not found: ${input.entityId}` }),
     }
   },
   removeEntity(params, bridge) {
@@ -69,8 +68,7 @@ export const entityExecutors = {
     const removed = bridge.removeEntity(input.entityId)
     return {
       success: removed,
-      message: removed ? 'Entity removed' : undefined,
-      error: removed ? undefined : `Entity not found: ${input.entityId}`,
+      ...(removed ? { message: 'Entity removed' } : { error: `Entity not found: ${input.entityId}` }),
     }
   },
   batchAddEntities(params, bridge) {

@@ -11,6 +11,7 @@ export default defineConfig({
   test: {
     include: [
       'packages/*/src/**/*.test.ts',
+      'packages/cesium-mcp-runtime/app/**/*.test.ts',
       'examples/browser-agent/_worker.test.ts',
       'examples/browser-agent/agent-response.test.ts',
       'examples/browser-agent/index.test.ts',
