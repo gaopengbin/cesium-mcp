@@ -40,6 +40,8 @@ function updateEmbeddedVersion(relativePath, pattern, version) {
 
 const runtimeVersion = readJson('packages/cesium-mcp-runtime/package.json').version
 const devVersion = readJson('packages/cesium-mcp-dev/package.json').version
+const bridgeVersion = readJson('packages/cesium-mcp-bridge/package.json').version
+const webMcpVersion = readJson('packages/cesium-mcp-webmcp/package.json').version
 
 // Changesets updates workspace manifests, but does not rewrite npm's lockfile.
 // Keep local workspace metadata aligned without resolving external dependencies.
@@ -67,5 +69,12 @@ updateEmbeddedVersion(
 )
 updateJson('worker/server-card.json', ['serverInfo.version'], runtimeVersion)
 updateJson('worker/dev-server-card.json', ['serverInfo.version'], devVersion, true)
+
+// Keep the primary example bundles aligned with each coordinated npm release.
+const browserExamplePath = resolve(root, 'examples/browser-agent/index.html')
+const browserExample = readFileSync(browserExamplePath, 'utf8')
+  .replace(/(BRIDGE_SCRIPT_URL = 'https:\/\/cdn\.jsdelivr\.net\/npm\/cesium-mcp-bridge@)[^/]+/, `$1${bridgeVersion}`)
+  .replace(/(<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/cesium-mcp-webmcp@)[^/]+/, `$1${webMcpVersion}`)
+writeFileSync(browserExamplePath, browserExample, 'utf8')
 
 console.log('Done.')
