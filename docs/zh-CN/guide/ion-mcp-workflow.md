@@ -13,7 +13,7 @@
 ## 查找、加载与核验
 
 1. 在**官方 ion MCP** 调用 `search_assets`，传入实际搜索词、`type: "3DTILES"` 和 `status: "COMPLETE"`。仍在处理的资产用 `get_asset` 或 `wait_for_asset` 检查最终状态；超时或切片失败不代表已经可用。
-2. 在**我们的 Runtime** 选择已连接的浏览器会话，或打开一次地图并等待连接。后续地图调用保留同一个 `sessionId`；必要时通过 `enable_toolset` 启用 `tiles` 工具集。
+2. 在**我们的 Runtime** 连接前面已配置凭据的浏览器 Viewer，通过 `listSessions` 找到它的已连接会话。后续地图调用保留该 `sessionId`；打开 MCP Apps 面板会产生独立浏览器状态。必要时通过 `enable_toolset` 启用 `tiles` 工具集。
 3. 矢量 3D Tiles 调用 `loadVectorTiles`，网格或点云资产调用 `load3dTiles`。传入 ion 实际返回的数字 ID，不要套用示例资产 ID。
 
 矢量 3D Tiles 的参数如下，变量来自前面工具的真实返回结果：

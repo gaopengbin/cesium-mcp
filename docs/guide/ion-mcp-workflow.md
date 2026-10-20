@@ -13,7 +13,7 @@ This workflow uses the browser Viewer. The MCP Apps panel has its own browser st
 ## Find, load, and verify
 
 1. On **official ion MCP**, call `search_assets` with a real search term, `type: "3DTILES"`, and `status: "COMPLETE"`. If an asset is still processing, use `get_asset` or `wait_for_asset` and check its terminal status. A timeout or tiling error is not a ready asset.
-2. On **our Runtime**, use the connected browser session, or open the map once and wait for its connection. Preserve its `sessionId` for every map call. Enable the `tiles` toolset with `enable_toolset` if needed.
+2. On **our Runtime**, connect the browser Viewer configured above and use `listSessions` to identify its connected session. Preserve that `sessionId` for every map call; opening an MCP Apps panel creates a separate browser state. Enable the `tiles` toolset with `enable_toolset` if needed.
 3. Call `loadVectorTiles` for vector 3D Tiles, or `load3dTiles` for a mesh/point-cloud asset. Use the real numeric asset ID returned by ion, not an example asset ID.
 
 For vector 3D Tiles, the arguments have this shape (the variables come from the preceding tool results):
