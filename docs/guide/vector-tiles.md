@@ -2,6 +2,8 @@
 
 `loadVectorTiles` connects vector 3D Tiles and native MVT sources to the same layer lifecycle. Enable the `tiles` toolset first. The `layer` toolset provides styling, visibility, schema lookup and selection metadata.
 
+For assets discovered through official Cesium ion MCP, follow the [ion MCP workflow](./ion-mcp-workflow). It covers separate streaming credentials and asset-ID verification.
+
 ```json
 {
   "source": "mvt",

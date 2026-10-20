@@ -21,6 +21,7 @@ interface CesiumRefs {
   entity?: Cesium.Entity
   labelEntities?: Cesium.Entity[]
   tileset?: Cesium.Cesium3DTileset
+  ionAssetId?: number
   provider?: any
   primitive?: any
   imageryLayer?: Cesium.ImageryLayer
@@ -648,9 +649,9 @@ export class LayerManager {
       if (asset.version) metadata.assetVersion = String(asset.version)
       if (asset.tilesetVersion) metadata.tilesetVersion = String(asset.tilesetVersion)
     }
-    // Cesium Ion 资产 ID（从 IonResource 中提取）
-    const resource = (tileset as any).resource ?? (tileset as any)._resource
-    if (resource?.ionAssetId) metadata.ionAssetId = resource.ionAssetId
+    // IonResource does not expose the original asset ID. Keep the load input instead.
+    const ionAssetId = this._cesiumRefs.get(layerId)?.ionAssetId
+    if (ionAssetId !== undefined) metadata.ionAssetId = ionAssetId
     // 几何误差
     if (tileset.maximumScreenSpaceError != null) metadata.geometricError = tileset.maximumScreenSpaceError
     // 包围球
@@ -745,7 +746,7 @@ export class LayerManager {
       visible: true,
       color: '#8B5CF6',
     }
-    this._cesiumRefs.set(layerId, { tileset })
+    this._cesiumRefs.set(layerId, { tileset, ionAssetId })
     this._layers.push(info)
     return info
   }

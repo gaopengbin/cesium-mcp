@@ -2,6 +2,8 @@
 
 先启用 `tiles` 工具集，再用 `loadVectorTiles` 加载矢量 3D Tiles 或原生 MVT。`layer` 工具集负责样式、显隐、属性读取和删除。
 
+从官方 Cesium ion MCP 查找资产后，按[联动指南](./ion-mcp-workflow)交给地图；流式读取凭据需要独立配置，并核对加载后的资产 ID。
+
 ```json
 {
   "source": "mvt",

@@ -678,6 +678,7 @@ interface CesiumRefs {
     entity?: Cesium.Entity;
     labelEntities?: Cesium.Entity[];
     tileset?: Cesium.Cesium3DTileset;
+    ionAssetId?: number;
     provider?: any;
     primitive?: any;
     imageryLayer?: Cesium.ImageryLayer;
