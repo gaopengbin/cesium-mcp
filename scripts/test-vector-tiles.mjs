@@ -7,6 +7,8 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { createRiverFixtures, createReceiverFixture, createMixedFixtures } from './vector-tile-fixtures.mjs'
 
 const root = resolve('.')
+const ionFixture = process.env.ION_FIXTURE === '1'
+if (ionFixture && (process.env.MVT === '1' || process.env.HYDRORIVERS === '1')) throw new Error('ION_FIXTURE must run separately from MVT and HYDRORIVERS')
 const output = join(root, 'artifacts/vector-tiles')
 await mkdir(output, { recursive: true })
 const freePort = async () => {
@@ -20,7 +22,7 @@ const port = await freePort()
 const fixturePort = await freePort()
 const base = `http://127.0.0.1:${port}`
 const viewerHtml = `<!doctype html><html><head><link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css"><script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script><script src="${base}/bridge.js"></script><style>html,body,#c{width:100%;height:100%;margin:0}#s{position:fixed;top:8px;right:8px;color:white}</style></head><body><div id="c"></div><div id="s"></div><script>
-${process.env.CESIUM_ION_TOKEN ? `Cesium.Ion.defaultAccessToken=${JSON.stringify(process.env.CESIUM_ION_TOKEN)};` : ''}
+${ionFixture ? 'Cesium.Ion.defaultAccessToken="ion-fixture-only";' : process.env.CESIUM_ION_TOKEN ? `Cesium.Ion.defaultAccessToken=${JSON.stringify(process.env.CESIUM_ION_TOKEN)};` : ''}
 var v=new Cesium.Viewer('c',{terrainProvider:new Cesium.EllipsoidTerrainProvider(),baseLayer:false,animation:false,timeline:false,geocoder:false,baseLayerPicker:false,homeButton:false,navigationHelpButton:false,sceneModePicker:false,fullscreenButton:false,infoBox:false,selectionIndicator:false});
 var b=new CesiumMcpBridge.CesiumBridge(v);
 var ws=new WebSocket('ws://127.0.0.1:${port}/?session=river-test');
@@ -75,7 +77,9 @@ try {
   } })
   await page.route('**/*', async route => {
     const url = new URL(route.request().url())
-    if (url.hostname === 'cesium.com' && url.pathname.includes('/Build/Cesium/')) {
+    if (ionFixture && url.hostname === 'api.cesium.com' && url.pathname === '/v1/assets/123/endpoint') {
+      await route.fulfill({ json: { type: '3DTILES', url: `http://127.0.0.1:${fixturePort}/tileset.json`, accessToken: 'ion-fixture-only', attributions: [] }, headers: { 'Access-Control-Allow-Origin': '*' } })
+    } else if (url.hostname === 'cesium.com' && url.pathname.includes('/Build/Cesium/')) {
       const file = url.pathname.split('/Build/Cesium/')[1]
       try { await route.fulfill({ body: await readFile(join(root, 'node_modules/cesium/Build/Cesium', file)), contentType: file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'application/octet-stream' }) } catch { await route.abort() }
     } else await route.continue()
@@ -119,16 +123,22 @@ try {
     console.log(`Verified ${action}`)
     return body.result.data
   }
-  result.source = process.env.HYDRORIVERS === '1' ? 'Cesium ion HydroRIVERS 5135960' : process.env.MVT === '1' ? 'Natural Earth public-domain rivers, encoded as MVT locally and converted by Cesium MVTDataProvider' : 'Natural Earth public-domain rivers, converted to vector glTF 3D Tiles locally'
+  result.source = ionFixture ? 'Natural Earth rivers through a simulated ion asset endpoint (no live account or OAuth validation)' : process.env.HYDRORIVERS === '1' ? 'Cesium ion HydroRIVERS 5135960' : process.env.MVT === '1' ? 'Natural Earth public-domain rivers, encoded as MVT locally and converted by Cesium MVTDataProvider' : 'Natural Earth public-domain rivers, converted to vector glTF 3D Tiles locally'
   await command('loadVectorTiles', {
     source: process.env.MVT === '1' ? 'mvt' : 'tileset', id: 'rivers',
-    ...(process.env.HYDRORIVERS === '1' ? { ionAssetId: 5135960 } : process.env.MVT === '1'
+    ...(ionFixture ? { ionAssetId: 123 } : process.env.HYDRORIVERS === '1' ? { ionAssetId: 5135960 } : process.env.MVT === '1'
       ? { url: `http://127.0.0.1:${fixturePort}/{z}/{x}/{y}.pbf`, minZoom: 0, maxZoom: 0, extent: [75, 15, 100, 40], featureIdProperty: 'ne_id' }
       : { url: `http://127.0.0.1:${fixturePort}/tileset.json` }),
     ...(process.env.DRAPE === '1' ? { clampTarget: process.env.TARGET ?? 'terrain' } : {}),
     flyTo: false,
     tileStyle: { color: { conditions: [['Number(${scalerank}) <= 1', "color('#38bdf8')"], ['true', "color('#22c55e')"]] }, lineWidth: '4' },
   })
+  if (ionFixture) {
+    const schema = await command('getLayerSchema', { layerId: 'rivers' })
+    if (schema.metadata?.ionAssetId !== 123) throw new Error('Loaded ion asset lost its provenance')
+    if (JSON.stringify(schema).includes('ion-fixture-only')) throw new Error('Schema exposed a resource credential')
+    result.ionProvenance = { assetId: schema.metadata.ionAssetId, endpoint: 'simulated', liveAccountVerified: false }
+  }
   if (process.env.TARGET === '3d-tiles' || process.env.TARGET === 'ground') await command('load3dTiles', { id: 'receiver', url: `http://127.0.0.1:${fixturePort}/receiver.json`, flyTo: false })
   await command('setView', { longitude: 88, latitude: 27, height: 1500000, pitch: -90 })
   await page.evaluate(() => v.render())
@@ -322,7 +332,7 @@ try {
   process.exitCode = 1
 }
 finally {
-  const reportName = process.env.AGENT === '1' ? 'codex-agent-results.json' : process.env.AGENT ? 'agent-results.json' : process.env.MIXED === '1' ? 'geometry-results.json' : process.env.DRAPE === '1' ? `drape-${process.env.MVT === '1' ? 'mvt' : 'tileset'}${process.env.TARGET ? '-' + process.env.TARGET : ''}-results.json` : process.env.MVT === '1' ? 'mvt-results.json' : 'results.json'
+  const reportName = ionFixture ? 'ion-fixture-results.json' : process.env.AGENT === '1' ? 'codex-agent-results.json' : process.env.AGENT ? 'agent-results.json' : process.env.MIXED === '1' ? 'geometry-results.json' : process.env.DRAPE === '1' ? `drape-${process.env.MVT === '1' ? 'mvt' : 'tileset'}${process.env.TARGET ? '-' + process.env.TARGET : ''}-results.json` : process.env.MVT === '1' ? 'mvt-results.json' : 'results.json'
   await writeFile(join(output, process.env.RUNTIME_ENTRY ? `installed-${reportName}` : reportName), JSON.stringify(result, null, 2))
   console.log(JSON.stringify(result, null, 2))
   await browser?.close()

@@ -72,6 +72,34 @@ describe('vector layer lifecycle', () => {
     expect(schema.fields).toContainEqual({ name: 'name', type: 'string', sample: 'Brahmaputra' })
     expect(schema.metadata?.tileStyle).toEqual({ color: "color('#ff8800')", lineWidth: '7' })
   })
+  it.each(['tileset', 'vector'] as const)('retains the ion asset ID for a loaded %s without exposing its resource', async (source) => {
+    const resource = new Cesium.Resource({ url: 'https://assets.example.com/tileset.json?access_token=fixture-only' })
+    const tileset = { resource, destroy: vi.fn() } as unknown as Cesium3DTileset
+    vi.spyOn(Cesium.Cesium3DTileset, 'fromIonAssetId').mockResolvedValue(tileset)
+    const manager = new LayerManager({ scene: { primitives: { add: vi.fn(), remove: vi.fn() } } } as unknown as Viewer)
+    const params = { id: 'cloud-rivers', ionAssetId: 123, flyTo: false }
+    if (source === 'vector') await manager.loadVectorTiles({ ...params, source: 'tileset' })
+    else await manager.load3dTiles(params)
+
+    const schema = manager.getLayerSchema({ layerId: 'cloud-rivers' })
+    expect(schema.metadata?.ionAssetId).toBe(123)
+    expect(JSON.stringify(schema)).not.toContain('fixture-only')
+    expect(JSON.stringify(schema)).not.toContain('assets.example.com')
+  })
+  it('preserves ion provenance on failed replacement and clears it on URL replacement', async () => {
+    const tileset = { destroy: vi.fn() } as unknown as Cesium3DTileset
+    const replacement = { destroy: vi.fn() } as unknown as Cesium3DTileset
+    const fromIon = vi.spyOn(Cesium.Cesium3DTileset, 'fromIonAssetId').mockResolvedValueOnce(tileset).mockRejectedValueOnce(new Error('Not found'))
+    vi.spyOn(Cesium.Cesium3DTileset, 'fromUrl').mockResolvedValue(replacement)
+    const manager = new LayerManager({ scene: { primitives: { add: vi.fn(), remove: vi.fn() } } } as unknown as Viewer)
+    await manager.loadVectorTiles({ source: 'tileset', id: 'rivers', ionAssetId: 123, flyTo: false })
+    await expect(manager.loadVectorTiles({ source: 'tileset', id: 'rivers', ionAssetId: 456, flyTo: false })).rejects.toThrow('Not found')
+    expect(fromIon).toHaveBeenLastCalledWith(456, expect.any(Object))
+    expect(manager.getLayerSchema({ layerId: 'rivers' }).metadata?.ionAssetId).toBe(123)
+
+    await manager.loadVectorTiles({ source: 'tileset', id: 'rivers', url: 'https://example.com/tileset.json', flyTo: false })
+    expect(manager.getLayerSchema({ layerId: 'rivers' }).metadata?.ionAssetId).toBeUndefined()
+  })
   it('preserves existing tile expressions and accepts false and zero when restyling', () => {
     const manager = new LayerManager({ scene: { requestRender: () => {} } } as unknown as Viewer)
     const tileset = { style: { style: { color: "color('blue')", lineWidth: 5 } } } as Cesium3DTileset

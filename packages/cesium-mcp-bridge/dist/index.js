@@ -938,8 +938,8 @@ var LayerManager = class {
       if (asset.version) metadata.assetVersion = String(asset.version);
       if (asset.tilesetVersion) metadata.tilesetVersion = String(asset.tilesetVersion);
     }
-    const resource = tileset.resource ?? tileset._resource;
-    if (resource?.ionAssetId) metadata.ionAssetId = resource.ionAssetId;
+    const ionAssetId = this._cesiumRefs.get(layerId)?.ionAssetId;
+    if (ionAssetId !== void 0) metadata.ionAssetId = ionAssetId;
     if (tileset.maximumScreenSpaceError != null) metadata.geometricError = tileset.maximumScreenSpaceError;
     if (tileset.boundingSphere) {
       try {
@@ -1023,7 +1023,7 @@ var LayerManager = class {
       visible: true,
       color: "#8B5CF6"
     };
-    this._cesiumRefs.set(layerId, { tileset });
+    this._cesiumRefs.set(layerId, { tileset, ionAssetId });
     this._layers.push(info);
     return info;
   }
