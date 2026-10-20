@@ -7,6 +7,7 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { createRiverFixtures, createReceiverFixture, createMixedFixtures } from './vector-tile-fixtures.mjs'
 
 const root = resolve('.')
+process.env.CESIUM_TELEMETRY_DISABLED = '1'
 const output = join(root, 'artifacts/vector-tiles')
 await mkdir(output, { recursive: true })
 const freePort = async () => {
@@ -22,7 +23,7 @@ const base = `http://127.0.0.1:${port}`
 const viewerHtml = `<!doctype html><html><head><link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css"><script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script><script src="${base}/bridge.js"></script><style>html,body,#c{width:100%;height:100%;margin:0}#s{position:fixed;top:8px;right:8px;color:white}</style></head><body><div id="c"></div><div id="s"></div><script>
 ${process.env.CESIUM_ION_TOKEN ? `Cesium.Ion.defaultAccessToken=${JSON.stringify(process.env.CESIUM_ION_TOKEN)};` : ''}
 var v=new Cesium.Viewer('c',{terrainProvider:new Cesium.EllipsoidTerrainProvider(),baseLayer:false,animation:false,timeline:false,geocoder:false,baseLayerPicker:false,homeButton:false,navigationHelpButton:false,sceneModePicker:false,fullscreenButton:false,infoBox:false,selectionIndicator:false});
-var b=new CesiumMcpBridge.CesiumBridge(v);
+var b=new CesiumMcpBridge.CesiumBridge(v,{telemetry:false});
 var ws=new WebSocket('ws://127.0.0.1:${port}/?session=river-test');
 ws.onopen=()=>document.getElementById('s').textContent='Connected';
 ws.onmessage=async e=>{var m=JSON.parse(e.data),r=await b.execute({action:m.method,params:m.params||{}});if(m.id)ws.send(JSON.stringify({id:m.id,result:r}));};

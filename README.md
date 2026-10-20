@@ -1,3 +1,5 @@
+> **Usage statistics default to on.** Runtime/Dev print a startup notice; browser integrations show a console notice. Set `CESIUM_TELEMETRY_DISABLED=1` (Node), or `globalThis.CESIUM_MCP_TELEMETRY_DISABLED=true` before browser initialization. [Fields, destination and opt-out](https://gaopengbin.github.io/cesium-mcp/guide/telemetry.html).
+
 > [!IMPORTANT]
 > ## 📣 作者正在求职 · 北京
 >

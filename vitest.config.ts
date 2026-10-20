@@ -6,6 +6,8 @@ export default defineConfig({
   resolve: {
     alias: {
       'cesium-mcp-contracts': fileURLToPath(new URL('./packages/cesium-mcp-contracts/src/index.ts', import.meta.url)),
+      'cesium-mcp-telemetry/node': fileURLToPath(new URL('./packages/cesium-mcp-telemetry/src/node.ts', import.meta.url)),
+      'cesium-mcp-telemetry': fileURLToPath(new URL('./packages/cesium-mcp-telemetry/src/index.ts', import.meta.url)),
     },
   },
   test: {
@@ -13,6 +15,7 @@ export default defineConfig({
       'packages/*/src/**/*.test.ts',
       'packages/cesium-mcp-runtime/app/**/*.test.ts',
       'examples/browser-agent/_worker.test.ts',
+      'examples/browser-agent/package-telemetry.test.ts',
       'examples/browser-agent/agent-response.test.ts',
       'examples/browser-agent/index.test.ts',
       'examples/browser-agent/contract-parity.test.ts',

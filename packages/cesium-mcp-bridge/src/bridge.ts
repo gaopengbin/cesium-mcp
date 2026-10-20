@@ -1,4 +1,6 @@
 import * as Cesium from 'cesium'
+import { createUsageTelemetry, measureUsageCall } from 'cesium-mcp-telemetry'
+import type { UsageTelemetry } from 'cesium-mcp-telemetry'
 import {
   validateCesiumToolInput,
   validateCesiumToolOutput,
@@ -78,6 +80,8 @@ import { setSceneOptions as setSceneOptionsCmd, setPostProcess as setPostProcess
 import { createDefaultBridgeExecutors } from './executors/executor-registry'
 import { internalBridgeExecutors } from './executors/internal'
 
+declare const __VERSION__: string
+
 export type BridgeExecutor = (
   params: Record<string, unknown>,
   bridge: CesiumBridge,
@@ -86,9 +90,13 @@ export type BridgeExecutor = (
 
 export interface BridgeExecutionContext {
   signal?: AbortSignal
+  /** An adapter can own the usage counter for this command. */
+  telemetry?: false
 }
 
 export interface CesiumBridgeOptions {
+  /** Usage counters are on by default with a console disclosure. Set false to disable. */
+  telemetry?: boolean | { endpoint?: string }
   /** Validate shared browser-tool input contracts before dispatch. Defaults to true. */
   validateInputs?: boolean
   /** Validate shared browser-tool output contracts after dispatch. Defaults to true. */
@@ -115,11 +123,17 @@ export class CesiumBridge {
   private _executors: Map<string, BridgeExecutor>
   private _operationAbortController = new AbortController()
   private _disposed = false
+  private _telemetry: UsageTelemetry
   private _tileSelectionHandler?: Cesium.ScreenSpaceEventHandler
   private _vectorResizeObserver?: ResizeObserver
   private _vectorResizeCleanup?: () => void
 
   constructor(viewer: Cesium.Viewer, options: CesiumBridgeOptions = {}) {
+    this._telemetry = createUsageTelemetry({
+      product: 'bridge', version: typeof __VERSION__ === 'string' ? __VERSION__ : '0.0.0-dev',
+      enabled: options.telemetry !== false,
+      endpoint: typeof options.telemetry === 'object' ? options.telemetry.endpoint : undefined,
+    })
     this._viewer = viewer
     this._layerManager = new LayerManager(viewer)
     this._validateInputs = options.validateInputs ?? true
@@ -129,6 +143,7 @@ export class CesiumBridge {
       ...internalBridgeExecutors,
       ...options.executors,
     }))
+    this._telemetry.record('started')
     if (typeof document !== 'undefined' && viewer.scene?.canvas) {
       this._tileSelectionHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas)
       this._tileSelectionHandler.setInputAction((movement: { position: Cesium.Cartesian2 }) => {
@@ -162,6 +177,10 @@ export class CesiumBridge {
   // ==================== 命令分发（MCP/SSE 兼容） ====================
 
   async execute(cmd: BridgeCommand, context: BridgeExecutionContext = {}): Promise<BridgeResult> {
+    return measureUsageCall(context.telemetry === false ? undefined : this._telemetry, cmd?.action ?? '', () => this._execute(cmd, context))
+  }
+
+  private async _execute(cmd: BridgeCommand, context: BridgeExecutionContext): Promise<BridgeResult> {
     try {
       if (this._disposed) {
         return { success: false, error: 'CesiumBridge has been disposed' }
@@ -260,6 +279,7 @@ export class CesiumBridge {
    * this Bridge. The Viewer and scene content remain owned by the application.
    */
   dispose(): void {
+    this._telemetry.dispose()
     this._vectorResizeObserver?.disconnect()
     this._vectorResizeCleanup?.()
     if (this._disposed) return

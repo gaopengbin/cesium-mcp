@@ -1,5 +1,7 @@
 # cesium-mcp-dev
 
+**Usage statistics are on by default**, with a startup notice on stderr. Set `CESIUM_TELEMETRY_DISABLED=1`, `DO_NOT_TRACK=1`, or pass `--no-telemetry` to disable. [Collected fields and privacy](https://gaopengbin.github.io/cesium-mcp/guide/telemetry.html).
+
 **English** | [中文](README.zh-CN.md)
 
 > MCP Server for IDE AI assistants -- Cesium API documentation, code generation, and Entity builder.

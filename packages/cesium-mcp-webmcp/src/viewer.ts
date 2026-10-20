@@ -30,7 +30,7 @@ export async function registerCesiumViewerWebMcp(
   options: RegisterCesiumViewerWebMcpOptions = {},
 ): Promise<CesiumViewerWebMcpRegistration> {
   const { bridgeOptions, ...registrationOptions } = options
-  const bridge = new CesiumBridge(viewer, bridgeOptions)
+  const bridge = new CesiumBridge(viewer, { ...bridgeOptions, telemetry: false })
   let active = 0
   let closing = false
   const releaseIfIdle = () => {

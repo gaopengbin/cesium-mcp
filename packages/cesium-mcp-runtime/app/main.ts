@@ -336,7 +336,8 @@ async function openMap(input: unknown) {
     setConnection('error', '地图渲染失败')
     showError(error)
   })
-  bridge = new CesiumBridge(viewer)
+  // Runtime owns these counters; do not also report this app as an SDK installation.
+  bridge = new CesiumBridge(viewer, { telemetry: false })
   bridge.setView({ longitude: places[0].longitude, latitude: places[0].latitude, height: 12_000, pitch: -90 })
   updateViewCaption()
   updateSelection(undefined)

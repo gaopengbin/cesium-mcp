@@ -1,6 +1,7 @@
 'use strict';
 
 var Cesium4 = require('cesium');
+var cesiumMcpTelemetry = require('cesium-mcp-telemetry');
 var cesiumMcpContracts = require('cesium-mcp-contracts');
 var h337 = require('heatmap.js');
 
@@ -3583,6 +3584,12 @@ var CesiumBridge = class {
     this._disposed = false;
     // ==================== Trajectory ====================
     this._activeTrajectories = /* @__PURE__ */ new Map();
+    this._telemetry = cesiumMcpTelemetry.createUsageTelemetry({
+      product: "bridge",
+      version: "1.147.0" ,
+      enabled: options.telemetry !== false,
+      endpoint: typeof options.telemetry === "object" ? options.telemetry.endpoint : void 0
+    });
     this._viewer = viewer;
     this._layerManager = new LayerManager(viewer);
     this._validateInputs = options.validateInputs ?? true;
@@ -3592,6 +3599,7 @@ var CesiumBridge = class {
       ...internalBridgeExecutors,
       ...options.executors
     }));
+    this._telemetry.record("started");
     if (typeof document !== "undefined" && viewer.scene?.canvas) {
       this._tileSelectionHandler = new Cesium4__namespace.ScreenSpaceEventHandler(viewer.scene.canvas);
       this._tileSelectionHandler.setInputAction((movement) => {
@@ -3621,6 +3629,9 @@ var CesiumBridge = class {
   }
   // ==================== 命令分发（MCP/SSE 兼容） ====================
   async execute(cmd, context = {}) {
+    return cesiumMcpTelemetry.measureUsageCall(context.telemetry === false ? void 0 : this._telemetry, cmd?.action ?? "", () => this._execute(cmd, context));
+  }
+  async _execute(cmd, context) {
     try {
       if (this._disposed) {
         return { success: false, error: "CesiumBridge has been disposed" };
@@ -3698,6 +3709,7 @@ var CesiumBridge = class {
    * this Bridge. The Viewer and scene content remain owned by the application.
    */
   dispose() {
+    this._telemetry.dispose();
     this._vectorResizeObserver?.disconnect();
     this._vectorResizeCleanup?.();
     if (this._disposed) return;

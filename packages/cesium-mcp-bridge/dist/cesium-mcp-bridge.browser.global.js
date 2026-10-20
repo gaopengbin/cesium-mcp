@@ -2812,7 +2812,7 @@ var CesiumMcpBridge = (function (exports) {
     }
   ]));
   var cesiumBrowserToolContracts = cesiumBrowserToolsetNames.flatMap((name) => cesiumBrowserToolsets[name].tools);
-  cesiumBrowserToolContracts.map((tool2) => tool2.name);
+  var cesiumSharedToolNames = cesiumBrowserToolContracts.map((tool2) => tool2.name);
   var contractByName2 = new Map(
     cesiumBrowserToolContracts.map((contract3) => [contract3.name, contract3])
   );
@@ -2966,6 +2966,173 @@ var CesiumMcpBridge = (function (exports) {
       valid: issues.length === 0,
       issues
     };
+  }
+
+  // ../cesium-mcp-telemetry/dist/index.js
+  var telemetryProducts = ["runtime", "dev", "bridge", "webmcp"];
+  var telemetryTools = /* @__PURE__ */ new Set([
+    ...cesiumSharedToolNames,
+    "setIonToken",
+    "cesium_api_lookup",
+    "cesium_code_gen",
+    "cesium_entity_builder"
+  ]);
+  var latencyBuckets = ["lt100ms", "lt1s", "lt10s", "gte10s"];
+  var isUsageId = (value) => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  var isUsageVersion = (value) => typeof value === "string" && /^\d{1,3}\.\d{1,3}\.\d{1,3}(?:-[a-zA-Z0-9.-]{1,24})?$/.test(value);
+  function validateUsageBatch(input) {
+    if (!input || typeof input !== "object" || Array.isArray(input)) return false;
+    const value = input;
+    if (Object.keys(value).sort().join(",") !== "batchId,events,installationId,platform,product,schema,version") return false;
+    if (value.schema !== 1 || !isUsageId(value.batchId) || !isUsageId(value.installationId) || !isUsageVersion(value.version)) return false;
+    if (!telemetryProducts.includes(value.product) || typeof value.platform !== "string" || !["win32", "darwin", "linux", "browser", "other"].includes(value.platform)) return false;
+    if (!Array.isArray(value.events) || !value.events.length || value.events.length > 32) return false;
+    return value.events.every((event) => {
+      if (!event || typeof event !== "object" || Object.keys(event).sort().join(",") !== "count,event,latency,outcome,tool") return false;
+      return ["started", "connected", "tool"].includes(event.event) && (event.event === "tool" ? telemetryTools.has(event.tool) : event.tool === "") && ["success", "failure"].includes(event.outcome) && latencyBuckets.includes(event.latency) && Number.isInteger(event.count) && event.count > 0 && event.count <= 1e4;
+    });
+  }
+  var DEFAULT_TELEMETRY_ENDPOINT = "https://cesium-browser-agent.pages.dev/api/package-telemetry";
+  function createUsageTelemetry(options) {
+    const entries = /* @__PURE__ */ new Map();
+    let timer;
+    let disposed = false;
+    let announced = false;
+    let inFlight;
+    let endpoint;
+    try {
+      const url = new URL(options.endpoint ?? DEFAULT_TELEMETRY_ENDPOINT);
+      if ((url.protocol === "https:" || url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)) && !url.username && !url.password && !url.search && !url.hash) endpoint = url.href;
+    } catch {
+    }
+    const disabled = () => {
+      try {
+        return options.enabled === false || !endpoint || !isUsageVersion(options.version) || !telemetryProducts.includes(options.product) || telemetryDisabled() || Boolean(options.isDisabled?.());
+      } catch {
+        return true;
+      }
+    };
+    const stopTimer = () => {
+      if (timer) clearTimeout(timer);
+      timer = void 0;
+    };
+    const record = (event) => {
+      if (disposed || disabled()) return;
+      if (!announced) {
+        const message = `[Cesium MCP] Usage statistics ON / \u4F7F\u7528\u7EDF\u8BA1\u9ED8\u8BA4\u5F00\u542F (${options.product}). Fields: random installation ID, package/version, OS family, event/tool, success/failure, latency bucket and counts. Destination: ${endpoint}. No prompts, map data, coordinates, URLs or tokens. Disable / \u5173\u95ED: CESIUM_TELEMETRY_DISABLED=1 or DO_NOT_TRACK=1; browser: globalThis.CESIUM_MCP_TELEMETRY_DISABLED=true or telemetry:false. Details: https://gaopengbin.github.io/cesium-mcp/guide/telemetry.html`;
+        try {
+          (options.notice ?? console.info)(message);
+        } catch {
+          return;
+        }
+        announced = true;
+      }
+      const key = `${event.event}:${event.tool}:${event.outcome}:${event.latency}`;
+      const previous = entries.get(key);
+      if (previous) previous.count = Math.min(1e4, previous.count + 1);
+      else if (entries.size < 32) entries.set(key, event);
+      if (!timer) {
+        timer = setTimeout(() => {
+          timer = void 0;
+          void flush();
+        }, entries.size === 1 && event.event === "started" ? 1e3 : 6e4);
+        const handle = timer;
+        handle.unref?.();
+      }
+    };
+    const flush = async () => {
+      if (inFlight) {
+        await inFlight;
+        if (entries.size) await flush();
+        return;
+      }
+      stopTimer();
+      if (disabled()) {
+        entries.clear();
+        return;
+      }
+      if (!entries.size) return;
+      const events = [...entries.values()].map((event) => ({ ...event }));
+      entries.clear();
+      inFlight = (async () => {
+        try {
+          const installationId = await (options.identity ?? browserIdentity)();
+          if (!isUsageId(installationId) || disabled()) return;
+          const batch = {
+            schema: 1,
+            batchId: crypto.randomUUID(),
+            installationId,
+            product: options.product,
+            version: options.version,
+            platform: options.platform ?? "browser",
+            events
+          };
+          if (!validateUsageBatch(batch)) return;
+          await (options.send ?? fetch)(endpoint, {
+            method: "POST",
+            body: JSON.stringify(batch),
+            headers: { "Content-Type": "application/json" },
+            credentials: "omit",
+            referrerPolicy: "no-referrer",
+            redirect: "error",
+            keepalive: true,
+            signal: AbortSignal.timeout(2e3)
+          });
+        } catch {
+        }
+      })().finally(() => {
+        inFlight = void 0;
+      });
+      return inFlight;
+    };
+    return {
+      record: (event) => record({ event, tool: "", outcome: "success", latency: "lt100ms", count: 1 }),
+      recordTool(tool2, success, durationMs) {
+        if (!telemetryTools.has(tool2)) return;
+        record({ event: "tool", tool: tool2, outcome: success ? "success" : "failure", latency: durationMs < 100 ? "lt100ms" : durationMs < 1e3 ? "lt1s" : durationMs < 1e4 ? "lt10s" : "gte10s", count: 1 });
+      },
+      flush,
+      dispose() {
+        disposed = true;
+        stopTimer();
+        void flush();
+      }
+    };
+  }
+  function telemetryDisabled() {
+    const runtime = globalThis;
+    const env = runtime.process?.env ?? {};
+    return runtime.CESIUM_MCP_TELEMETRY_DISABLED === true || ["1", "true"].includes(env.CESIUM_TELEMETRY_DISABLED?.toLowerCase() ?? "") || ["1", "true"].includes(env.DO_NOT_TRACK?.toLowerCase() ?? "") || Boolean(env.CI && env.CI !== "false" && env.CI !== "0") || env.NODE_ENV === "test" || env.CESIUM_MCP_CONFORMANCE === "1" || typeof navigator !== "undefined" && (navigator.doNotTrack === "1" || navigator.globalPrivacyControl === true);
+  }
+  var fallbackBrowserId;
+  async function browserIdentity() {
+    try {
+      const existing = localStorage.getItem("cesium-mcp.telemetry-id");
+      if (isUsageId(existing)) return existing;
+      const id = crypto.randomUUID();
+      localStorage.setItem("cesium-mcp.telemetry-id", id);
+      return id;
+    } catch {
+      return fallbackBrowserId ?? (fallbackBrowserId = crypto.randomUUID());
+    }
+  }
+  async function measureUsageCall(telemetry, tool2, operation) {
+    const start = performance.now();
+    const record = (success) => {
+      try {
+        telemetry?.recordTool(tool2, success, performance.now() - start);
+      } catch {
+      }
+    };
+    try {
+      const result = await operation();
+      const status = result;
+      record(status?.success !== false && status?.isError !== true);
+      return result;
+    } catch (error) {
+      record(false);
+      throw error;
+    }
   }
 
   // src/commands/view.ts
@@ -6559,6 +6726,12 @@ var CesiumMcpBridge = (function (exports) {
       this._disposed = false;
       // ==================== Trajectory ====================
       this._activeTrajectories = /* @__PURE__ */ new Map();
+      this._telemetry = createUsageTelemetry({
+        product: "bridge",
+        version: "1.147.0" ,
+        enabled: options.telemetry !== false,
+        endpoint: typeof options.telemetry === "object" ? options.telemetry.endpoint : void 0
+      });
       this._viewer = viewer;
       this._layerManager = new LayerManager(viewer);
       this._validateInputs = options.validateInputs ?? true;
@@ -6568,6 +6741,7 @@ var CesiumMcpBridge = (function (exports) {
         ...internalBridgeExecutors,
         ...options.executors
       }));
+      this._telemetry.record("started");
       if (typeof document !== "undefined" && viewer.scene?.canvas) {
         this._tileSelectionHandler = new Cesium13.ScreenSpaceEventHandler(viewer.scene.canvas);
         this._tileSelectionHandler.setInputAction((movement) => {
@@ -6597,6 +6771,9 @@ var CesiumMcpBridge = (function (exports) {
     }
     // ==================== 命令分发（MCP/SSE 兼容） ====================
     async execute(cmd, context = {}) {
+      return measureUsageCall(context.telemetry === false ? void 0 : this._telemetry, cmd?.action ?? "", () => this._execute(cmd, context));
+    }
+    async _execute(cmd, context) {
       try {
         if (this._disposed) {
           return { success: false, error: "CesiumBridge has been disposed" };
@@ -6674,6 +6851,7 @@ var CesiumMcpBridge = (function (exports) {
      * this Bridge. The Viewer and scene content remain owned by the application.
      */
     dispose() {
+      this._telemetry.dispose();
       this._vectorResizeObserver?.disconnect();
       this._vectorResizeCleanup?.();
       if (this._disposed) return;

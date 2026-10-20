@@ -1,5 +1,7 @@
 # cesium-mcp-webmcp
 
+**Usage statistics are on by default** for the registration APIs, with a browser console notice. Pass `{ telemetry: false }`, or set `globalThis.CESIUM_MCP_TELEMETRY_DISABLED=true` before registration. [Collected fields and privacy](https://gaopengbin.github.io/cesium-mcp/guide/telemetry.html).
+
 Native WebMCP registration for Cesium browser tools. The `/viewer` entry provides a one-package CesiumJS integration, while the package root remains a lightweight `document.modelContext` adapter for custom executors.
 
 It does not bundle CesiumJS, a backend MCP server, or a WebMCP polyfill.
