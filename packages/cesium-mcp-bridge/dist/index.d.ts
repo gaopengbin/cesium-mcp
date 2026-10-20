@@ -737,8 +737,14 @@ declare class LayerManager {
 type BridgeExecutor = (params: Record<string, unknown>, bridge: CesiumBridge, context?: BridgeExecutionContext) => BridgeResult | Promise<BridgeResult>;
 interface BridgeExecutionContext {
     signal?: AbortSignal;
+    /** An adapter can own the usage counter for this command. */
+    telemetry?: false;
 }
 interface CesiumBridgeOptions {
+    /** Usage counters are on by default with a console disclosure. Set false to disable. */
+    telemetry?: boolean | {
+        endpoint?: string;
+    };
     /** Validate shared browser-tool input contracts before dispatch. Defaults to true. */
     validateInputs?: boolean;
     /** Validate shared browser-tool output contracts after dispatch. Defaults to true. */
@@ -764,6 +770,7 @@ declare class CesiumBridge {
     private _executors;
     private _operationAbortController;
     private _disposed;
+    private _telemetry;
     private _tileSelectionHandler?;
     private _vectorResizeObserver?;
     private _vectorResizeCleanup?;
@@ -771,6 +778,7 @@ declare class CesiumBridge {
     get viewer(): Cesium.Viewer;
     get layerManager(): LayerManager;
     execute(cmd: BridgeCommand, context?: BridgeExecutionContext): Promise<BridgeResult>;
+    private _execute;
     flyTo(params: FlyToParams, signal?: AbortSignal): Promise<void>;
     setView(params: SetViewParams): void;
     getView(): ViewState;

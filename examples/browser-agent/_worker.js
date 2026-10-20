@@ -1,3 +1,5 @@
+import { handlePackageTelemetry } from './package-telemetry.js'
+
 const CHAT_MODEL = '@cf/zai-org/glm-4.7-flash'
 const MAX_BODY_BYTES = 256 * 1024
 const MAX_MESSAGES = 40
@@ -28,6 +30,7 @@ const PROXY_RESPONSE_HEADERS = [
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
+    if (url.pathname === '/api/package-telemetry') return handlePackageTelemetry(request, env)
     if (url.pathname.startsWith(ASSET_PROXY_PREFIX)) {
       return handleAssetProxy(request, url)
     }

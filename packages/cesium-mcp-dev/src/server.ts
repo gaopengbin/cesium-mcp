@@ -9,6 +9,8 @@
 
 import { McpServer } from '@modelcontextprotocol/server'
 import { z } from 'zod'
+import { measureUsageCall } from 'cesium-mcp-telemetry'
+import type { UsageTelemetry } from 'cesium-mcp-telemetry'
 import { CESIUM_API_DOCS } from './resources/api-docs.js'
 import { ENTITY_TEMPLATES } from './resources/entity-templates.js'
 import { CODE_SNIPPETS } from './resources/code-snippets.js'
@@ -17,7 +19,7 @@ declare const __VERSION__: string
 
 const DEV_VERSION = typeof __VERSION__ === 'string' ? __VERSION__ : '0.0.0-dev'
 
-export function buildDevMcpServer(): McpServer {
+export function buildDevMcpServer(telemetry?: UsageTelemetry): McpServer {
   const server = new McpServer({
     name: 'cesium-mcp-dev',
     version: DEV_VERSION,
@@ -32,7 +34,7 @@ export function buildDevMcpServer(): McpServer {
         category: z.enum(['class', 'method', 'property', 'all']).default('all').describe('查询类别'),
       }),
     },
-    async ({ query, category }) => {
+    async ({ query, category }) => measureUsageCall(telemetry, 'cesium_api_lookup', async () => {
       const q = query.toLowerCase()
       const matches = CESIUM_API_DOCS.filter(doc => {
         const nameMatch = doc.name.toLowerCase().includes(q)
@@ -61,7 +63,7 @@ export function buildDevMcpServer(): McpServer {
       ).join('\n---\n\n')
 
       return { content: [{ type: 'text' as const, text }] }
-    },
+    }),
   )
 
   server.registerTool(
@@ -73,7 +75,7 @@ export function buildDevMcpServer(): McpServer {
         language: z.enum(['typescript', 'javascript']).default('typescript').describe('代码语言'),
       }),
     },
-    async ({ description, language }) => {
+    async ({ description, language }) => measureUsageCall(telemetry, 'cesium_code_gen', async () => {
       const desc = description.toLowerCase()
       const matched = CODE_SNIPPETS.filter(s =>
         s.keywords.some(k => desc.includes(k)),
@@ -98,7 +100,7 @@ export function buildDevMcpServer(): McpServer {
       }).join('\n\n')
 
       return { content: [{ type: 'text' as const, text }] }
-    },
+    }),
   )
 
   server.registerTool(
@@ -117,7 +119,7 @@ export function buildDevMcpServer(): McpServer {
         size: z.number().optional().describe('尺寸（像素或米）'),
       }),
     },
-    async ({ type, name, position, color, size }) => {
+    async ({ type, name, position, color, size }) => measureUsageCall(telemetry, 'cesium_entity_builder', async () => {
       const template = ENTITY_TEMPLATES[type]
       if (!template) {
         return { content: [{ type: 'text' as const, text: `不支持的 Entity 类型: ${type}` }] }
@@ -140,7 +142,7 @@ export function buildDevMcpServer(): McpServer {
         `\`\`\`typescript\n${code}\n\`\`\``
 
       return { content: [{ type: 'text' as const, text }] }
-    },
+    }),
   )
 
   return server

@@ -1,5 +1,7 @@
 # cesium-mcp-bridge
 
+**使用统计默认开启**，浏览器控制台会输出告知。创建 `CesiumBridge` 时传入 `{ telemetry: false }`，或提前设置 `globalThis.CESIUM_MCP_TELEMETRY_DISABLED=true` 关闭。[收集范围与隐私说明](https://gaopengbin.github.io/cesium-mcp/zh-CN/guide/telemetry.html)。
+
 [English](README.md) | **中文**
 
 > AI 智能体操控 Cesium 三维地图的统一执行层。

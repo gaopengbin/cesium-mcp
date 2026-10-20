@@ -30,6 +30,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "cesium-mcp-telemetry": "^0.1.0",
     "cesium-mcp-bridge": "^1.147.0",
     "cesium-mcp-contracts": "^0.8.0"
   },

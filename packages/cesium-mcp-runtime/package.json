@@ -33,6 +33,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p app/tsconfig.json"
   },
   "dependencies": {
+    "cesium-mcp-telemetry": "^0.1.0",
     "@modelcontextprotocol/node": "^2.0.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "cesium-mcp-contracts": "^0.8.0",

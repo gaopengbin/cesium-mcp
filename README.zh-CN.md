@@ -1,3 +1,5 @@
+> **使用统计默认开启。** Runtime／Dev 会在启动时告知，浏览器集成会在控制台告知。Node 设置 `CESIUM_TELEMETRY_DISABLED=1`，浏览器初始化前设置 `globalThis.CESIUM_MCP_TELEMETRY_DISABLED=true` 即可关闭。[收集字段、接收地址与关闭方法](https://gaopengbin.github.io/cesium-mcp/zh-CN/guide/telemetry.html)。
+
 > [!IMPORTANT]
 > ## 📣 作者正在求职 · 北京
 >

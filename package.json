@@ -8,6 +8,7 @@
   },
   "workspaces": [
     "packages/cesium-mcp-contracts",
+    "packages/cesium-mcp-telemetry",
     "packages/cesium-mcp-bridge",
     "packages/cesium-mcp-dev",
     "packages/cesium-mcp-runtime",
@@ -23,8 +24,9 @@
     "test:routing": "vitest run examples/browser-agent/tool-router.eval.test.ts --reporter=verbose",
     "test:model-tools": "vitest run scripts/model-tool-eval-core.test.ts examples/browser-agent/model-tool-eval.test.ts --reporter=verbose",
     "eval:model-tools": "npm run build -w packages/cesium-mcp-contracts && node scripts/run-model-tool-eval.mjs",
-    "test:e2e:packed": "npm run build && node scripts/run-packed-runtime-e2e.mjs",
+    "test:e2e:packed": "npm run build && node scripts/run-packed-runtime-e2e.mjs && npm run test:telemetry",
     "test:e2e:published": "node scripts/run-packed-runtime-e2e.mjs --runtime cesium-mcp-runtime@latest",
+    "test:telemetry": "node scripts/test-package-telemetry.mjs",
     "test:conformance:mcp": "npm run build -w packages/cesium-mcp-runtime && node scripts/run-mcp-conformance.mjs",
     "lint": "eslint packages/*/src/**/*.ts packages/cesium-mcp-runtime/app/**/*.ts",
     "clean": "node -e \"const fs=require('node:fs'); for (const dir of fs.globSync('packages/*/dist')) fs.rmSync(dir,{ recursive:true, force:true })\"",
@@ -54,7 +56,8 @@
     "vitest": "^4.1.0",
     "wrangler": "^4.110.0",
     "cesium": "~1.145.0",
-    "esbuild": "0.27.4"
+    "esbuild": "0.27.4",
+    "miniflare": "4.20260708.1"
   },
   "license": "MIT",
   "overrides": {

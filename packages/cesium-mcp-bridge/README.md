@@ -1,5 +1,7 @@
 # cesium-mcp-bridge
 
+**Usage statistics are on by default**, with a browser console notice. Pass `{ telemetry: false }` to `CesiumBridge`, or set `globalThis.CESIUM_MCP_TELEMETRY_DISABLED=true` before initialization. [Collected fields and privacy](https://gaopengbin.github.io/cesium-mcp/guide/telemetry.html).
+
 **English** | [中文](README.zh-CN.md)
 
 > Unified execution layer for AI Agents to control Cesium 3D maps in the browser.

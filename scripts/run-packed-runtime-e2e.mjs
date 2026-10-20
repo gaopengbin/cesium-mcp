@@ -78,6 +78,7 @@ async function installRuntime() {
   const { stdout } = await runNpm([
     'pack',
     './packages/cesium-mcp-contracts',
+    './packages/cesium-mcp-telemetry',
     './packages/cesium-mcp-runtime',
     '--pack-destination', artifactsDir,
     '--json',
@@ -85,7 +86,8 @@ async function installRuntime() {
   const packed = JSON.parse(stdout)
   const contracts = packed.find(item => item.name === 'cesium-mcp-contracts')
   const runtimePackage = packed.find(item => item.name === 'cesium-mcp-runtime')
-  if (!contracts || !runtimePackage) throw new Error('npm pack omitted a required package')
+  const telemetry = packed.find(item => item.name === 'cesium-mcp-telemetry')
+  if (!contracts || !runtimePackage || !telemetry) throw new Error('npm pack omitted a required package')
 
   await runNpm([
     'install',
@@ -94,6 +96,7 @@ async function installRuntime() {
     '--no-audit',
     '--no-fund',
     join(artifactsDir, contracts.filename),
+    join(artifactsDir, telemetry.filename),
     join(artifactsDir, runtimePackage.filename),
   ])
 }
@@ -193,6 +196,7 @@ try {
       cwd: installDir,
       env: {
         ...process.env,
+        CESIUM_TELEMETRY_DISABLED: '1',
         CESIUM_WS_PORT: String(viewerPort),
         CESIUM_HOST: '127.0.0.1',
         CESIUM_AUTH_TOKEN: authToken,
@@ -228,6 +232,7 @@ try {
 
   browser = await launchBrowser()
   const context = await browser.newContext()
+  await context.addInitScript(() => { globalThis.CESIUM_MCP_TELEMETRY_DISABLED = true })
   await context.route('**/*', async (route) => {
     const url = new URL(route.request().url())
     if (url.origin === baseUrl) {

@@ -22,6 +22,9 @@ import type {
 } from '@modelcontextprotocol/server'
 import { serveStdio } from '@modelcontextprotocol/server/stdio'
 import { z } from 'zod'
+import { createNodeTelemetry } from 'cesium-mcp-telemetry/node'
+import { measureUsageCall } from 'cesium-mcp-telemetry'
+import type { UsageTelemetry } from 'cesium-mcp-telemetry'
 import { WebSocketServer, WebSocket, type RawData } from 'ws'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { AsyncLocalStorage } from 'node:async_hooks'
@@ -69,6 +72,7 @@ import { PublicMapSessions } from './public-sessions.js'
 
 const WS_PORT = parseInt(process.env.CESIUM_WS_PORT ?? '9100')
 const MAX_PORT_RETRIES = 10
+let usageTelemetry: UsageTelemetry | undefined
 let networkPolicy = createNetworkPolicy({})
 
 function relayHeaders(): Record<string, string> {
@@ -154,6 +158,7 @@ async function handleAppSession(
       rejectPendingRequestsForClient(pendingRequests, client, new Error(`Browser session disconnected: ${request.sessionId}`))
     })
     browserClients.set(request.sessionId, client)
+    usageTelemetry?.record('connected')
     return { token: client.token }
   }
   const client = browserClients.get(request.sessionId)
@@ -591,7 +596,7 @@ ${requiresAuth ? '<form id="auth"><label>Connection token <input id="auth-token"
 var TOK=${JSON.stringify(token).replace(/</g, '\\u003c')},SE=new URLSearchParams(location.search).get('session')||'default';
 if(TOK)Cesium.Ion.defaultAccessToken=TOK;
 var v=new Cesium.Viewer('c',{terrain:Cesium.Terrain.fromWorldTerrain(),baseLayerPicker:!0,geocoder:!0,animation:!0,timeline:!0});
-var b=new CesiumMcpBridge.CesiumBridge(v),el=document.getElementById('s');
+var b=new CesiumMcpBridge.CesiumBridge(v,{telemetry:false}),el=document.getElementById('s');
 function conn(){var input=document.getElementById('auth-token'),protocols=[];
 if(input){if(!input.value)return;protocols=['cesium-mcp','cesium-token.'+btoa(String.fromCharCode.apply(null,new TextEncoder().encode(input.value))).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'')]}
 var ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'?session='+encodeURIComponent(SE),protocols);
@@ -698,6 +703,7 @@ function _setupWss(wss: WebSocketServer) {
     }
     console.error(`[ws] 浏览器连接: session=${sessionId}`)
     browserClients.set(sessionId, ws)
+    usageTelemetry?.record('connected')
 
     ws.on('message', (raw: RawData) => {
       try {
@@ -923,7 +929,7 @@ function _registerTool<Shape extends z.ZodRawShape>(
     params: Record<string, unknown>,
   ) => Promise<CallToolResult>
   const normalizedInvoke = async (params: Record<string, unknown>) => {
-    const run = async () => metadata ? attachStructuredContent(await invoke(params)) : invoke(params)
+    const run = () => measureUsageCall(usageTelemetry, name, async () => metadata ? attachStructuredContent(await invoke(params)) : invoke(params))
     // Some handlers intentionally omit parameters when sending read-only actions.
     // Keep the caller's explicit map session available throughout that operation.
     return typeof params.sessionId === 'string'
@@ -2686,6 +2692,7 @@ export function createSandboxServer() {
 // ==================== 启动 ====================
 
 export async function main(argv: string[] = []) {
+  usageTelemetry ??= createNodeTelemetry({ product: 'runtime', version: RUNTIME_VERSION, enabled: !argv.includes('--no-telemetry') })
   networkPolicy = createNetworkPolicy(process.env)
   // Parse CLI arguments
   const transportArg = _parseArg(argv, '--transport') ?? process.env.MCP_TRANSPORT ?? 'stdio'
@@ -2698,6 +2705,7 @@ export async function main(argv: string[] = []) {
     const port = mcpPortArg || WS_PORT + 100 // default: WS_PORT + 100 (e.g. 9200)
     const mcpHttpServer = createServer(_handleMcpRequest)
     mcpHttpServer.listen(port, networkPolicy.host, () => {
+      usageTelemetry?.record('started')
       const allToolCount = _toolDefs.size + 2
       console.error(`[cesium-mcp-runtime] MCP Server running (Streamable HTTP), ${allToolCount} tools available`)
       console.error(`[cesium-mcp-runtime] MCP endpoint: http://localhost:${port}/mcp`)
@@ -2714,6 +2722,7 @@ export async function main(argv: string[] = []) {
     toolsets: _configuredToolsets,
     dynamicDiscovery: !_allMode,
   }))
+  usageTelemetry.record('started')
   const metaCount = _allMode ? 0 : 2
   const alwaysAvailableCount = cesiumRuntimeResourceToolNames.length + 2
   console.error(`[cesium-mcp-runtime] MCP Server running (stdio), ${_configuredState.enabledTools.size + metaCount + alwaysAvailableCount} tools registered (toolsets: ${[..._configuredToolsets].join(', ')})`)

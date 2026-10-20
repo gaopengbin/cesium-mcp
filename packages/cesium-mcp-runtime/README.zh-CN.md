@@ -1,5 +1,7 @@
 # cesium-mcp-runtime
 
+**使用统计默认开启**，启动时通过 stderr 告知。设置 `CESIUM_TELEMETRY_DISABLED=1`、`DO_NOT_TRACK=1` 或传入 `--no-telemetry` 关闭。[收集范围与隐私说明](https://gaopengbin.github.io/cesium-mcp/zh-CN/guide/telemetry.html)。
+
 [English](README.md) | **中文**
 
 > MCP 服务器，让 AI 智能体通过模型上下文协议实时控制 Cesium 地球。

@@ -1,0 +1,19 @@
+{
+  "name": "cesium-mcp-telemetry",
+  "version": "0.1.0",
+  "description": "Disclosed, disableable usage counters for the Cesium MCP packages",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "require": "./dist/index.cjs" },
+    "./node": { "types": "./dist/node.d.ts", "import": "./dist/node.js", "require": "./dist/node.cjs" },
+    "./schema": { "types": "./dist/schema.d.ts", "import": "./dist/schema.js", "require": "./dist/schema.cjs" }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": { "build": "tsup", "typecheck": "tsc --noEmit" },
+  "dependencies": { "cesium-mcp-contracts": "^0.8.0" },
+  "devDependencies": { "tsup": "^8.0.0", "typescript": "^5.3.0" },
+  "repository": { "type": "git", "url": "https://github.com/gaopengbin/cesium-mcp.git", "directory": "packages/cesium-mcp-telemetry" },
+  "license": "MIT"
+}

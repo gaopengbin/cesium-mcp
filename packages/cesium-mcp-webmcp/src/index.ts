@@ -1,3 +1,7 @@
+import { createUsageTelemetry, measureUsageCall } from 'cesium-mcp-telemetry'
+
+declare const __VERSION__: string
+
 import {
   cesiumResourceToolContracts,
   createCesiumResourceStore,
@@ -85,6 +89,8 @@ export interface RegisterWebMcpToolsOptions {
 }
 
 export interface RegisterCesiumWebMcpOptions extends RegisterWebMcpToolsOptions {
+  /** Disclosed usage counters default to on. false disables this registration. */
+  telemetry?: boolean | { endpoint?: string }
   tools?: readonly CesiumToolContract[]
   toolsets?: CesiumToolsetSelection
   excludeTools?: readonly string[]
@@ -244,6 +250,16 @@ export function registerCesiumWebMcp(
   executor: CesiumWebMcpExecutor,
   options: RegisterCesiumWebMcpOptions = {},
 ): Promise<WebMcpRegistration> {
+  const telemetry = createUsageTelemetry({
+    product: 'webmcp', version: typeof __VERSION__ === 'string' ? __VERSION__ : '0.0.0-dev',
+    enabled: options.telemetry !== false,
+    endpoint: typeof options.telemetry === 'object' ? options.telemetry.endpoint : undefined,
+  })
+  const measuredExecutor: CesiumWebMcpExecutor = {
+    execute(command, context) {
+      return measureUsageCall(telemetry, command.action, async () => context ? executor.execute(command, context) : executor.execute(command))
+    },
+  }
   const registrationOptions: RegisterWebMcpToolsOptions = {
     modelContext: options.modelContext,
     document: options.document,
@@ -252,10 +268,16 @@ export function registerCesiumWebMcp(
   }
   const resourceStore = resolveResourceStore(options)
   return registerWebMcpTools(
-    resourceStore ? createResourceAwareExecutor(executor, resourceStore) : executor,
+    resourceStore ? createResourceAwareExecutor(measuredExecutor, resourceStore) : measuredExecutor,
     selectWebMcpContracts(options),
     registrationOptions,
-  ).then(registration => ({ ...registration, resourceStore }))
+  ).then(registration => {
+    if (!registration.signal.aborted) {
+      telemetry.record('started')
+      registration.signal.addEventListener('abort', () => telemetry.dispose(), { once: true })
+    } else telemetry.dispose()
+    return { ...registration, resourceStore }
+  }).catch(error => { telemetry.dispose(); throw error })
 }
 
 function selectWebMcpContracts(
