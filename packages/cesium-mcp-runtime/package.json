@@ -1,6 +1,6 @@
 {
   "name": "cesium-mcp-runtime",
-  "version": "1.147.0",
+  "version": "1.148.0",
   "description": "Cesium MCP Runtime Server — AI Agent 通过 MCP 协议操控浏览器 Cesium",
   "mcpName": "io.github.gaopengbin/cesium-mcp-runtime",
   "type": "module",
@@ -33,7 +33,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p app/tsconfig.json"
   },
   "dependencies": {
-    "cesium-mcp-telemetry": "^0.1.0",
+    "cesium-mcp-telemetry": "^0.1.1",
     "@modelcontextprotocol/node": "^2.0.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "cesium-mcp-contracts": "^0.8.0",

@@ -1,6 +1,6 @@
 {
   "name": "cesium-mcp-dev",
-  "version": "1.147.0",
+  "version": "1.148.0",
   "description": "Cesium MCP for Development — IDE AI 助手的 Cesium API 文档查询与代码生成",
   "mcpName": "io.github.gaopengbin/cesium-mcp-dev",
   "type": "module",
@@ -26,7 +26,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "cesium-mcp-telemetry": "^0.1.0",
+    "cesium-mcp-telemetry": "^0.1.1",
     "@modelcontextprotocol/server": "^2.0.0",
     "zod": "^4.2.0"
   },
