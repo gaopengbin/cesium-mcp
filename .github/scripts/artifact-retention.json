@@ -1,0 +1,6 @@
+{
+  "repository": "gaopengbin/cesium-mcp",
+  "defaultBranch": "main",
+  "cacheBudgetBytes": 1073741824,
+  "artifactBudgetBytes": 67108864
+}
