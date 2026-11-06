@@ -1,5 +1,22 @@
 # cesium-mcp-webmcp
 
+## 1.0.0
+
+### Major Changes
+
+- [#61](https://github.com/gaopengbin/cesium-mcp/pull/61) [`96e04ab`](https://github.com/gaopengbin/cesium-mcp/commit/96e04ab54b56bf969f9b5e4004e16648b0d63712) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Raise the tested renderer and peer dependency baseline to CesiumJS ~1.147.0 (Node >=22.17.0), pin engine/core/gltf/widgets, and update built-in Viewer and example URLs. Add BIM model tree/lineage and native precise snap integration, owned vector batch setPositions and pre-render pickObject metadata, native vector blending/cache/point-cloud/environment options, GPU snapping/measurement and clipping polygons with holes. Adopt the release's emissive materials and rendering/cache fixes. Older Cesium peer ranges are intentionally removed; upgrade before using this release. Local fixtures verify SDK parity, rendered behavior, river draping and MCP/WebMCP compatibility; private ion asset validation remains separate.
+
+### Minor Changes
+
+- [#61](https://github.com/gaopengbin/cesium-mcp/pull/61) [`96e04ab`](https://github.com/gaopengbin/cesium-mcp/commit/96e04ab54b56bf969f9b5e4004e16648b0d63712) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Add the optional bilingual BIM toolset: official ion element queries and full-model quantity statistics, geographic focus, streamed feature highlighting/isolation, complete paginated visual filtering, and restoration of original styles. Preserve exact decimal IDs and source units; keep credentials out of tool arguments/results and errors. Include reproducible local MCP/WebMCP rendering checks without upgrading the Cesium renderer.
+
+### Patch Changes
+
+- Updated dependencies [[`96e04ab`](https://github.com/gaopengbin/cesium-mcp/commit/96e04ab54b56bf969f9b5e4004e16648b0d63712), [`96e04ab`](https://github.com/gaopengbin/cesium-mcp/commit/96e04ab54b56bf969f9b5e4004e16648b0d63712), [`96e04ab`](https://github.com/gaopengbin/cesium-mcp/commit/96e04ab54b56bf969f9b5e4004e16648b0d63712)]:
+  - cesium-mcp-bridge@2.0.0
+  - cesium-mcp-contracts@0.9.0
+  - cesium-mcp-telemetry@0.1.2
+
 ## 0.6.0
 
 ### Minor Changes

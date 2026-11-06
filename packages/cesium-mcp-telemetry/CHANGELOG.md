@@ -1,5 +1,12 @@
 # cesium-mcp-telemetry
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [[`96e04ab`](https://github.com/gaopengbin/cesium-mcp/commit/96e04ab54b56bf969f9b5e4004e16648b0d63712), [`96e04ab`](https://github.com/gaopengbin/cesium-mcp/commit/96e04ab54b56bf969f9b5e4004e16648b0d63712)]:
+  - cesium-mcp-contracts@0.9.0
+
 ## 0.1.1
 
 ### Patch Changes
