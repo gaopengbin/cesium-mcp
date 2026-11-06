@@ -49,4 +49,8 @@ References: [ion service API](https://cesium.com/learn/cesiumjs/ref-doc/IonAsset
 
 ## Model trees and precise snapping
 
-`getBimTree` reads roots or children by opaque nodeKey. `getBimElementParents` returns root-first lineage. `snapBimElement` uses native IonSnapService with lossless decimal-to-hex element ID conversion. It requires geolocated BIM database geometry with no additional modelMatrix/heightOffset. No hit returns snapped=false. Server refinement has local contract coverage, not live authorized-asset verification.
+`getBimTree` reads roots or children by opaque nodeKey. `getBimElementParents` returns root-first lineage. `snapBimElement` uses native IonSnapService with lossless decimal-to-hex element ID conversion. It requires geolocated BIM database geometry with no additional modelMatrix/heightOffset. No hit returns snapped=false. Server refinement has passed real read-only acceptance on the official public Snowdon Towers samples 6093105 and 6093184, as well as local contract coverage. Private account access remains separate.
+
+Run `npm run test:bim:live` for the structural public sample, or `node scripts/test-bim-live.mjs --public-sample --asset 6093184` for the architectural IFC model. Public mode uses the CesiumJS default sample token explicitly permitted by the [official tutorial](https://cesium.com/learn/bim-cad/bim-cad-asset-elements-api/). It does not create or modify ion assets, and never intercepts cloud responses. Reports and screenshots are written to `artifacts/bim-live/<assetId>/`.
+
+Live service routing differs: element queries/trees use `/v1/assets/{id}/...`, while ECEF and native precise-snap calls use `/assets/{id}/...`. This distinction is covered by both live acceptance and deterministic regression tests.

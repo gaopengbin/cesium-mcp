@@ -3251,7 +3251,7 @@ function filterText(filter) {
   if (!text || text.length > 8192) throw new Error("BIM filter must contain at most 8192 characters");
   return text;
 }
-async function request(manager, layerId, path, query, signal) {
+async function request(manager, layerId, path, query, signal, versioned = true) {
   const refs = context(manager, layerId);
   signal?.throwIfAborted();
   const server = Cesium4.Ion.defaultServer;
@@ -3259,7 +3259,7 @@ async function request(manager, layerId, path, query, signal) {
   const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(base.hostname);
   if (base.username || base.password || base.search || base.hash || !(base.protocol === "https:" || base.protocol === "http:" && loopback)) throw new Error("Invalid ion server URL");
   if (!base.pathname.endsWith("/")) base.pathname += "/";
-  const url = new URL(`v1/assets/${refs.ionAssetId}/${path}`, base);
+  const url = new URL(`${versioned ? "v1/" : ""}assets/${refs.ionAssetId}/${path}`, base);
   for (const [key, value] of Object.entries(query)) if (value !== void 0) url.searchParams.set(key, String(value));
   const token = Cesium4.Ion.defaultAccessToken;
   if (!token) throw new Error("Configure an ion access token with read permission before querying BIM elements");
@@ -3345,12 +3345,12 @@ async function snapBimElement(viewer, manager, params, signal) {
   const id = elementId(params.elementId);
   if (!Cesium4.Matrix4.equals(refs.tileset.modelMatrix, Cesium4.Matrix4.IDENTITY)) throw new Error("Server snapping requires untransformed ion geometry; reset heightOffset/modelMatrix");
   signal = signal ? AbortSignal.any([signal, AbortSignal.timeout(2e4)]) : AbortSignal.timeout(2e4);
-  const data = await request(manager, params.layerId, "ecef", {}, signal);
+  const data = await request(manager, params.layerId, "ecef", {}, signal, false);
   const values = data.ecefTransform?.flat();
   if (!Array.isArray(values) || values.length !== 16 || !values.every(Number.isFinite)) throw new Error("BIM asset has no valid ECEF transform for precise snapping");
   const server = Cesium4.Ion.defaultServer;
   const base = typeof server === "string" ? server : server.url;
-  const resource = new Cesium4.Resource({ url: new URL(`v1/assets/${refs.ionAssetId}/`, base.endsWith("/") ? base : base + "/").href, headers: { Authorization: `Bearer ${Cesium4.Ion.defaultAccessToken}` } });
+  const resource = new Cesium4.Resource({ url: new URL(`assets/${refs.ionAssetId}/`, base.endsWith("/") ? base : base + "/").href, headers: { Authorization: `Bearer ${Cesium4.Ion.defaultAccessToken}` } });
   const service = new Cesium4.IonSnapService({ assetId: refs.ionAssetId, resource, ecefTransform: Cesium4.Matrix4.fromRowMajorArray(values) });
   let hit;
   try {

@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as Cesium from 'cesium'
-import { queryBimElements, getBimElement, aggregateBimElements, focusBimElements, selectBimElements, filterBimElements, clearBimSelection } from './bim.js'
+import { queryBimElements, getBimElement, aggregateBimElements, focusBimElements, selectBimElements, filterBimElements, clearBimSelection, snapBimElement } from './bim.js'
 import { LayerManager } from './layer.js'
 
 const savedToken = Cesium.Ion.defaultAccessToken
-afterEach(() => { vi.unstubAllGlobals(); Cesium.Ion.defaultAccessToken = savedToken })
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); Cesium.Ion.defaultAccessToken = savedToken })
 function setup() {
   Cesium.Ion.defaultAccessToken = 'private-test-token'
-  const viewer = { scene: { requestRender: vi.fn() }, camera: { flyToBoundingSphere: vi.fn(), viewBoundingSphere: vi.fn(), lookAtTransform: vi.fn() } } as unknown as Cesium.Viewer
+  const viewer = { scene: { requestRender: vi.fn(), canvas: { clientWidth: 1000, clientHeight: 750 } }, camera: { flyToBoundingSphere: vi.fn(), viewBoundingSphere: vi.fn(), lookAtTransform: vi.fn() } } as unknown as Cesium.Viewer
   const manager = new LayerManager(viewer)
   const base = new Cesium.Cesium3DTileStyle({ color: "color('blue')", show: '${visible} === true' })
   const tileset = { style: base, modelMatrix: Cesium.Matrix4.IDENTITY } as Cesium.Cesium3DTileset
@@ -19,6 +19,21 @@ function setup() {
 const feature = (id: string, visible = true) => ({ getProperty: (name: string) => name === 'element' ? BigInt(id) : visible, getPropertyInherited: () => visible }) as unknown as Cesium.Cesium3DTileFeature
 
 describe('BIM elements workflow', () => {
+  it('uses the real unversioned ECEF/snap route family without putting credentials in the SDK URL', async () => {
+    const { manager, viewer, fetcher } = setup()
+    fetcher.mockResolvedValueOnce(Response.json({ ecefTransform: [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]] }))
+    vi.spyOn(Cesium.IonSnapService.prototype, 'snap').mockImplementation(async function(this: Cesium.IonSnapService, options) {
+      const resource = (this as unknown as { _resource: Cesium.Resource })._resource
+      expect(new URL(resource.url).pathname).toBe('/assets/42/')
+      expect(new URL(resource.url).search).toBe('')
+      expect(resource.headers.Authorization).toBe('Bearer private-test-token')
+      expect(options.elementId).toBe('0x20000000000001')
+      return undefined
+    })
+    const result = await snapBimElement(viewer, manager, { layerId: 'bim', elementId: '9007199254740993', position: [10, 20, 30] })
+    expect(new URL(fetcher.mock.calls[0]![0]).pathname).toBe('/assets/42/ecef')
+    expect(result.snapped).toBe(false)
+  })
   it('uses official cursor/filter parameters and never sends credentials in a URL', async () => {
     const { manager, fetcher } = setup()
     const filter = { 'IFC Class Name': 'ifcwall' }

@@ -21,11 +21,11 @@ Enable `bim` for model data and `geometry` for new editing/rendering tools. Both
 
 `updateVectorCollection` accepts geographic [longitude, latitude, optional height] vertices. It updates **owned GeoJSON primitives**, not server-streamed source datasets. Polygon ring boundaries and vertex counts cannot change. Invalid range/vertex counts are rejected before changing buffers or blend mode. Pick objects are locked by Cesium after first render, so metadata is set at layer creation, not mutated later.
 
-Snapping uses CSS pixel coordinates relative to the canvas. A miss stays a miss; tools do not fabricate an approximate point or distance. GPU snapping requires WebGL support. Server refinement additionally requires an authorized ion BIM asset and rejects display transforms which would invalidate precision.
+Snapping uses CSS pixel coordinates relative to the canvas. A miss stays a miss; tools do not fabricate an approximate point or distance. GPU snapping requires WebGL support. Server refinement additionally requires a readable ion BIM asset and rejects display transforms which would invalidate precision.
 
 ## Validation boundaries
 
-`npm run test:bim` runs a real Cesium Viewer through MCP HTTP, stdio and WebMCP, including SDK parity, model-tree traversal, geometry snapping, native buffers, clipping, tile unload/reload highlighting, visible tiles with zero cache budget, and emissive-strength rendered pixels. Data is explicitly synthetic; server snap tests exercise the official SDK against a local API fixture, not an authorized real cloud model.
+`npm run test:bim` runs a real Cesium Viewer through MCP HTTP, stdio and WebMCP, including SDK parity, model-tree traversal, geometry snapping, native buffers, clipping, tile unload/reload highlighting, visible tiles with zero cache budget, and emissive-strength rendered pixels. Data is explicitly synthetic; the deterministic tests use a local API fixture. A separate live acceptance script has also passed against official public assets 6093105 and 6093184 without intercepting cloud responses.
 
 The river tests separately cover public-domain Natural Earth data, MVT/vector 3D Tiles, draping, feature properties, style changes and the MCP Apps panel. The draped-picking adapter remains experimental and bounded to visible tiles/200,000 vertices; it was rechecked against 1.147 rather than silently removed.
 

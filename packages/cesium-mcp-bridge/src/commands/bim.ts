@@ -32,7 +32,7 @@ function filterText(filter: QueryBimElementsParams['filter']): string | undefine
 }
 
 /** Same ion Asset Elements REST endpoints used by IonAssetElementService 1.147. */
-async function request(manager: LayerManager, layerId: string, path: string, query: Record<string, string | number | undefined>, signal?: AbortSignal): Promise<Record<string, any>> {
+async function request(manager: LayerManager, layerId: string, path: string, query: Record<string, string | number | undefined>, signal?: AbortSignal, versioned = true): Promise<Record<string, any>> {
   const refs = context(manager, layerId)
   signal?.throwIfAborted()
   const server = Cesium.Ion.defaultServer
@@ -40,7 +40,7 @@ async function request(manager: LayerManager, layerId: string, path: string, que
   const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(base.hostname)
   if (base.username || base.password || base.search || base.hash || !(base.protocol === 'https:' || base.protocol === 'http:' && loopback)) throw new Error('Invalid ion server URL')
   if (!base.pathname.endsWith('/')) base.pathname += '/'
-  const url = new URL(`v1/assets/${refs.ionAssetId}/${path}`, base)
+  const url = new URL(`${versioned ? 'v1/' : ''}assets/${refs.ionAssetId}/${path}`, base)
   for (const [key, value] of Object.entries(query)) if (value !== undefined) url.searchParams.set(key, String(value))
   const token = Cesium.Ion.defaultAccessToken
   if (!token) throw new Error('Configure an ion access token with read permission before querying BIM elements')
@@ -119,12 +119,12 @@ export async function snapBimElement(viewer: Cesium.Viewer, manager: LayerManage
   const id = elementId(params.elementId)
   if (!Cesium.Matrix4.equals(refs.tileset.modelMatrix, Cesium.Matrix4.IDENTITY)) throw new Error('Server snapping requires untransformed ion geometry; reset heightOffset/modelMatrix')
   signal = signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000)
-  const data = await request(manager, params.layerId, 'ecef', {}, signal)
+  const data = await request(manager, params.layerId, 'ecef', {}, signal, false)
   const values = data.ecefTransform?.flat()
   if (!Array.isArray(values) || values.length !== 16 || !values.every(Number.isFinite)) throw new Error('BIM asset has no valid ECEF transform for precise snapping')
   const server = Cesium.Ion.defaultServer
   const base = typeof server === 'string' ? server : server.url
-  const resource = new Cesium.Resource({ url: new URL(`v1/assets/${refs.ionAssetId}/`, base.endsWith('/') ? base : base + '/').href, headers: { Authorization: `Bearer ${Cesium.Ion.defaultAccessToken}` } })
+  const resource = new Cesium.Resource({ url: new URL(`assets/${refs.ionAssetId}/`, base.endsWith('/') ? base : base + '/').href, headers: { Authorization: `Bearer ${Cesium.Ion.defaultAccessToken}` } })
   const service = new Cesium.IonSnapService({ assetId: refs.ionAssetId, resource, ecefTransform: Cesium.Matrix4.fromRowMajorArray(values) })
   let hit
   try {

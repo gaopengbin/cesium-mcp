@@ -47,6 +47,7 @@ export default defineConfig({
                 { text: '矢量瓦片', link: '/zh-CN/guide/vector-tiles' },
                 { text: 'BIM 构件与工程量', link: '/zh-CN/guide/bim' },
                 { text: 'CesiumJS 1.147 适配', link: '/zh-CN/guide/cesium-1-147' },
+                { text: '真实 BIM 资产验收', link: '/zh-CN/guide/bim-live-validation' },
                 { text: '使用统计与关闭方法', link: '/zh-CN/guide/telemetry' },
                 { text: '模型工具评测', link: '/zh-CN/guide/model-tool-evaluation' },
                 { text: '工具命名契约', link: '/zh-CN/guide/tool-naming' },

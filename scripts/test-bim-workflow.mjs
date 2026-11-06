@@ -78,8 +78,10 @@ try {
         assert.equal(url.searchParams.get('elementId'), bimIds[0])
         data = { path: [{ kind: 'model', id: '1' }, { kind: 'element', id: bimIds[0] }] }
       } else if (url.pathname.endsWith('/ecef')) {
+        assert.equal(url.pathname, '/assets/42/ecef')
         data = { ecefTransform: [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]] }
       } else if (url.pathname.endsWith('/snap')) {
+        assert.ok(url.pathname.startsWith('/assets/42/'))
         assert.ok(url.pathname.endsWith(`/elements/0x${BigInt(bimIds[0]).toString(16)}/snap`))
         assert.equal(request.method(), 'POST')
         const body = request.postDataJSON()

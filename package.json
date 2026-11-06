@@ -28,6 +28,7 @@
     "test:e2e:published": "node scripts/run-packed-runtime-e2e.mjs --runtime cesium-mcp-runtime@latest",
     "test:telemetry": "node scripts/test-package-telemetry.mjs",
     "test:bim": "node scripts/test-bim-workflow.mjs",
+    "test:bim:live": "node scripts/test-bim-live.mjs --public-sample",
     "test:conformance:mcp": "npm run build -w packages/cesium-mcp-runtime && node scripts/run-mcp-conformance.mjs",
     "lint": "eslint packages/*/src/**/*.ts packages/cesium-mcp-runtime/app/**/*.ts",
     "clean": "node -e \"const fs=require('node:fs'); for (const dir of fs.globSync('packages/*/dist')) fs.rmSync(dir,{ recursive:true, force:true })\"",

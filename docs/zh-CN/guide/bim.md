@@ -34,4 +34,4 @@ Bridge/WebMCP 支持通过 AbortSignal 取消操作；现有 WebSocket 传输尚
 
 ## 模型树与精确吸附
 
-`getBimTree` 读取根节点或按 `nodeKey` 读取子节点；`getBimElementParents` 返回构件根到叶的层级路径。`snapBimElement` 使用原生 IonSnapService；传入十进制构件 ID 和地理测试点，内部无损转为十六进制 ID。它需要地理定位数据库，不支持经过额外 modelMatrix/heightOffset 变换的模型；没有可吸附几何时返回 snapped=false。云端精确吸附目前仅完成本地接口契约测试，尚缺授权真实资产验证。
+`getBimTree` 读取根节点或按 `nodeKey` 读取子节点；`getBimElementParents` 返回构件根到叶的层级路径。`snapBimElement` 使用原生 IonSnapService；传入十进制构件 ID 和地理测试点，内部无损转为十六进制 ID。它需要地理定位数据库，不支持经过额外 modelMatrix/heightOffset 变换的模型；没有可吸附几何时返回 snapped=false。云端精确吸附已在官方公开 Snowdon Towers 资产 6093105、6093184 上完成真实只读验收，并保留本地契约测试；用户私有账号权限仍需分别验证。
