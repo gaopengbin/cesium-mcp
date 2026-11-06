@@ -220,7 +220,7 @@ import type {
 
 | cesium-mcp-bridge | Cesium |
 |-------------------|--------|
-| Next development release | ~1.147.0 (Node >=22.17.0) |
+| 2.x | ~1.147.0 (Node >=22.17.0) |
 | 1.145.x | ~1.143.0 / ~1.145.0 |
 
 ## License
