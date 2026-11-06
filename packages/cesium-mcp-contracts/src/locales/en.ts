@@ -98,7 +98,28 @@ export const toolDescriptions: Record<string, string> = {
   geocode: 'Convert address, landmark, or place name to geographic coordinates (longitude/latitude). Uses OpenStreetMap Nominatim free service, no API key required.',
 }
 
+const bimParameters = {
+  'layerId': 'Managed ion 3D Tiles layer ID',
+  'filter': 'Official ion JSON filter with verbatim property keys',
+  'top': 'Elements per page (1–1000)',
+  'continuationToken': 'Opaque cursor from previous page',
+  'elementId': 'Exact decimal element ID string from picked element property',
+  'propertyKeys': 'Numeric property keys; totals use original source units',
+  'elementIds': 'Exact decimal ID strings; no floating point conversion',
+  'duration': 'Camera flight duration; zero means instant',
+  'isolate': 'Hide other elements while preserving existing visibility rules',
+  'color': 'Highlight CSS color',
+  'maxElements': 'Maximum complete visual filter result size; never silently truncate'
+}
+
 export const paramDescriptions: Record<string, Record<string, string>> = {
+  queryBimElements: bimParameters,
+  getBimElement: bimParameters,
+  aggregateBimElements: bimParameters,
+  focusBimElements: bimParameters,
+  selectBimElements: bimParameters,
+  filterBimElements: bimParameters,
+  clearBimSelection: bimParameters,
   loadVectorTiles: {
     source: 'Source format: tileset or mvt',
     id: 'Layer ID', name: 'Layer name', url: 'Tileset URL or MVT {z}/{x}/{y} URL',

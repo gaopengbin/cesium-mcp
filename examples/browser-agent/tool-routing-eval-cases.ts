@@ -9,6 +9,8 @@ export interface ToolRoutingEvalCase {
 }
 
 export const toolRoutingEvalCases: ToolRoutingEvalCase[] = [
+  { id: 'bim-en', locale: 'en', prompt: 'Query BIM elements and calculate quantities', expectedToolsets: ['bim'], requiredTools: ['queryBimElements', 'aggregateBimElements'] },
+  { id: 'bim-zh', locale: 'zh-CN', prompt: '筛选构件并计算工程量', expectedToolsets: ['bim'], requiredTools: ['filterBimElements', 'aggregateBimElements'] },
   {
     id: 'view-en',
     locale: 'en',

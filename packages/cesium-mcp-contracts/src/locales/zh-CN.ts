@@ -4,6 +4,13 @@
  */
 
 export const toolDescriptions: Record<string, string> = {
+  queryBimElements: '按条件分页查询 ion BIM/CAD 构件，返回游标；列表可能省略详细属性，使用 getBimElement 获取详情',
+  getBimElement: '读取 BIM 构件完整属性、源单位和地理位置，可使用点击属性 element 的 ID',
+  aggregateBimElements: '由 ion 服务端对全部匹配构件计算数量、最小值、最大值、平均值和总和；不是当前页统计，不自动换算单位',
+  focusBimElements: '根据 ion 构件地理范围定位镜头，报告无地理位置的构件',
+  selectBimElements: '按精确构件 ID 高亮，isolate=true 时隔离显示，后续流入瓦片同样生效',
+  filterBimElements: '取完所有匹配分页后隔离显示构件；超过上限、失败或取消时保持原场景，空结果隐藏全部构件',
+  clearBimSelection: '清除 BIM 高亮和隔离，恢复原有图层样式；updateLayerStyle 也会清除该选择',
   loadVectorTiles: '加载矢量 3D Tiles 或指定范围的 MVT 数据源',
   getSelectedTileFeature: '读取点击的矢量瓦片要素属性和 layerId，使用 updateLayerStyle 的 tileStyle 修改样式',
   // — view
@@ -98,7 +105,28 @@ export const toolDescriptions: Record<string, string> = {
   geocode: '将地址、地标或地名转换为地理坐标（经纬度）。使用 OpenStreetMap Nominatim 免费服务，无需 API Key。',
 }
 
+const bimParameters = {
+  'layerId': '通过 ionAssetId 加载的 3D Tiles 图层 ID',
+  'filter': 'ion 官方 JSON 筛选条件，属性键保持原样',
+  'top': '每页构件数（1–1000）',
+  'continuationToken': '上一页返回的不透明分页游标',
+  'elementId': '点选属性 element 中的十进制构件 ID 字符串，避免数值精度损失',
+  'propertyKeys': '数值属性的完整键名，按源单位统计，不自动换算',
+  'elementIds': '十进制构件 ID 字符串数组',
+  'duration': '镜头动画秒数，0 为立即定位',
+  'isolate': '仅显示选中构件，同时遵守原有可见性规则',
+  'color': '高亮 CSS 颜色',
+  'maxElements': '完整可视筛选结果上限，超限不应用部分结果'
+}
+
 export const paramDescriptions: Record<string, Record<string, string>> = {
+  queryBimElements: bimParameters,
+  getBimElement: bimParameters,
+  aggregateBimElements: bimParameters,
+  focusBimElements: bimParameters,
+  selectBimElements: bimParameters,
+  filterBimElements: bimParameters,
+  clearBimSelection: bimParameters,
   loadVectorTiles: {
     source: '数据格式：tileset 或 mvt',
     id: '图层 ID', name: '图层名称', url: '3D Tiles URL 或 MVT /{z}/{x}/{y} URL',

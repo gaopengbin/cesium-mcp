@@ -1,6 +1,8 @@
 export { CesiumBridge } from './bridge'
 export type { BridgeExecutor, BridgeExecutionContext, CesiumBridgeOptions } from './bridge'
 export { LayerManager } from './commands/layer'
+export { queryBimElements, getBimElement, aggregateBimElements, focusBimElements, selectBimElements, filterBimElements, clearBimSelection } from './commands/bim.js'
+export type { BimLayerParams, BimElement, BimElementPage, QueryBimElementsParams, GetBimElementParams, AggregateBimElementsParams, BimAggregationResult, BimElementIdsParams, SelectBimElementsParams, FilterBimElementsParams, FocusBimElementsParams } from './types.js'
 export type { TileFeatureResult } from './commands/tile-selection.js'
 export type { LoadVectorTilesParams } from './types.js'
 export type {

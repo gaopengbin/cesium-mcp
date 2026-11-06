@@ -3,6 +3,11 @@
 
   const routes = [
     {
+      name: 'bim',
+      pattern: /\b(bim|cad|ifc|imodel|rebar|quantities|quantity|elements?)\b|构件|工程量|钢筋|混凝土体积/i,
+      toolsets: ['bim', 'tiles', 'layer'],
+    },
+    {
       name: 'vector',
       pattern: /\b(mvt|vector\s*tiles?|river\s*tiles?)\b|矢量瓦片|河流瓦片/i,
       toolsets: ['tiles', 'layer', 'view'],

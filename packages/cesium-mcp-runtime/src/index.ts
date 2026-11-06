@@ -960,6 +960,21 @@ function createToolState(toolsets: Iterable<string>): RuntimeToolState {
 
 const _configuredState = createToolState(_configuredToolsets)
 
+// BIM schemas and annotations are canonical in contracts, shared with WebMCP.
+function bimHandler(name: string) {
+  return async (params: Record<string, unknown>) => {
+    const result = await sendToBrowser(name, params)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
+  }
+}
+_registerTool('queryBimElements', 'Query BIM elements', {}, {}, bimHandler('queryBimElements'))
+_registerTool('getBimElement', 'Get BIM element', {}, {}, bimHandler('getBimElement'))
+_registerTool('aggregateBimElements', 'Aggregate BIM elements', {}, {}, bimHandler('aggregateBimElements'))
+_registerTool('focusBimElements', 'Focus BIM elements', {}, {}, bimHandler('focusBimElements'))
+_registerTool('selectBimElements', 'Select BIM elements', {}, {}, bimHandler('selectBimElements'))
+_registerTool('filterBimElements', 'Filter BIM elements', {}, {}, bimHandler('filterBimElements'))
+_registerTool('clearBimSelection', 'Clear BIM selection', {}, {}, bimHandler('clearBimSelection'))
+
 /** Dynamically enable a toolset on one server instance. */
 function enableToolset(
   s: McpServer,

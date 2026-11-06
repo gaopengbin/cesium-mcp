@@ -133,6 +133,11 @@ const entityAppearance = {
   fill: { ...booleanSchema, default: true },
 }
 
+const bimLayer = { layerId: idSchema }
+const bimId = { type: 'string', pattern: '^(0|[1-9]\\d{0,19})$', maxLength: 20, description: 'Exact decimal element ID, always a string (never a floating point number)' }
+const bimIds = { type: 'array', items: bimId, minItems: 1, maxItems: 10000 }
+const bimFilter: JsonSchema = { oneOf: [{ type: 'object', additionalProperties: true }, { type: 'string', minLength: 1, maxLength: 8192 }], description: 'Official ion Asset Elements JSON filter; property names including dotted namespaces are verbatim. Example {"IFC Class Name":"ifcwall"}.' }
+
 export const cesiumExtendedToolContracts: readonly CesiumToolContract[] = [
   // View
   tool('zoomToExtent', 'Animate the camera to a west/south/east/north bounding box.', {
@@ -530,4 +535,29 @@ export const cesiumExtendedToolContracts: readonly CesiumToolContract[] = [
     minOpacity: { type: 'number', minimum: 0, maximum: 1, default: 0 },
     resolution: { type: 'integer', minimum: 64, maximum: 4096, default: 512 },
   }, []),
+
+  // BIM / ion Asset Elements: managed layers retain their ion provenance.
+  tool('queryBimElements', 'Query a page of official ion BIM/CAD database elements for a layer loaded with ionAssetId. Follow continuationToken for more results. List properties may be omitted; getBimElement retrieves details. This reads model metadata, not rendered tile buffers.', {
+    ...bimLayer, filter: bimFilter,
+    top: { type: 'integer', minimum: 1, maximum: 1000, default: 100 },
+    continuationToken: { type: 'string', minLength: 1, maxLength: 8192 },
+  }, ['layerId'], { readOnlyHint: true, openWorldHint: true, untrustedContentHint: true }),
+  tool('getBimElement', 'Read full BIM element properties, native units and geolocation from ion. Use the element property returned by getSelectedTileFeature as elementId.', {
+    ...bimLayer, elementId: bimId,
+  }, ['layerId', 'elementId'], { readOnlyHint: true, openWorldHint: true, untrustedContentHint: true }),
+  tool('aggregateBimElements', 'Compute count, min, max, avg and sum on the ion server across ALL matching elements, not just a displayed page. total counts matched elements; each property count counts numeric values. Use exact property keys from getBimElement. No unit conversion or mixed-unit normalization.', {
+    ...bimLayer, filter: bimFilter,
+    propertyKeys: { type: 'array', items: { type: 'string', minLength: 1, maxLength: 500 }, minItems: 1, maxItems: 20, uniqueItems: true },
+  }, ['layerId', 'propertyKeys'], { readOnlyHint: true, openWorldHint: true, untrustedContentHint: true }),
+  tool('focusBimElements', 'Frame the geographic bounds of BIM elements. Fetches ion geolocation rather than assuming geometry is loaded. Returns elements without locations. Does not move the camera if none are located.', {
+    ...bimLayer, elementIds: { ...bimIds, maxItems: 50 }, duration: { type: 'number', minimum: 0, maximum: 10, default: 1.5 },
+  }, ['layerId', 'elementIds'], { openWorldHint: true }),
+  tool('selectBimElements', 'Highlight exact BIM element IDs on a managed ion layer. isolate=true also hides other elements. Respects existing style visibility and applies to newly streamed tiles. clearBimSelection restores the original style.', {
+    ...bimLayer, elementIds: bimIds, isolate: booleanSchema, color: colorSchema,
+  }, ['layerId', 'elementIds']),
+  tool('filterBimElements', 'Query ALL pages matching an ion filter, then isolate and highlight those BIM elements on the map. Refuses incomplete or oversized results and keeps the previous selection. Empty results hide all features. Use aggregateBimElements for unbounded quantity statistics.', {
+    ...bimLayer, filter: bimFilter, color: colorSchema,
+    maxElements: { type: 'integer', minimum: 1, maximum: 10000, default: 5000 },
+  }, ['layerId', 'filter'], { openWorldHint: true }),
+  tool('clearBimSelection', 'Clear BIM highlighting and isolation and restore the original tileset style. updateLayerStyle also clears the BIM selection.', bimLayer, ['layerId']),
 ]

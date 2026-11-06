@@ -15,6 +15,7 @@ export const cesiumBrowserToolsetNames = [
   'trajectory',
   'heatmap',
   'geolocation',
+  'bim',
 ] as const
 
 export type CesiumBrowserToolsetName = typeof cesiumBrowserToolsetNames[number]
@@ -92,6 +93,10 @@ export const cesiumBrowserToolsetDefinitions: Readonly<
   geolocation: {
     description: 'Address and place-name geocoding',
     names: ['geocode'],
+  },
+  bim: {
+    description: 'Official ion BIM/CAD elements, full-model quantity statistics, geographic focus, highlighting and visual filtering',
+    names: ['queryBimElements', 'getBimElement', 'aggregateBimElements', 'focusBimElements', 'selectBimElements', 'filterBimElements', 'clearBimSelection'],
   },
 }
 

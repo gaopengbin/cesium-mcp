@@ -21,6 +21,11 @@ interface CesiumRefs {
   entity?: Cesium.Entity
   labelEntities?: Cesium.Entity[]
   tileset?: Cesium.Cesium3DTileset
+  ionAssetId?: number
+  bimBaseStyle?: Cesium.Cesium3DTileStyle
+  bimSelectionStyle?: Cesium.Cesium3DTileStyle
+  bimRevision?: number
+  bimFocusRevision?: number
   provider?: any
   primitive?: any
   imageryLayer?: Cesium.ImageryLayer
@@ -81,6 +86,11 @@ export class LayerManager {
 
   /** Release Bridge-owned bookkeeping without removing application scene content. */
   dispose(): void {
+    for (const refs of this._cesiumRefs.values()) {
+      refs.bimRevision = (refs.bimRevision ?? 0) + 1
+      refs.bimFocusRevision = (refs.bimFocusRevision ?? 0) + 1
+      if (refs.bimSelectionStyle && refs.tileset?.style === refs.bimSelectionStyle) refs.tileset.style = refs.bimBaseStyle!
+    }
     this._vectorRenderCleanup?.()
     this._vectorRenderCleanup = undefined
     this._selectedTileFeature = null
@@ -529,12 +539,15 @@ export class LayerManager {
     // 3D Tiles 样式更新
     const ts = params.tileStyle
     if (ts && refs?.tileset) {
-      const styleObj: Record<string, unknown> = { ...refs.tileset.style?.style }
+      refs.bimRevision = (refs.bimRevision ?? 0) + 1
+      const styleObj: Record<string, unknown> = { ...(refs.bimSelectionStyle === refs.tileset.style ? refs.bimBaseStyle?.style : refs.tileset.style?.style) }
       for (const key of ['color', 'show', 'pointSize', 'lineWidth', 'pointOutlineColor', 'pointOutlineWidth'] as const) {
         if (ts[key] !== undefined) styleObj[key] = ts[key]
       }
       if (ts.meta) Object.assign(styleObj, { meta: ts.meta })
       refs.tileset.style = new Cesium.Cesium3DTileStyle(styleObj)
+      refs.bimBaseStyle = undefined
+      refs.bimSelectionStyle = undefined
       // Vector styling and surface texture rebaking happen in consecutive frames.
       // requestRenderMode viewers need those follow-up frames as well.
       this._vectorRenderCleanup?.()
@@ -745,7 +758,7 @@ export class LayerManager {
       visible: true,
       color: '#8B5CF6',
     }
-    this._cesiumRefs.set(layerId, { tileset })
+    this._cesiumRefs.set(layerId, { tileset, ionAssetId })
     this._layers.push(info)
     return info
   }

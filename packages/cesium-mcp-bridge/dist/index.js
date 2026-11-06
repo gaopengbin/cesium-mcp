@@ -433,6 +433,11 @@ var LayerManager = class {
   }
   /** Release Bridge-owned bookkeeping without removing application scene content. */
   dispose() {
+    for (const refs of this._cesiumRefs.values()) {
+      refs.bimRevision = (refs.bimRevision ?? 0) + 1;
+      refs.bimFocusRevision = (refs.bimFocusRevision ?? 0) + 1;
+      if (refs.bimSelectionStyle && refs.tileset?.style === refs.bimSelectionStyle) refs.tileset.style = refs.bimBaseStyle;
+    }
     this._vectorRenderCleanup?.();
     this._vectorRenderCleanup = void 0;
     this._selectedTileFeature = null;
@@ -837,12 +842,15 @@ var LayerManager = class {
     }
     const ts = params.tileStyle;
     if (ts && refs?.tileset) {
-      const styleObj = { ...refs.tileset.style?.style };
+      refs.bimRevision = (refs.bimRevision ?? 0) + 1;
+      const styleObj = { ...refs.bimSelectionStyle === refs.tileset.style ? refs.bimBaseStyle?.style : refs.tileset.style?.style };
       for (const key of ["color", "show", "pointSize", "lineWidth", "pointOutlineColor", "pointOutlineWidth"]) {
         if (ts[key] !== void 0) styleObj[key] = ts[key];
       }
       if (ts.meta) Object.assign(styleObj, { meta: ts.meta });
       refs.tileset.style = new Cesium4.Cesium3DTileStyle(styleObj);
+      refs.bimBaseStyle = void 0;
+      refs.bimSelectionStyle = void 0;
       this._vectorRenderCleanup?.();
       let followupFrames = 2;
       this._vectorRenderCleanup = this._viewer.scene.postRender?.addEventListener(() => {
@@ -1024,7 +1032,7 @@ var LayerManager = class {
       visible: true,
       color: "#8B5CF6"
     };
-    this._cesiumRefs.set(layerId, { tileset });
+    this._cesiumRefs.set(layerId, { tileset, ionAssetId });
     this._layers.push(info);
     return info;
   }
@@ -3114,6 +3122,226 @@ var animationExecutors = {
     return { success: true, message: "Globe lighting updated" };
   }
 };
+function context(manager, layerId) {
+  const refs = manager.getCesiumRefs(layerId);
+  if (!refs?.tileset || !Number.isSafeInteger(refs.ionAssetId) || refs.ionAssetId <= 0) {
+    throw new Error("BIM requires a managed 3D Tiles layer loaded with ionAssetId and an ion BIM/CAD database");
+  }
+  return refs;
+}
+function unchanged(manager, layerId, refs, signal) {
+  signal?.throwIfAborted();
+  if (manager.getCesiumRefs(layerId) !== refs) throw new Error("BIM layer was removed or replaced during the operation");
+}
+function elementId(value) {
+  if (typeof value === "number" && !Number.isSafeInteger(value)) throw new Error("Element ID precision would be lost; use decimal string IDs");
+  const id = String(value);
+  if (!/^(0|[1-9]\d{0,19})$/.test(id)) throw new Error("Invalid BIM element ID: expected a decimal string");
+  return id;
+}
+function filterText(filter) {
+  if (filter === void 0) return void 0;
+  const text = typeof filter === "string" ? filter : JSON.stringify(filter);
+  if (!text || text.length > 8192) throw new Error("BIM filter must contain at most 8192 characters");
+  return text;
+}
+async function request(manager, layerId, path, query, signal) {
+  const refs = context(manager, layerId);
+  signal?.throwIfAborted();
+  const server = Cesium4.Ion.defaultServer;
+  const base = new URL(typeof server === "string" ? server : server.url);
+  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(base.hostname);
+  if (base.username || base.password || base.search || base.hash || !(base.protocol === "https:" || base.protocol === "http:" && loopback)) throw new Error("Invalid ion server URL");
+  if (!base.pathname.endsWith("/")) base.pathname += "/";
+  const url = new URL(`v1/assets/${refs.ionAssetId}/${path}`, base);
+  for (const [key, value] of Object.entries(query)) if (value !== void 0) url.searchParams.set(key, String(value));
+  const token = Cesium4.Ion.defaultAccessToken;
+  if (!token) throw new Error("Configure an ion access token with read permission before querying BIM elements");
+  let response;
+  try {
+    response = await fetch(url.href, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      credentials: "omit",
+      referrerPolicy: "no-referrer",
+      redirect: "error",
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15e3)]) : AbortSignal.timeout(15e3)
+    });
+  } catch {
+    signal?.throwIfAborted();
+    throw new Error("ion BIM request failed or timed out; check network access and asset permissions");
+  }
+  unchanged(manager, layerId, refs, signal);
+  if (!response.ok) throw new Error(`ion BIM request failed (HTTP ${response.status}); verify asset database support and token read permission`);
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("Empty ion BIM response");
+  const chunks = [];
+  let length = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    length += value.length;
+    if (length > 4 * 1024 * 1024) {
+      await reader.cancel();
+      throw new Error("ion BIM response exceeds 4 MiB; reduce page size");
+    }
+    chunks.push(value);
+  }
+  unchanged(manager, layerId, refs, signal);
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  let data;
+  try {
+    data = JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    throw new Error("Invalid JSON from ion BIM service");
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid ion BIM response");
+  return data;
+}
+async function queryBimElements(manager, params, signal) {
+  if (!Number.isSafeInteger(params.top ?? 100) || (params.top ?? 100) < 1 || (params.top ?? 100) > 1e3) throw new Error("BIM page size must be 1\u20131000");
+  const data = await request(manager, params.layerId, "elements", { top: params.top ?? 100, continuationToken: params.continuationToken, filter: filterText(params.filter) }, signal);
+  if (!Array.isArray(data.items) || data.items.length > (params.top ?? 100)) throw new Error("Invalid BIM element page");
+  if (data.continuationToken !== void 0 && typeof data.continuationToken !== "string") throw new Error("Invalid BIM continuation token");
+  if (data.total != null && (!Number.isSafeInteger(data.total) || data.total < 0)) throw new Error("Invalid BIM element total");
+  return { layerId: params.layerId, items: data.items.map((item) => ({ ...item, id: elementId(item.id) })), total: data.total ?? null, ...data.continuationToken ? { continuationToken: data.continuationToken } : {} };
+}
+async function getBimElement(manager, params, signal) {
+  const id = elementId(params.elementId);
+  const data = await request(manager, params.layerId, `elements/${id}`, {}, signal);
+  if (elementId(data.id) !== id) throw new Error("ion returned a different BIM element");
+  return { ...data, id };
+}
+async function aggregateBimElements(manager, params, signal) {
+  if (!Array.isArray(params.propertyKeys) || !params.propertyKeys.length || params.propertyKeys.length > 20 || params.propertyKeys.some((key) => typeof key !== "string" || !key || key.length > 500) || new Set(params.propertyKeys).size !== params.propertyKeys.length) throw new Error("Supply 1\u201320 unique numeric property keys");
+  const data = await request(manager, params.layerId, "elements/aggregate", { aggregations: JSON.stringify(params.propertyKeys), filter: filterText(params.filter) }, signal);
+  if (!Array.isArray(data.aggregations) || !Number.isSafeInteger(data.total) || data.total < 0) throw new Error("Invalid BIM aggregation response");
+  const aggregations = data.aggregations.map((row) => {
+    const propertyKey = row.key ?? row.propertyKey;
+    if (typeof propertyKey !== "string" || !params.propertyKeys.includes(propertyKey) || !Number.isSafeInteger(row.count) || Number(row.count) < 0 || !Number.isFinite(row.sum) || ["min", "max", "avg"].some((key) => row[key] !== null && !Number.isFinite(row[key]))) throw new Error("Invalid BIM aggregation values");
+    return { propertyKey, count: row.count, min: row.min, max: row.max, avg: row.avg, sum: row.sum };
+  });
+  if (new Set(aggregations.map((row) => row.propertyKey)).size !== params.propertyKeys.length) throw new Error("Incomplete BIM aggregations");
+  return { layerId: params.layerId, total: data.total, aggregations, scope: "all-matching-elements", units: "Source property units; no conversion or mixed-unit normalization is performed" };
+}
+function clearBimSelection(viewer, manager, params) {
+  const refs = context(manager, params.layerId);
+  refs.bimRevision = (refs.bimRevision ?? 0) + 1;
+  refs.bimFocusRevision = (refs.bimFocusRevision ?? 0) + 1;
+  if (refs.bimSelectionStyle && refs.tileset.style === refs.bimSelectionStyle) refs.tileset.style = refs.bimBaseStyle;
+  refs.bimSelectionStyle = void 0;
+  refs.bimBaseStyle = void 0;
+  viewer.scene.requestRender();
+  return { layerId: params.layerId, cleared: true };
+}
+function selectBimElements(viewer, manager, params) {
+  const refs = context(manager, params.layerId);
+  if (!Array.isArray(params.elementIds) || params.elementIds.length > 1e4) throw new Error("BIM selection limit is 10000 elements");
+  const ids = new Set(params.elementIds.map(elementId));
+  const color = Cesium4.Color.fromCssColorString(params.color ?? "#ffff00");
+  if (!color) throw new Error("Invalid BIM highlight color");
+  const base = refs.bimSelectionStyle && refs.tileset.style === refs.bimSelectionStyle ? refs.bimBaseStyle : refs.tileset.style;
+  const style = new Cesium4.Cesium3DTileStyle(base?.style);
+  const matches = (feature) => {
+    try {
+      return ids.has(elementId(feature.getProperty("element")));
+    } catch {
+      return false;
+    }
+  };
+  style.show = { evaluate: (feature) => Boolean(base?.show?.evaluate(feature) ?? true) && (!params.isolate || matches(feature)), evaluateColor: () => Cesium4.Color.WHITE };
+  const evaluateColor = (feature, result) => matches(feature) ? Cesium4.Color.clone(color, result) : base?.color?.evaluateColor(feature, result) ?? Cesium4.Color.clone(Cesium4.Color.WHITE, result);
+  style.color = { evaluateColor, evaluate: (feature) => evaluateColor(feature, new Cesium4.Color()) };
+  refs.bimBaseStyle = base;
+  refs.bimRevision = (refs.bimRevision ?? 0) + 1;
+  refs.bimSelectionStyle = style;
+  refs.tileset.style = style;
+  viewer.scene.requestRender();
+  return { layerId: params.layerId, selected: ids.size, isolate: params.isolate ?? false, scope: "element-ids", renderedCount: "Depends on visible streamed tiles" };
+}
+async function filterBimElements(viewer, manager, params, signal) {
+  const refs = context(manager, params.layerId);
+  signal = signal ? AbortSignal.any([signal, AbortSignal.timeout(25e3)]) : AbortSignal.timeout(25e3);
+  const revision = refs.bimRevision = (refs.bimRevision ?? 0) + 1;
+  const bound = params.maxElements ?? 5e3;
+  if (!Number.isSafeInteger(bound) || bound < 1 || bound > 1e4) throw new Error("Visual BIM filter limit must be 1\u201310000");
+  const ids = /* @__PURE__ */ new Set();
+  const cursors = /* @__PURE__ */ new Set();
+  let continuationToken;
+  do {
+    const page = await queryBimElements(manager, { layerId: params.layerId, filter: params.filter, top: Math.min(1e3, bound - ids.size + 1), continuationToken }, signal);
+    for (const item of page.items) ids.add(item.id);
+    if (ids.size > bound || page.total !== null && page.total > bound || ids.size === bound && page.continuationToken) throw new Error("Visual filter exceeds element limit; narrow the filter. Previous selection is unchanged");
+    continuationToken = page.continuationToken;
+    if (!continuationToken && page.total !== null && ids.size !== page.total) throw new Error("Incomplete BIM filter response; previous selection is unchanged");
+    if (continuationToken && (cursors.has(continuationToken) || cursors.size >= 100)) throw new Error("Cannot complete BIM pagination; previous selection is unchanged");
+    if (continuationToken) cursors.add(continuationToken);
+  } while (continuationToken);
+  unchanged(manager, params.layerId, refs, signal);
+  if (refs.bimRevision !== revision) throw new Error("BIM selection changed while filtering; stale filter discarded");
+  return selectBimElements(viewer, manager, { layerId: params.layerId, elementIds: [...ids], isolate: true, color: params.color });
+}
+async function focusBimElements(viewer, manager, params, signal) {
+  const refs = context(manager, params.layerId);
+  signal = signal ? AbortSignal.any([signal, AbortSignal.timeout(25e3)]) : AbortSignal.timeout(25e3);
+  const revision = refs.bimFocusRevision = (refs.bimFocusRevision ?? 0) + 1;
+  if (!Array.isArray(params.elementIds) || !params.elementIds.length || params.elementIds.length > 50) throw new Error("Focus requires 1\u201350 BIM element IDs");
+  const ids = [...new Set(params.elementIds.map(elementId))];
+  const spheres = [];
+  const unlocatedIds = [];
+  for (let offset2 = 0; offset2 < ids.length; offset2 += 5) {
+    const elements = await Promise.all(ids.slice(offset2, offset2 + 5).map((id) => getBimElement(manager, { layerId: params.layerId, elementId: id }, signal)));
+    for (const element of elements) {
+      const center = element.location?.center;
+      const radius = element.location?.radius ?? 0;
+      if (!center || !Number.isFinite(center.longitude) || Math.abs(center.longitude) > 180 || !Number.isFinite(center.latitude) || Math.abs(center.latitude) > 90 || !Number.isFinite(center.height ?? 0) || !Number.isFinite(radius) || radius < 0) {
+        unlocatedIds.push(element.id);
+        continue;
+      }
+      spheres.push(Cesium4.BoundingSphere.transform(new Cesium4.BoundingSphere(Cesium4.Cartesian3.fromDegrees(center.longitude, center.latitude, center.height ?? 0), radius), refs.tileset.modelMatrix));
+    }
+  }
+  unchanged(manager, params.layerId, refs, signal);
+  if (refs.bimFocusRevision !== revision) throw new Error("A newer BIM focus operation superseded this request");
+  if (!spheres.length) throw new Error("No queried BIM elements have valid geolocation; camera unchanged");
+  const sphere = Cesium4.BoundingSphere.fromBoundingSpheres(spheres);
+  const offset = new Cesium4.HeadingPitchRange(0, -Math.PI / 4, Math.max(sphere.radius * 3, 10));
+  if (params.duration === 0) {
+    viewer.camera.viewBoundingSphere(sphere, offset);
+    viewer.camera.lookAtTransform(Cesium4.Matrix4.IDENTITY);
+  } else viewer.camera.flyToBoundingSphere(sphere, { duration: params.duration ?? 1.5, offset });
+  viewer.scene.requestRender();
+  return { layerId: params.layerId, focused: spheres.length, unlocatedIds, radius: sphere.radius };
+}
+
+// src/executors/bim.ts
+var bimExecutors = {
+  async queryBimElements(params, bridge, context2 = {}) {
+    return { success: true, data: await queryBimElements(bridge.layerManager, params, context2.signal) };
+  },
+  async getBimElement(params, bridge, context2 = {}) {
+    return { success: true, data: await getBimElement(bridge.layerManager, params, context2.signal) };
+  },
+  async aggregateBimElements(params, bridge, context2 = {}) {
+    return { success: true, data: await aggregateBimElements(bridge.layerManager, params, context2.signal) };
+  },
+  async focusBimElements(params, bridge, context2 = {}) {
+    return { success: true, data: await focusBimElements(bridge.viewer, bridge.layerManager, params, context2.signal) };
+  },
+  selectBimElements(params, bridge) {
+    return { success: true, data: selectBimElements(bridge.viewer, bridge.layerManager, params) };
+  },
+  async filterBimElements(params, bridge, context2 = {}) {
+    return { success: true, data: await filterBimElements(bridge.viewer, bridge.layerManager, params, context2.signal) };
+  },
+  clearBimSelection(params, bridge) {
+    return { success: true, data: clearBimSelection(bridge.viewer, bridge.layerManager, params) };
+  }
+};
 
 // src/executors/camera.ts
 var cameraExecutors = {
@@ -3257,8 +3485,8 @@ var entityExtExecutors = {
 
 // src/executors/heatmap.ts
 var heatmapExecutors = {
-  async addHeatmap(params, bridge, context = {}) {
-    const info = await bridge.addHeatmap(params, context.signal);
+  async addHeatmap(params, bridge, context2 = {}) {
+    const info = await bridge.addHeatmap(params, context2.signal);
     return {
       success: true,
       data: info,
@@ -3269,8 +3497,8 @@ var heatmapExecutors = {
 
 // src/executors/interaction.ts
 var interactionExecutors = {
-  async screenshot(_params, bridge, context = {}) {
-    const result = await bridge.screenshot(context.signal);
+  async screenshot(_params, bridge, context2 = {}) {
+    const result = await bridge.screenshot(context2.signal);
     return {
       success: true,
       data: result,
@@ -3297,16 +3525,16 @@ var interactionExecutors = {
 
 // src/executors/layer.ts
 var layerExecutors = {
-  async addGeoJsonLayer(params, bridge, context = {}) {
-    const info = await bridge.addGeoJsonLayer(params, context.signal);
+  async addGeoJsonLayer(params, bridge, context2 = {}) {
+    const info = await bridge.addGeoJsonLayer(params, context2.signal);
     return {
       success: true,
       data: info,
       message: `GeoJSON layer '${info.name}' added`
     };
   },
-  async addGeoJsonPrimitive(params, bridge, context = {}) {
-    const info = await bridge.addGeoJsonPrimitive(params, context.signal);
+  async addGeoJsonPrimitive(params, bridge, context2 = {}) {
+    const info = await bridge.addGeoJsonPrimitive(params, context2.signal);
     return {
       success: true,
       data: info,
@@ -3389,47 +3617,47 @@ var sceneExecutors = {
 
 // src/executors/tiles.ts
 var tilesExecutors = {
-  async load3dTiles(params, bridge, context = {}) {
-    const info = await bridge.load3dTiles(params, context.signal);
+  async load3dTiles(params, bridge, context2 = {}) {
+    const info = await bridge.load3dTiles(params, context2.signal);
     return {
       success: true,
       data: info,
       message: `3D Tiles '${info.name}' loaded`
     };
   },
-  async loadVectorTiles(params, bridge, context = {}) {
-    return { success: true, data: await bridge.loadVectorTiles(params, context.signal) };
+  async loadVectorTiles(params, bridge, context2 = {}) {
+    return { success: true, data: await bridge.loadVectorTiles(params, context2.signal) };
   },
-  async load3dGaussianSplat(params, bridge, context = {}) {
-    const info = await bridge.load3dGaussianSplat(params, context.signal);
+  async load3dGaussianSplat(params, bridge, context2 = {}) {
+    const info = await bridge.load3dGaussianSplat(params, context2.signal);
     return {
       success: true,
       data: info,
       message: `3D Gaussian Splat '${info.name}' loaded`
     };
   },
-  async loadTerrain(params, bridge, context = {}) {
-    await bridge.loadTerrain(params, context.signal);
+  async loadTerrain(params, bridge, context2 = {}) {
+    await bridge.loadTerrain(params, context2.signal);
     return { success: true, message: "Terrain provider updated" };
   },
-  async loadImageryService(params, bridge, context = {}) {
-    const info = await bridge.loadImageryService(params, context.signal);
+  async loadImageryService(params, bridge, context2 = {}) {
+    const info = await bridge.loadImageryService(params, context2.signal);
     return {
       success: true,
       data: info,
       message: `Imagery service '${info.name}' loaded`
     };
   },
-  async loadCzml(params, bridge, context = {}) {
-    const info = await bridge.loadCzml(params, context.signal);
+  async loadCzml(params, bridge, context2 = {}) {
+    const info = await bridge.loadCzml(params, context2.signal);
     return {
       success: true,
       data: info,
       message: `CZML data source '${info.name}' loaded`
     };
   },
-  async loadKml(params, bridge, context = {}) {
-    const info = await bridge.loadKml(params, context.signal);
+  async loadKml(params, bridge, context2 = {}) {
+    const info = await bridge.loadKml(params, context2.signal);
     return {
       success: true,
       data: info,
@@ -3464,8 +3692,8 @@ var trajectoryExecutors = {
 
 // src/executors/view.ts
 var viewExecutors = {
-  async flyTo(params, bridge, context = {}) {
-    await bridge.flyTo(params, context.signal);
+  async flyTo(params, bridge, context2 = {}) {
+    await bridge.flyTo(params, context2.signal);
     return { success: true, message: "Camera flew to target position" };
   },
   setView(params, bridge) {
@@ -3479,8 +3707,8 @@ var viewExecutors = {
       message: "Current view state retrieved"
     };
   },
-  async zoomToExtent(params, bridge, context = {}) {
-    await bridge.zoomToExtent(params, context.signal);
+  async zoomToExtent(params, bridge, context2 = {}) {
+    await bridge.zoomToExtent(params, context2.signal);
     return { success: true, message: "Zoomed to extent" };
   },
   saveViewpoint(params, bridge) {
@@ -3536,7 +3764,8 @@ var defaultBridgeExecutors = {
   ...tilesExecutors,
   ...interactionExecutors,
   ...trajectoryExecutors,
-  ...heatmapExecutors
+  ...heatmapExecutors,
+  ...bimExecutors
 };
 Object.freeze(Object.keys(defaultBridgeExecutors));
 function createDefaultBridgeExecutors() {
@@ -3561,7 +3790,7 @@ var CesiumBridge = class {
     this._activeTrajectories = /* @__PURE__ */ new Map();
     this._telemetry = createUsageTelemetry({
       product: "bridge",
-      version: "1.147.0" ,
+      version: "1.148.0" ,
       enabled: options.telemetry !== false,
       endpoint: typeof options.telemetry === "object" ? options.telemetry.endpoint : void 0
     });
@@ -3603,15 +3832,15 @@ var CesiumBridge = class {
     return this._layerManager;
   }
   // ==================== 命令分发（MCP/SSE 兼容） ====================
-  async execute(cmd, context = {}) {
-    return measureUsageCall(context.telemetry === false ? void 0 : this._telemetry, cmd?.action ?? "", () => this._execute(cmd, context));
+  async execute(cmd, context2 = {}) {
+    return measureUsageCall(context2.telemetry === false ? void 0 : this._telemetry, cmd?.action ?? "", () => this._execute(cmd, context2));
   }
-  async _execute(cmd, context) {
+  async _execute(cmd, context2) {
     try {
       if (this._disposed) {
         return { success: false, error: "CesiumBridge has been disposed" };
       }
-      const signal = context.signal ? AbortSignal.any([context.signal, this._operationAbortController.signal]) : this._operationAbortController.signal;
+      const signal = context2.signal ? AbortSignal.any([context2.signal, this._operationAbortController.signal]) : this._operationAbortController.signal;
       signal.throwIfAborted();
       const p = cmd.params ?? {};
       if (this._validateInputs) {
@@ -4107,4 +4336,4 @@ var CesiumBridge = class {
   }
 };
 
-export { CesiumBridge, LayerManager };
+export { CesiumBridge, LayerManager, aggregateBimElements, clearBimSelection, filterBimElements, focusBimElements, getBimElement, queryBimElements, selectBimElements };

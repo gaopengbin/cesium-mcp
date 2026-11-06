@@ -169,6 +169,46 @@ export interface Load3dTilesParams {
   tileStyle?: UpdateLayerStyleParams['tileStyle']
 }
 
+// ========== BIM / ion Asset Elements ==========
+export interface BimLayerParams { layerId: string }
+export interface BimElement {
+  id: string
+  label?: string
+  properties?: Record<string, { value: unknown; displayValue?: string; units?: string | null }>
+  location?: { center: { longitude: number; latitude: number; height?: number }; radius?: number }
+}
+export interface QueryBimElementsParams extends BimLayerParams {
+  filter?: Record<string, unknown> | string
+  top?: number
+  continuationToken?: string
+}
+export interface BimElementPage {
+  layerId: string
+  items: BimElement[]
+  total: number | null
+  continuationToken?: string
+}
+export interface GetBimElementParams extends BimLayerParams { elementId: string }
+export interface AggregateBimElementsParams extends BimLayerParams {
+  propertyKeys: string[]
+  filter?: QueryBimElementsParams['filter']
+}
+export interface BimAggregationResult {
+  layerId: string
+  total: number
+  aggregations: { propertyKey: string; count: number; min: number | null; max: number | null; avg: number | null; sum: number }[]
+  scope: 'all-matching-elements'
+  units: string
+}
+export interface BimElementIdsParams extends BimLayerParams { elementIds: string[] }
+export interface SelectBimElementsParams extends BimElementIdsParams { isolate?: boolean; color?: string }
+export interface FilterBimElementsParams extends BimLayerParams {
+  filter: QueryBimElementsParams['filter']
+  maxElements?: number
+  color?: string
+}
+export interface FocusBimElementsParams extends BimElementIdsParams { duration?: number }
+
 export interface LoadVectorTilesParams extends Load3dTilesParams {
   source: 'tileset' | 'mvt'
   minZoom?: number
