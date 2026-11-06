@@ -1,5 +1,9 @@
 # cesium-mcp-webmcp
 
+## 1.0.1
+
+Use Bridge ~1.147.1, restoring the Cesium-aligned release line while excluding historical 1.148/2.x versions from dependency resolution. WebMCP keeps its independent semantic version.
+
 ## 1.0.0
 
 ### Major Changes

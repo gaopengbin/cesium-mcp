@@ -7350,7 +7350,7 @@ var CesiumMcpBridge = (function (exports) {
       this._activeTrajectories = /* @__PURE__ */ new Map();
       this._telemetry = createUsageTelemetry({
         product: "bridge",
-        version: "1.148.0" ,
+        version: "1.147.1" ,
         enabled: options.telemetry !== false,
         endpoint: typeof options.telemetry === "object" ? options.telemetry.endpoint : void 0
       });

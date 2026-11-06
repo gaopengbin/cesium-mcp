@@ -1,5 +1,9 @@
 # cesium-mcp-runtime
 
+## 1.147.1
+
+Restore the documented Cesium-aligned version policy: major.minor follows CesiumJS 1.147 and patch identifies MCP iterations. This release retains all BIM/geometry features and fixes from 2.0.0, including the real-asset snap-route correction. Requires CesiumJS ~1.147.0 and Node >=22.17.0. The immutable 2.0.0 release remains available for pinned users.
+
 ## 2.0.0
 
 ### Major Changes

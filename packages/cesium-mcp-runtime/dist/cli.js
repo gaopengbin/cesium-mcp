@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import {
   main
-} from "./chunk-QWOQ5AGR.js";
+} from "./chunk-V2IHJZY7.js";
 
 // src/cli.ts
 main(process.argv.slice(2)).catch((err) => {

@@ -1,6 +1,6 @@
 # CesiumJS 1.147 适配
 
-开发分支已升级至 **CesiumJS ~1.147.0**，固定 engine 26.5.0、widgets 16.3.1、core/gltf 0.1.1，要求 **Node >=22.17.0**。本项目 npm 包版本与 CesiumJS 版本独立。新版本收紧 peer dependency，集成方需要一起升级 Viewer，不继续宣称兼容旧渲染器。
+开发分支已升级至 **CesiumJS ~1.147.0**，固定 engine 26.5.0、widgets 16.3.1、core/gltf 0.1.1，要求 **Node >=22.17.0**。Runtime/Bridge/Dev 按 {Cesium主版本}.{Cesium次版本}.{MCP补丁号} 跟随 Cesium，1.147.1 恢复这一规则；辅助包保持独立版本。新版本收紧 peer dependency，集成方需要一起升级 Viewer，不继续宣称兼容旧渲染器。
 
 通过 `enable_toolset` 启用 `bim` 与 `geometry` 工具组，Bridge、MCP 和 WebMCP 使用同一契约。
 

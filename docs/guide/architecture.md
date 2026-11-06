@@ -212,6 +212,8 @@ Routing priority: tool param `sessionId` > URL `?session=xxx` > `DEFAULT_SESSION
 The established `cesium-mcp-bridge`, `cesium-mcp-runtime`, and `cesium-mcp-dev` packages share a version number using [changesets](https://github.com/changesets/changesets) with **fixed** versioning mode. The newer `cesium-mcp-contracts` and `cesium-mcp-webmcp` packages use independent semantic versions.
 
 **Major.minor** tracks CesiumJS:
-- `cesium-mcp-*@1.145.x` targets the verified `cesium@~1.145.0` baseline
+- `cesium-mcp-*@1.147.x` targets the verified `cesium@~1.147.0` baseline
 
 **Patch** versions iterate independently for MCP feature updates.
+
+The restored line starts at 1.147.1. Version 2.0.0 remains an immutable historical release; npm latest points to the aligned line. MCP-only changes use patch changesets. npm run version validates the plan and rejects occupied versions before writing; npm run release validates again. WebMCP uses Bridge ~1.147.1 to exclude historical 1.148.0. Auxiliary packages keep independent versions.
