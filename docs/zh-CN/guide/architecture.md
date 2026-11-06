@@ -212,6 +212,8 @@ http://localhost:3216/mcp?session=project-a
 已有的 `cesium-mcp-bridge`、`cesium-mcp-runtime` 和 `cesium-mcp-dev` 使用 [changesets](https://github.com/changesets/changesets) 共享同一版本号（**fixed** 模式）。新增的 `cesium-mcp-contracts` 与 `cesium-mcp-webmcp` 使用独立的语义化版本。
 
 **主版本号.次版本号** 跟踪 CesiumJS：
-- `cesium-mcp-*@1.145.x` 对应已验证的 `cesium@~1.145.0` 基线
+- `cesium-mcp-*@1.147.x` 对应已验证的 `cesium@~1.147.0` 基线
 
 **修订版本号** 独立迭代，用于 MCP 功能更新。
+
+恢复规则从 1.147.1 开始。2.0.0 是保留的历史编号，npm latest 指向恢复后的版本。MCP 功能更新使用 patch changeset；npm run version 会在写入前校验计划版本和已占用版本，npm run release 会再次校验。WebMCP 对 Bridge 使用 ~1.147.1，避免解析到历史 1.148.0。辅助包不跟随 Cesium 编号。

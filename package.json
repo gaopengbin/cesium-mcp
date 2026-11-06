@@ -36,12 +36,13 @@
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "changeset": "changeset",
-    "version": "changeset version && node scripts/sync-version.mjs",
-    "release": "npm run build && changeset publish",
+    "version": "node scripts/version-packages.mjs",
+    "release": "npm run check:version-policy && npm run build && changeset publish --tag latest",
     "postinstall": "patch-package",
     "plugin:build": "npm run build -w packages/cesium-mcp-contracts -w packages/cesium-mcp-bridge -w packages/cesium-mcp-runtime && node scripts/build-cesium-plugin.mjs",
     "plugin:check": "node scripts/check-cesium-plugin.mjs",
-    "plugin:check-relay": "node scripts/check-cesium-relay.mjs"
+    "plugin:check-relay": "node scripts/check-cesium-relay.mjs",
+    "check:version-policy": "node scripts/check-version-policy.mjs"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.6.0",

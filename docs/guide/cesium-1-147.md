@@ -1,6 +1,6 @@
 # CesiumJS 1.147 support
 
-This development branch uses **CesiumJS ~1.147.0** with engine 26.5.0, widgets 16.3.1, core 0.1.1 and gltf 0.1.1. Node **22.17.0+** is required. The package version is independent of the CesiumJS version. Older Cesium peer ranges are removed for this release; upgrade your embedded Viewer alongside the Bridge.
+This development branch uses **CesiumJS ~1.147.0** with engine 26.5.0, widgets 16.3.1, core 0.1.1 and gltf 0.1.1. Node **22.17.0+** is required. Runtime/Bridge/Dev versions follow {CesiumMajor}.{CesiumMinor}.{MCPPatch}; 1.147.1 restores this policy. Auxiliary packages keep independent versions. Older Cesium peer ranges are removed for this release; upgrade your embedded Viewer alongside the Bridge.
 
 ## New MCP / WebMCP capabilities
 

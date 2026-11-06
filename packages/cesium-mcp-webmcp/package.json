@@ -1,6 +1,6 @@
 {
   "name": "cesium-mcp-webmcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Native WebMCP adapter for Cesium MCP browser tools",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "cesium-mcp-telemetry": "^0.1.2",
-    "cesium-mcp-bridge": "^2.0.0",
+    "cesium-mcp-bridge": "~1.147.1",
     "cesium-mcp-contracts": "^0.9.0"
   },
   "peerDependencies": {

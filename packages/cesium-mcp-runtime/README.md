@@ -395,8 +395,9 @@ curl -X POST http://localhost:9100/push \
 
 | Channel | Runtime | Bridge | MCP protocol | Cesium |
 |---------|---------|--------|--------------|--------|
-| 2.x | 2.x | 2.x | `2025-11-25` + `2026-07-28` | `~1.147.0` |
-| 1.x | 1.148.0 | 1.148.0 | `2025-11-25` + `2026-07-28` | `~1.145.0` |
+| `latest` | 1.147.1+ (1.147.x) | matching aligned release | `2025-11-25` + `2026-07-28` | `~1.147.0` |
+| historical 2.0.0 | 2.0.0 | 2.0.0 | `2025-11-25` + `2026-07-28` | `~1.147.0` |
+| historical 1.148.0 | 1.148.0 | 1.148.0 | `2025-11-25` + `2026-07-28` | `~1.145.0` |
 
 The stable release serves both protocol generations from the same stdio/HTTP
 entry using `@modelcontextprotocol/server` and
