@@ -17,8 +17,9 @@ export function assertVersionPolicy({ cesium, manifests, releases = [] }) {
   if (web && !/^~\d+\.\d+\.\d+$/.test(web.dependencies?.['cesium-mcp-bridge'] ?? '')) {
     throw new Error('WebMCP must use a ~ Bridge dependency, excluding unrelated historical minor versions')
   }
-  if (!releases.length && web && web.dependencies['cesium-mcp-bridge'] !== `~${versions[0]}`) {
-    throw new Error('WebMCP Bridge dependency must match the coordinated release')
+  if (!releases.length && web) {
+    const range = /^~(\d+)\.(\d+)\.(\d+)$/.exec(web.dependencies['cesium-mcp-bridge'])
+    if (`${range[1]}.${range[2]}.` !== prefix || Number(range[3]) > Number(versions[0].split('.')[2])) throw new Error('WebMCP Bridge dependency must resolve within the verified Cesium release line')
   }
   return versions[0]
 }

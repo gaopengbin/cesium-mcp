@@ -25,6 +25,13 @@ describe('Cesium-aligned version policy', () => {
     input.manifests['cesium-mcp-dev'].version = '1.147.2'
     expect(() => assertVersionPolicy(input)).toThrow(/same/)
   })
+  it('allows a compatible patch range but rejects a different renderer line', () => {
+    const input = policy()
+    for (const name of alignedPackageNames) input.manifests[name].version = '1.147.2'
+    expect(assertVersionPolicy(input)).toBe('1.147.2')
+    input.manifests['cesium-mcp-webmcp'].dependencies['cesium-mcp-bridge'] = '~1.148.0'
+    expect(() => assertVersionPolicy(input)).toThrow(/verified Cesium release line/)
+  })
   it('blocks reused historical versions and treats registry failures as unavailable, not free', async () => {
     const releases = [{ name: 'cesium-mcp-bridge', newVersion: '1.148.0' }]
     await expect(assertUnusedAlignedVersions(releases, async () => 200)).rejects.toThrow(/already published/)
