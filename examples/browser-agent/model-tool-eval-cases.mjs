@@ -1,4 +1,6 @@
 export const modelToolEvalCases = [
+  { id: 'geometry-snap-en', locale: 'en', prompt: 'Snap at canvas pixel x 300 y 200 to actual geometry', expectedToolsets: ['geometry'], requiredTools: ['snapToGeometry'] },
+  { id: 'bim-quantity-zh', locale: 'zh-CN', prompt: '查询 ion 图层 bridge-design 的 BIM 构件，并按 Quantity.Net Volume 属性汇总工程量。', expectedToolsets: ['bim'], requiredTools: ['queryBimElements', 'aggregateBimElements'] },
   {
     id: 'view-instant-en',
     locale: 'en',

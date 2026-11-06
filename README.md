@@ -293,7 +293,7 @@ Version format: `{CesiumMajor}.{CesiumMinor}.{MCPPatch}`
 
 | Segment | Meaning | Example |
 |---------|---------|--------|
-| `1.145` | Tracks CesiumJS version — built & tested against Cesium `~1.145.0` | `1.145.0` → Cesium 1.145 |
+| Cesium baseline | Built and tested against CesiumJS `~1.147.0`; Node >=22.17.0 | Independent of our npm package version |
 | `.x` | MCP patch — independent iterations for new tools, bug fixes, docs | `1.145.0` → `1.145.1` |
 
 Official CesiumJS releases are reviewed before the compatibility baseline is bumped; the project does not automatically claim support for a newer release without Bridge verification.

@@ -96,7 +96,7 @@ try {
   })
   await new Promise(done => site.listen(0, '127.0.0.1', done))
   const siteUrl = `http://127.0.0.1:${site.address().port}/`
-  browser = await chromium.launch({ ...(process.platform === 'win32' ? { channel: 'chrome' } : {}), headless: true, args: ['--enable-unsafe-swiftshader'] })
+  browser = await chromium.launch({ ...(process.platform === 'win32' && process.env.CESIUM_TEST_USE_BUNDLED !== '1' ? { channel: 'chrome' } : {}), headless: true, args: ['--enable-unsafe-swiftshader'] })
   const page = await browser.newPage()
   const notices = []
   page.on('console', message => { if (message.text().includes('Usage statistics ON')) notices.push(message.text()) })

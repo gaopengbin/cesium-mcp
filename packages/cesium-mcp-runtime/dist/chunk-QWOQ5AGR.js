@@ -946,8 +946,8 @@ function _getViewerHtml(token, requiresAuth) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cesium MCP Viewer</title>
-<script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
-<link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.147/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.147/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
 <script src="/bridge.js" onerror="var s=document.createElement('script');s.src='https://unpkg.com/cesium-mcp-bridge@latest/dist/cesium-mcp-bridge.browser.global.js';document.head.appendChild(s)"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -1081,7 +1081,7 @@ function _setupWss(wss) {
     });
   });
 }
-var RUNTIME_VERSION = true ? "1.147.0" : "0.0.0-dev";
+var RUNTIME_VERSION = true ? "1.148.0" : "0.0.0-dev";
 function createRuntimeMcpServer(publicMode = false) {
   return new McpServer({
     name: "cesium-mcp-runtime",
@@ -1238,6 +1238,27 @@ function createToolState(toolsets) {
   return { enabledSets, enabledTools };
 }
 var _configuredState = createToolState(_configuredToolsets);
+function bimHandler(name) {
+  return async (params) => {
+    const result = await sendToBrowser(name, params);
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  };
+}
+_registerTool("queryBimElements", "Query BIM elements", {}, {}, bimHandler("queryBimElements"));
+_registerTool("getBimElement", "Get BIM element", {}, {}, bimHandler("getBimElement"));
+_registerTool("aggregateBimElements", "Aggregate BIM elements", {}, {}, bimHandler("aggregateBimElements"));
+_registerTool("focusBimElements", "Focus BIM elements", {}, {}, bimHandler("focusBimElements"));
+_registerTool("selectBimElements", "Select BIM elements", {}, {}, bimHandler("selectBimElements"));
+_registerTool("filterBimElements", "Filter BIM elements", {}, {}, bimHandler("filterBimElements"));
+_registerTool("clearBimSelection", "Clear BIM selection", {}, {}, bimHandler("clearBimSelection"));
+_registerTool("getBimTree", "Read BIM model tree", {}, {}, bimHandler("getBimTree"));
+_registerTool("getBimElementParents", "Read BIM lineage", {}, {}, bimHandler("getBimElementParents"));
+_registerTool("snapBimElement", "Refine BIM snap", {}, {}, bimHandler("snapBimElement"));
+_registerTool("updateVectorCollection", "Update vector buffers", {}, {}, bimHandler("updateVectorCollection"));
+_registerTool("setTilesetOptions", "Set tile rendering options", {}, {}, bimHandler("setTilesetOptions"));
+_registerTool("snapToGeometry", "Snap to geometry", {}, {}, bimHandler("snapToGeometry"));
+_registerTool("measureSnappedDistance", "Measure snapped distance", {}, {}, bimHandler("measureSnappedDistance"));
+_registerTool("setClippingPolygons", "Set clipping polygons", {}, {}, bimHandler("setClippingPolygons"));
 function enableToolset(s, state, setName) {
   const tools = TOOLSETS[setName];
   if (!tools) return [];

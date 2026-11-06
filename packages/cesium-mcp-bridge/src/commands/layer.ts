@@ -21,6 +21,11 @@ interface CesiumRefs {
   entity?: Cesium.Entity
   labelEntities?: Cesium.Entity[]
   tileset?: Cesium.Cesium3DTileset
+  ionAssetId?: number
+  bimBaseStyle?: Cesium.Cesium3DTileStyle
+  bimSelectionStyle?: Cesium.Cesium3DTileStyle
+  bimRevision?: number
+  bimFocusRevision?: number
   provider?: any
   primitive?: any
   imageryLayer?: Cesium.ImageryLayer
@@ -40,6 +45,19 @@ export class LayerManager {
 
   selectTileFeature(picked: unknown): TileFeatureResult | null {
     this._selectedTileFeature = readTileFeature(picked, [...this._cesiumRefs].flatMap(([id, refs]) => refs.tileset ? [[id, refs.tileset] as [string, Cesium.Cesium3DTileset]] : []))
+    if (!this._selectedTileFeature) {
+      const pick = picked as { parentPrimitive?: unknown; properties?: Record<string, unknown> } | undefined
+      for (const [layerId, refs] of this._cesiumRefs) {
+        if (refs.primitive && pick && pick.parentPrimitive === refs.primitive && pick.properties) {
+          const properties: Record<string, unknown> = Object.create(null)
+          for (const [key, value] of Object.entries(pick.properties).slice(0, 100)) {
+            try { properties[key] = JSON.parse(JSON.stringify(value, (_key, item) => typeof item === 'bigint' ? item.toString() : item)) } catch { /* skip non-serializable metadata */ }
+          }
+          this._selectedTileFeature = { layerId, properties }
+          break
+        }
+      }
+    }
     return this.getSelectedTileFeature()
   }
 
@@ -81,6 +99,11 @@ export class LayerManager {
 
   /** Release Bridge-owned bookkeeping without removing application scene content. */
   dispose(): void {
+    for (const refs of this._cesiumRefs.values()) {
+      refs.bimRevision = (refs.bimRevision ?? 0) + 1
+      refs.bimFocusRevision = (refs.bimFocusRevision ?? 0) + 1
+      if (refs.bimSelectionStyle && refs.tileset?.style === refs.bimSelectionStyle) refs.tileset.style = refs.bimBaseStyle!
+    }
     this._vectorRenderCleanup?.()
     this._vectorRenderCleanup = undefined
     this._selectedTileFeature = null
@@ -257,6 +280,7 @@ export class LayerManager {
     const opts: Record<string, unknown> = {}
     if (allowPicking !== undefined) opts.allowPicking = allowPicking
     if (show !== undefined) opts.show = show
+    if (params.blendOption) opts.blendOption = params.blendOption === 'opaque' ? Cesium.BlendOption.OPAQUE : Cesium.BlendOption.TRANSLUCENT
 
     const GeoJsonPrimitive = (Cesium as any).GeoJsonPrimitive
     if (!GeoJsonPrimitive) {
@@ -271,6 +295,17 @@ export class LayerManager {
     }
 
     checkOperation(signal, primitive)
+    if (params.pickMetadata) {
+      for (const [name, Primitive] of [['points', Cesium.BufferPoint], ['polylines', Cesium.BufferPolyline], ['polygons', Cesium.BufferPolygon]] as const) {
+        const collection = primitive[name]
+        if (!collection) continue
+        for (let i = 0; i < collection.primitiveCount; i++) {
+          const feature = collection.get(i, new Primitive())
+          const original = feature.pickObject
+          feature.pickObject = { ...original, parentPrimitive: primitive, properties: { ...original?.properties, ...params.pickMetadata } }
+        }
+      }
+    }
     this.removeLayer(layerId)
     this._viewer.scene.primitives.add(primitive)
 
@@ -285,7 +320,7 @@ export class LayerManager {
     this._cesiumRefs.set(layerId, { primitive })
     this._layers.push(info)
 
-    this._viewer.flyTo(primitive, { duration: 1.5 }).catch(() => {
+    if (params.flyTo !== false) this._viewer.flyTo(primitive, { duration: 1.5 }).catch(() => {
       // flyTo may fail if primitive has no bounding volume — ignore
     })
 
@@ -529,12 +564,15 @@ export class LayerManager {
     // 3D Tiles 样式更新
     const ts = params.tileStyle
     if (ts && refs?.tileset) {
-      const styleObj: Record<string, unknown> = { ...refs.tileset.style?.style }
+      refs.bimRevision = (refs.bimRevision ?? 0) + 1
+      const styleObj: Record<string, unknown> = { ...(refs.bimSelectionStyle === refs.tileset.style ? refs.bimBaseStyle?.style : refs.tileset.style?.style) }
       for (const key of ['color', 'show', 'pointSize', 'lineWidth', 'pointOutlineColor', 'pointOutlineWidth'] as const) {
         if (ts[key] !== undefined) styleObj[key] = ts[key]
       }
       if (ts.meta) Object.assign(styleObj, { meta: ts.meta })
       refs.tileset.style = new Cesium.Cesium3DTileStyle(styleObj)
+      refs.bimBaseStyle = undefined
+      refs.bimSelectionStyle = undefined
       // Vector styling and surface texture rebaking happen in consecutive frames.
       // requestRenderMode viewers need those follow-up frames as well.
       this._vectorRenderCleanup?.()
@@ -745,7 +783,7 @@ export class LayerManager {
       visible: true,
       color: '#8B5CF6',
     }
-    this._cesiumRefs.set(layerId, { tileset })
+    this._cesiumRefs.set(layerId, { tileset, ionAssetId })
     this._layers.push(info)
     return info
   }

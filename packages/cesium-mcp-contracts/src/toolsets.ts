@@ -15,6 +15,8 @@ export const cesiumBrowserToolsetNames = [
   'trajectory',
   'heatmap',
   'geolocation',
+  'bim',
+  'geometry',
 ] as const
 
 export type CesiumBrowserToolsetName = typeof cesiumBrowserToolsetNames[number]
@@ -92,6 +94,14 @@ export const cesiumBrowserToolsetDefinitions: Readonly<
   geolocation: {
     description: 'Address and place-name geocoding',
     names: ['geocode'],
+  },
+  bim: {
+    description: 'Official ion BIM/CAD elements, full-model quantity statistics, geographic focus, highlighting and visual filtering',
+    names: ['getBimTree', 'getBimElementParents', 'queryBimElements', 'getBimElement', 'aggregateBimElements', 'focusBimElements', 'selectBimElements', 'filterBimElements', 'clearBimSelection', 'snapBimElement'],
+  },
+  geometry: {
+    description: 'CesiumJS 1.147 batch vector edits, tile cache and rendering options, precise snapping, measurement and polygon clipping',
+    names: ['updateVectorCollection', 'setTilesetOptions', 'snapToGeometry', 'measureSnappedDistance', 'setClippingPolygons'],
   },
 }
 

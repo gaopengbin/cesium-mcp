@@ -3,6 +3,16 @@
 
   const routes = [
     {
+      name: 'geometry',
+      pattern: /\b(snap|snapped|clipping|clip|buffer|cache|vector blending)\b|吸附|裁剪|缓冲|瓦片缓存|批量坐标/i,
+      toolsets: ['geometry', 'layer', 'view'],
+    },
+    {
+      name: 'bim',
+      pattern: /\b(bim|cad|ifc|imodel|rebar|quantities|quantity|elements?)\b|构件|工程量|钢筋|混凝土体积/i,
+      toolsets: ['bim', 'tiles', 'layer'],
+    },
+    {
       name: 'vector',
       pattern: /\b(mvt|vector\s*tiles?|river\s*tiles?)\b|矢量瓦片|河流瓦片/i,
       toolsets: ['tiles', 'layer', 'view'],

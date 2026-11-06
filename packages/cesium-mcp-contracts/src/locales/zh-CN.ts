@@ -4,6 +4,21 @@
  */
 
 export const toolDescriptions: Record<string, string> = {
+  getBimTree: '读取 BIM 模型树子节点',
+  getBimElementParents: '读取 BIM 构件根到叶的层级路径',
+  snapBimElement: '使用官方 IonSnapService 精确吸附 BIM 构件',
+  updateVectorCollection: '批量更新本地矢量缓冲坐标或混合模式，保持拓扑',
+  setTilesetOptions: '设置瓦片缓存、矢量混合模式、环境光和点云剔除',
+  snapToGeometry: '按画布像素吸附真实几何，不伪造命中点',
+  measureSnappedDistance: '测量两个真实吸附点之间的三维直线距离',
+  setClippingPolygons: '替换或移除地球或图层的裁剪多边形，支持孔洞',
+  queryBimElements: '按条件分页查询 ion BIM/CAD 构件，返回游标；列表可能省略详细属性，使用 getBimElement 获取详情',
+  getBimElement: '读取 BIM 构件完整属性、源单位和地理位置，可使用点击属性 element 的 ID',
+  aggregateBimElements: '由 ion 服务端对全部匹配构件计算数量、最小值、最大值、平均值和总和；不是当前页统计，不自动换算单位',
+  focusBimElements: '根据 ion 构件地理范围定位镜头，报告无地理位置的构件',
+  selectBimElements: '按精确构件 ID 高亮，isolate=true 时隔离显示，后续流入瓦片同样生效',
+  filterBimElements: '取完所有匹配分页后隔离显示构件；超过上限、失败或取消时保持原场景，空结果隐藏全部构件',
+  clearBimSelection: '清除 BIM 高亮和隔离，恢复原有图层样式；updateLayerStyle 也会清除该选择',
   loadVectorTiles: '加载矢量 3D Tiles 或指定范围的 MVT 数据源',
   getSelectedTileFeature: '读取点击的矢量瓦片要素属性和 layerId，使用 updateLayerStyle 的 tileStyle 修改样式',
   // — view
@@ -98,7 +113,63 @@ export const toolDescriptions: Record<string, string> = {
   geocode: '将地址、地标或地名转换为地理坐标（经纬度）。使用 OpenStreetMap Nominatim 免费服务，无需 API Key。',
 }
 
+const bimParameters = {
+  'layerId': '通过 ionAssetId 加载的 3D Tiles 图层 ID',
+  'filter': 'ion 官方 JSON 筛选条件，属性键保持原样',
+  'top': '每页构件数（1–1000）',
+  'continuationToken': '上一页返回的不透明分页游标',
+  'elementId': '点选属性 element 中的十进制构件 ID 字符串，避免数值精度损失',
+  'propertyKeys': '数值属性的完整键名，按源单位统计，不自动换算',
+  'elementIds': '十进制构件 ID 字符串数组',
+  'duration': '镜头动画秒数，0 为立即定位',
+  'isolate': '仅显示选中构件，同时遵守原有可见性规则',
+  'color': '高亮 CSS 颜色',
+  'maxElements': '完整可视筛选结果上限，超限不应用部分结果'
+}
+
+const geometryParameters = {
+  layerId: '受管图层 ID，裁剪时省略表示地球',
+  nodeKey: '不透明树节点键，省略表示根节点',
+  elementId: '十进制构件 ID 字符串',
+  position: '测试点经度、纬度、可选高度',
+  snapAperture: '服务端吸附像素范围',
+  collection: '本地 GeoJSON 缓冲集合：点、线或面',
+  positions: '替换的地理坐标，顶点数量和拓扑必须保持不变',
+  primitiveOffset: '起始图元索引',
+  primitiveCount: '连续图元数量',
+  blendOption: '不透明或半透明',
+  vectorBlendOption: '矢量瓦片混合模式',
+  cacheBytes: '瓦片缓存预算字节数',
+  maximumCacheOverflowBytes: '最大缓存溢出预算字节数',
+  maximumScreenSpaceError: '最大屏幕误差',
+  pointCloudBackFaceCulling: '点云背面剔除',
+  dynamicEnvironmentMapEnabled: '动态环境光开关',
+  x: '画布 CSS 像素横坐标',
+  y: '画布 CSS 像素纵坐标',
+  width: '吸附像素范围',
+  points: '两个画布 CSS 像素坐标',
+  polygons: '裁剪外环及孔洞坐标',
+  clear: '移除指定目标的裁剪',
+  inverse: '反向裁剪',
+  enabled: '启用裁剪',
+}
+
 export const paramDescriptions: Record<string, Record<string, string>> = {
+  getBimTree: geometryParameters,
+  getBimElementParents: geometryParameters,
+  snapBimElement: geometryParameters,
+  updateVectorCollection: geometryParameters,
+  setTilesetOptions: geometryParameters,
+  snapToGeometry: geometryParameters,
+  measureSnappedDistance: geometryParameters,
+  setClippingPolygons: geometryParameters,
+  queryBimElements: bimParameters,
+  getBimElement: bimParameters,
+  aggregateBimElements: bimParameters,
+  focusBimElements: bimParameters,
+  selectBimElements: bimParameters,
+  filterBimElements: bimParameters,
+  clearBimSelection: bimParameters,
   loadVectorTiles: {
     source: '数据格式：tileset 或 mvt',
     id: '图层 ID', name: '图层名称', url: '3D Tiles URL 或 MVT /{z}/{x}/{y} URL',
@@ -210,6 +281,9 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     flyTo: '是否自动定位图层（默认 true；单独控制视角时设为 false）',
   },
   addGeoJsonPrimitive: {
+    flyTo: '加载后飞到图层，默认开启',
+    blendOption: '缓冲图元的不透明或半透明混合模式',
+    pickMetadata: '首次渲染前设置的点选附加属性，渲染后锁定',
     id: '图层ID（不传则自动生成）',
     name: '图层显示名称',
     data: 'GeoJSON 对象（与 url 二选一）',

@@ -28,7 +28,7 @@ For a real local MCP Apps preview, run `npm run app:preview -w packages/cesium-m
 
 Enable the `tiles` toolset with `CESIUM_TOOLSETS=view,entity,layer,interaction,tiles` or `enable_toolset`. Use `loadVectorTiles` for MVT `/{z}/{x}/{y}` URLs or vector 3D Tiles, click a feature and read `getSelectedTileFeature`, then update its managed layer using `updateLayerStyle` with `tileStyle.color` and `tileStyle.lineWidth`. Read back `getLayerSchema.metadata.tileStyle` to verify the applied expressions.
 
-Vector rendering and clamping require CesiumJS 1.145. Clamped line/polygon picking uses an experimental bounded adapter. For external data in an MCP Apps panel, configure exact allowed origins with `CESIUM_MAP_DATA_ORIGINS`. See the [vector tiles guide](https://gaopengbin.github.io/cesium-mcp/guide/vector-tiles) for source formats, styling and limits.
+Vector rendering and clamping require CesiumJS 1.147. Clamped line/polygon picking uses an experimental bounded adapter. For external data in an MCP Apps panel, configure exact allowed origins with `CESIUM_MAP_DATA_ORIGINS`. See the [vector tiles guide](https://gaopengbin.github.io/cesium-mcp/guide/vector-tiles) for source formats, styling and limits.
 
 ## Architecture
 
@@ -395,7 +395,8 @@ curl -X POST http://localhost:9100/push \
 
 | Channel | Runtime | Bridge | MCP protocol | Cesium |
 |---------|---------|--------|--------------|--------|
-| `latest` | current stable | matching stable | `2025-11-25` + `2026-07-28` | `~1.145.0` |
+| 2.x | 2.x | 2.x | `2025-11-25` + `2026-07-28` | `~1.147.0` |
+| 1.x | 1.148.0 | 1.148.0 | `2025-11-25` + `2026-07-28` | `~1.145.0` |
 
 The stable release serves both protocol generations from the same stdio/HTTP
 entry using `@modelcontextprotocol/server` and

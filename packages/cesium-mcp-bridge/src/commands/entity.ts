@@ -733,7 +733,7 @@ export function getEntityProperties(viewer: Cesium.Viewer, params: GetEntityProp
   let description: string | undefined
   if (entity.description) {
     try {
-      const desc = entity.description.getValue(Cesium.JulianDate.now())
+      const desc = typeof entity.description === 'string' ? entity.description : entity.description.getValue(Cesium.JulianDate.now())
       if (typeof desc === 'string') description = desc
     } catch { /* ignore */ }
   }

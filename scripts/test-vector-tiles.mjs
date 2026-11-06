@@ -20,7 +20,7 @@ const freePort = async () => {
 const port = await freePort()
 const fixturePort = await freePort()
 const base = `http://127.0.0.1:${port}`
-const viewerHtml = `<!doctype html><html><head><link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css"><script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script><script src="${base}/bridge.js"></script><style>html,body,#c{width:100%;height:100%;margin:0}#s{position:fixed;top:8px;right:8px;color:white}</style></head><body><div id="c"></div><div id="s"></div><script>
+const viewerHtml = `<!doctype html><html><head><link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.147/Build/Cesium/Widgets/widgets.css"><script src="https://cesium.com/downloads/cesiumjs/releases/1.147/Build/Cesium/Cesium.js"></script><script src="${base}/bridge.js"></script><style>html,body,#c{width:100%;height:100%;margin:0}#s{position:fixed;top:8px;right:8px;color:white}</style></head><body><div id="c"></div><div id="s"></div><script>
 ${process.env.CESIUM_ION_TOKEN ? `Cesium.Ion.defaultAccessToken=${JSON.stringify(process.env.CESIUM_ION_TOKEN)};` : ''}
 var v=new Cesium.Viewer('c',{terrainProvider:new Cesium.EllipsoidTerrainProvider(),baseLayer:false,animation:false,timeline:false,geocoder:false,baseLayerPicker:false,homeButton:false,navigationHelpButton:false,sceneModePicker:false,fullscreenButton:false,infoBox:false,selectionIndicator:false});
 var b=new CesiumMcpBridge.CesiumBridge(v,{telemetry:false});
@@ -64,7 +64,7 @@ try {
     try { if ((await fetch(`${base}/api/status`)).ok) break } catch {}
     await new Promise(done => setTimeout(done, 250))
   }
-  browser = await chromium.launch({ channel: 'chrome', headless: process.env.VISIBLE !== '1', args: ['--enable-unsafe-swiftshader'] })
+  browser = await chromium.launch({ ...(process.env.CESIUM_TEST_USE_BUNDLED === '1' ? {} : { channel: 'chrome' }), headless: process.env.VISIBLE !== '1', args: ['--enable-unsafe-swiftshader'] })
   page = await browser.newPage({ viewport: { width: 1000, height: 750 } })
   page.on('pageerror', error => result.errors.push(error.message))
   page.on('console', async message => { if (message.type() === 'error') {

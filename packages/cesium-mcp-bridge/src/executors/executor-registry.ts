@@ -1,5 +1,7 @@
 import type { BridgeExecutor } from '../bridge.js'
 import { animationExecutors } from './animation.js'
+import { bimExecutors } from './bim.js'
+import { geometryExecutors } from './geometry.js'
 import { cameraExecutors } from './camera.js'
 import { entityExecutors } from './entity.js'
 import { entityExtExecutors } from './entity-ext.js'
@@ -23,6 +25,8 @@ const defaultBridgeExecutors = {
   ...interactionExecutors,
   ...trajectoryExecutors,
   ...heatmapExecutors,
+  ...bimExecutors,
+  ...geometryExecutors,
 }
 
 export const defaultBridgeExecutorNames: readonly string[] =

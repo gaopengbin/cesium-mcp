@@ -9,6 +9,10 @@ export interface ToolRoutingEvalCase {
 }
 
 export const toolRoutingEvalCases: ToolRoutingEvalCase[] = [
+  { id: 'geometry-en', locale: 'en', prompt: 'Snap and measure actual geometry', expectedToolsets: ['geometry'], requiredTools: ['snapToGeometry', 'measureSnappedDistance'] },
+  { id: 'geometry-zh', locale: 'zh-CN', prompt: '吸附测量并裁剪模型', expectedToolsets: ['geometry'], requiredTools: ['snapToGeometry', 'setClippingPolygons'] },
+  { id: 'bim-en', locale: 'en', prompt: 'Query BIM elements and calculate quantities', expectedToolsets: ['bim'], requiredTools: ['queryBimElements', 'aggregateBimElements'] },
+  { id: 'bim-zh', locale: 'zh-CN', prompt: '筛选构件并计算工程量', expectedToolsets: ['bim'], requiredTools: ['filterBimElements', 'aggregateBimElements'] },
   {
     id: 'view-en',
     locale: 'en',

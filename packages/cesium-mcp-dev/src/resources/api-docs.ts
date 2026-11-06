@@ -10,6 +10,44 @@ export interface ApiDoc {
 
 export const CESIUM_API_DOCS: ApiDoc[] = [
   {
+    name: 'IonAssetElementService', category: 'class',
+    description: 'CesiumJS 1.147 实验性 BIM/CAD 构件服务，支持过滤、游标分页、全模型工程量聚合和模型树。构件 ID 保留十进制字符串，属性单位保持源单位。',
+    methods: ['fromAssetId(assetId, options)', 'listElements({filter, top, continuationToken})', 'getElement(elementId)', 'aggregate({propertyKeys, filter})', 'getElementTreeChildren({nodeKey})', 'getElementTreeParents(elementId)', 'getBoundingSphere(element)'],
+    example: `const service = Cesium.IonAssetElementService.fromAssetId(YOUR_ASSET_ID)
+const page = await service.listElements({ top: 50, filter: { 'IFC Class Name': 'ifcwall' } })
+const quantities = await service.aggregate({ propertyKeys: ['Quantity.Net Volume'] })
+// Numeric count differs from total matched elements; inspect source units first.`,
+  },
+  {
+    name: 'ElementService', category: 'class',
+    description: 'CesiumJS 1.147 可扩展构件服务基类。通常使用 IonAssetElementService；不要直接实例化抽象服务。',
+    methods: ['listElements(options)', 'getElement(elementId)'],
+  },
+  {
+    name: 'IonSnapService', category: 'class',
+    description: '实验性 ion BIM 精确几何吸附，要求地理定位数据库、相机和 CSS 画布尺寸，SDK elementId 使用十六进制字符串。MCP 的 snapBimElement 接收十进制字符串并无损转换；真实云端可用性依赖资产权限。',
+    methods: ['fromAssetId(assetId, options)', 'snap({elementId, testPoint, camera, canvasWidth, canvasHeight, snapAperture})'],
+  },
+  {
+    name: 'Scene.snap', category: 'method',
+    description: '原生 GPU 几何吸附，输入画布 CSS 像素坐标，返回 position、surfacePosition、isEdge、screenPosition；不支持或未命中时返回 undefined。',
+    example: `const hit = viewer.scene.snap(new Cesium.Cartesian2(300, 200), { width: 25 })
+if (hit) console.log(hit.position, hit.isEdge)`,
+  },
+  {
+    name: 'BufferPrimitiveCollection.setPositions', category: 'method',
+    description: '1.146+ 高效更新连续图元的坐标，实际调用 points/polylines/polygons 子集合。TypedArray 类型与缓冲一致，顶点总数和拓扑不变。',
+    methods: ['setPositions(positions, primitiveOffset, primitiveCount)'],
+  },
+  {
+    name: 'BufferPrimitive.pickObject', category: 'property',
+    description: '1.146+ 点选对象 getter/setter。必须在首次渲染前设置，渲染后由引擎锁定。MCP addGeoJsonPrimitive 支持 pickMetadata。',
+  },
+  {
+    name: 'Cesium3DTileset.vectorBlendOption', category: 'property',
+    description: '矢量瓦片使用 BlendOption.OPAQUE 或 TRANSLUCENT，缓冲子集合 blendOption 也可动态切换。MCP setTilesetOptions / updateVectorCollection 已封装。',
+  },
+  {
     name: 'Viewer',
     category: 'class',
     description: 'Cesium 应用的核心容器，管理所有 Cesium 部件（Scene, Camera, DataSources 等）。',
@@ -58,7 +96,7 @@ export const CESIUM_API_DOCS: ApiDoc[] = [
   {
     name: 'Cartesian3',
     category: 'class',
-    description: '三维笛卡尔坐标点，Cesium 中最常用的位置表示。',
+    description: '三维笛卡尔坐标点，Cesium 中最常用的位置表示。1.146+ 数学、几何、时间类型拆入 @cesium/core；从 cesium 导入不变。旧 @cesium/engine 对应导出计划在 1.150 移除。1.147 私有 glTF 处理迁移至 @cesium/gltf，避免导入 GltfPipeline 私有路径。',
     ctor: 'new Cesium.Cartesian3(x?: number, y?: number, z?: number)',
     properties: ['x', 'y', 'z'],
     methods: ['clone()', 'equals(right)', 'toString()'],
