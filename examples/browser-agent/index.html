@@ -22,10 +22,10 @@
   <title>CesiumJS AI Agent - Browser Only</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-  <link rel="preload" as="style" href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" as="style" href="https://cesium.com/downloads/cesiumjs/releases/1.147/Build/Cesium/Widgets/widgets.css" onload="this.onload=null;this.rel='stylesheet'">
   <noscript>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
-    <link href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.147/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   </noscript>
   <style>
     :root {
@@ -675,6 +675,14 @@ const I18N = {
 }
 
 const TOOL_DESCRIPTIONS_ZH = {
+  getBimTree: '读取 BIM 模型树子节点',
+  getBimElementParents: '读取 BIM 构件根到叶的层级路径',
+  snapBimElement: '使用官方 IonSnapService 精确吸附 BIM 构件',
+  updateVectorCollection: '批量更新本地矢量缓冲坐标或混合模式，保持拓扑',
+  setTilesetOptions: '设置瓦片缓存、矢量混合模式、环境光和点云剔除',
+  snapToGeometry: '按画布像素吸附真实几何，不伪造命中点',
+  measureSnappedDistance: '测量两个真实吸附点之间的三维直线距离',
+  setClippingPolygons: '替换或移除地球或图层的裁剪多边形，支持孔洞',
   queryBimElements: '分页查询 ion BIM/CAD 构件',
   getBimElement: '读取 BIM 构件属性、源单位和位置',
   aggregateBimElements: '对全部匹配构件汇总工程量',
@@ -960,8 +968,8 @@ function setWebMcpStatus(state, titleKey, detailKey, variables = {}) {
 // ============================================================
 // Cesium Init
 // ============================================================
-const CESIUM_SCRIPT_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js'
-const NATURAL_EARTH_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Assets/Textures/NaturalEarthII'
+const CESIUM_SCRIPT_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.147/Build/Cesium/Cesium.js'
+const NATURAL_EARTH_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.147/Build/Cesium/Assets/Textures/NaturalEarthII'
 const BRIDGE_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/cesium-mcp-bridge@1.148.0/dist/cesium-mcp-bridge.browser.global.js'
 const BRIDGE_FALLBACK_URL = 'https://cdn.jsdelivr.net/npm/cesium-mcp-bridge@latest/dist/cesium-mcp-bridge.browser.global.js'
 

@@ -65,6 +65,8 @@ describe('cesium-mcp-dev MCP SDK v2 stdio entry', () => {
       await client.connect(createBundledTransport())
       expect(client.getProtocolEra()).toBe('modern')
       await expectDevTools(client)
+      const docs = await client.callTool({ name: 'cesium_api_lookup', arguments: { query: 'IonAssetElementService', category: 'class' } })
+      expect(JSON.stringify(docs.content)).toContain('aggregate')
     } finally {
       await client.close()
     }

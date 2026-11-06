@@ -137,6 +137,9 @@ const bimLayer = { layerId: idSchema }
 const bimId = { type: 'string', pattern: '^(0|[1-9]\\d{0,19})$', maxLength: 20, description: 'Exact decimal element ID, always a string (never a floating point number)' }
 const bimIds = { type: 'array', items: bimId, minItems: 1, maxItems: 10000 }
 const bimFilter: JsonSchema = { oneOf: [{ type: 'object', additionalProperties: true }, { type: 'string', minLength: 1, maxLength: 8192 }], description: 'Official ion Asset Elements JSON filter; property names including dotted namespaces are verbatim. Example {"IFC Class Name":"ifcwall"}.' }
+const screenPoint: JsonSchema = { type: 'array', items: { type: 'number', minimum: 0 }, minItems: 2, maxItems: 2 }
+const blendOption: JsonSchema = { type: 'string', enum: ['opaque', 'translucent'] }
+const clipRing: JsonSchema = { type: 'array', items: positionTupleSchema, minItems: 3, maxItems: 10000 }
 
 export const cesiumExtendedToolContracts: readonly CesiumToolContract[] = [
   // View
@@ -214,6 +217,9 @@ export const cesiumExtendedToolContracts: readonly CesiumToolContract[] = [
 
   // Layer
   tool('addGeoJsonPrimitive', 'Render GeoJSON as Cesium primitives for large browser datasets.', {
+    flyTo: booleanSchema,
+    blendOption,
+    pickMetadata: { type: 'object', additionalProperties: true, description: 'Optional pick metadata set before first render using BufferPrimitive.pickObject; merged over feature properties. Cannot be replaced after rendering.' },
     id: idSchema,
     name: { ...stringSchema, maxLength: 200 },
     data: { type: 'object' },
@@ -560,4 +566,20 @@ export const cesiumExtendedToolContracts: readonly CesiumToolContract[] = [
     maxElements: { type: 'integer', minimum: 1, maximum: 10000, default: 5000 },
   }, ['layerId', 'filter'], { openWorldHint: true }),
   tool('clearBimSelection', 'Clear BIM highlighting and isolation and restore the original tileset style. updateLayerStyle also clears the BIM selection.', bimLayer, ['layerId']),
+  tool('getBimTree', 'Read official ion BIM model tree children. Omit nodeKey for roots; pass opaque returned keys to navigate subject/model/category/element hierarchy.', { ...bimLayer, nodeKey: { type: 'string', minLength: 1, maxLength: 8192 } }, ['layerId'], { readOnlyHint: true, openWorldHint: true, untrustedContentHint: true }),
+  tool('getBimElementParents', 'Get root-first BIM hierarchy lineage for an exact decimal element ID.', { ...bimLayer, elementId: bimId }, ['layerId', 'elementId'], { readOnlyHint: true, openWorldHint: true, untrustedContentHint: true }),
+  tool('snapBimElement', 'Refine a geographic point against official ion BIM geometry using IonSnapService, returning precise position or snapped=false. Decimal element IDs are converted losslessly to the SDK hex format. Requires geolocated, untransformed ion geometry; no approximate fallback.', { ...bimLayer, elementId: bimId, position: positionTupleSchema, snapAperture: { type: 'number', minimum: 1, maximum: 100 } }, ['layerId', 'elementId', 'position'], { readOnlyHint: true, openWorldHint: true }),
+  tool('updateVectorCollection', 'Batch-update existing owned GeoJSON primitive buffers using native setPositions, and/or set blend mode. Positions are geographic coordinates for the complete primitive range. Vertex counts/topology must not change. Streamed server tile geometry is not editable.', {
+    ...bimLayer, collection: { type: 'string', enum: ['points', 'polylines', 'polygons'] },
+    positions: { type: 'array', items: positionTupleSchema, minItems: 1, maxItems: 10000 },
+    primitiveOffset: { type: 'integer', minimum: 0 }, primitiveCount: { type: 'integer', minimum: 1, maximum: 10000 }, blendOption,
+  }, ['layerId', 'collection']),
+  tool('setTilesetOptions', 'Configure native tile cache budgets, vector opacity mode, dynamic environment lighting and point cloud back-face culling on a managed tileset.', {
+    ...bimLayer, cacheBytes: { type: 'integer', minimum: 0, maximum: 8589934592 }, maximumCacheOverflowBytes: { type: 'integer', minimum: 0, maximum: 8589934592 }, maximumScreenSpaceError: { type: 'number', minimum: .1, maximum: 1024 }, vectorBlendOption: blendOption, pointCloudBackFaceCulling: booleanSchema, dynamicEnvironmentMapEnabled: booleanSchema,
+  }, ['layerId']),
+  tool('snapToGeometry', 'Snap at a canvas CSS pixel using native Scene.snap. Reports edge/surface position or snapped=false; no approximate position is substituted. Experimental; requires GPU support.', { x: { type: 'number', minimum: 0 }, y: { type: 'number', minimum: 0 }, width: { type: 'number', minimum: 1, maximum: 100 } }, ['x', 'y'], { readOnlyHint: true }),
+  tool('measureSnappedDistance', 'Measure 3D straight-line distance in meters between two canvas CSS pixels, each snapped to real geometry. Fails if either point cannot snap.', { points: { type: 'array', items: screenPoint, minItems: 2, maxItems: 2 }, width: { type: 'number', minimum: 1, maximum: 100 } }, ['points'], { readOnlyHint: true }),
+  tool('setClippingPolygons', 'Replace or remove clipping polygons on a managed tileset, or on the globe when layerId is omitted. Supports holes and inverse clipping. This is local Viewer clipping, not a cloud Clipping Assist asset creation job.', {
+    ...bimLayer, polygons: { type: 'array', minItems: 1, maxItems: 100, items: objectSchema({ positions: clipRing, holes: { type: 'array', maxItems: 100, items: clipRing } }, ['positions']) }, clear: booleanSchema, inverse: booleanSchema, enabled: booleanSchema,
+  }),
 ]

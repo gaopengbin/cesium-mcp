@@ -1,6 +1,8 @@
 import * as Cesium from 'cesium'
 import type { LayerManager } from './layer.js'
-import type { BimElement, BimLayerParams, QueryBimElementsParams, GetBimElementParams, AggregateBimElementsParams, SelectBimElementsParams, FilterBimElementsParams, FocusBimElementsParams, BimElementPage, BimAggregationResult } from '../types.js'
+import type { BimElement, BimLayerParams, QueryBimElementsParams, GetBimElementParams, GetBimTreeParams, AggregateBimElementsParams, SelectBimElementsParams, FilterBimElementsParams, FocusBimElementsParams, BimElementPage, BimAggregationResult, SnapBimElementParams } from '../types.js'
+import { awaitOperation } from '../operation.js'
+import { worldPosition, geographicPosition } from './advanced.js'
 
 function context(manager: LayerManager, layerId: string) {
   const refs = manager.getCesiumRefs(layerId)
@@ -90,6 +92,49 @@ export async function getBimElement(manager: LayerManager, params: GetBimElement
   const data = await request(manager, params.layerId, `elements/${id}`, {}, signal)
   if (elementId(data.id) !== id) throw new Error('ion returned a different BIM element')
   return { ...data, id } as BimElement
+}
+
+export async function getBimTree(manager: LayerManager, params: GetBimTreeParams, signal?: AbortSignal) {
+  const data = await request(manager, params.layerId, 'tree/children', { nodeKey: params.nodeKey }, signal)
+  if (!Array.isArray(data.nodes)) throw new Error('Invalid BIM tree response')
+  const nodes = data.nodes.map((node: Record<string, unknown>) => {
+    if (typeof node.key !== 'string' || typeof node.label !== 'string' || typeof node.hasChildren !== 'boolean' || !['subject', 'model', 'category', 'element'].includes(String(node.kind))) throw new Error('Invalid BIM tree node')
+    return { key: node.key, label: node.label, hasChildren: node.hasChildren, kind: node.kind, ...(node.id != null ? { id: elementId(node.id) } : {}) }
+  })
+  return { layerId: params.layerId, nodes }
+}
+
+export async function getBimElementParents(manager: LayerManager, params: GetBimElementParams, signal?: AbortSignal) {
+  const data = await request(manager, params.layerId, 'tree/parents', { elementId: elementId(params.elementId) }, signal)
+  if (!Array.isArray(data.path)) throw new Error('Invalid BIM parent path')
+  const path = data.path.map((node: Record<string, unknown>) => {
+    if (!['subject', 'model', 'category', 'element'].includes(String(node.kind))) throw new Error('Invalid BIM parent kind')
+    return { kind: node.kind, id: elementId(node.id) }
+  })
+  return { layerId: params.layerId, path }
+}
+
+export async function snapBimElement(viewer: Cesium.Viewer, manager: LayerManager, params: SnapBimElementParams, signal?: AbortSignal) {
+  const refs = context(manager, params.layerId)
+  const id = elementId(params.elementId)
+  if (!Cesium.Matrix4.equals(refs.tileset.modelMatrix, Cesium.Matrix4.IDENTITY)) throw new Error('Server snapping requires untransformed ion geometry; reset heightOffset/modelMatrix')
+  signal = signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000)
+  const data = await request(manager, params.layerId, 'ecef', {}, signal)
+  const values = data.ecefTransform?.flat()
+  if (!Array.isArray(values) || values.length !== 16 || !values.every(Number.isFinite)) throw new Error('BIM asset has no valid ECEF transform for precise snapping')
+  const server = Cesium.Ion.defaultServer
+  const base = typeof server === 'string' ? server : server.url
+  const resource = new Cesium.Resource({ url: new URL(`v1/assets/${refs.ionAssetId}/`, base.endsWith('/') ? base : base + '/').href, headers: { Authorization: `Bearer ${Cesium.Ion.defaultAccessToken}` } })
+  const service = new Cesium.IonSnapService({ assetId: refs.ionAssetId, resource, ecefTransform: Cesium.Matrix4.fromRowMajorArray(values) })
+  let hit
+  try {
+    hit = await awaitOperation(service.snap({ elementId: `0x${BigInt(id).toString(16)}`, testPoint: worldPosition(params.position), camera: viewer.camera, canvasWidth: viewer.scene.canvas.clientWidth, canvasHeight: viewer.scene.canvas.clientHeight, snapAperture: params.snapAperture }), signal)
+  } catch {
+    signal.throwIfAborted()
+    throw new Error('ion precise snap failed; verify BIM geometry support and asset read permission')
+  }
+  unchanged(manager, params.layerId, refs, signal)
+  return hit?.snapPoint ? { layerId: params.layerId, elementId: id, snapped: true, position: geographicPosition(hit.snapPoint), geometryType: hit.geometryType } : { layerId: params.layerId, elementId: id, snapped: false }
 }
 
 export async function aggregateBimElements(manager: LayerManager, params: AggregateBimElementsParams, signal?: AbortSignal): Promise<BimAggregationResult> {

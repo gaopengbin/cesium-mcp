@@ -6,6 +6,27 @@ export interface CodeSnippet {
 
 export const CODE_SNIPPETS: CodeSnippet[] = [
   {
+    title: 'BIM 构件查询、模型树与工程量（CesiumJS 1.147）',
+    keywords: ['bim', '工程量', '构件', '模型树', 'ionassetelementservice'],
+    code: `const service = Cesium.IonAssetElementService.fromAssetId(YOUR_ASSET_ID)
+const roots = await service.getElementTreeChildren()
+const filter = { 'IFC Class Name': 'ifcwall' }
+const page = await service.listElements({ filter, top: 50 })
+// Discover exact numeric keys and units with getElement(page.items[0].id).
+const totals = await service.aggregate({ filter, propertyKeys: ['Quantity.Net Volume'] })
+console.log(roots.nodes, page.items, totals)`,
+  },
+  {
+    title: '真实几何吸附（未命中不伪造结果）',
+    keywords: ['snap', '吸附', 'snapping'],
+    code: `const hit = viewer.scene.snap(new Cesium.Cartesian2(300, 200), { width: 25 })
+if (hit) {
+  console.log(hit.isEdge, hit.position, hit.surfacePosition)
+} else {
+  console.log('No snappable geometry or unsupported GPU')
+}`,
+  },
+  {
     title: '飞行到指定位置',
     keywords: ['飞到', '飞行', 'flyto', '视角', '定位'],
     code: `viewer.camera.flyTo({

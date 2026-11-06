@@ -131,6 +131,9 @@ export interface AddGeoJsonPrimitiveParams {
   data?: any
   url?: string
   allowPicking?: boolean
+  blendOption?: 'opaque' | 'translucent'
+  pickMetadata?: Record<string, unknown>
+  flyTo?: boolean
   show?: boolean
 }
 
@@ -189,6 +192,7 @@ export interface BimElementPage {
   continuationToken?: string
 }
 export interface GetBimElementParams extends BimLayerParams { elementId: string }
+export interface GetBimTreeParams extends BimLayerParams { nodeKey?: string }
 export interface AggregateBimElementsParams extends BimLayerParams {
   propertyKeys: string[]
   filter?: QueryBimElementsParams['filter']
@@ -208,6 +212,36 @@ export interface FilterBimElementsParams extends BimLayerParams {
   color?: string
 }
 export interface FocusBimElementsParams extends BimElementIdsParams { duration?: number }
+
+// ========== CesiumJS 1.147 geometry and rendering ==========
+export type GeographicPosition = [number, number, number?]
+export interface UpdateVectorCollectionParams {
+  layerId: string
+  collection: 'points' | 'polylines' | 'polygons'
+  primitiveOffset?: number
+  primitiveCount?: number
+  positions?: GeographicPosition[]
+  blendOption?: 'opaque' | 'translucent'
+}
+export interface SetTilesetOptionsParams {
+  layerId: string
+  cacheBytes?: number
+  maximumCacheOverflowBytes?: number
+  maximumScreenSpaceError?: number
+  vectorBlendOption?: 'opaque' | 'translucent'
+  pointCloudBackFaceCulling?: boolean
+  dynamicEnvironmentMapEnabled?: boolean
+}
+export interface SnapToGeometryParams { x: number; y: number; width?: number }
+export interface MeasureSnappedDistanceParams { points: [[number, number], [number, number]]; width?: number }
+export interface SetClippingPolygonsParams {
+  layerId?: string
+  polygons?: { positions: GeographicPosition[]; holes?: GeographicPosition[][] }[]
+  inverse?: boolean
+  enabled?: boolean
+  clear?: boolean
+}
+export interface SnapBimElementParams extends GetBimElementParams { position: GeographicPosition; snapAperture?: number }
 
 export interface LoadVectorTilesParams extends Load3dTilesParams {
   source: 'tileset' | 'mvt'

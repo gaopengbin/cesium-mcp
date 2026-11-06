@@ -132,7 +132,7 @@ const sandbox = createServer((req, res) => {
     return
   }
   const content = readCesiumAppAsset('map-app.html')
-    .split('https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/')
+    .split('https://cesium.com/downloads/cesiumjs/releases/1.147/Build/Cesium/')
     .join(`http://127.0.0.1:${sandboxPort}/vendor/cesium/`)
   const assetOrigin = `http://127.0.0.1:${sandboxPort}`
   res.writeHead(200, {

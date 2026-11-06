@@ -45,6 +45,19 @@ export class LayerManager {
 
   selectTileFeature(picked: unknown): TileFeatureResult | null {
     this._selectedTileFeature = readTileFeature(picked, [...this._cesiumRefs].flatMap(([id, refs]) => refs.tileset ? [[id, refs.tileset] as [string, Cesium.Cesium3DTileset]] : []))
+    if (!this._selectedTileFeature) {
+      const pick = picked as { parentPrimitive?: unknown; properties?: Record<string, unknown> } | undefined
+      for (const [layerId, refs] of this._cesiumRefs) {
+        if (refs.primitive && pick && pick.parentPrimitive === refs.primitive && pick.properties) {
+          const properties: Record<string, unknown> = Object.create(null)
+          for (const [key, value] of Object.entries(pick.properties).slice(0, 100)) {
+            try { properties[key] = JSON.parse(JSON.stringify(value, (_key, item) => typeof item === 'bigint' ? item.toString() : item)) } catch { /* skip non-serializable metadata */ }
+          }
+          this._selectedTileFeature = { layerId, properties }
+          break
+        }
+      }
+    }
     return this.getSelectedTileFeature()
   }
 
@@ -267,6 +280,7 @@ export class LayerManager {
     const opts: Record<string, unknown> = {}
     if (allowPicking !== undefined) opts.allowPicking = allowPicking
     if (show !== undefined) opts.show = show
+    if (params.blendOption) opts.blendOption = params.blendOption === 'opaque' ? Cesium.BlendOption.OPAQUE : Cesium.BlendOption.TRANSLUCENT
 
     const GeoJsonPrimitive = (Cesium as any).GeoJsonPrimitive
     if (!GeoJsonPrimitive) {
@@ -281,6 +295,17 @@ export class LayerManager {
     }
 
     checkOperation(signal, primitive)
+    if (params.pickMetadata) {
+      for (const [name, Primitive] of [['points', Cesium.BufferPoint], ['polylines', Cesium.BufferPolyline], ['polygons', Cesium.BufferPolygon]] as const) {
+        const collection = primitive[name]
+        if (!collection) continue
+        for (let i = 0; i < collection.primitiveCount; i++) {
+          const feature = collection.get(i, new Primitive())
+          const original = feature.pickObject
+          feature.pickObject = { ...original, parentPrimitive: primitive, properties: { ...original?.properties, ...params.pickMetadata } }
+        }
+      }
+    }
     this.removeLayer(layerId)
     this._viewer.scene.primitives.add(primitive)
 
@@ -295,7 +320,7 @@ export class LayerManager {
     this._cesiumRefs.set(layerId, { primitive })
     this._layers.push(info)
 
-    this._viewer.flyTo(primitive, { duration: 1.5 }).catch(() => {
+    if (params.flyTo !== false) this._viewer.flyTo(primitive, { duration: 1.5 }).catch(() => {
       // flyTo may fail if primitive has no bounding volume — ignore
     })
 

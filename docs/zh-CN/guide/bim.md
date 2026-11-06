@@ -1,6 +1,6 @@
 # BIM 构件与工程量统计
 
-可选工具组 `bim` 将官方 ion Asset Elements REST API 接入当前地图。沿用 CesiumJS 1.145 渲染层，不依赖 1.147 的实验性 JavaScript 封装。
+可选工具组 `bim` 将官方 ion Asset Elements REST API 接入当前地图。渲染基线已升级至 CesiumJS 1.147。查询沿用官方同源 REST 接口，保留响应大小、取消和超时控制，并与原生 IonAssetElementService 做本地结果一致性检查。
 
 调用 `enable_toolset({ toolset: 'bim' })`，或设置 `CESIUM_TOOLSETS=view,layer,tiles,bim,interaction`。Bridge、WebMCP 使用相同工具契约；WebMCP 可选择 `toolsets: 'bim'` 或 `'all'`。
 
@@ -31,3 +31,7 @@
 Bridge/WebMCP 支持通过 AbortSignal 取消操作；现有 WebSocket 传输尚不转发 MCP 客户端取消信号。多请求筛选与定位设有 25 秒总时限。
 
 参考：[官方接口文档](https://cesium.com/learn/cesiumjs/ref-doc/IonAssetElementService.html)、[官方 REST 调用实现](https://github.com/CesiumGS/cesium/blob/1.147/packages/engine/Source/Scene/IonAssetElementService.js)。
+
+## 模型树与精确吸附
+
+`getBimTree` 读取根节点或按 `nodeKey` 读取子节点；`getBimElementParents` 返回构件根到叶的层级路径。`snapBimElement` 使用原生 IonSnapService；传入十进制构件 ID 和地理测试点，内部无损转为十六进制 ID。它需要地理定位数据库，不支持经过额外 modelMatrix/heightOffset 变换的模型；没有可吸附几何时返回 snapped=false。云端精确吸附目前仅完成本地接口契约测试，尚缺授权真实资产验证。

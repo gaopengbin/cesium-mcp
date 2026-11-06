@@ -403,6 +403,22 @@ var LayerManager = class {
   }
   selectTileFeature(picked) {
     this._selectedTileFeature = readTileFeature(picked, [...this._cesiumRefs].flatMap(([id, refs]) => refs.tileset ? [[id, refs.tileset]] : []));
+    if (!this._selectedTileFeature) {
+      const pick = picked;
+      for (const [layerId, refs] of this._cesiumRefs) {
+        if (refs.primitive && pick && pick.parentPrimitive === refs.primitive && pick.properties) {
+          const properties = /* @__PURE__ */ Object.create(null);
+          for (const [key, value] of Object.entries(pick.properties).slice(0, 100)) {
+            try {
+              properties[key] = JSON.parse(JSON.stringify(value, (_key, item) => typeof item === "bigint" ? item.toString() : item));
+            } catch {
+            }
+          }
+          this._selectedTileFeature = { layerId, properties };
+          break;
+        }
+      }
+    }
     return this.getSelectedTileFeature();
   }
   pickTileFeature(position) {
@@ -581,17 +597,29 @@ var LayerManager = class {
     const opts = {};
     if (allowPicking !== void 0) opts.allowPicking = allowPicking;
     if (show !== void 0) opts.show = show;
-    const GeoJsonPrimitive2 = Cesium4.GeoJsonPrimitive;
-    if (!GeoJsonPrimitive2) {
+    if (params.blendOption) opts.blendOption = params.blendOption === "opaque" ? Cesium4.BlendOption.OPAQUE : Cesium4.BlendOption.TRANSLUCENT;
+    const GeoJsonPrimitive3 = Cesium4.GeoJsonPrimitive;
+    if (!GeoJsonPrimitive3) {
       throw new Error("GeoJsonPrimitive is not available in this CesiumJS version");
     }
     let primitive;
     if (url) {
-      primitive = await awaitOperation(GeoJsonPrimitive2.fromUrl(url, opts), signal, discardResource);
+      primitive = await awaitOperation(GeoJsonPrimitive3.fromUrl(url, opts), signal, discardResource);
     } else {
-      primitive = GeoJsonPrimitive2.fromGeoJson(data, opts);
+      primitive = GeoJsonPrimitive3.fromGeoJson(data, opts);
     }
     checkOperation(signal, primitive);
+    if (params.pickMetadata) {
+      for (const [name2, Primitive] of [["points", Cesium4.BufferPoint], ["polylines", Cesium4.BufferPolyline], ["polygons", Cesium4.BufferPolygon]]) {
+        const collection = primitive[name2];
+        if (!collection) continue;
+        for (let i = 0; i < collection.primitiveCount; i++) {
+          const feature = collection.get(i, new Primitive());
+          const original = feature.pickObject;
+          feature.pickObject = { ...original, parentPrimitive: primitive, properties: { ...original?.properties, ...params.pickMetadata } };
+        }
+      }
+    }
     this.removeLayer(layerId);
     this._viewer.scene.primitives.add(primitive);
     const featureCount = primitive.featureCount ?? 0;
@@ -604,7 +632,7 @@ var LayerManager = class {
     };
     this._cesiumRefs.set(layerId, { primitive });
     this._layers.push(info);
-    this._viewer.flyTo(primitive, { duration: 1.5 }).catch(() => {
+    if (params.flyTo !== false) this._viewer.flyTo(primitive, { duration: 1.5 }).catch(() => {
     });
     return { ...info, featureCount };
   }
@@ -2217,7 +2245,7 @@ function getEntityProperties(viewer, params) {
   let description;
   if (entity.description) {
     try {
-      const desc = entity.description.getValue(Cesium4.JulianDate.now());
+      const desc = typeof entity.description === "string" ? entity.description : entity.description.getValue(Cesium4.JulianDate.now());
       if (typeof desc === "string") description = desc;
     } catch {
     }
@@ -3122,6 +3150,84 @@ var animationExecutors = {
     return { success: true, message: "Globe lighting updated" };
   }
 };
+function worldPosition(position) {
+  if (!Array.isArray(position) || !Number.isFinite(position[0]) || Math.abs(position[0]) > 180 || !Number.isFinite(position[1]) || Math.abs(position[1]) > 90 || !Number.isFinite(position[2] ?? 0)) throw new Error("Invalid geographic position");
+  return Cesium4.Cartesian3.fromDegrees(position[0], position[1], position[2] ?? 0);
+}
+function geographicPosition(position) {
+  const geo = Cesium4.Cartographic.fromCartesian(position);
+  if (!geo || !Number.isFinite(geo.height)) throw new Error("Invalid snapped position");
+  return [Cesium4.Math.toDegrees(geo.longitude), Cesium4.Math.toDegrees(geo.latitude), geo.height];
+}
+var blendModes = { opaque: Cesium4.BlendOption.OPAQUE, translucent: Cesium4.BlendOption.TRANSLUCENT };
+function updateVectorCollection(viewer, manager, params) {
+  const source = manager.getCesiumRefs(params.layerId)?.primitive;
+  if (!source || !(source instanceof Cesium4.GeoJsonPrimitive)) throw new Error("Batch edits require an owned GeoJSON primitive layer, not streamed server tiles");
+  const collection = source[params.collection];
+  if (!collection) throw new Error(`Layer has no ${params.collection} collection`);
+  const offset = params.primitiveOffset ?? 0;
+  const count = params.primitiveCount ?? collection.primitiveCount - offset;
+  if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(count) || offset < 0 || count < 1 || offset + count > collection.primitiveCount) throw new Error("Invalid vector primitive range");
+  if (params.blendOption !== void 0 && !(params.blendOption in blendModes)) throw new Error("Invalid vector blend mode");
+  let positions;
+  if (params.positions) {
+    const constructors = { points: Cesium4.BufferPoint, polylines: Cesium4.BufferPolyline, polygons: Cesium4.BufferPolygon };
+    const view = new constructors[params.collection]();
+    let vertices = 0;
+    for (let i = offset; i < offset + count; i++) vertices += collection.get(i, view).vertexCount ?? 1;
+    if (params.positions.length !== vertices) throw new Error(`Vertex count must remain ${vertices}; topology cannot change in a batch position update`);
+    const inverse = Cesium4.Matrix4.inverse(collection.modelMatrix, new Cesium4.Matrix4());
+    positions = new Float64Array(params.positions.flatMap((position) => {
+      const local = Cesium4.Matrix4.multiplyByPoint(inverse, worldPosition(position), new Cesium4.Cartesian3());
+      return [local.x, local.y, local.z];
+    }));
+  }
+  if (positions) collection.setPositions(positions, offset, count);
+  if (params.blendOption !== void 0) collection.blendOption = blendModes[params.blendOption];
+  viewer.scene.requestRender();
+  return { layerId: params.layerId, collection: params.collection, updatedPrimitives: positions ? count : 0, primitiveOffset: offset, blendOption: params.blendOption ?? (collection.blendOption === Cesium4.BlendOption.OPAQUE ? "opaque" : "translucent") };
+}
+function setTilesetOptions(viewer, manager, params) {
+  const tileset = manager.getCesiumRefs(params.layerId)?.tileset;
+  if (!tileset) throw new Error("Managed 3D Tiles layer not found");
+  for (const key of ["cacheBytes", "maximumCacheOverflowBytes", "maximumScreenSpaceError"]) {
+    if (params[key] !== void 0 && (!Number.isFinite(params[key]) || params[key] < 0)) throw new Error(`Invalid ${key}`);
+  }
+  if (params.vectorBlendOption !== void 0 && !(params.vectorBlendOption in blendModes)) throw new Error("Invalid vector blend mode");
+  for (const key of ["cacheBytes", "maximumCacheOverflowBytes", "maximumScreenSpaceError"]) if (params[key] !== void 0) tileset[key] = params[key];
+  if (params.vectorBlendOption !== void 0) tileset.vectorBlendOption = blendModes[params.vectorBlendOption];
+  if (params.pointCloudBackFaceCulling !== void 0) tileset.pointCloudShading.backFaceCulling = params.pointCloudBackFaceCulling;
+  if (params.dynamicEnvironmentMapEnabled !== void 0) tileset.environmentMapManager.enabled = params.dynamicEnvironmentMapEnabled;
+  viewer.scene.requestRender();
+  return { layerId: params.layerId, cacheBytes: tileset.cacheBytes, maximumCacheOverflowBytes: tileset.maximumCacheOverflowBytes, maximumScreenSpaceError: tileset.maximumScreenSpaceError, vectorBlendOption: tileset.vectorBlendOption === Cesium4.BlendOption.OPAQUE ? "opaque" : "translucent" };
+}
+function snap(viewer, params) {
+  const canvas = viewer.scene.canvas;
+  if (params.x < 0 || params.y < 0 || params.x >= canvas.clientWidth || params.y >= canvas.clientHeight) throw new Error("Snap pixel is outside the canvas (CSS pixels)");
+  return viewer.scene.snap(new Cesium4.Cartesian2(params.x, params.y), { width: params.width ?? 25 });
+}
+function snapToGeometry(viewer, params) {
+  const hit = snap(viewer, params);
+  if (!hit) return { snapped: false };
+  return { snapped: true, isEdge: hit.isEdge, position: geographicPosition(hit.position), ...hit.surfacePosition ? { surfacePosition: geographicPosition(hit.surfacePosition) } : {} };
+}
+function measureSnappedDistance(viewer, params) {
+  const hits = params.points.map(([x, y]) => snap(viewer, { x, y, width: params.width }));
+  if (!hits[0] || !hits[1]) throw new Error("Both measurement points must snap to actual geometry; no approximate distance was produced");
+  return { value: Cesium4.Cartesian3.distance(hits[0].position, hits[1].position), unit: "m", method: "3d-straight-line", positions: hits.map((hit) => geographicPosition(hit.position)), snapped: true };
+}
+function setClippingPolygons(viewer, manager, params) {
+  const target = params.layerId ? manager.getCesiumRefs(params.layerId)?.tileset : viewer.scene.globe;
+  if (!target) throw new Error("Clipping target not found");
+  if (!params.clear && !params.polygons?.length) throw new Error("Provide clipping polygons or clear=true");
+  if (!params.clear && !Cesium4.ClippingPolygonCollection.isSupported(viewer.scene)) throw new Error("Clipping polygons require WebGL 2");
+  const polygons = params.clear ? void 0 : new Cesium4.ClippingPolygonCollection({ enabled: params.enabled ?? true, inverse: params.inverse ?? false, polygons: params.polygons.map((polygon) => new Cesium4.ClippingPolygon({ positions: polygon.positions.map(worldPosition), holes: polygon.holes?.map((ring) => ring.map(worldPosition)) })) });
+  target.clippingPolygons = polygons;
+  viewer.scene.requestRender();
+  return { target: params.layerId ?? "globe", polygons: polygons?.length ?? 0, cleared: !!params.clear, inverse: polygons?.inverse ?? false };
+}
+
+// src/commands/bim.ts
 function context(manager, layerId) {
   const refs = manager.getCesiumRefs(layerId);
   if (!refs?.tileset || !Number.isSafeInteger(refs.ionAssetId) || refs.ionAssetId <= 0) {
@@ -3215,6 +3321,46 @@ async function getBimElement(manager, params, signal) {
   const data = await request(manager, params.layerId, `elements/${id}`, {}, signal);
   if (elementId(data.id) !== id) throw new Error("ion returned a different BIM element");
   return { ...data, id };
+}
+async function getBimTree(manager, params, signal) {
+  const data = await request(manager, params.layerId, "tree/children", { nodeKey: params.nodeKey }, signal);
+  if (!Array.isArray(data.nodes)) throw new Error("Invalid BIM tree response");
+  const nodes = data.nodes.map((node) => {
+    if (typeof node.key !== "string" || typeof node.label !== "string" || typeof node.hasChildren !== "boolean" || !["subject", "model", "category", "element"].includes(String(node.kind))) throw new Error("Invalid BIM tree node");
+    return { key: node.key, label: node.label, hasChildren: node.hasChildren, kind: node.kind, ...node.id != null ? { id: elementId(node.id) } : {} };
+  });
+  return { layerId: params.layerId, nodes };
+}
+async function getBimElementParents(manager, params, signal) {
+  const data = await request(manager, params.layerId, "tree/parents", { elementId: elementId(params.elementId) }, signal);
+  if (!Array.isArray(data.path)) throw new Error("Invalid BIM parent path");
+  const path = data.path.map((node) => {
+    if (!["subject", "model", "category", "element"].includes(String(node.kind))) throw new Error("Invalid BIM parent kind");
+    return { kind: node.kind, id: elementId(node.id) };
+  });
+  return { layerId: params.layerId, path };
+}
+async function snapBimElement(viewer, manager, params, signal) {
+  const refs = context(manager, params.layerId);
+  const id = elementId(params.elementId);
+  if (!Cesium4.Matrix4.equals(refs.tileset.modelMatrix, Cesium4.Matrix4.IDENTITY)) throw new Error("Server snapping requires untransformed ion geometry; reset heightOffset/modelMatrix");
+  signal = signal ? AbortSignal.any([signal, AbortSignal.timeout(2e4)]) : AbortSignal.timeout(2e4);
+  const data = await request(manager, params.layerId, "ecef", {}, signal);
+  const values = data.ecefTransform?.flat();
+  if (!Array.isArray(values) || values.length !== 16 || !values.every(Number.isFinite)) throw new Error("BIM asset has no valid ECEF transform for precise snapping");
+  const server = Cesium4.Ion.defaultServer;
+  const base = typeof server === "string" ? server : server.url;
+  const resource = new Cesium4.Resource({ url: new URL(`v1/assets/${refs.ionAssetId}/`, base.endsWith("/") ? base : base + "/").href, headers: { Authorization: `Bearer ${Cesium4.Ion.defaultAccessToken}` } });
+  const service = new Cesium4.IonSnapService({ assetId: refs.ionAssetId, resource, ecefTransform: Cesium4.Matrix4.fromRowMajorArray(values) });
+  let hit;
+  try {
+    hit = await awaitOperation(service.snap({ elementId: `0x${BigInt(id).toString(16)}`, testPoint: worldPosition(params.position), camera: viewer.camera, canvasWidth: viewer.scene.canvas.clientWidth, canvasHeight: viewer.scene.canvas.clientHeight, snapAperture: params.snapAperture }), signal);
+  } catch {
+    signal.throwIfAborted();
+    throw new Error("ion precise snap failed; verify BIM geometry support and asset read permission");
+  }
+  unchanged(manager, params.layerId, refs, signal);
+  return hit?.snapPoint ? { layerId: params.layerId, elementId: id, snapped: true, position: geographicPosition(hit.snapPoint), geometryType: hit.geometryType } : { layerId: params.layerId, elementId: id, snapped: false };
 }
 async function aggregateBimElements(manager, params, signal) {
   if (!Array.isArray(params.propertyKeys) || !params.propertyKeys.length || params.propertyKeys.length > 20 || params.propertyKeys.some((key) => typeof key !== "string" || !key || key.length > 500) || new Set(params.propertyKeys).size !== params.propertyKeys.length) throw new Error("Supply 1\u201320 unique numeric property keys");
@@ -3320,6 +3466,12 @@ async function focusBimElements(viewer, manager, params, signal) {
 
 // src/executors/bim.ts
 var bimExecutors = {
+  async getBimTree(params, bridge, context2 = {}) {
+    return { success: true, data: await getBimTree(bridge.layerManager, params, context2.signal) };
+  },
+  async getBimElementParents(params, bridge, context2 = {}) {
+    return { success: true, data: await getBimElementParents(bridge.layerManager, params, context2.signal) };
+  },
   async queryBimElements(params, bridge, context2 = {}) {
     return { success: true, data: await queryBimElements(bridge.layerManager, params, context2.signal) };
   },
@@ -3340,6 +3492,28 @@ var bimExecutors = {
   },
   clearBimSelection(params, bridge) {
     return { success: true, data: clearBimSelection(bridge.viewer, bridge.layerManager, params) };
+  },
+  async snapBimElement(params, bridge, context2 = {}) {
+    return { success: true, data: await snapBimElement(bridge.viewer, bridge.layerManager, params, context2.signal) };
+  }
+};
+
+// src/executors/geometry.ts
+var geometryExecutors = {
+  updateVectorCollection(params, bridge) {
+    return { success: true, data: updateVectorCollection(bridge.viewer, bridge.layerManager, params) };
+  },
+  setTilesetOptions(params, bridge) {
+    return { success: true, data: setTilesetOptions(bridge.viewer, bridge.layerManager, params) };
+  },
+  snapToGeometry(params, bridge) {
+    return { success: true, data: snapToGeometry(bridge.viewer, params) };
+  },
+  measureSnappedDistance(params, bridge) {
+    return { success: true, data: measureSnappedDistance(bridge.viewer, params) };
+  },
+  setClippingPolygons(params, bridge) {
+    return { success: true, data: setClippingPolygons(bridge.viewer, bridge.layerManager, params) };
   }
 };
 
@@ -3765,7 +3939,8 @@ var defaultBridgeExecutors = {
   ...interactionExecutors,
   ...trajectoryExecutors,
   ...heatmapExecutors,
-  ...bimExecutors
+  ...bimExecutors,
+  ...geometryExecutors
 };
 Object.freeze(Object.keys(defaultBridgeExecutors));
 function createDefaultBridgeExecutors() {
@@ -4336,4 +4511,4 @@ var CesiumBridge = class {
   }
 };
 
-export { CesiumBridge, LayerManager, aggregateBimElements, clearBimSelection, filterBimElements, focusBimElements, getBimElement, queryBimElements, selectBimElements };
+export { CesiumBridge, LayerManager, aggregateBimElements, clearBimSelection, filterBimElements, focusBimElements, getBimElement, getBimElementParents, getBimTree, measureSnappedDistance, queryBimElements, selectBimElements, setClippingPolygons, setTilesetOptions, snapBimElement, snapToGeometry, updateVectorCollection };

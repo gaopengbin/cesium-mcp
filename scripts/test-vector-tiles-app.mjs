@@ -13,7 +13,7 @@ await new Promise(done => fixture.listen(0, '127.0.0.1', done))
 const origin = `http://127.0.0.1:${fixture.address().port}`
 const previewPort = 19331
 const runtime = spawn(process.execPath, ['--import', 'tsx', 'packages/cesium-mcp-runtime/src/app-preview-server.ts'], {
-  env: { ...process.env, CESIUM_WS_PORT: '19330', CESIUM_APP_PREVIEW_PORT: String(previewPort), CESIUM_APP_SANDBOX_PORT: '19332', MCP_HTTP_PORT: '19430', CESIUM_MAP_DATA_ORIGINS: origin },
+  env: { ...process.env, CESIUM_TELEMETRY_DISABLED: '1', CESIUM_WS_PORT: '19330', CESIUM_APP_PREVIEW_PORT: String(previewPort), CESIUM_APP_SANDBOX_PORT: '19332', MCP_HTTP_PORT: '19430', CESIUM_MAP_DATA_ORIGINS: origin },
   windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
 })
 runtime.stdout.resume()
@@ -27,7 +27,7 @@ try {
     try { if ((await fetch(`http://127.0.0.1:${previewPort}/`)).ok) break } catch {}
     await new Promise(done => setTimeout(done, 250))
   }
-  browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--enable-unsafe-swiftshader'] })
+  browser = await chromium.launch({ ...(process.env.CESIUM_TEST_USE_BUNDLED === '1' ? {} : { channel: 'chrome' }), headless: true, args: ['--enable-unsafe-swiftshader'] })
   page = await browser.newPage({ viewport: { width: 1280, height: 960 } })
   page.on('pageerror', error => report.errors.push(error.message))
   page.on('console', message => { if (message.type() === 'error') report.resourceWarnings.push(message.text()) })

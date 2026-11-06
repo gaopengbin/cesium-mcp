@@ -39,7 +39,7 @@ npm 包会直接携带浏览器 Bridge bundle，因此 `http://localhost:9100/` 
 
 通过 `CESIUM_TOOLSETS=view,entity,layer,interaction,tiles` 或 `enable_toolset` 启用 `tiles` 工具组。`loadVectorTiles` 可加载 MVT 的 `/{z}/{x}/{y}` 地址和矢量 3D Tiles；点击后用 `getSelectedTileFeature` 读取属性，再用 `updateLayerStyle` 的 `tileStyle.color`、`tileStyle.lineWidth` 修改图层。修改后通过 `getLayerSchema.metadata.tileStyle` 读回实际表达式。
 
-矢量渲染与贴地需要 CesiumJS 1.145，贴地线和面的拾取使用有查询预算的实验适配器。MCP Apps 面板加载外部数据时须用 `CESIUM_MAP_DATA_ORIGINS` 配置准确来源。详见[矢量瓦片指南](https://gaopengbin.github.io/cesium-mcp/zh-CN/guide/vector-tiles)。
+矢量渲染与贴地需要 CesiumJS 1.147，贴地线和面的拾取使用有查询预算的实验适配器。MCP Apps 面板加载外部数据时须用 `CESIUM_MAP_DATA_ORIGINS` 配置准确来源。详见[矢量瓦片指南](https://gaopengbin.github.io/cesium-mcp/zh-CN/guide/vector-tiles)。
 
 ## 安装与运行
 
@@ -379,6 +379,7 @@ curl -X POST http://localhost:9100/push \
 
 | 通道 | Runtime | Bridge | MCP 协议 | Cesium |
 |------|---------|--------|----------|--------|
+| 开发分支 | 下一版本，尚未发布 | 对应开发分支 | `2025-11-25` + `2026-07-28` | `~1.147.0` |
 | `latest` | 当前稳定版 | 对应稳定版 | `2025-11-25` + `2026-07-28` | `~1.145.0` |
 
 稳定版通过同一个 stdio/HTTP 入口服务两代协议，使用

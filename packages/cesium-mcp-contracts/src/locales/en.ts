@@ -112,7 +112,42 @@ const bimParameters = {
   'maxElements': 'Maximum complete visual filter result size; never silently truncate'
 }
 
+const geometryParameters = {
+  layerId: 'Managed layer ID; omit for globe clipping',
+  nodeKey: 'Opaque tree node key; omit for roots',
+  elementId: 'Exact decimal BIM element ID string',
+  position: 'Geographic [longitude, latitude, optional height] test point',
+  snapAperture: 'Server snap aperture in CSS pixels',
+  collection: 'Owned GeoJSON points, polylines or polygons collection',
+  positions: 'Replacement geographic vertices; topology and vertex count must match',
+  primitiveOffset: 'First primitive index in collection',
+  primitiveCount: 'Number of consecutive primitives',
+  blendOption: 'opaque or translucent',
+  vectorBlendOption: 'Vector tiles opaque or translucent mode',
+  cacheBytes: 'Tileset cache budget in bytes',
+  maximumCacheOverflowBytes: 'Additional cache overflow budget in bytes',
+  maximumScreenSpaceError: 'Maximum screen space error',
+  pointCloudBackFaceCulling: 'Cull back-facing points',
+  dynamicEnvironmentMapEnabled: 'Enable dynamic environment lighting',
+  x: 'Canvas CSS pixel X',
+  y: 'Canvas CSS pixel Y',
+  width: 'Snap aperture width in CSS pixels',
+  points: 'Two canvas CSS pixel [x,y] positions',
+  polygons: 'Clipping outer rings and optional hole rings',
+  clear: 'Remove clipping from the target',
+  inverse: 'Invert clipping region',
+  enabled: 'Enable clipping',
+}
+
 export const paramDescriptions: Record<string, Record<string, string>> = {
+  getBimTree: geometryParameters,
+  getBimElementParents: geometryParameters,
+  snapBimElement: geometryParameters,
+  updateVectorCollection: geometryParameters,
+  setTilesetOptions: geometryParameters,
+  snapToGeometry: geometryParameters,
+  measureSnappedDistance: geometryParameters,
+  setClippingPolygons: geometryParameters,
   queryBimElements: bimParameters,
   getBimElement: bimParameters,
   aggregateBimElements: bimParameters,
@@ -231,6 +266,9 @@ export const paramDescriptions: Record<string, Record<string, string>> = {
     flyTo: 'Automatically frame the layer (default true); use false when controlling the camera separately',
   },
   addGeoJsonPrimitive: {
+    flyTo: 'Fly to the loaded geometry (default true)',
+    blendOption: 'Native opaque/translucent buffer blending mode',
+    pickMetadata: 'Additional pick metadata set before first render; locked afterwards',
     id: 'Layer ID (auto-generated if omitted)',
     name: 'Layer display name',
     data: 'GeoJSON object (mutually exclusive with url)',

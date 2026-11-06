@@ -1,6 +1,6 @@
 # BIM elements and quantity statistics
 
-The optional `bim` toolset connects the official Cesium ion Asset Elements REST API to the current Viewer. It works with the existing CesiumJS 1.145 renderer; no upgrade to the experimental 1.147 wrapper is required.
+The optional `bim` toolset connects the official Cesium ion Asset Elements REST API to the current Viewer. The renderer baseline is CesiumJS 1.147. Query transport uses the same official REST routes, with bounded responses and cancellation; native IonAssetElementService response parity is checked locally.
 
 Enable `bim` using `enable_toolset`, or set `CESIUM_TOOLSETS=view,layer,tiles,bim,interaction`. The same contracts are available through Bridge and WebMCP (`toolsets: 'bim'` or `'all'`).
 
@@ -46,3 +46,7 @@ Click a model component, call `getSelectedTileFeature`, then pass `data.feature.
 Run `npm run test:bim` after building. It exercises real MCP HTTP/WebSocket and WebMCP calls against a local two-component 3D Tiles model, including pagination, source units, whole-model aggregation, rendered highlight/filter/restore, and click-to-element lookup. Fixtures are synthetic and use official REST response shapes; this is not evidence that a particular private cloud asset or token works.
 
 References: [ion service API](https://cesium.com/learn/cesiumjs/ref-doc/IonAssetElementService.html), [official REST implementation](https://github.com/CesiumGS/cesium/blob/1.147/packages/engine/Source/Scene/IonAssetElementService.js).
+
+## Model trees and precise snapping
+
+`getBimTree` reads roots or children by opaque nodeKey. `getBimElementParents` returns root-first lineage. `snapBimElement` uses native IonSnapService with lossless decimal-to-hex element ID conversion. It requires geolocated BIM database geometry with no additional modelMatrix/heightOffset. No hit returns snapped=false. Server refinement has local contract coverage, not live authorized-asset verification.

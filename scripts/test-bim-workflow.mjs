@@ -23,6 +23,7 @@ const wsPort = await freePort(), httpPort = await freePort()
 let runtime, browser, client, site, stdioClient
 try {
   const fixture = bimFixture()
+  const weak = bimFixture({ emissiveStrength: 1 }), strong = bimFixture({ emissiveStrength: 5 })
   site = createServer(async (req, res) => {
     const path = new URL(req.url, 'http://localhost').pathname
     res.setHeader('Access-Control-Allow-Origin', '*')
@@ -40,6 +41,8 @@ try {
     }
     if (path === '/tileset.json') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(fixture.tileset)); return }
     if (path === '/model.b3dm') { res.setHeader('Content-Type', 'application/octet-stream'); res.end(fixture.b3dm); return }
+    if (path === '/weak.json' || path === '/strong.json') { res.setHeader('Content-Type', 'application/json'); const doc = structuredClone(fixture.tileset); doc.root.content.uri = path === '/weak.json' ? 'weak.b3dm' : 'strong.b3dm'; res.end(JSON.stringify(doc)); return }
+    if (path === '/weak.b3dm' || path === '/strong.b3dm') { res.setHeader('Content-Type', 'application/octet-stream'); res.end(path === '/weak.b3dm' ? weak.b3dm : strong.b3dm); return }
     const vendor = join(root, 'node_modules/cesium/Build/Cesium')
     const file = path === '/bridge.js' ? join(root, 'packages/cesium-mcp-bridge/dist/cesium-mcp-bridge.browser.global.js') : path === '/webmcp.js' ? join(root, 'packages/cesium-mcp-webmcp/dist/cesium-mcp-webmcp.browser.global.js') : resolve(vendor, '.' + path.slice('/cesium'.length))
     if (!['/bridge.js', '/webmcp.js'].includes(path) && (!path.startsWith('/cesium/') || !file.startsWith(vendor + sep))) { res.writeHead(404); res.end(); return }
@@ -69,7 +72,22 @@ try {
       assert.equal(request.headers().authorization, 'Bearer synthetic-local-only')
       const filter = JSON.parse(url.searchParams.get('filter') ?? '{}')
       const selected = filter['IFC Class Name'] ? bimElements.filter(element => element.properties['IFC Class Name'].value === filter['IFC Class Name']) : bimElements
-      if (url.pathname.endsWith('/elements/aggregate')) {
+      if (url.pathname.endsWith('/tree/children')) {
+        data = { nodes: [{ key: 'model-key', label: 'QA model', hasChildren: true, kind: 'model', id: '1' }] }
+      } else if (url.pathname.endsWith('/tree/parents')) {
+        assert.equal(url.searchParams.get('elementId'), bimIds[0])
+        data = { path: [{ kind: 'model', id: '1' }, { kind: 'element', id: bimIds[0] }] }
+      } else if (url.pathname.endsWith('/ecef')) {
+        data = { ecefTransform: [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]] }
+      } else if (url.pathname.endsWith('/snap')) {
+        assert.ok(url.pathname.endsWith(`/elements/0x${BigInt(bimIds[0]).toString(16)}/snap`))
+        assert.equal(request.method(), 'POST')
+        const body = request.postDataJSON()
+        assert.equal(body.worldToView.length, 4)
+        const location = bimElements[0].location.center
+        assert.ok(Math.abs(body.testPoint.longitude - location.longitude) < .00001)
+        data = { heat: 1, geomType: 2, snapPoint: location, hitPoint: location }
+      } else if (url.pathname.endsWith('/elements/aggregate')) {
         assert.deepEqual(JSON.parse(url.searchParams.get('aggregations')), ['Quantity.Net Volume'])
         const values = selected.map(element => element.properties['Quantity.Net Volume'].value)
         data = { total: selected.length, aggregations: [{ key: 'Quantity.Net Volume', count: values.length, min: values.length ? Math.min(...values) : null, max: values.length ? Math.max(...values) : null, avg: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null, sum: values.reduce((a, b) => a + b, 0) }] }
@@ -81,6 +99,8 @@ try {
     await route.fulfill({ status: data ? 200 : 404, headers, contentType: 'application/json', body: JSON.stringify(data ?? {}) })
   })
   await page.goto(origin)
+  report.renderer = await page.evaluate(() => Cesium.VERSION)
+  assert.match(report.renderer, /^1\.147(?:\.0)?$/)
   await page.waitForFunction(() => window.ws?.readyState === 1)
   client = new Client({ name: 'bim-local-integration', version: '1.0.0' })
   await client.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${httpPort}/mcp`)))
@@ -98,6 +118,9 @@ try {
   const pageTwo = await call('queryBimElements', { layerId: 'qa-bim', top: 1, continuationToken: pageOne.continuationToken })
   assert.equal(pageTwo.items[0].id, bimIds[1])
   const detail = await call('getBimElement', { layerId: 'qa-bim', elementId: bimIds[0] })
+  assert.equal((await call('getBimTree', { layerId: 'qa-bim' })).nodes[0].key, 'model-key')
+  assert.equal((await call('getBimTree', { layerId: 'qa-bim', nodeKey: 'model-key' })).nodes[0].kind, 'model')
+  assert.equal((await call('getBimElementParents', { layerId: 'qa-bim', elementId: bimIds[0] })).path[1].id, bimIds[0])
   assert.equal(detail.properties['Quantity.Net Volume'].units, 'm³')
   const aggregate = await call('aggregateBimElements', { layerId: 'qa-bim', propertyKeys: ['Quantity.Net Volume'] })
   assert.equal(aggregate.total, 2)
@@ -134,6 +157,27 @@ try {
     return { x: p.x, y: p.y }
   }, bimElements[0].location.center)
   await page.mouse.click(point.x, point.y)
+  const snapped = await call('snapToGeometry', { ...point, width: 25 })
+  assert.equal(snapped.snapped, true)
+  const otherPoint = await page.evaluate(location => {
+    const p = Cesium.SceneTransforms.worldToWindowCoordinates(v.scene, Cesium.Cartesian3.fromDegrees(location.longitude, location.latitude, location.height))
+    return [p.x, p.y]
+  }, bimElements[1].location.center)
+  const measured = await call('measureSnappedDistance', { points: [[point.x, point.y], otherPoint] })
+  assert.equal(measured.unit, 'm')
+  assert.ok(measured.value > 40 && measured.value < 80)
+  const precise = await call('snapBimElement', { layerId: 'qa-bim', elementId: bimIds[0], position: [bimElements[0].location.center.longitude, bimElements[0].location.center.latitude, bimElements[0].location.center.height] })
+  assert.equal(precise.snapped, true)
+  await call('setTilesetOptions', { layerId: 'qa-bim', vectorBlendOption: 'opaque', cacheBytes: 1048576, maximumCacheOverflowBytes: 1048576, pointCloudBackFaceCulling: true, dynamicEnvironmentMapEnabled: true })
+  assert.equal(await page.evaluate(() => b.layerManager.getCesiumRefs('qa-bim').tileset.vectorBlendOption), 0)
+  await page.evaluate(() => {
+    window.visibleUnloads = 0
+    b.layerManager.getCesiumRefs('qa-bim').tileset.tileUnload.addEventListener(() => { window.visibleUnloads++ })
+  })
+  await call('setTilesetOptions', { layerId: 'qa-bim', cacheBytes: 0, maximumCacheOverflowBytes: 0 })
+  await page.waitForTimeout(500)
+  assert.equal(await page.evaluate(() => window.visibleUnloads), 0)
+  report.checks.push('Cesium 1.147: native scene snapping and 3D measurement, model tree/lineage, official IonSnapService HTTP contract, vector blend/cache/lighting options')
   const picked = await call('getSelectedTileFeature')
   assert.equal(picked.feature.properties.element, bimIds[0])
   assert.equal((await call('getBimElement', { layerId: picked.feature.layerId, elementId: picked.feature.properties.element })).id, bimIds[0])
@@ -150,7 +194,32 @@ try {
     return tools.find(tool => tool.name === 'aggregateBimElements').execute({ layerId: 'qa-bim', propertyKeys: ['Quantity.Net Volume'] })
   })
   assert.equal(web.data.aggregations[0].sum, 30)
+  const sdk = await page.evaluate(async () => {
+    const service = new Cesium.IonAssetElementService({ assetId: 42, resource: new Cesium.Resource({ url: 'https://api.cesium.com/v1/assets/42/', headers: { Authorization: 'Bearer synthetic-local-only' } }) })
+    const sum = await service.aggregate({ propertyKeys: ['Quantity.Net Volume'] })
+    const tree = await service.getElementTreeChildren()
+    return { sum: sum.aggregations[0].sum, treeKey: tree.nodes[0].key }
+  })
+  assert.deepEqual(sdk, { sum: 30, treeKey: 'model-key' })
   report.checks.push('Server-side filter → actual feature visibility, clear → original colors/visibility, and WebMCP aggregate parity')
+  await call('addGeoJsonPrimitive', { id: 'qa-buffers', flyTo: false, allowPicking: true, blendOption: 'opaque', pickMetadata: { tag: 'native-pickObject' }, data: { type: 'FeatureCollection', features: [{ type: 'Feature', properties: { name: 'QA batch line' }, geometry: { type: 'LineString', coordinates: [[116.4, 39.9, 100], [116.401, 39.901, 100]] } }] } })
+  const updated = await call('updateVectorCollection', { layerId: 'qa-buffers', collection: 'polylines', primitiveOffset: 0, primitiveCount: 1, positions: [[116.4, 39.9, 110], [116.401, 39.901, 110]], blendOption: 'translucent' })
+  assert.equal(updated.updatedPrimitives, 1)
+  const metadata = await page.evaluate(() => {
+    const primitive = b.layerManager.getCesiumRefs('qa-buffers').primitive
+    const pick = primitive.polylines.get(0, new Cesium.BufferPolyline()).pickObject
+    return b.layerManager.selectTileFeature(pick)
+  })
+  assert.equal(metadata.properties.tag, 'native-pickObject')
+  await call('removeLayer', { id: 'qa-buffers' })
+  const location = bimElements[0].location.center
+  const ring = [[location.longitude - .001, location.latitude - .001], [location.longitude + .001, location.latitude - .001], [location.longitude + .001, location.latitude + .001], [location.longitude - .001, location.latitude + .001]]
+  await call('setClippingPolygons', { layerId: 'qa-bim', polygons: [{ positions: ring, holes: [ring.map(([x, y]) => [location.longitude + (x - location.longitude) / 100, location.latitude + (y - location.latitude) / 100])] }] })
+  assert.equal(await page.evaluate(() => b.layerManager.getCesiumRefs('qa-bim').tileset.clippingPolygons.length), 1)
+  await page.waitForTimeout(150)
+  await page.screenshot({ path: join(output, 'clipping.png') })
+  await call('setClippingPolygons', { layerId: 'qa-bim', clear: true })
+  report.checks.push('Native owned vector setPositions and pre-render pickObject metadata, real polygon clipping with holes, clear clipping')
   const stdioWsPort = await freePort()
   stdioClient = new Client({ name: 'bim-stdio-discovery', version: '1.0.0' })
   const transport = new StdioClientTransport({ command: process.execPath, args: [join(root, 'packages/cesium-mcp-runtime/dist/cli.js')], stderr: 'pipe', env: { ...process.env, CESIUM_TELEMETRY_DISABLED: '1', CESIUM_ION_TOKEN: '', CESIUM_WS_PORT: String(stdioWsPort), CESIUM_TOOLSETS: 'view,entity,layer,interaction' } })
@@ -169,6 +238,24 @@ try {
   const stdioData = stdioResult.structuredContent ?? JSON.parse(stdioResult.content.find(item => item.type === 'text').text)
   assert.equal(stdioData.data.items[0].id, bimIds[0])
   report.checks.push('MCP stdio: optional BIM toolset discovery, enable_toolset, browser routing and real query')
+  await call('setLayerVisibility', { id: 'qa-bim', visible: false })
+  await page.evaluate(() => { v.scene.highDynamicRange = false })
+  const reds = []
+  for (const name of ['weak', 'strong']) {
+    await call('load3dTiles', { id: 'qa-emissive', url: `${origin}/${name}.json`, flyTo: false })
+    await page.waitForFunction(() => b.layerManager.getCesiumRefs('qa-emissive').tileset.root.content?.featuresLength === 2)
+    await page.waitForTimeout(150)
+    const bytes = await page.screenshot({ path: join(output, `emissive-${name}.png`) })
+    reds.push(await page.evaluate(async ({ bytes, point }) => {
+      const image = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/png' }))
+      const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height
+      const context = canvas.getContext('2d'); context.drawImage(image, 0, 0)
+      return context.getImageData(Math.round(point.x), Math.round(point.y), 1, 1).data[0]
+    }, { bytes: [...bytes], point }))
+  }
+  assert.ok(reds[1] > reds[0] + 20, `Emissive strength should brighten rendered pixels: ${reds}`)
+  report.emissiveRedChannel = { weak: reds[0], strong: reds[1] }
+  report.checks.push('KHR_materials_emissive_strength: actual rendered pixel brightness increases from strength 1 to 5')
   assert.deepEqual(errors, [])
   report.success = true
 } catch (error) { report.error = error.stack; process.exitCode = 1 }

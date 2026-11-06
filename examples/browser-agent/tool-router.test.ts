@@ -73,7 +73,7 @@ describe('browser-agent tool router', () => {
     expect(router.resolveToolSelection('你好', 'auto', contracts).tools).toHaveLength(15)
     expect(router.resolveToolSelection('', 'core', contracts).tools).toHaveLength(15)
     expect(router.resolveToolSelection('', 'toolset:tiles', contracts).tools).toHaveLength(8)
-    expect(router.resolveToolSelection('', 'all', contracts).tools).toHaveLength(70)
+    expect(router.resolveToolSelection('', 'all', contracts).tools).toHaveLength(78)
   })
 
   it('rewrites only allowlisted HTTP assets through the same-origin proxy', () => {

@@ -23,6 +23,9 @@ describe('CESIUM_API_DOCS', () => {
     expect(names).toContain('Viewer')
     expect(names).toContain('Entity')
   })
+  it.each(['IonAssetElementService', 'ElementService', 'IonSnapService', 'Scene.snap', 'BufferPrimitiveCollection.setPositions', 'BufferPrimitive.pickObject', 'Cesium3DTileset.vectorBlendOption'])('documents the 1.147 capability %s', (name) => {
+    expect(CESIUM_API_DOCS.find(doc => doc.name === name)?.description).toBeTruthy()
+  })
 })
 
 // ==================== Code Snippets Data Integrity ====================

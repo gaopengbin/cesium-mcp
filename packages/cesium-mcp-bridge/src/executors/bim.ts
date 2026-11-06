@@ -1,8 +1,14 @@
 import type { BridgeExecutor } from '../bridge.js'
-import type { QueryBimElementsParams, GetBimElementParams, AggregateBimElementsParams, FocusBimElementsParams, SelectBimElementsParams, FilterBimElementsParams, BimLayerParams } from '../types.js'
-import { queryBimElements, getBimElement, aggregateBimElements, focusBimElements, selectBimElements, filterBimElements, clearBimSelection } from '../commands/bim.js'
+import type { QueryBimElementsParams, GetBimElementParams, GetBimTreeParams, AggregateBimElementsParams, FocusBimElementsParams, SelectBimElementsParams, FilterBimElementsParams, BimLayerParams, SnapBimElementParams } from '../types.js'
+import { queryBimElements, getBimElement, getBimTree, getBimElementParents, aggregateBimElements, focusBimElements, selectBimElements, filterBimElements, clearBimSelection, snapBimElement } from '../commands/bim.js'
 
 export const bimExecutors = {
+  async getBimTree(params, bridge, context = {}) {
+    return { success: true, data: await getBimTree(bridge.layerManager, params as unknown as GetBimTreeParams, context.signal) }
+  },
+  async getBimElementParents(params, bridge, context = {}) {
+    return { success: true, data: await getBimElementParents(bridge.layerManager, params as unknown as GetBimElementParams, context.signal) }
+  },
   async queryBimElements(params, bridge, context = {}) {
     return { success: true, data: await queryBimElements(bridge.layerManager, params as unknown as QueryBimElementsParams, context.signal) }
   },
@@ -23,5 +29,8 @@ export const bimExecutors = {
   },
   clearBimSelection(params, bridge) {
     return { success: true, data: clearBimSelection(bridge.viewer, bridge.layerManager, params as unknown as BimLayerParams) }
+  },
+  async snapBimElement(params, bridge, context = {}) {
+    return { success: true, data: await snapBimElement(bridge.viewer, bridge.layerManager, params as unknown as SnapBimElementParams, context.signal) }
   },
 } satisfies Readonly<Record<string, BridgeExecutor>>

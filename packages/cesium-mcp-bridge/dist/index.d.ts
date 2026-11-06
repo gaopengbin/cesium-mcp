@@ -122,6 +122,9 @@ interface AddGeoJsonPrimitiveParams {
     data?: any;
     url?: string;
     allowPicking?: boolean;
+    blendOption?: 'opaque' | 'translucent';
+    pickMetadata?: Record<string, unknown>;
+    flyTo?: boolean;
     show?: boolean;
 }
 interface AddHeatmapParams {
@@ -188,6 +191,9 @@ interface BimElementPage {
 interface GetBimElementParams extends BimLayerParams {
     elementId: string;
 }
+interface GetBimTreeParams extends BimLayerParams {
+    nodeKey?: string;
+}
 interface AggregateBimElementsParams extends BimLayerParams {
     propertyKeys: string[];
     filter?: QueryBimElementsParams['filter'];
@@ -220,6 +226,47 @@ interface FilterBimElementsParams extends BimLayerParams {
 }
 interface FocusBimElementsParams extends BimElementIdsParams {
     duration?: number;
+}
+type GeographicPosition = [number, number, number?];
+interface UpdateVectorCollectionParams {
+    layerId: string;
+    collection: 'points' | 'polylines' | 'polygons';
+    primitiveOffset?: number;
+    primitiveCount?: number;
+    positions?: GeographicPosition[];
+    blendOption?: 'opaque' | 'translucent';
+}
+interface SetTilesetOptionsParams {
+    layerId: string;
+    cacheBytes?: number;
+    maximumCacheOverflowBytes?: number;
+    maximumScreenSpaceError?: number;
+    vectorBlendOption?: 'opaque' | 'translucent';
+    pointCloudBackFaceCulling?: boolean;
+    dynamicEnvironmentMapEnabled?: boolean;
+}
+interface SnapToGeometryParams {
+    x: number;
+    y: number;
+    width?: number;
+}
+interface MeasureSnappedDistanceParams {
+    points: [[number, number], [number, number]];
+    width?: number;
+}
+interface SetClippingPolygonsParams {
+    layerId?: string;
+    polygons?: {
+        positions: GeographicPosition[];
+        holes?: GeographicPosition[][];
+    }[];
+    inverse?: boolean;
+    enabled?: boolean;
+    clear?: boolean;
+}
+interface SnapBimElementParams extends GetBimElementParams {
+    position: GeographicPosition;
+    snapAperture?: number;
 }
 interface LoadVectorTilesParams extends Load3dTilesParams {
     source: 'tileset' | 'mvt';
@@ -951,6 +998,36 @@ declare class CesiumBridge {
 
 declare function queryBimElements(manager: LayerManager, params: QueryBimElementsParams, signal?: AbortSignal): Promise<BimElementPage>;
 declare function getBimElement(manager: LayerManager, params: GetBimElementParams, signal?: AbortSignal): Promise<BimElement>;
+declare function getBimTree(manager: LayerManager, params: GetBimTreeParams, signal?: AbortSignal): Promise<{
+    layerId: string;
+    nodes: {
+        id?: string | undefined;
+        key: string;
+        label: string;
+        hasChildren: boolean;
+        kind: unknown;
+    }[];
+}>;
+declare function getBimElementParents(manager: LayerManager, params: GetBimElementParams, signal?: AbortSignal): Promise<{
+    layerId: string;
+    path: {
+        kind: unknown;
+        id: string;
+    }[];
+}>;
+declare function snapBimElement(viewer: Cesium.Viewer, manager: LayerManager, params: SnapBimElementParams, signal?: AbortSignal): Promise<{
+    layerId: string;
+    elementId: string;
+    snapped: boolean;
+    position: GeographicPosition;
+    geometryType: Cesium.IonSnapGeometryType | undefined;
+} | {
+    layerId: string;
+    elementId: string;
+    snapped: boolean;
+    position?: undefined;
+    geometryType?: undefined;
+}>;
 declare function aggregateBimElements(manager: LayerManager, params: AggregateBimElementsParams, signal?: AbortSignal): Promise<BimAggregationResult>;
 declare function clearBimSelection(viewer: Cesium.Viewer, manager: LayerManager, params: BimLayerParams): {
     layerId: string;
@@ -978,4 +1055,40 @@ declare function focusBimElements(viewer: Cesium.Viewer, manager: LayerManager, 
     radius: number;
 }>;
 
-export { type AddBillboardParams, type AddBoxParams, type AddCorridorParams, type AddCylinderParams, type AddEllipseParams, type AddGaussianSplatParams, type AddGeoJsonLayerParams, type AddGeoJsonPrimitiveParams, type AddHeatmapParams, type AddLabelParams, type AddMarkerParams, type AddModelParams, type AddPolygonParams, type AddPolylineParams, type AddRectangleParams, type AddWallParams, type AggregateBimElementsParams, type AnimationInfo, type AnimationWaypoint, type BatchAddEntitiesParams, type BatchEntityDef, type BimAggregationResult, type BimElement, type BimElementIdsParams, type BimElementPage, type BimLayerParams, type BridgeCommand, type BridgeEvent, type BridgeEventHandler, type BridgeEventType, type BridgeExecutionContext, type BridgeExecutor, type BridgeResult, type CategoryStyle, CesiumBridge, type CesiumBridgeOptions, type ChoroplethStyle, type ClearAllResult, type ColorInput, type ControlAnimationParams, type ControlClockParams, type CreateAnimationParams, type EntityPropertiesResult, type ExportSceneResult, type FilterBimElementsParams, type FlyToParams, type FocusBimElementsParams, type GetBimElementParams, type GetEntityPropertiesParams, type HighlightParams, type ImageryLayerStyle, type LayerInfo, LayerManager, type LayerStyle, type Load3dTilesParams, type LoadCzmlParams, type LoadImageryServiceParams, type LoadKmlParams, type LoadTerrainParams, type LoadVectorTilesParams, type LoadViewpointParams, type LookAtTransformParams, type MaterialInput, type MaterialSpec, type MeasureParams, type MeasureResult, type OrientationInput, type PlayTrajectoryParams, type PositionDegrees, type PrimitiveLayerStyle, type QueryBimElementsParams, type QueryEntitiesParams, type QueryEntityResult, type RemoveAnimationParams, type RemoveEntityParams, type SaveViewpointParams, type ScreenshotResult, type SelectBimElementsParams, type SetBasemapParams, type SetCameraOptionsParams, type SetEdgeDisplayModeParams, type SetEdgeDisplayModeResult, type SetGlobeLightingParams, type SetPostProcessParams, type SetSceneOptionsParams, type SetViewParams, type StartOrbitParams, type TileFeatureResult, type TrackEntityParams, type UpdateAnimationPathParams, type UpdateEntityParams, type UpdateLayerStyleParams, type ViewState, type ZoomToExtentParams, aggregateBimElements, clearBimSelection, filterBimElements, focusBimElements, getBimElement, queryBimElements, selectBimElements };
+declare function updateVectorCollection(viewer: Cesium.Viewer, manager: LayerManager, params: UpdateVectorCollectionParams): {
+    layerId: string;
+    collection: "points" | "polylines" | "polygons";
+    updatedPrimitives: number;
+    primitiveOffset: number;
+    blendOption: "opaque" | "translucent";
+};
+declare function setTilesetOptions(viewer: Cesium.Viewer, manager: LayerManager, params: SetTilesetOptionsParams): {
+    layerId: string;
+    cacheBytes: number;
+    maximumCacheOverflowBytes: number;
+    maximumScreenSpaceError: number;
+    vectorBlendOption: string;
+};
+declare function snapToGeometry(viewer: Cesium.Viewer, params: SnapToGeometryParams): {
+    snapped: boolean;
+} | {
+    surfacePosition?: GeographicPosition | undefined;
+    snapped: boolean;
+    isEdge: boolean;
+    position: GeographicPosition;
+};
+declare function measureSnappedDistance(viewer: Cesium.Viewer, params: MeasureSnappedDistanceParams): {
+    value: number;
+    unit: string;
+    method: string;
+    positions: GeographicPosition[];
+    snapped: boolean;
+};
+declare function setClippingPolygons(viewer: Cesium.Viewer, manager: LayerManager, params: SetClippingPolygonsParams): {
+    target: string;
+    polygons: number;
+    cleared: boolean;
+    inverse: boolean;
+};
+
+export { type AddBillboardParams, type AddBoxParams, type AddCorridorParams, type AddCylinderParams, type AddEllipseParams, type AddGaussianSplatParams, type AddGeoJsonLayerParams, type AddGeoJsonPrimitiveParams, type AddHeatmapParams, type AddLabelParams, type AddMarkerParams, type AddModelParams, type AddPolygonParams, type AddPolylineParams, type AddRectangleParams, type AddWallParams, type AggregateBimElementsParams, type AnimationInfo, type AnimationWaypoint, type BatchAddEntitiesParams, type BatchEntityDef, type BimAggregationResult, type BimElement, type BimElementIdsParams, type BimElementPage, type BimLayerParams, type BridgeCommand, type BridgeEvent, type BridgeEventHandler, type BridgeEventType, type BridgeExecutionContext, type BridgeExecutor, type BridgeResult, type CategoryStyle, CesiumBridge, type CesiumBridgeOptions, type ChoroplethStyle, type ClearAllResult, type ColorInput, type ControlAnimationParams, type ControlClockParams, type CreateAnimationParams, type EntityPropertiesResult, type ExportSceneResult, type FilterBimElementsParams, type FlyToParams, type FocusBimElementsParams, type GeographicPosition, type GetBimElementParams, type GetBimTreeParams, type GetEntityPropertiesParams, type HighlightParams, type ImageryLayerStyle, type LayerInfo, LayerManager, type LayerStyle, type Load3dTilesParams, type LoadCzmlParams, type LoadImageryServiceParams, type LoadKmlParams, type LoadTerrainParams, type LoadVectorTilesParams, type LoadViewpointParams, type LookAtTransformParams, type MaterialInput, type MaterialSpec, type MeasureParams, type MeasureResult, type MeasureSnappedDistanceParams, type OrientationInput, type PlayTrajectoryParams, type PositionDegrees, type PrimitiveLayerStyle, type QueryBimElementsParams, type QueryEntitiesParams, type QueryEntityResult, type RemoveAnimationParams, type RemoveEntityParams, type SaveViewpointParams, type ScreenshotResult, type SelectBimElementsParams, type SetBasemapParams, type SetCameraOptionsParams, type SetClippingPolygonsParams, type SetEdgeDisplayModeParams, type SetEdgeDisplayModeResult, type SetGlobeLightingParams, type SetPostProcessParams, type SetSceneOptionsParams, type SetTilesetOptionsParams, type SetViewParams, type SnapBimElementParams, type SnapToGeometryParams, type StartOrbitParams, type TileFeatureResult, type TrackEntityParams, type UpdateAnimationPathParams, type UpdateEntityParams, type UpdateLayerStyleParams, type UpdateVectorCollectionParams, type ViewState, type ZoomToExtentParams, aggregateBimElements, clearBimSelection, filterBimElements, focusBimElements, getBimElement, getBimElementParents, getBimTree, measureSnappedDistance, queryBimElements, selectBimElements, setClippingPolygons, setTilesetOptions, snapBimElement, snapToGeometry, updateVectorCollection };

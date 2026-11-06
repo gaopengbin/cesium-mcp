@@ -1,6 +1,6 @@
 import * as Cesium from 'cesium'
 
-/** Cesium 1.145's draping bakes vectors into surface colour, outside Scene.pick.
+/** Cesium 1.147's draping bakes vectors into surface colour, outside Scene.pick.
  * Keep the experimental content adapter here, pinned and covered by browser tests.
  */
 export function* loadedVectorPrimitives(content: any): Generator<{ collection: any; primitive: any; feature: any }> {
