@@ -1,6 +1,6 @@
 {
   "name": "cesium-mcp-telemetry",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Disclosed, disableable usage counters for the Cesium MCP packages",
   "type": "module",
   "main": "./dist/index.js",
@@ -32,7 +32,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "cesium-mcp-contracts": "^0.8.0"
+    "cesium-mcp-contracts": "^0.9.0"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

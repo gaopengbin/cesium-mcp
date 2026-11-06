@@ -1,5 +1,16 @@
 # cesium-mcp-dev
 
+## 2.0.0
+
+### Major Changes
+
+- [#61](https://github.com/gaopengbin/cesium-mcp/pull/61) [`96e04ab`](https://github.com/gaopengbin/cesium-mcp/commit/96e04ab54b56bf969f9b5e4004e16648b0d63712) Thanks [@gaopengbin](https://github.com/gaopengbin)! - Raise the tested renderer and peer dependency baseline to CesiumJS ~1.147.0 (Node >=22.17.0), pin engine/core/gltf/widgets, and update built-in Viewer and example URLs. Add BIM model tree/lineage and native precise snap integration, owned vector batch setPositions and pre-render pickObject metadata, native vector blending/cache/point-cloud/environment options, GPU snapping/measurement and clipping polygons with holes. Adopt the release's emissive materials and rendering/cache fixes. Older Cesium peer ranges are intentionally removed; upgrade before using this release. Local fixtures verify SDK parity, rendered behavior, river draping and MCP/WebMCP compatibility; private ion asset validation remains separate.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - cesium-mcp-telemetry@0.1.2
+
 ## 1.148.0
 
 ### Minor Changes
